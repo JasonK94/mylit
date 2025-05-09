@@ -1,0 +1,4970 @@
+---
+title: "myFunctions"
+output: html_document
+date: "2024-07-16"
+---
+241128
+1. generate_sample_values 일반화
+
+
+# 퇴장
+```{r}
+while (TRUE) {
+  # result <- 1 + 1
+  # print(result)
+  print(format(Sys.time(),"%y-%m-%d-%H-%M"))
+  Sys.sleep(100)  # 100초 대기
+}
+```
+
+# necessary libaries
+```{r}
+library(dplyr)
+library(Seurat)
+
+library(patchwork)
+library(SoupX)
+library(tidyverse) # includes ggplot2, for data visualisation. dplyr, for data manipulation.
+library(RColorBrewer) # for a colourful plot
+library(ggrepel)
+library(ggplot2)
+library(pheatmap)
+
+library(clustree)
+library(scDblFinder)
+library(VennDiagram) #Venn diagram
+library(grid)
+
+# library(randomForest)
+# library(entropy)
+
+#이 밑은 cmb, cml 위해 필요한 것으로 기억
+library(rstatix)
+library(ggpubr)
+library(broom)
+library(gtools)
+
+library(gt) #for table transformation
+library(glue)
+library(stringr)
+
+library(vcd) #for cramer's V test
+
+library(reshape2) #myhm, melt
+library(boot)
+library(mclust)
+```
+
+
+# QC, mad outlier, pipeline, soupx_
+## QC
+```{r}
+# QC
+QC1=function(sobj,nCount=800,nFeature=500,pt.mt=10){
+  sobj$percent.mt=PercentageFeatureSet(sobj,pattern='^MT-')
+  sobj=subset(sobj,subset=nCount_RNA>nCount & nFeature_RNA>nFeature & percent.mt<pt.mt)
+  return(sobj)
+}
+
+#Mean Absolute Deviation outlier filtering
+#https://github.com/mousepixels/sanbomics_scripts/blob/main/soupX/soupX_R_tutorial.Rmd
+mad_outlier <- function(sobj, metric, nmads){
+  M <- sobj@meta.data[[metric]]
+  median_M <- median(M, na.rm = TRUE)
+  mad_M <- mad(M, na.rm = TRUE)
+  outlier <- (M < (median_M - nmads * mad_M)) | (M > (median_M + nmads * mad_M))
+  return(outlier)
+}
+
+QC2=function(sobj){
+  #add QC metrics
+  sobj$log1p_total_counts <- log1p(sobj@meta.data$nCount_RNA)
+  sobj$log1p_n_genes_by_counts <- log1p(sobj@meta.data$nFeature_RNA)
+  
+  #find outliers and subset
+  bool_vector <- !mad_outlier(sobj, 'log1p_total_counts', 5) & !mad_outlier(sobj, 'log1p_n_genes_by_counts', 5) & !mad_outlier(sobj, 'percent.mt', 3)
+  sobj <- subset(sobj, cells = which(bool_vector))
+  
+  return(sobj)
+}
+```
+
+## pipe
+```{r}
+
+# Seurat pipeline
+pipe <- function(sobj, np=50, vb=TRUE, nf=2000, sm='vst', rs=0.5, dim=30){
+
+  sobj <- NormalizeData(sobj, verbose = vb)
+  sobj <- FindVariableFeatures(object = sobj, nfeatures = nf, verbose = vb, selection.method = sm)
+  sobj <- ScaleData(sobj, verbose = vb)
+  #Remember! ScaleData adjust mean and variance of each gene as 0 and 1, then remove variance outliers, so afterall mean and variance could be not 0 and 1
+  sobj <- RunPCA(sobj, npcs = np, verbose = vb,reduction.name="pca") #"pca" -> pca_name 
+  sobj <- FindNeighbors(sobj, verbose = vb,reduction="pca") #"pca"->pca_name, graph.name=nn_name
+  sobj <- FindClusters(sobj, resolution = rs, verbose = vb)
+
+  return(sobj)
+}
+```
+
+## SoupX
+```{r}
+# SoupX pipeline
+soupx=function(sobj,raw){
+  # making 
+  sc=SoupChannel(raw,sobj@assays$RNA$counts)
+  print("SoupChannel Done")
+  
+  sc=setClusters(sc,sobj$seurat_clusters)
+  print("setCluster Done")
+  
+  sc=autoEstCont(sc)
+  print("autoEstCont Done")
+  
+  out=adjustCounts(sc)
+  print("adjustCounts Done")
+  
+  out=CreateSeuratObject(counts=out)
+  sobj[["soup"]]=out
+  DefaultAssay(sobj) <- "soup"
+  return(sobj)
+}
+
+```
+
+#demulti
+
+## get best two probabilities and barcode mapping, doublet call, generate_sample_names by demultiplex
+```{r}
+get_best_two <- function(row) {
+  sorted_indices <- order(row, decreasing = TRUE)
+  best <- sorted_indices[1]
+  second_best <- sorted_indices[2]
+  return(c(best, second_best))
+}
+
+get_barcode_mapping = function(demux_data){
+  best_two_indices <- t(apply(demux_data[,-1], 1, get_best_two))
+  
+  # Get the column names (samples) and probabilities
+  best_samples <- names(demux_data)[-1][best_two_indices[,1]]
+  second_best_samples <- names(demux_data)[-1][best_two_indices[,2]]
+  best_probs <- apply(demux_data[,-1], 1, function(x) max(x))
+  second_best_probs <- apply(demux_data[,-1], 1, function(x) sort(x, decreasing = TRUE)[2])
+  
+  # Calculate the ratio of best to second-best probabilities
+  prob_ratio <- best_probs / second_best_probs
+  
+  # Create a data frame with barcode, best sample, best and second-best probabilities, and the ratio
+  barcode_mapping <- data.frame(
+    Barcode = demux_data$BARCODE,
+    Best_Sample = best_samples,
+    Best_Probability = best_probs,
+    Second_Best_Sample = second_best_samples,
+    Second_Best_Probability = second_best_probs,
+    Probability_Ratio = prob_ratio
+  )
+  return(barcode_mapping)
+}
+
+is_doublet <- function(sample) {
+  return(grepl("\\+", sample))
+}
+
+generate_sample_values <- function(start_num, end_num) {
+  singlets <- start_num : end_num
+  doublets <- combn(singlets, 2, FUN = function(x) paste(x, collapse = "+"))
+  return(c(as.character(singlets), doublets))
+}
+generate_sample_names=function(vector){
+  singlets=vector
+  doublets=combn(vector, 2, FUN=function(x) paste(x,collapse="+"))
+  return(c(singlets,doublets))
+}
+```
+
+
+## to plot doublets in one dimplot; can expand to plot two other metadata
+```{r}
+plot_doublets <- function(seurat_obj, sample_name) {
+  # Plot for demultiplexing doublets
+  p1 <- DimPlot(seurat_obj, 
+                reduction = "umap", 
+                group.by = "demulti_droplet", 
+                cols = c("demulti_singlet" = "gray", "demulti_doublet" = "red")) +
+    ggtitle(paste(sample_name, "- Demultiplex Doublets")) +
+    theme(plot.title = element_text(hjust = 0.5))
+
+  # Plot for scDblFinder doublets
+  p2 <- DimPlot(seurat_obj, 
+                reduction = "umap", 
+                group.by = "droplet", 
+                cols = c("singlet" = "gray", "doublet" = "blue")) +
+    ggtitle(paste(sample_name, "- scDblFinder Doublets")) +
+    theme(plot.title = element_text(hjust = 0.5))
+
+  # Combine plots
+  combined_plot <- p1 + p2
+
+  return(combined_plot)
+}
+```
+
+# cells aggregation
+## Extract Top Quantile Cells for Specific Features
+```{r}
+ext=function(sobj,feature,cutoff=0.95){
+  df=FetchData(sobj,vars=feature)
+  vec=df[,feature]
+  quantile_threshold=quantile(vec,cutoff)
+  
+  top_quantile_cells= vec>quantile_threshold
+  top_names=rownames(df)[top_quantile_cells]
+  
+  seurat_top=subset(sobj,cells=top_names)
+  return(seurat_top)
+}
+
+```
+
+```{r}
+find_corr=function(sobj,feature1,number_feature,corr_cutoff){
+  #number_feature만큼 임의로 feature를 뽑아서, feature 1과의 correlation coefficient중 corr_cutoff보다 큰 gene들을 구한다.
+  feature_data=FetchData(sobj,vars=feature1)
+  
+  #feature sampling
+  subset_feature=sample(rownames(sobj),number_feature)
+  
+  # feature 별 expression 값 구하기.
+  subset_sobj=FetchData(sobj,vars=subset_feature)
+  
+  # correlationship 구하기
+  corr=sapply(subset_feature,function(feature2){
+    cor(feature_data[[feature1]],subset_sobj[[feature2]],use="complete.obs",method="spearman")
+  })
+  #corr는 numeric vector를 반환한다. attr로 vector의 key(name)값을 얻어낼 수 있다.
+  
+  # cutoff filtering
+  high_corr_features=corr[corr>corr_cutoff]
+  # datafarme화
+  out=as.data.frame(high_corr_features)
+  # out의 $gene 변수에 gene 이름을 넣어준다. 안 그러면 coefficient 값만 있다.
+  out$gene=attr(high_corr_features,"names")
+  #na값 제거
+  out=drop_na(out)
+  return(out)
+}
+```
+
+# metadata join
+```{r}
+metadata_join=function(meta1,meta2,join_key){
+  meta1=meta1[,!duplicated(names(meta1))]
+  meta2=meta2[,!duplicated(names(meta2))]
+  cols_to_remove=setdiff(intersect(names(meta1),names(meta2)), join_key)
+  meta2=meta2%>%
+    select(-all_of(cols_to_remove))
+  meta=meta1 %>%
+  left_join(meta2,by=join_key)
+  return(meta)
+}
+
+
+```
+
+# Tables
+## Frequency Statistical Test
+```{r}
+#' Statistical Analysis for scRNA-seq Metadata
+#'
+#' This function performs comprehensive statistical analysis on scRNA-seq data
+#' comparing groups across different categorical variables.
+#'
+#' @param data A Seurat object or metadata dataframe
+#' @param grouping_var Character. Variable to group by (e.g., "patient")
+#' @param categorizing_var Character. Dependent variable (e.g., "seurat_clusters")
+#' @param comparative_var Character. Independent variable (e.g., "condition", "smoking_status")
+#' @param test_use Character vector. Statistical tests to use, options: "t", "u", or both c("t", "u")
+#' @param ... Additional arguments (not used)
+#'
+#' @return A data frame with statistical test results
+#' @export
+seurat_group_stats <- function(data, grouping_var, categorizing_var, 
+                               comparative_var, test_use = c("t", "u"), ...) {
+  
+  # Check input type and extract metadata if Seurat object
+  if (inherits(data, "Seurat")) {
+    meta_data <- data@meta.data
+  } else if (is.data.frame(data)) {
+    meta_data <- data
+  } else {
+    stop("Input must be a Seurat object or a data frame. Please check your input.")
+  }
+  
+  # Ensure variables exist in the metadata
+  required_vars <- c(grouping_var, categorizing_var, comparative_var)
+  missing_vars <- required_vars[!required_vars %in% colnames(meta_data)]
+  
+  if (length(missing_vars) > 0) {
+    stop(paste("The following variables are missing from the metadata:",
+               paste(missing_vars, collapse = ", ")))
+  }
+  
+  # Initialize results dataframe
+  results <- data.frame()
+  
+  # Get unique categories from categorizing variable
+  categories <- unique(meta_data[[categorizing_var]])
+  
+  # Process each category
+  for (cat in categories) {
+    # Subset data for current category
+    cat_data <- meta_data[meta_data[[categorizing_var]] == cat, ]
+    
+    # Aggregate data by grouping variable and comparative variable
+    agg_data <- aggregate(rep(1, nrow(cat_data)), 
+                          by = list(cat_data[[grouping_var]], cat_data[[comparative_var]]), 
+                          FUN = sum)
+    colnames(agg_data) <- c("Group", "Comparative", "Count")
+    
+    # Create a wide format for statistical testing
+    wide_data <- reshape(agg_data, idvar = "Group", timevar = "Comparative", 
+                         direction = "wide")
+    
+    # Remove the "Count." prefix from column names
+    colnames(wide_data)[-1] <- sub("Count.", "", colnames(wide_data)[-1])
+    
+    # Get the comparative variable levels
+    comp_levels <- unique(agg_data$Comparative)
+    
+    # Skip if there's only one level in the comparative variable
+    if (length(comp_levels) < 2) {
+      next
+    }
+    
+    # Skip if there are too few samples
+    if (nrow(wide_data) < 3) {
+      cat_result <- data.frame(
+        Category = cat,
+        ComparativeVar = comparative_var,
+        NumGroups = length(comp_levels),
+        Levene_pval = NA,
+        ShapiroWilk_pval = NA,
+        Parametric_test = NA,
+        Parametric_metric = NA,
+        Parametric_pval = NA,
+        Parametric_adj_pval = NA,
+        Parametric_relevant = NA,
+        Nonparametric_test = NA,
+        Nonparametric_metric = NA,
+        Nonparametric_pval = NA,
+        Nonparametric_adj_pval = NA
+      )
+      results <- rbind(results, cat_result)
+      next
+    }
+    
+    # Prepare data for tests
+    test_data <- list()
+    for (lvl in comp_levels) {
+      if (lvl %in% colnames(wide_data)) {
+        test_data[[as.character(lvl)]] <- wide_data[[as.character(lvl)]]
+      }
+    }
+    
+    # Remove NAs
+    test_data <- lapply(test_data, function(x) x[!is.na(x)])
+    
+    # Check if any group has too few samples
+    if (any(sapply(test_data, length) < 3)) {
+      cat_result <- data.frame(
+        Category = cat,
+        ComparativeVar = comparative_var,
+        NumGroups = length(comp_levels),
+        Levene_pval = NA,
+        ShapiroWilk_pval = NA,
+        Parametric_test = NA,
+        Parametric_metric = NA,
+        Parametric_pval = NA,
+        Parametric_adj_pval = NA,
+        Parametric_relevant = NA,
+        Nonparametric_test = NA,
+        Nonparametric_metric = NA,
+        Nonparametric_pval = NA,
+        Nonparametric_adj_pval = NA
+      )
+      results <- rbind(results, cat_result)
+      next
+    }
+    
+    # Perform Levene test for homogeneity of variances
+    levene_result <- car::leveneTest(unlist(test_data) ~ rep(names(test_data), sapply(test_data, length)))
+    levene_pval <- levene_result[1, "Pr(>F)"]
+    
+    # Perform Shapiro-Wilk test for normality on residuals
+    residuals <- unlist(lapply(names(test_data), function(grp) {
+      test_data[[grp]] - mean(test_data[[grp]])
+    }))
+    shapiro_result <- shapiro.test(residuals)
+    shapiro_pval <- shapiro_result$p.value
+    
+    # Determine appropriate tests
+    is_normal <- shapiro_pval > 0.05
+    equal_var <- levene_pval > 0.05
+    
+    # Initialize parametric test results
+    param_test <- "None"
+    param_metric <- NA
+    param_pval <- NA
+    param_relevant <- FALSE
+    
+    # Parametric tests (if requested)
+    if ("t" %in% test_use) {
+      # Determine appropriate parametric test
+      if (length(comp_levels) == 2) {
+        # Two groups: t-test
+        if (is_normal) {
+          if (equal_var) {
+            # Equal variances: Student's t-test
+            t_test <- t.test(test_data[[1]], test_data[[2]], var.equal = TRUE)
+            param_test <- "Student's t-test"
+          } else {
+            # Unequal variances: Welch's t-test
+            t_test <- t.test(test_data[[1]], test_data[[2]], var.equal = FALSE)
+            param_test <- "Welch's t-test"
+          }
+          param_metric <- t_test$statistic
+          param_pval <- t_test$p.value
+          param_relevant <- TRUE
+        } else {
+          param_test <- "t-test not appropriate (non-normal data)"
+        }
+      } else {
+        # More than two groups: ANOVA or Welch's ANOVA
+        if (is_normal) {
+          if (equal_var) {
+            # Equal variances: standard ANOVA
+            anova_model <- aov(unlist(test_data) ~ rep(names(test_data), sapply(test_data, length)))
+            anova_result <- summary(anova_model)[[1]]
+            param_test <- "ANOVA"
+            param_metric <- anova_result$`F value`[1]
+            param_pval <- anova_result$`Pr(>F)`[1]
+            param_relevant <- TRUE
+          } else {
+            # Unequal variances: Welch's ANOVA
+            welch_result <- oneway.test(unlist(test_data) ~ rep(names(test_data), sapply(test_data, length)), 
+                                        var.equal = FALSE)
+            param_test <- "Welch's ANOVA"
+            param_metric <- welch_result$statistic
+            param_pval <- welch_result$p.value
+            param_relevant <- TRUE
+          }
+        } else {
+          param_test <- "ANOVA not appropriate (non-normal data)"
+        }
+      }
+    }
+    
+    # Initialize non-parametric test results
+    nonparam_test <- "None"
+    nonparam_metric <- NA
+    nonparam_pval <- NA
+    
+    # Non-parametric tests (if requested)
+    if ("u" %in% test_use) {
+      if (length(comp_levels) == 2) {
+        # Two groups: Wilcoxon rank-sum test (Mann-Whitney U)
+        wilcox_result <- wilcox.test(test_data[[1]], test_data[[2]])
+        nonparam_test <- "Wilcoxon rank-sum (Mann-Whitney U)"
+        nonparam_metric <- wilcox_result$statistic
+        nonparam_pval <- wilcox_result$p.value
+      } else {
+        # More than two groups: Kruskal-Wallis test
+        kw_result <- kruskal.test(list = test_data)
+        nonparam_test <- "Kruskal-Wallis"
+        nonparam_metric <- kw_result$statistic
+        nonparam_pval <- kw_result$p.value
+      }
+    }
+    
+    # Store results for current category
+    cat_result <- data.frame(
+      Category = cat,
+      ComparativeVar = comparative_var,
+      NumGroups = length(comp_levels),
+      Levene_pval = levene_pval,
+      ShapiroWilk_pval = shapiro_pval,
+      Parametric_test = param_test,
+      Parametric_metric = param_metric,
+      Parametric_pval = param_pval,
+      Parametric_adj_pval = NA,  # Will adjust later
+      Parametric_relevant = param_relevant,
+      Nonparametric_test = nonparam_test,
+      Nonparametric_metric = nonparam_metric,
+      Nonparametric_pval = nonparam_pval,
+      Nonparametric_adj_pval = NA  # Will adjust later
+    )
+    
+    results <- rbind(results, cat_result)
+  }
+  
+  # Apply multiple testing correction if there are results
+  if (nrow(results) > 0) {
+    # Adjust p-values for parametric tests
+    results$Parametric_adj_pval <- p.adjust(results$Parametric_pval, method = "BH")
+    
+    # Adjust p-values for non-parametric tests
+    results$Nonparametric_adj_pval <- p.adjust(results$Nonparametric_pval, method = "BH")
+  }
+  
+  # Print results
+  print(results)
+  
+  # Return results
+  return(results)
+}
+```
+
+result=seurat_group_stats(integrated_data@meta.data,"Best_Sample_final","seurat_clusters","group3") 
+
+post_result=seurat_posthoc_analysis(integrated_data@meta.data,results=result, alpha=0.05)
+
+### post hoc analysis
+```{r}
+#' Post-hoc Analysis for scRNA-seq Statistical Tests
+#'
+#' This function performs post-hoc analysis based on results from seurat_group_stats.
+#'
+#' @param data A Seurat object or metadata dataframe
+#' @param results Results dataframe from seurat_group_stats function
+#' @param alpha Significance level (default: 0.05)
+#'
+#' @return A list of post-hoc test results
+#' @export
+seurat_posthoc_analysis <- function(data, results, alpha = 0.05) {
+  
+  # Check input type and extract metadata if Seurat object
+  if (inherits(data, "Seurat")) {
+    meta_data <- data@meta.data
+  } else if (is.data.frame(data)) {
+    meta_data <- data
+  } else {
+    stop("Input must be a Seurat object or a data frame. Please check your input.")
+  }
+  
+  # Initialize output list
+  posthoc_results <- list()
+  
+  # Iterate through significant results
+  for (i in 1:nrow(results)) {
+    # Only perform post-hoc if we have more than 2 groups and significant results
+    if (results$NumGroups[i] > 2) {
+      cat_name <- results$Category[i]
+      comp_var <- results$ComparativeVar[i]
+      
+      # Check if parametric test is significant and relevant
+      param_significant <- !is.na(results$Parametric_adj_pval[i]) && 
+                          results$Parametric_adj_pval[i] < alpha &&
+                          results$Parametric_relevant[i]
+      
+      # Check if non-parametric test is significant
+      nonparam_significant <- !is.na(results$Nonparametric_adj_pval[i]) && 
+                             results$Nonparametric_adj_pval[i] < alpha
+      
+      # Skip if neither test is significant
+      if (!param_significant && !nonparam_significant) {
+        next
+      }
+      
+      # Subset data for current category
+      cat_data <- meta_data[meta_data[[results$Category[i]]] == cat_name, ]
+      
+      # Aggregate data
+      agg_data <- aggregate(rep(1, nrow(cat_data)), 
+                           by = list(cat_data[[grouping_var]], cat_data[[comp_var]]), 
+                           FUN = sum)
+      colnames(agg_data) <- c("Group", "Comparative", "Count")
+      
+      # Create a wide format for statistical testing
+      wide_data <- reshape(agg_data, idvar = "Group", timevar = "Comparative", 
+                          direction = "wide")
+      
+      # Remove the "Count." prefix from column names
+      colnames(wide_data)[-1] <- sub("Count.", "", colnames(wide_data)[-1])
+      
+      # Get the comparative variable levels
+      comp_levels <- unique(agg_data$Comparative)
+      
+      # Prepare data for tests
+      test_data <- list()
+      for (lvl in comp_levels) {
+        if (lvl %in% colnames(wide_data)) {
+          test_data[[as.character(lvl)]] <- wide_data[[as.character(lvl)]]
+        }
+      }
+      
+      # Remove NAs
+      test_data <- lapply(test_data, function(x) x[!is.na(x)])
+      
+      # Perform post-hoc tests
+      if (param_significant) {
+        # Determine appropriate parametric post-hoc test
+        if (results$Parametric_test[i] == "ANOVA") {
+          # Tukey HSD for equal variances
+          anova_model <- aov(unlist(test_data) ~ rep(names(test_data), sapply(test_data, length)))
+          tukey_result <- TukeyHSD(anova_model)
+          
+          posthoc_results[[paste0(cat_name, "_parametric")]] <- list(
+            test = "Tukey HSD",
+            result = tukey_result
+          )
+        } else if (results$Parametric_test[i] == "Welch's ANOVA") {
+          # Games-Howell for unequal variances
+          gh_result <- userfriendlyscience::posthocTGH(
+            y = unlist(test_data),
+            x = factor(rep(names(test_data), sapply(test_data, length))),
+            method = "games-howell"
+          )
+          
+          posthoc_results[[paste0(cat_name, "_parametric")]] <- list(
+            test = "Games-Howell",
+            result = gh_result
+          )
+        }
+      }
+      
+      if (nonparam_significant) {
+        # Dunn test for non-parametric comparison
+        dunn_result <- FSA::dunnTest(
+          unlist(test_data) ~ factor(rep(names(test_data), sapply(test_data, length))),
+          method = "bh"
+        )
+        
+        posthoc_results[[paste0(cat_name, "_nonparametric")]] <- list(
+          test = "Dunn's Test",
+          result = dunn_result
+        )
+      }
+    }
+  }
+  
+  # Return post-hoc results
+  return(posthoc_results)
+}
+```
+
+# visualizations - featureplot, dotplot, vlnplot, dimplot
+```{r}
+p.f=function(sobj,markers, n=3,l=TRUE){
+  FeaturePlot(sobj,features=markers,ncol=n,label=l)
+}
+
+p.d=function(sobj,markers,n=3){
+  DotPlot(sobj,features=markers)
+}
+p.v=function(sobj,markers,group="seurat_clusters",split="sample",n=3){
+  VlnPlot(sobj,features=markers,ncol=n,group.by =group ,split.by=split)
+}
+dp=function(sobj,group=NULL,split=NULL,id=NULL){
+  if(!is.null(id)){
+    DimPlot(sobj,cells = WhichCells(sobj,idents=id))
+  }else{
+    DimPlot(sobj,group.by=group,split.by=split,label=TRUE)
+  }
+}
+
+```
+
+## CCT - table transformation
+### CCT - generalized
+```{r}
+wide_table=function(table_or_list){
+  # cmb_list[["droplet"]]$data를 인풋으로 넣으면 잘 작동함.
+  # cmb_list[["droplet"]]은 cmb(objs,"inte.clusters","droplet")를 통해 만들어졌다. 이 함수는 ggplot object를 리턴한다.
+  wide_data <- table_or_list %>%
+  pivot_wider(
+    id_cols = cluster,  # 고유 식별자 열
+    names_from = sample,  # 열 이름을 생성할 기준 열 -> doublet, singlet이 있음
+    values_from = c(count, proportion),  # 값으로 사용할 열
+    names_sep = "_",  # 새로운 열 이름의 구분자 -. 따라서, count_doublet, proportion_doublet, count_singlet, proportion_singlet column이 생성된다.
+    values_fill = list(count = 0, proportion = 0) #NA를 처리하기 위해 이 인자를 추가할 수 있다.
+  ) %>%
+  select(
+    cluster,
+    count_doublet,
+    proportion_doublet,
+    count_singlet,
+    proportion_singlet #이들 변수를 선택한다.
+  ) %>%
+  arrange(cluster)  # 클러스터 순으로 정렬
+  return(wide_data)
+}
+
+gt_table=function(wide_table){
+  gt_table <- wide_table %>%
+  gt() %>%
+  tab_header(
+    title = "Doublet and Singlet Counts and Proportions"
+  ) %>%
+  cols_label(
+    count_doublet = "Doublet Count",
+    proportion_doublet = "Doublet Proportion",
+    count_singlet = "Singlet Count",
+    proportion_singlet = "Singlet Proportion"
+  ) %>%
+  fmt_percent(
+    columns = vars(proportion_doublet, proportion_singlet),
+    scale = 1
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "lightyellow")
+    ),
+    locations = cells_body(
+      rows = cluster %in% highlight_clusters
+    )
+  )
+  return(gt_table)
+}
+
+create_custom_table <- function(data,
+                                cluster_col = "cluster",
+                                sample_col = "sample",
+                                count_col = "count",
+                                proportion_col = "proportion",
+                                title = "Counts and Proportions by Cluster",
+                                sample_labels = NULL,
+                                highlight_clusters = NULL,
+                                output_file = NULL) {
+  # Check if required columns exist
+  required_cols <- c(cluster_col, sample_col, count_col, proportion_col)
+  if (!all(required_cols %in% colnames(data))) {
+    stop("The input data does not contain the specified columns.")
+  }
+  
+  # Pivot the data
+  wide_data <- data %>%
+    pivot_wider(
+      id_cols = !!sym(cluster_col),
+      names_from = !!sym(sample_col),
+      values_from = c(!!sym(count_col), !!sym(proportion_col)),
+      names_sep = "_",
+      values_fill = list(count = 0, proportion = 0)
+    ) %>%
+    arrange(as.numeric(as.character(!!sym(cluster_col))))
+  
+  # Create sample labels if not provided
+  unique_samples <- unique(data[[sample_col]])
+  if (is.null(sample_labels)) {
+    sample_labels <- unique_samples
+  }
+  
+  # Create a named vector for sample labels
+  if (!is.null(names(sample_labels))) {
+    sample_labels <- setNames(sample_labels, unique_samples)
+  }
+  
+  # Generate dynamic column labels for gt
+  label_list <- setNames(
+    c(glue("Count {sample_labels}"), glue("Proportion {sample_labels}")),
+    c(paste0(count_col, "_", unique_samples), paste0(proportion_col, "_", unique_samples))
+  )
+
+  # Create the gt table
+  gt_table <- wide_data %>%
+    gt() %>%
+    tab_header(title = title) %>%
+    cols_label(!!!label_list) %>%
+    fmt_percent(
+      columns = starts_with(proportion_col),
+      decimals = 2
+    )
+  
+  # Highlight specified clusters
+  if (!is.null(highlight_clusters)) {
+    gt_table <- gt_table %>%
+      tab_style(
+        style = list(
+          cell_fill(color = "lightyellow"),
+          cell_text(weight = "bold")
+        ),
+        locations = cells_body(
+          rows = !!sym(cluster_col) %in% highlight_clusters
+        )
+      )
+  }
+  
+  # Save to file if output_file is provided
+  if (!is.null(output_file)) {
+    gtsave(gt_table, output_file)
+    message(glue("Table saved to '{output_file}'."))
+  }
+  
+  return(list(wide_data = wide_data, gt_table = gt_table))
+}
+
+
+
+```
+
+## histogram for raw data
+```{r}
+
+# preprocessing
+hst_pre=function(sobj,features,down_number=NULL,layer="scale.data"){
+  # FetchData
+  gene_expression <- FetchData(objects, vars = features,layer=layer) #데이터 양식이 obj[[metadata]]와 같다. obj$metadata와 약간 다름
+  # Convert to a data frame for ggplot2 compatibility
+  gene_expression_df <- as.data.frame(gene_expression)
+  # Rename the column for convenience
+  colnames(gene_expression_df) <- features
+  
+  # Downsampling.
+  if(!is.null(down_number)){
+    sample_size <- min(down_number, nrow(gene_expression))  # Set desired sample size
+    gene_expression_sample <- gene_expression[sample(1:nrow(gene_expression), sample_size), ]
+    gene_expression_df <- as.data.frame(gene_expression_sample)
+  }
+  colnames(gene_expression_df) <- features
+  return(gene_expression_df)
+}
+hst_df=function(df,feature,w=0.5){
+  plot=
+    ggplot(df, aes(.data[[feature]])) +
+    geom_histogram(binwidth = w, fill = "blue", color = "black") +
+    labs(title = "Histogram of GeneA Expression",
+         x = "Expression Level",
+         y = "Frequency") +
+    theme_minimal()
+  return(plot)
+}
+
+hst_obj=function(sobj,features,down_number=NULL,layer="scale.data",feature=features[1],w=0.5){
+  hst_df(hst_pre(sobj,features,down_number,layer=layer),feature,w)
+}
+```
+## histogram for metadata
+```{r}
+hst_meta=function(sobj,meta="nCount_RNA"){
+  data=as.data.frame(sobj[[meta]])[[1]]
+  data=sort(data)
+  barplot(data,xlab="cells")+grid(nx=NA,ny=NULL)
+  a=sobj$nCount_RNA
+  b=sobj$nFeature_RNA
+  c=sobj$percent.mt
+  sprintf("mean, variance of nCount_RNA, nFeature_RNA, pt.mt= (%1.0f,%1.0f),(%1.0f,%1.0f),(%1.2f,%1.2f)", mean(a),sd(a),mean(b),sd(b),mean(c),sd(c))
+}
+
+hst_meta_=function(sobj, meta="nCount_RNA",w=100){
+  # FetchData
+  data <- sobj[[meta]]
+  # Convert to a data frame for ggplot2 compatibility
+  data <- as.data.frame(data)
+
+  plot=    ggplot(data, aes(.data[[meta]])) +
+    geom_histogram(binwidth = w, fill = "blue", color = "black") +
+    labs(title = "Histogram of metadata Expression",
+         x = "Expression Level",
+         y = "Frequency") +
+    theme_minimal()
+  return(plot)
+}
+```
+
+## histogram for clusters
+```{r}
+#cluster histogram
+hst_c=function(sobj){
+  # Retrieve the cluster identities
+  cluster_ids <- Idents(sobj)
+  
+  # Count the number of cells in each cluster
+  cell_counts <- table(cluster_ids)
+
+  # Print the cell counts per cluster
+  print(cell_counts)
+  barplot(cell_counts, main = "Number of Cells per Cluster", xlab = "Cluster", ylab = "Number of Cells")+grid(nx=NA,ny=NULL)
+}
+```
+
+
+### claude's improvement
+#### helper function to sort the "too many" samples.
+ CMB and ACMB -deprecated
+```{r}
+# cmb <- function(sobj, identity = "seurat_clusters", sample = "sample",df=F, vlines=NULL, vline_color = "red") {
+#   Idents(sobj) <- identity
+#   cluster_ids <- Idents(sobj)
+#   sample_ids <- sobj@meta.data[[sample]]
+#   
+#   data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+#   
+#   summary_data <- data %>%
+#     group_by(sample, cluster) %>%
+#     summarise(count = n(), .groups = "drop") %>%
+#     group_by(sample) %>%
+#     mutate(proportion = count / sum(count)) %>%
+#     ungroup()
+#   
+#   # Sort the samples using the new sort_samples function
+#   sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
+#   summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+#   
+#   output=ggplot(summary_data, aes(x = sample, y = proportion, fill = cluster)) +
+#     geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
+#     labs(title = paste0("Proportional Bar Graph of Clusters for Each ",sample),
+#          x = sample,
+#          y = "Proportion of Cells") +
+#     theme_minimal() +
+#     theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#           legend.position = "right") +
+#     scale_fill_viridis_d() +
+#     scale_y_continuous(labels = scales::percent_format())
+#   
+#   if(!is.null(vlines)){
+#     for (line_pos in vlines) {
+#       output <- output + geom_vline(xintercept = line_pos + 0.5, color = vline_color, linetype = "dashed", linewidth = 0.5)
+#     }
+#   }
+#   
+#   if(df){
+#     return(summary_data)
+#   }
+#   return(output)
+# }
+# 
+# acmb <- function(sobj, identity="seurat_clusters", sample="sample", df=F, vlines=NULL, vline_color = "red") {
+#   Idents(sobj) <- identity
+#   cluster_ids <- Idents(sobj)
+#   sample_ids <- sobj@meta.data[[sample]]
+#   
+#   data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+#   
+#   summary_data <- data %>%
+#     group_by(sample, cluster) %>%
+#     summarise(count = n(), .groups = "drop")
+#   
+#   # Sort the samples using the new sort_samples function
+#   sorted_samples <- sort_samples(unique(summary_data$sample))
+#   summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+#   
+#   output=ggplot(summary_data, aes(x = sample, y = count, fill = cluster)) +
+#     geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
+#     labs(title = paste0("Cumulative Bar Graph of Clusters for Each ",sample),
+#          x = sample,
+#          y = "Number of Cells") +
+#     theme_minimal() +
+#     theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#           legend.position = "right") +
+#     scale_fill_viridis_d()
+#   
+#   if(!is.null(vlines)){
+#     for (line_pos in vlines) {
+#       output <- output + geom_vline(xintercept = line_pos + 0.5, color = vline_color, linetype = "dashed", linewidth = 0.5)
+#     }
+#   }
+#   
+#   
+#   if(df){
+#     return(summary_data)
+#   }
+#   return(output)
+# }
+
+sort_samples <- function(samples) {
+  # Helper function to extract numbers from a string
+  extract_numbers <- function(x) {
+    nums <- as.numeric(strsplit(x, "\\+")[[1]])
+    if (length(nums) == 0 || any(is.na(nums))) return(c(Inf, Inf))
+    return(nums)
+  }
+  
+  # Check if all samples are non-numeric (no '+' and can't be converted to number)
+  all_non_numeric <- all(sapply(samples, function(x) {
+    !grepl("\\+", x) && is.na(suppressWarnings(as.numeric(x)))
+  }))
+  
+  if (all_non_numeric) {
+    return(sort(samples))  # If all non-numeric, just return alphabetically sorted
+  }
+  
+  # Separate samples into those with and without "+"
+  single_samples <- samples[!grepl("\\+", samples)]
+  doublet_samples <- samples[grepl("\\+", samples)]
+  
+  # Sort single samples
+  single_sorted <- single_samples[order(sapply(single_samples, function(x) {
+    num <- suppressWarnings(as.numeric(x))
+    if (is.na(num)) Inf else num
+  }))]
+  
+  # Sort doublet samples
+  doublet_sorted <- doublet_samples[order(
+    sapply(doublet_samples, function(x) extract_numbers(x)[1]),  # First number
+    sapply(doublet_samples, function(x) extract_numbers(x)[2])   # Second number
+  )]
+  
+  # Combine and return
+  return(c(single_sorted, doublet_sorted))
+}
+```
+#### CMB and ACMB - 250318 updated; group.by, idents.
+```{r}
+cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents = NULL, df=F, vlines=NULL, vline_color = "red") {
+  Idents(sobj) <- identity
+  cluster_ids <- Idents(sobj)
+  sample_ids <- sobj@meta.data[[group.by]]
+  
+  data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+  
+  # Filter identities if idents is provided
+  if(!is.null(idents)) {
+    data <- data[data$cluster %in% idents,]
+  }
+  
+  summary_data <- data %>%
+    group_by(sample, cluster) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    group_by(sample) %>%
+    mutate(proportion = count / sum(count)) %>%
+    ungroup()
+  
+  # Sort the samples using the new sort_samples function
+  sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
+  summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+  
+  output=ggplot(summary_data, aes(x = sample, y = proportion, fill = cluster)) +
+    geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
+    labs(title = paste0("Proportional Bar Graph of Clusters for Each ", group.by),
+         x = group.by,
+         y = "Proportion of Cells") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "right") +
+    scale_fill_viridis_d() +
+    scale_y_continuous(labels = scales::percent_format())
+  
+  if(!is.null(vlines)){
+    for (line_pos in vlines) {
+      output <- output + geom_vline(xintercept = line_pos + 0.5, color = vline_color, linetype = "dashed", linewidth = 0.5)
+    }
+  }
+  
+  if(df){
+    return(summary_data)
+  }
+  return(output)
+}
+
+acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = NULL, df=F, vlines=NULL, vline_color = "red") {
+  Idents(sobj) <- identity
+  cluster_ids <- Idents(sobj)
+  sample_ids <- sobj@meta.data[[group.by]]
+  
+  data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+  
+  # Filter identities if idents is provided
+  if(!is.null(idents)) {
+    data <- data[data$cluster %in% idents,]
+  }
+  
+  summary_data <- data %>%
+    group_by(sample, cluster) %>%
+    summarise(count = n(), .groups = "drop")
+  
+  # Sort the samples using the new sort_samples function
+  sorted_samples <- sort_samples(unique(summary_data$sample))
+  summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+  
+  output=ggplot(summary_data, aes(x = sample, y = count, fill = cluster)) +
+    geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
+    labs(title = paste0("Cumulative Bar Graph of Clusters for Each ", group.by),
+         x = group.by,
+         y = "Number of Cells") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "right") +
+    scale_fill_viridis_d()
+  
+  if(!is.null(vlines)){
+    for (line_pos in vlines) {
+      output <- output + geom_vline(xintercept = line_pos + 0.5, color = vline_color, linetype = "dashed", linewidth = 0.5)
+    }
+  }
+  
+  if(df){
+    return(summary_data)
+  }
+  return(output)
+}
+```
+
+#### grouped_bar_plot, cluster_heatmap, stacked_area_chart
+
+```{r}
+grouped_bar_plot <- function(sobj, identity="seurat_clusters", sample="sample") {
+  Idents(sobj) <- identity
+  cluster_ids <- Idents(sobj)
+  sample_ids <- sobj@meta.data[[sample]]
+  
+  data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+  
+  summary_data <- data %>%
+    group_by(sample, cluster) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    group_by(sample) %>%
+    mutate(proportion = count / sum(count))
+  
+  ggplot(summary_data, aes(x = cluster, y = proportion, fill = sample)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = "Proportion of Clusters Across Samples",
+         x = "Cluster",
+         y = "Proportion") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_fill_viridis_d()
+}
+
+
+cluster_heatmap <- function(sobj, identity="seurat_clusters", sample="sample") {
+  Idents(sobj) <- identity
+  cluster_ids <- Idents(sobj)
+  sample_ids <- sobj@meta.data[[sample]]
+  
+  data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+  
+  summary_data <- data %>%
+    group_by(sample, cluster) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    group_by(sample) %>%
+    mutate(proportion = count / sum(count)) %>%
+    select(-count) %>%
+    pivot_wider(names_from = cluster, values_from = proportion, values_fill = 0)
+  
+  matrix_data <- as.matrix(summary_data[,-1])
+  rownames(matrix_data) <- summary_data$sample
+  
+  pheatmap(matrix_data,
+           main = "Heatmap of Cluster Proportions Across Samples",
+           color = viridis::viridis(100),
+           display_numbers = TRUE,
+           number_format = "%.2f",
+           fontsize_number = 8)
+}
+
+stacked_area_chart <- function(sobj, identity = "seurat_clusters", sample = "sample", samples_per_plot = 9, ncol = 3) {
+  # Set the identity class
+  Idents(sobj) <- identity
+  
+  # Extract cluster and sample information
+  cluster_ids <- Idents(sobj)
+  sample_ids <- sobj[[sample]]
+  
+  # Create a data frame and summarize
+  data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+  
+  summary_data <- data %>%
+    group_by(sample, cluster) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    group_by(sample) %>%
+    mutate(proportion = count / sum(count))
+  
+  # Sort samples using the provided function
+  sorted_samples <- sort_samples(unique(summary_data$sample))
+  
+  # Convert sample to factor to ensure proper ordering
+  summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+  
+  # Split samples into groups
+  sample_groups <- split(sorted_samples, ceiling(seq_along(sorted_samples) / samples_per_plot))
+  
+  # Create a list to store plots
+  plot_list <- list()
+  
+  # Create plots for each group of samples
+  for (i in seq_along(sample_groups)) {
+    group_samples <- sample_groups[[i]]
+    group_data <- summary_data %>% filter(sample %in% group_samples)
+    
+    p <- ggplot(group_data, aes(x = cluster, y = proportion, fill = cluster)) +
+      geom_col() +
+      facet_wrap(~ sample, scales = "free_x", ncol = ncol) +
+      labs(title = paste("Cluster Proportions - Group", i),
+           x = "Cluster",
+           y = "Proportion") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6),
+            strip.text = element_text(size = 8),
+            legend.position = "none") +
+      scale_fill_discrete()
+    
+    plot_list[[i]] <- p
+  }
+  
+  return(plot_list)
+}
+
+```
+
+
+#### CML Cumulative Line Graph
+```{r}
+cml <- function(sobj, identity = "inte.clusters", sample = "gem", df = FALSE, 
+                                  color_palette = NULL, n_patterns = 5, n_shapes = 7) {
+  cluster_ids <- sobj@meta.data[[identity]]
+  sample_ids <- sobj@meta.data[[sample]]
+  
+  # Create a data frame and calculate proportions
+  data <- data.frame(cluster = cluster_ids, sample = sample_ids)
+  
+  summary_data <- data %>%
+    group_by(sample, cluster) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    group_by(sample) %>%
+    mutate(proportion = count / sum(count)) %>%
+    ungroup()
+  
+  # Sort clusters properly (assuming they are numeric or can be converted to numeric)
+  sorted_clusters <- sort(as.numeric(unique(as.character(summary_data$cluster))))
+  summary_data$cluster <- factor(summary_data$cluster, levels = as.character(sorted_clusters))
+  
+  # Calculate cumulative proportions
+  cumulative_data <- summary_data %>%
+    group_by(sample) %>%
+    arrange(cluster) %>%
+    mutate(cumulative_proportion = cumsum(proportion)) %>%
+    ungroup()
+  
+  # Generate a color palette if not provided
+  if (is.null(color_palette)) {
+    n_colors <- length(unique(cumulative_data$sample))
+    color_palette <- colorRampPalette(brewer.pal(8, "Set2"))(n_colors)
+  }
+  
+  # Generate line patterns and shapes
+  line_patterns <- rep(c("solid", "dashed", "dotted", "dotdash", "longdash"), length.out = n_patterns)
+  point_shapes <- rep(c(16, 17, 18, 15, 8, 3, 4), length.out = n_shapes)
+  
+  # Assign styles to samples
+  sample_styles <- data.frame(
+    sample = unique(cumulative_data$sample),
+    color = rep(color_palette, length.out = length(unique(cumulative_data$sample))),
+    linetype = rep(line_patterns, length.out = length(unique(cumulative_data$sample))),
+    shape = rep(point_shapes, length.out = length(unique(cumulative_data$sample)))
+  )
+  
+  # Join styles to the data
+  cumulative_data <- left_join(cumulative_data, sample_styles, by = "sample")
+  
+  # Create the plot
+  output <- ggplot(cumulative_data, aes(x = cluster, y = cumulative_proportion, 
+                                        color = sample, linetype = sample, shape = sample, group = sample)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 3) +
+    labs(title = paste0("Cumulative Line Graph of ", sample, " for Each Cluster"),
+         x = "Cluster",
+         y = "Cumulative Proportion of Cells") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "right") +
+    scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
+    scale_color_manual(values = setNames(sample_styles$color, sample_styles$sample)) +
+    scale_linetype_manual(values = setNames(sample_styles$linetype, sample_styles$sample)) +
+    scale_shape_manual(values = setNames(sample_styles$shape, sample_styles$sample))
+  
+  if (df) {
+    return(cumulative_data)
+  }
+  return(output)
+}
+```
+
+
+
+#### CDF(cumuluative distribution function) for demultiplexing
+```{r}
+cdf <- function(data, probability_col, ratio_col, plot_type = "probability", output_file = NULL) {
+  # Validate plot_type
+  valid_types <- c("probability", "logit", "ratio")
+  if (!plot_type %in% valid_types) {
+    stop("Invalid plot_type. Choose 'probability', 'logit', or 'ratio'.")
+  }
+
+  # Prepare data for plotting
+  plot_data <- data %>%
+    mutate(
+      Probability = {{ probability_col }},
+      Logit = log({{ probability_col }} / (1 - {{ probability_col }})),
+      Ratio = {{ ratio_col }}
+    ) %>%
+    select(Probability, Logit, Ratio) %>%
+    pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
+    filter(Variable == case_when(
+      plot_type == "probability" ~ "Probability",
+      plot_type == "logit" ~ "Logit",
+      plot_type == "ratio" ~ "Ratio"
+    )) %>%
+    arrange(Value) %>%
+    mutate(CDF = row_number() / n())
+
+  # Set up x-axis scale and labels based on plot_type
+  x_scale <- if (plot_type %in% c("probability", "logit")) {
+    scale_x_continuous(labels = scales::number_format(accuracy = 0.01))
+  } else {
+    scale_x_log10(labels = scales::scientific)
+  }
+
+  x_label <- case_when(
+    plot_type == "probability" ~ "Probability",
+    plot_type == "logit" ~ "Logit of Probability",
+    plot_type == "ratio" ~ "Probability Ratio (log scale)"
+  )
+
+  # Create the CDF plot
+  p <- ggplot(plot_data, aes(x = Value, y = CDF)) +
+    geom_step() +
+    x_scale +
+    labs(title = paste("Cumulative Distribution Function (CDF) of", x_label),
+         x = x_label,
+         y = "Cumulative Probability") +
+    theme_minimal()
+
+  # Save the plot if output_file is specified
+  if (!is.null(output_file)) {
+    ggsave(output_file, plot = p, width = 10, height = 6, dpi = 300)
+  }
+
+  # Calculate summary statistics
+  summary_stats <- plot_data %>%
+    summarise(
+      Mean = mean(Value),
+      Median = median(Value),
+      SD = sd(Value),
+      Min = min(Value),
+      Max = max(Value)
+    )
+
+  # Return a list containing the plot and summary statistics
+  return(list(plot = p, summary = summary_stats))
+}
+```
+
+##### CDF for multiple line
+```{r}
+cdf_multi<- function(data_list, probability_col, ratio_col, plot_type = "probability", dataset_names = NULL, output_file = NULL) {
+  # Validate plot_type
+  valid_types <- c("probability", "logit", "ratio")
+  if (!plot_type %in% valid_types) {
+    stop("Invalid plot_type. Choose 'probability', 'logit', or 'ratio'.")
+  }
+
+  # Ensure data_list is a list
+  if (!is.list(data_list)) {
+    data_list <- list(data_list)
+  }
+
+  # If dataset_names is not provided, generate default names
+  if (is.null(dataset_names)) {
+    dataset_names <- paste("Dataset", seq_along(data_list))
+  } else if (length(dataset_names) != length(data_list)) {
+    warning("Number of dataset names doesn't match number of datasets. Using default names.")
+    dataset_names <- paste("Dataset", seq_along(data_list))
+  }
+
+  # Prepare data for plotting
+  plot_data <- map2_dfr(data_list, dataset_names, function(data, name) {
+    data %>%
+      mutate(
+        Probability = {{ probability_col }},
+        Logit = log({{ probability_col }} / (1 - {{ probability_col }})),
+        Ratio = {{ ratio_col }},
+        Dataset = name
+      ) %>%
+      select(Dataset, Probability, Logit, Ratio)
+  }) %>%
+    pivot_longer(cols = c(Probability, Logit, Ratio), names_to = "Variable", values_to = "Value") %>%
+    filter(Variable == case_when(
+      plot_type == "probability" ~ "Probability",
+      plot_type == "logit" ~ "Logit",
+      plot_type == "ratio" ~ "Ratio"
+    )) %>%
+    group_by(Dataset) %>%
+    arrange(Value) %>%
+    mutate(CDF = row_number() / n()) %>%
+    ungroup()
+
+  # Set up x-axis scale and labels based on plot_type
+  x_scale <- if (plot_type %in% c("probability", "logit")) {
+    scale_x_continuous(labels = scales::number_format(accuracy = 0.01))
+  } else {
+    scale_x_log10(labels = scales::scientific)
+  }
+
+  x_label <- case_when(
+    plot_type == "probability" ~ "Probability",
+    plot_type == "logit" ~ "Logit of Probability",
+    plot_type == "ratio" ~ "Probability Ratio (log scale)"
+  )
+
+  # Create the CDF plot
+  p <- ggplot(plot_data, aes(x = Value, y = CDF, color = Dataset)) +
+    geom_step() +
+    x_scale +
+    labs(title = paste("Cumulative Distribution Function (CDF) of", x_label),
+         x = x_label,
+         y = "Cumulative Probability") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+
+  # Save the plot if output_file is specified
+  if (!is.null(output_file)) {
+    ggsave(output_file, plot = p, width = 10, height = 6, dpi = 300)
+  }
+
+  # Calculate summary statistics
+  summary_stats <- plot_data %>%
+    group_by(Dataset) %>%
+    summarise(
+      Mean = mean(Value),
+      Median = median(Value),
+      SD = sd(Value),
+      Min = min(Value),
+      Max = max(Value)
+    )
+
+  # Return a list containing the plot and summary statistics
+  return(list(plot = p, summary = summary_stats))
+}
+
+```
+
+#### Boxplot - statistical analysis
+The meaning of dots in the plot:
+The dots in the boxplots represent individual data points that are considered outliers. In boxplot terminology, these are typically values that fall outside 1.5 times the interquartile range (IQR) above the upper quartile or below the lower quartile.
+```{r}
+
+# Import required packages upfront
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+library(broom)
+library(gtools)
+
+compare_clusters <- function(sobj, 
+                             identity = "inte.clusters", 
+                             sample = "sample", 
+                             group = "gem",
+                             clusters = NULL,
+                             method = "proportion",
+                             test = "anova",
+                             plot_type = "box") {
+  
+  # Ensure the identity is set correctly
+  if (!identity %in% colnames(sobj@meta.data)) {
+    stop(paste("The specified identity '", identity, "' is not found in the Seurat object metadata."))
+  }
+  Idents(sobj) <- identity
+  
+  # Extract data
+  data <- data.frame(
+    cluster = Idents(sobj),
+    sample = sobj@meta.data[[sample]],
+    group = sobj@meta.data[[group]]
+  )
+  
+  # Summarize data
+  summary_data <- data %>%
+    group_by(group, sample, cluster) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    group_by(sample) %>%
+    mutate(proportion = count / sum(count)) %>%
+    ungroup()
+  
+  # Filter clusters if specified
+  if (!is.null(clusters)) {
+    summary_data <- summary_data %>% filter(cluster %in% clusters)
+  }
+  
+  # Prepare data for analysis
+  analysis_data <- summary_data %>%
+    select(group, sample, cluster, !!sym(method))
+  
+  # Perform statistical test with error handling
+  test_results <- analysis_data %>%
+    group_by(cluster) %>%
+    group_modify(~ {
+      tryCatch({
+        if (test == "anova") {
+          broom::tidy(aov(as.formula(paste(method, "~ group")), data = .x))
+        } else if (test == "kruskal") {
+          broom::tidy(kruskal.test(as.formula(paste(method, "~ group")), data = .x))
+        }
+      }, error = function(e) {
+        data.frame(
+          term = "group",
+          statistic = NA,
+          p.value = NA,
+          method = paste("Error:", e$message)
+        )
+      })
+    }) %>%
+    filter(term == "group") %>%
+    mutate(p.adj = p.adjust(p.value, method = "bonferroni"))
+  
+  # Create plot
+  if (plot_type == "box") {
+    p <- ggboxplot(
+      analysis_data, x = "group", y = method, fill = "group",
+      facet.by = "cluster", scales = "free_y"
+    )
+  } else if (plot_type == "bar") {
+    p <- ggbarplot(
+      analysis_data, x = "group", y = method, fill = "group",
+      facet.by = "cluster", scales = "free_y",
+      add = "mean_se", position = position_dodge(0.8)
+    )
+  }
+  
+  # Add p-values to the plot
+  p <- p + geom_text(
+    data = test_results,
+    aes(x = max(as.numeric(analysis_data$group)) / 2, 
+        y = Inf, 
+        label = paste("p =", sprintf("%.3f", p.value))),
+    vjust = 1.5
+  )
+  
+  # Customize plot
+  p <- p + labs(
+    title = paste("Comparison of Cluster", ifelse(method == "proportion", "Proportions", "Counts"), "Across Groups"),
+    x = "Group", y = ifelse(method == "proportion", "Proportion", "Count")
+  ) + 
+  theme_pubr() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Print diagnostic information
+  cat("Data distribution across groups and clusters:\n")
+  print(table(data$group, data$cluster))
+  cat("\nSummary of analysis data:\n")
+  print(summary(analysis_data))
+  
+  # Return list with plot and test results
+  return(list(plot = p, test_results = test_results))
+}
+```
+
+##### bootstrapping; find the outlier sample
+
+```{r}
+library(boot)
+
+bootstrap_cluster_proportions <- function(sobj, gem_id, cluster_id, n_iterations = 100) {
+  # Filter cells for the specific gem and cluster
+  cells <- WhichCells(sobj, expression = gem == gem_id & inte.clusters == cluster_id)
+  
+  # Get sample assignments for these cells
+  samples <- sobj$sample[cells]
+  
+  # Define bootstrap function
+  boot_fn <- function(data, indices) {
+    boot_sample <- data[indices]
+    props <- table(boot_sample) / length(boot_sample)
+    return(props)
+  }
+  
+  # Perform bootstrap
+  boot_results <- boot(samples, boot_fn, R = n_iterations)
+  
+  # Calculate confidence intervals
+  ci <- t(sapply(1:ncol(boot_results$t), function(i) {
+    boot.ci(boot_results, type = "perc", index = i)$percent[4:5]
+  }))
+  
+  # Combine results
+  results <- data.frame(
+    sample = colnames(boot_results$t),
+    mean_prop = colMeans(boot_results$t),
+    ci_lower = ci[,1],
+    ci_upper = ci[,2]
+  )
+  
+  return(results)
+}
+
+# Usage:
+# results <- bootstrap_cluster_proportions(sobj, gem_id = "gem1", cluster_id = "cluster1")
+```
+## Findmarkers Module - degfilter, fm, fm_, fm_re
+```{r}
+# for findmarker object
+degfilter=function(object,pct_cutoff=0.01){
+  object=subset(object, (object$pct.2>pct_cutoff & object$avg_log2FC>0)|(object$pct.1>pct_cutoff & object$avg_log2FC<0))
+  return(object)
+}
+
+fm=function(sobj,name="deg",identity="seurat_clusters", filter=TRUE){
+  Idents(sobj)=identity
+  for(ident in levels(sobj)){
+    print(ident)
+    if(length(which(sobj[[identity]]==ident))<3){
+      
+      cells_to_remove=WhichCells(sobj,idents=ident)
+      
+      print("Too few cells!")
+      print(cells_to_remove)
+      
+      sobj=subset(sobj,cells=setdiff(Cells(sobj),cells_to_remove))
+      
+    } else {
+      marker_text=paste0(name,ident)
+      assign(marker_text, FindMarkers(sobj,ident.1=ident))
+      
+      #filtering
+      if(filter){
+        assign(marker_text,degfilter(get(marker_text)))
+      }
+      
+    }
+  }
+}
+fm_=function(sobj,name="deg",identity="seurat_clusters", filter=TRUE,generation=FALSE,export=TRUE){
+  # if(!"xlsx"%in%.packages()){
+  #   library(xlsx)
+  #   }
+  marker_list=list()
+  Idents(sobj)=identity
+  for(ident in levels(sobj)){
+    print(ident)
+    if(length(which(sobj[[identity]]==ident))<3){
+      
+      cells_to_remove=WhichCells(sobj,idents=ident)
+      
+      sprintf("Too few cells!(<3) cluster removed.:%f",ident)
+      print(cells_to_remove)
+      
+      sobj=subset(sobj,cells=setdiff(Cells(sobj),cells_to_remove))
+      
+    } else {
+      marker=FindMarkers(sobj,ident.1=ident)
+      #filtering
+      if(filter){
+        marker=degfilter(marker)
+        }
+      marker_list[[ident]]=marker
+      if(generation){
+        marker_text=paste0(name,ident)
+        assign(marker_text,marker)
+        }
+      }
+    # if(export){
+    #   write.csv(marker,paste0("/data/kjc1/excel/",today(),"markers",".xlsx"),sheetName=ident,col.names=TRUE,row.names=TRUE,append=TRUE)}
+    if(export){
+      write.csv(marker,file=paste0("/data/kjc1/excel/",today(),"markers",".csv"))}
+    }
+  return(marker_list)
+}
+
+```
+
+### FM sign filter, p_cutoff, MT, RPS, RPL, filter
+```{r}
+fm_re=function(markers, sign=NULL, p_cutoff=NULL, filter=NULL){
+  markers$gene=rownames(markers)
+  markers$pct.diff=markers$pct.1-markers$pct.2
+  if(is.null(sign)){
+    
+  }else if(sign=="+"){
+    markers=markers[markers$avg_log2FC>0,]
+  }else if(sign=="-"){
+    markers=markers[markers$avg_log2FC<0,]
+  }else{
+    print("sign is wrong. put NULL or "+" or "-" ")
+  }
+  
+  if(is.null(p_cutoff)){
+    
+  }else{
+    markers=markers[markers$p_val_adj<p_cutoff,]
+  }
+  if("mt"%in%filter){
+    markers=markers[!grepl("^MT-",markers$gene),]
+  }
+  if("rb"%in%filter){
+    markers=markers[!grepl("^RPS",markers$gene),]
+    markers=markers[!grepl("^RPL",markers$gene),]
+  }
+  if("hb"%in%filter){
+    globin_genes <- c(
+      "HBA1", "HBA2", "HBM", "HBQ1", "HBQ2", "HBZ", "HBZP1", "HBZP2",
+      "HBB", "HBD", "HBG1", "HBG2", "HBE1", "HBBS", "HBBP1", "HBBP2"
+    )
+    markers=markers[!markers$gene%in%globin_genes,]
+  }
+  
+  return(markers)
+}
+
+fm_filter=function(markers){
+  markers$gene=rownames(markers)
+  markers=markers[!grepl("^RPL|^RPS|^MT-|^(AC\\d+|AL\\d+|ENSG|LINC)",markers$gene),]
+  return(markers)
+}
+```
+
+### ensg name removal
+```{r}
+library(biomaRt)
+# Choose the appropriate Ensembl dataset; here, we use human genes
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+# Assume your FindMarkers output is stored in a variable called 'markers'
+markers <- fme  # Replace with your actual function call
+
+# Extract rownames
+gene_ids <- rownames(markers)
+
+# Identify which genes are Ensembl IDs (start with "ENSG")
+ensembl_ids <- gene_ids[grepl("^ENSG", gene_ids)]
+
+# Get gene symbols for Ensembl IDs
+gene_annotations <- getBM(
+    filters = "ensembl_gene_id",
+    attributes = c("ensembl_gene_id", "hgnc_symbol"),  # Use appropriate symbol attribute
+    values = ensembl_ids,
+    mart = ensembl
+)
+
+# Create a named vector for easy lookup
+ensembl_to_symbol <- setNames(gene_annotations$hgnc_symbol, gene_annotations$ensembl_gene_id)
+
+# Replace Ensembl IDs with gene symbols in rownames
+# First, create a new vector for rownames
+new_rownames <- gene_ids
+
+# Replace Ensembl IDs with symbols where available
+new_rownames[grepl("^ENSG", gene_ids)] <- ensembl_to_symbol[gene_ids[grepl("^ENSG", gene_ids)]]
+
+# Handle any NAs (e.g., if some Ensembl IDs didn't have a corresponding symbol)
+new_rownames[is.na(new_rownames)] <- gene_ids[is.na(new_rownames)]
+
+# Assign the new rownames back to the markers object
+rownames(markers) <- new_rownames
+
+
+```
+
+### annotationdbi
+```{r}
+# Load necessary libraries
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+# Install org.Hs.eg.db if not already installed
+if (!requireNamespace("org.Hs.eg.db", quietly = TRUE))
+    BiocManager::install("org.Hs.eg.db")
+
+# Load libraries
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+
+# library(org.Mm.eg.db)  # For mouse
+# library(org.Rn.eg.db)  # For rat
+
+# Define the enhanced function
+rename_genes <- function(
+    find_markers_obj,
+    species = "human",
+    remove_unmapped = T,
+    make_unique = TRUE,
+    description = F
+) {
+    # Check if input is a data frame or similar
+    if (!is.data.frame(find_markers_obj)) {
+        stop("Input must be a data frame or similar object with rownames as gene identifiers.")
+    }
+    
+    # Extract rownames
+    gene_ids <- rownames(find_markers_obj)
+    
+    # Identify Ensembl IDs (assuming they start with "ENSG")
+    is_ensembl <- grepl("^ENSG", gene_ids)
+    ensembl_ids <- gene_ids[is_ensembl]
+    
+    # Choose the appropriate annotation database based on species
+    annotation_db <- switch(
+        tolower(species),
+        "human" = org.Hs.eg.db,
+        "mouse" = org.Mm.eg.db,
+        "rat"   = org.Rn.eg.db,
+        stop("Unsupported species. Please use 'human', 'mouse', or 'rat'.")
+    )
+    
+    # Map Ensembl IDs to gene symbols
+    gene_symbols <- mapIds(
+        annotation_db,
+        keys = ensembl_ids,
+        column = "SYMBOL",
+        keytype = "ENSEMBL",
+        multiVals = "first"  # Choose how to handle multiple mappings
+    )
+    
+    # Initialize new rownames with original gene IDs
+    new_rownames <- gene_ids
+    
+    # Replace Ensembl IDs with gene symbols where available
+    new_rownames[is_ensembl] <- gene_symbols
+    
+    # Handle NAs based on 'remove_unmapped'
+    if (remove_unmapped) {
+        # Keep only genes with gene symbols
+        mapped_indices <- !is.na(new_rownames)
+        find_markers_obj <- find_markers_obj[mapped_indices, , drop = FALSE]
+        new_rownames <- new_rownames[mapped_indices]
+        ensembl_ids <- ensembl_ids[mapped_indices[is_ensembl[mapped_indices]]]
+    } else {
+        # For NAs, retain original Ensembl IDs
+        new_rownames[is.na(new_rownames)] <- gene_ids[is.na(new_rownames)]
+    }
+    
+    # Assign the new rownames
+    rownames(find_markers_obj) <- new_rownames
+    
+    # Ensure rownames are unique if required
+    if (make_unique) {
+        rownames(find_markers_obj) <- make.unique(rownames(find_markers_obj))
+    }
+    
+    # If gene descriptions are to be included
+    if (description) {
+        # Map Ensembl IDs to gene descriptions
+        gene_descriptions <- mapIds(
+            annotation_db,
+            keys = ensembl_ids,
+            column = "GENENAME",
+            keytype = "ENSEMBL",
+            multiVals = "first"
+        )
+        
+        # Initialize the description vector
+        descriptions <- rep(NA, length(gene_ids))
+        
+        # Assign descriptions to mapped genes
+        descriptions[is_ensembl] <- gene_descriptions
+        
+        # Handle NAs: retain as NA or set to "No Description" or keep Ensembl ID
+        # Here, we'll retain NA where descriptions are not available
+        # Optionally, you can set descriptions[is.na(descriptions)] <- "No Description"
+        
+        # Add the descriptions as a new column
+        find_markers_obj$gene_description <- descriptions
+    }
+    
+    return(find_markers_obj)
+}
+```
+
+## volcanoplot
+```{r}
+
+degfilter=function(object,pct_cutoff=0.01){
+  object=subset(object, (object$pct.2>pct_cutoff & object$avg_log2FC>0)|(object$pct.1>pct_cutoff & object$avg_log2FC<0))
+  return(object)
+}
+my_no_up_error=function(object){
+  object$diffexpressed[order(-object$avg_log2FC)[1]]="UP"
+  return(object)
+}
+my_no_down_error=function(object){
+  object$diffexpressed[order(object$avg_log2FC)[1]]="DOWN"
+  return(object)
+}
+#data는 findmarker object
+#만약 up, no, down에 해당하는 gene이 없어서 범주가 3개가 아니라 2, 1, 0개가 되면 문제가 발생함. 그 경우 색을 수정해준다.
+myv=function(data, x_limit=5, y_limit=310, log2fc_cutoff=1, p_val_cutoff=0.05, pct.1_cutoff=0.01, pct.2_cutoff=0.01, positive_genes=30, negative_genes=30,plot_title="VolcanoPlot"){
+  df=data
+  df=subset(df,df$pct.1 > pct.1_cutoff & df$pct.2 > pct.2_cutoff)
+  df$diffexpressed="NO"
+  if(length(df$diffexpressed[df$avg_log2FC> log2fc_cutoff & df$p_val_adj<p_val_cutoff])>0){
+    df$diffexpressed[df$avg_log2FC> log2fc_cutoff & df$p_val_adj<p_val_cutoff]="UP"
+  }else{
+    df=my_no_up_error(df)
+  }
+  if(length(df$diffexpressed[df$avg_log2FC< -log2fc_cutoff & df$p_val_adj<p_val_cutoff])>0){
+    df$diffexpressed[df$avg_log2FC< -log2fc_cutoff & df$p_val_adj<p_val_cutoff]="DOWN"
+  }else{
+    df=my_no_down_error(df)
+  }
+  # Create a new column "delabel" to de, that will contain the name of the top 30 differentially expressed genes (NA in case they are not)
+  df$gene_symbol=rownames(df)
+  df$delabel <- ifelse((df$gene_symbol %in% head(df[df$avg_log2FC<0,][order(df$p_val_adj), "gene_symbol"], negative_genes))|(df$gene_symbol %in% head(df[df$avg_log2FC>0,][order(df$p_val_adj), "gene_symbol"], positive_genes)), df$gene_symbol, NA)
+  # below is the template for designated df. ggplot's args are only to changed.
+  myvolcanoplot <- ggplot(data = df, aes(x = avg_log2FC, y = -log10(p_val_adj), col = diffexpressed, label = delabel))+
+    geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed')+
+    geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed')+
+    geom_point(size = 1)+
+    scale_color_manual(values = c("#00AFBB", "grey", "#bb0c00"), # to set the colours of our variable
+                       labels = c("Downregulated", "Not significant", "Upregulated"))+# to set the labels in case we want to     overwrite the categories from the dataframe (UP, DOWN, NO)
+    coord_cartesian(ylim = c(0, y_limit), xlim = c(-x_limit, x_limit))+ # since some genes can have minuslog10padj of inf, we set these limits<br />
+    labs(color = 'Legend', #legend_title,
+         x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value"))+
+    scale_x_continuous(breaks = seq(-10, 10, 2))+ # to customise the breaks in the x axis
+    ggtitle(plot_title) + # Plot title
+    geom_text_repel(max.overlaps = Inf) + # To show all labels 
+    theme(plot.title=element_text(size=14,face="bold",hjust=0.5))
+  return(myvolcanoplot)
+  }
+my=function(object,plot_title="VolcanoPlot"){
+  object=degfilter(object)
+  if(!max(-log10(object$p_val))==Inf){
+    myv(object,x_limit=max(abs(object$avg_log2FC)),y_limit=max(-log10(object$p_val_adj)),plot_title=plot_title)
+  }else{
+    myv(object,x_limit=max(abs(object$avg_log2FC)),y_limit=300,plot_title=plot_title)
+  }
+}
+
+myv_=function(data, x_limit=5, y_limit=310, log2fc_cutoff=1, p_val_cutoff=0.05, pct.1_cutoff=0.01, pct.2_cutoff=0.01, positive_genes=30, negative_genes=30,plot_title="VolcanoPlot"){
+  df=data
+  df=subset(df,df$pct.1 > pct.1_cutoff & df$pct.2 > pct.2_cutoff)
+  df$diffexpressed="NO"
+  if(length(df$diffexpressed[df$avg_log2FC> log2fc_cutoff & df$p_val<p_val_cutoff])>0){
+    df$diffexpressed[df$avg_log2FC> log2fc_cutoff & df$p_val<p_val_cutoff]="UP"
+  }else{
+    df=my_no_up_error(df)
+  }
+  if(length(df$diffexpressed[df$avg_log2FC< -log2fc_cutoff & df$p_val<p_val_cutoff])>0){
+    df$diffexpressed[df$avg_log2FC< -log2fc_cutoff & df$p_val<p_val_cutoff]="DOWN"
+  }else{
+    df=my_no_down_error(df)
+  }
+  # Create a new column "delabel" to de, that will contain the name of the top 30 differentially expressed genes (NA in case they are not)
+  df$gene_symbol=rownames(df)
+  df$delabel <- ifelse((df$gene_symbol %in% head(df[df$avg_log2FC<0,][order(df$p_val), "gene_symbol"], negative_genes))|(df$gene_symbol %in% head(df[df$avg_log2FC>0,][order(df$p_val), "gene_symbol"], positive_genes)), df$gene_symbol, NA)
+  # below is the template for designated df. ggplot's args are only to changed.
+  myvolcanoplot <- ggplot(data = df, aes(x = avg_log2FC, y = -log10(p_val), col = diffexpressed, label = delabel))+
+    geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed')+
+    geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed')+
+    geom_point(size = 1)+
+    scale_color_manual(values = c("#00AFBB", "grey", "#bb0c00"), # to set the colours of our variable
+                       labels = c("Downregulated", "Not significant", "Upregulated"))+# to set the labels in case we want to     overwrite the categories from the dataframe (UP, DOWN, NO)
+    coord_cartesian(ylim = c(0, y_limit), xlim = c(-x_limit, x_limit))+ # since some genes can have minuslog10padj of inf, we set these limits<br />
+    labs(color = 'Legend', #legend_title,
+         x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value"))+
+    scale_x_continuous(breaks = seq(-10, 10, 2))+ # to customise the breaks in the x axis
+    ggtitle(plot_title) + # Plot title
+    geom_text_repel(max.overlaps = Inf) # To show all labels 
+  return(myvolcanoplot)
+}
+
+my_=function(object,plot_title="VolcanoPlot"){
+  object=degfilter(object)
+  if(!max(-log10(object$p_val))==Inf){
+    myv_(object,x_limit=max(abs(object$avg_log2FC)),y_limit=max(-log10(object$p_val)),plot_title=plot_title)
+  }else{
+    myv_(object,x_limit=max(abs(object$avg_log2FC)),y_limit=300,plot_title=plot_title)
+  }
+}
+
+printmy=function(markers, sign="+",num=100){
+  markers$gene=rownames(markers)
+  if(sign=="-"){
+    print(paste(markers[markers$avg_log2FC<0,][1:num,]$gene,collapse = ", "))
+  }else{
+    print(paste(markers[markers$avg_log2FC>0,][1:num,]$gene,collapse = ", "))
+  }
+}
+
+printMy=function(markers_list){
+  for(name in names(markers_list)){
+    print(name)
+    printmy(markers_list[[name]])
+  }
+}
+```
+## myHeatmap myhm
+
+ ver1 - wrong
+https://chloe-with-data.tistory.com/13
+```{r}
+# 
+# myhm_genesets=function(sobj,value="average",assay="SCT",gene_sets, group="seurat_clusters"){
+#   Idents(sobj)=group
+#   if(value=="average"){
+#     cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data")[[assay]]
+#   }else{
+#     cluster_avg = AggregateExpression(sobj,assays=assay,slot="data")[[assay]]
+#   }
+#   
+#   
+#   # Initialize a data frame to store gene set expressions
+#   gene_set_expression=data.frame(Cluster=colnames(cluster_avg))
+#   # Loop through each gene set and calculate average expression
+#   for(gene_set in names(gene_sets)){
+#     genes=gene_sets[[gene_set]]
+#     # Ensure genes are present in the dataset
+#     genes_present=genes[genes %in% rownames(cluster_avg)]
+#     if(length(genes_present) == 0){
+#       warning(paste("No genes from", gene_set, "found in the dataset."))
+#       next
+#     }
+#     
+#     # Calculate average expression for the gene set
+#     gene_set_expression[[gene_set]] <- colMeans(cluster_avg[genes_present, , drop = FALSE])
+#   }
+#   # View the resulting table
+#   print(gene_set_expression)
+#   
+#   gene_set_expression_normalized <- gene_set_expression
+#   
+#   # Apply Z-score normalization to gene set columns
+#   gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
+#   
+#   # View the normalized table
+#   # print(gene_set_expression_normalized)
+#   
+#   # Determine the highest expressing gene set for each cluster
+#   gene_set_expression_normalized$Assigned_CellType <- apply(gene_set_expression_normalized[,-1], 1, function(x) {
+#     gene_set <- names(x)[which.max(x)]
+#     return(gene_set)
+#   })
+#   
+#   # View the annotations
+#   #print(gene_set_expression_normalized[, c("Cluster", "Assigned_CellType")])
+#   
+#   ### rearrange cluster number order
+#   # Step 1: Extract numerical cluster numbers
+#   gene_set_expression_normalized <- gene_set_expression_normalized %>%
+#     mutate(
+#       Cluster_Number = as.numeric(sub("g", "", Cluster))
+#     )
+#   
+#   # Step 2: Determine the number of digits needed for zero-padding
+#   max_digits <- max(nchar(as.character(gene_set_expression_normalized$Cluster_Number)))
+#   
+#   # Step 3: Rename clusters with leading zeros using sprintf
+#   gene_set_expression_normalized <- gene_set_expression_normalized %>%
+#     mutate(
+#       Cluster_Formatted = sprintf(paste0("g%0", max_digits, "d"), Cluster_Number)
+#     )
+#   
+#   # Step 4: Set factor levels based on formatted cluster names
+#   gene_set_expression_normalized <- gene_set_expression_normalized %>%
+#     arrange(Cluster_Number) %>%
+#     mutate(
+#       Cluster_Formatted = factor(Cluster_Formatted, levels = unique(Cluster_Formatted))
+#     )
+#   
+#   gene_set_expression_normalized$Cluster=gene_set_expression_normalized$Cluster_Formatted
+#   gene_set_expression_normalized$Cluster_Formatted=NULL #이런 str 변수들을 안 없애주면, 이들을 heatmap에서 나타낼 수 없다고 오류가 발생한다.
+#   gene_set_expression_normalized$Cluster_Number=NULL
+#   
+#   # Melt the normalized expression data for plotting
+#   melted_data <- reshape2::melt(gene_set_expression_normalized, id.vars = c("Cluster", "Assigned_CellType"))
+#   
+#   # Plot heatmap
+#   plot=ggplot(melted_data, aes(x = Cluster, y = variable, fill = value)) +
+#     geom_tile() +
+#     scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+#     theme_minimal() +
+#     labs(title = "Normalized Gene Set Expression per Cluster", x = "Cluster", y = "Gene Set")
+#   print(plot)
+#   
+#   return(gene_set_expression_normalized[, c("Cluster", "Assigned_CellType")])
+# }
+# 
+# 
+# myhm_genes=function(sobj,value="average",assay="SCT",genes, group="seurat_clusters"){
+#   Idents(sobj)=group
+#   if(value=="average"){
+#     cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data")[[assay]]
+#   }else{
+#     cluster_avg = AggregateExpression(sboj,assays=assay,slot="data")[[assay]]
+#   }
+# cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data")[[assay]]
+# 
+# 
+#   # Ensure specified genes are present in the dataset
+#   genes_present <- genes[genes %in% rownames(cluster_avg)]
+#   if (length(genes_present) == 0) {
+#     stop("None of the specified genes are found in the dataset.")
+#   }
+#   # Subset the average expression matrix for the selected genes
+#   gene_expression <- cluster_avg[genes_present, , drop = FALSE]
+#   gene_expression <- as.data.frame(scale(t(gene_expression))) # Transpose for proper melting, and normalization.
+#   gene_expression$Cluster <- rownames(gene_expression) # Add Cluster as a variable
+#   
+#   # Melt the expression data for visualization
+#   melted_data <- reshape2::melt(gene_expression, id.vars = "Cluster",variable.name = "Gene", value.name = "Expression")
+#   
+#   
+#   # Plot heatmap
+#   plot <- ggplot(melted_data, aes(x = Cluster, y = Gene, fill = Expression)) +
+#     geom_tile() +
+#     scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+#     theme_minimal() +
+#     labs(title = "Normalized Gene Expression per Cluster", x = "Cluster", y = "Gene")
+#   print(plot)
+#   # Return the expression table
+#   return(gene_expression)
+# }
+
+```
+### myhm_genesets2
+```{r}
+
+myhm_genesets2 <- function(
+  sobj,
+  group = "seurat_clusters",
+  value = "average",
+  assay = "SCT",
+  gene_sets = NULL,
+  title="Normalized Gene Set Expression per Cluster",
+  x_label="Cluster",
+  y_label="Gene Set"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  #-------------------------------
+  # (A) 유효성 체크
+  #-------------------------------
+  if(is.null(gene_sets)){
+    stop("gene_sets를 지정해 주세요. (ex: list(Immune=c('CD3D','CD3E'), Bcell=c('MS4A1','CD79A'))) ")
+  }
+  
+  # 만약 gene_sets가 리스트가 아니라 벡터만 들어왔다면 리스트로 변환
+  # 예: c("CD3D","CD3E") -> list(GeneSet1 = c("CD3D","CD3E"))
+  if(!is.list(gene_sets)){
+    gene_sets <- list(GeneSet1 = gene_sets)
+  }
+  
+  # 이름이 없는 리스트 원소가 있다면 자동으로 이름 부여
+  if(is.null(names(gene_sets)) || any(names(gene_sets) == "")){
+    for(i in seq_along(gene_sets)){
+      if(is.null(names(gene_sets)[i]) || names(gene_sets)[i] == ""){
+        names(gene_sets)[i] <- paste0("GeneSet", i)
+      }
+    }
+  }
+  
+  #-------------------------------
+  # (B) Seurat 객체에 grouping 적용
+  #-------------------------------
+  Idents(sobj) <- group
+  
+  #-------------------------------
+  # (C) 평균 발현량(또는 합계 등) 계산
+  #-------------------------------
+  if(value == "average"){
+    # group.by = group 로 명시
+    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  #-------------------------------
+  # (D) Gene Set 별 발현량 계산
+  #-------------------------------
+  # cluster_avg의 컬럼은 cluster 이름이 된다.
+  cluster_names <- colnames(cluster_avg)
+  
+  # 결과를 담을 data.frame 생성
+  gene_set_expression <- data.frame(Cluster = cluster_names, stringsAsFactors = FALSE)
+  
+  # gene_sets 각각에 대해 평균 발현량을 구함
+  for(gset_name in names(gene_sets)){
+    genes <- gene_sets[[gset_name]]
+    genes_present <- genes[genes %in% rownames(cluster_avg)]
+    
+    if(length(genes_present) == 0){
+      warning(paste("No genes from", gset_name, "found in the dataset."))
+      # 데이터프레임에 NA 열을 넣고 다음으로 넘어감
+      gene_set_expression[[gset_name]] <- NA
+      next
+    }
+    
+    # colMeans를 이용해, 해당 유전자들의 평균 발현량 계산
+    gene_set_expression[[gset_name]] <- colMeans(cluster_avg[genes_present, , drop = FALSE])
+  }
+  
+  #-------------------------------
+  # (E) Z-score 정규화
+  #-------------------------------
+  # 첫 번째 열(Cluster)을 제외한 나머지를 scale()
+  gene_set_expression_normalized <- gene_set_expression
+  gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
+  
+  # 각 Cluster에서 가장 높은 값을 가지는 gene set을 배정해보자(부가 기능)
+  gene_set_expression_normalized$Assigned_CellType <- apply(
+    gene_set_expression_normalized[,-1], 1, 
+    function(x){
+      names(x)[which.max(x)]
+    }
+  )
+  
+  #-------------------------------
+  # (F) 클러스터 순서 정렬
+  #-------------------------------
+  # 사용자가 만든 cluster 이름이 꼭 숫자일 필요는 없으므로,
+  # 1) 전부 숫자로 바꿀 수 있다면 numeric 정렬
+  # 2) 아니면 문자 알파벳 순 정렬
+  
+  # 임시로 numeric 변환
+  numeric_test <- suppressWarnings(as.numeric(gene_set_expression_normalized$Cluster))
+
+  if(!all(is.na(numeric_test))){
+    # NA가 아닌 값이 있다 => 전부 숫자로 파싱되는 경우
+    # 실제로 모두 정상 변환인지 다시 확인 (NA가 하나라도 있으면 문자)
+    if(sum(is.na(numeric_test)) == 0){
+      # 전부 숫자면 해당 순서로 factor 설정
+      sorted_levels <- (unique(numeric_test))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      # 일부만 숫자인 경우 => 그냥 문자 정렬
+      sorted_levels <- (unique(gene_set_expression_normalized$Cluster))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    # 전부 NA => 아예 숫자로 파싱 불가 -> 문자 정렬
+    sorted_levels <- (unique(gene_set_expression_normalized$Cluster))
+    gene_set_expression_normalized$Cluster <- factor(
+      gene_set_expression_normalized$Cluster,
+      levels = sorted_levels
+    )
+  }
+
+  #-------------------------------
+  # (G) Heatmap용 long format 만들기
+  #-------------------------------
+  melted_data <- melt(
+    gene_set_expression_normalized,
+    id.vars = c("Cluster","Assigned_CellType"),
+    variable.name = "GeneSet",
+    value.name = "Zscore"
+  )
+  
+  #-------------------------------
+  # (H) Heatmap 그리기
+  #-------------------------------
+  p <- ggplot(melted_data, aes(x = Cluster, y = GeneSet, fill = Zscore)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme(axis.text.x = element_text(hjust=0.5,size=16),
+          axis.text.y = element_text(hjust=1,size=16),
+          axis.title.x = element_text(hjust=0.5,face="bold",size=16),
+          axis.title.y = element_text(hjust=0.5,face="bold",size=16),
+          plot.title=element_text(size=16,face="bold",hjust=0.5))
+
+  print(p)
+  
+  #-------------------------------
+  # (I) 결과 반환
+  #-------------------------------
+  # Assigned_CellType 까지 붙어있는 최종 테이블 반환
+  return(gene_set_expression_normalized)
+}
+
+
+
+      # title = "Normalized Gene Set Expression per Cluster",
+      # x = "Cluster",
+      # y = "Gene Set"
+myhm_genes2 <- function(
+  sobj,
+  group = "seurat_clusters",
+  value = "average",
+  assay = "SCT",
+  genes = NULL,
+  title = "Normalized Gene Expression per Cluster",
+  x_label = "Cluster",
+  y_label = "Genes"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  #-------------------------------
+  # (A) 유효성 체크
+  #-------------------------------
+  if(is.null(genes)){
+    stop("genes를 지정해 주세요. (예: genes=c('CD3D','CD3E','MS4A1'))")
+  }
+  
+  #-------------------------------
+  # (B) Seurat 객체에 grouping 적용
+  #-------------------------------
+  Idents(sobj) <- group
+  
+  #-------------------------------
+  # (C) 평균 발현량(또는 합계 등) 계산
+  #-------------------------------
+  if(value == "average"){
+    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  #-------------------------------
+  # (D) 원하는 유전자만 필터
+  #-------------------------------
+  genes_present <- genes[genes %in% rownames(cluster_avg)]
+  if(length(genes_present) == 0){
+    stop("지정하신 유전자 중 데이터셋에 존재하는 유전자가 없습니다.")
+  }
+  
+  # Subset 후에 (행=유전자, 열=클러스터)
+  # 행렬을 (열=클러스터, 행=유전자) 형태로 보고 싶으면 Transpose
+  # Heatmap을 그릴 때는 보통 row=유전자, col=클러스터가 익숙하므로, 아래처럼 melt를 하려면
+  # 먼저 t() 한 뒤 scale() 적용한 다음, 다시 melt 시 row는 cluster로, column은 gene이 되도록 했습니다.
+  gene_expression <- cluster_avg[genes_present, , drop=FALSE]
+  # gene_expression: rows=genes, cols=clusters
+  
+  # Z-score 정규화를 위해 t() (rows=clusters, cols=genes)
+  gene_expression <- t(gene_expression)
+  gene_expression <- scale(gene_expression)
+  
+  # data.frame으로 변환
+  gene_expression <- as.data.frame(gene_expression)
+  gene_expression$Cluster <- rownames(gene_expression)
+  
+  #-------------------------------
+  # (E) 클러스터 순서 정렬
+  #-------------------------------
+  numeric_test <- suppressWarnings(as.numeric(gene_expression$Cluster))
+  
+  if(!all(is.na(numeric_test))){
+    # 전부 숫자로 파싱되는 경우
+    if(sum(is.na(numeric_test)) == 0){
+      sorted_levels <- sort(unique(numeric_test))
+      gene_expression$Cluster <- factor(
+        gene_expression$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      # 일부만 숫자인 경우 => 문자 정렬
+      sorted_levels <- sort(unique(gene_expression$Cluster))
+      gene_expression$Cluster <- factor(
+        gene_expression$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    # 전부 NA => 문자 정렬
+    sorted_levels <- sort(unique(gene_expression$Cluster))
+    gene_expression$Cluster <- factor(
+      gene_expression$Cluster,
+      levels = sorted_levels
+    )
+  }
+  
+  #-------------------------------
+  # (F) long format으로 melt
+  #-------------------------------
+  melted_data <- melt(
+    gene_expression,
+    id.vars = "Cluster",
+    variable.name = "Gene",
+    value.name = "Zscore"
+  )
+  
+  #-------------------------------
+  # (G) Heatmap 그리기
+  #-------------------------------
+  p <- ggplot(melted_data, aes(x = Cluster, y = Gene, fill = Zscore)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme(axis.text.x = element_text(angle=45, hjust=1),
+          plot.title=element_text(size=14,face="bold",hjust=0.5))
+  
+  print(p)
+  
+  #-------------------------------
+  # (H) 결과 반환
+  #-------------------------------
+  # 정규화된 수치를 담고 있는 wide-format data.frame 반환
+  return(gene_expression)
+}
+
+```
+
+
+
+
+## Venn plot
+```{r}
+
+# create_venn_diagram <- function(sobj, sample_name,dir=paste0("/data/kjc1/projects/",project,"/sobj/")) {
+#   # Extract doublets from scDblfinder
+#   scdblfinder_doublets <- WhichCells(sobj, idents = "doublet")
+#   
+#   # Extract doublets from demultiplex data (cells with '+' in their call)
+#   demultiplex_doublets <- rownames(sobj@meta.data)[grepl("\\+", sobj@meta.data$sample)]
+#   
+#   # Create the Venn diagram
+#   venn.plot <- venn.diagram(
+#     x = list(
+#       Demultiplex = demultiplex_doublets,
+#       scDblfinder = scdblfinder_doublets
+#     ),
+#     filename = NULL,
+#     category.names = c("Demultiplex", "scDblfinder"),
+#     output = TRUE,
+#     imagetype = "png",
+#     height = 480, 
+#     width = 480, 
+#     resolution = 600,
+#     compression = "lzw",
+#     lwd = 2,
+#     col = c("#440154FF", "#21908CFF"),
+#     fill = c(alpha("#440154FF", 0.3), alpha("#21908CFF", 0.3)),
+#     cex = 1,
+#     fontfamily = "sans",
+#     cat.cex = 0.6,
+#     cat.fontfamily = "sans",
+#     main = paste("Doublet Comparison -", sample_name)
+#   )
+#   
+#   # Display the Venn diagram
+#   grid.draw(venn.plot)
+#   
+#   # Optionally, save the diagram to a file
+#   png(paste0(dir,"doublet_comparison_venn_", sample_name, ".png"), height = 480, width = 480)
+#   grid.draw(venn.plot)
+#   dev.off()
+# }
+
+```
+### version 2
+```{r}
+create_venn_diagram <- function(sobj, sample_name,dir=paste0("/data/kjc1/projects/",project,"/sobj/")) {
+  # Extract doublets from scDblfinder
+  if ("droplet" %in% colnames(sobj@meta.data)) {
+    scdblfinder_doublets <- WhichCells(sobj, expression = droplet == "doublet")
+  } else {
+    warning("'droplet' column not found in metadata. Unable to identify scDblfinder doublets.")
+    scdblfinder_doublets <- character(0)
+  }
+  
+  # Extract doublets from demultiplex data using direct metadata access
+  if ("sample" %in% colnames(sobj@meta.data)) {
+    demultiplex_doublets <- rownames(sobj@meta.data)[grepl("\\+", sobj@meta.data$sample)]
+  } else {
+    warning("'sample' column not found in metadata. Unable to identify demultiplex doublets.")
+    demultiplex_doublets <- character(0)
+  }
+  
+  # Create the Venn diagram
+  venn.plot <- venn.diagram(
+    x = list(
+      Demultiplex = demultiplex_doublets,
+      scDblfinder = scdblfinder_doublets
+    ),
+    filename = NULL,
+    category.names = c("Demultiplex", "scDblfinder"),
+    output = TRUE,
+    imagetype = "png",
+    height = 480, 
+    width = 480, 
+    resolution = 300,
+    compression = "lzw",
+    lwd = 2,
+    col = c("#440154FF", "#21908CFF"),
+    fill = c(alpha("#440154FF", 0.3), alpha("#21908CFF", 0.3)),
+    cex = 1.5,
+    fontfamily = "sans",
+    cat.cex = 1.2,
+    cat.fontfamily = "sans",
+    cat.pos = c(0, 180),  # 카테고리 이름 위치 조정
+    main = paste("Doublet Comparison -", sample_name),
+    main.cex=1.5
+  )
+  
+  # Clear the plotting area
+  grid.newpage()
+  
+  # Display the Venn diagram
+  grid.draw(venn.plot)
+  
+  # Save the diagram to a file
+  png(paste0(dir,"doublet_comparison_venn_", sample_name, ".png"), height = 1000, width = 1000)
+  grid.draw(venn.plot)
+  dev.off()
+  
+  # Print summary
+  cat("Summary for", sample_name, ":\n")
+  cat("Demultiplex doublets:", length(demultiplex_doublets), "\n")
+  cat("scDblfinder doublets:", length(scdblfinder_doublets), "\n")
+  cat("Overlapping doublets:", length(intersect(demultiplex_doublets, scdblfinder_doublets)), "\n\n")
+}
+```
+
+### why not use ggvenn?
+```{r}
+mygv=function(marker1,marker2){
+plot=ggvenn::ggvenn(
+    list(marker1_factor1=fm_re(marker1,"+",0.001)$gene,marker1_factor2=fm_re(marker1,"-",0.001)$gene,
+         marker2_factor1=fm_re(marker2,"+",0.001)$gene,marker2_factor2=fm_re(marker2,"-",0.001)$gene),
+    c("marker1_factor1","marker1_factor2","marker2_factor1","marker2_factor2"),
+    show_percentage=TRUE
+)
+return(plot)
+}
+```
+
+## Compositional data analysis
+#### PERMANOVA
+```{r}
+permanova <- function(sobj, sample = "sample", factor = "disease", component = "seurat_clusters", nperm = 9999) {
+  # Proportions matrix 생성
+  props <- reshape2::acast(data.frame(table(sobj@meta.data[[sample]], sobj@meta.data[[component]])), Var1 ~ Var2)
+  props <- props / rowSums(props)
+  
+  # Factor values 추출
+  factor_table <- table(sobj@meta.data[[sample]], sobj@meta.data[[factor]])
+  factor_values <- apply(factor_table, 1, function(row) {
+    factor_name <- colnames(factor_table)[which(row > 0)]
+    if (length(factor_name) == 1) {
+      return(factor_name)  # 유일한 factor 값 반환
+    } else {
+      return(NA)  # 여러 factor 값이 있다면 NA로 처리
+    }
+  })
+  
+  # NA 제거
+  factor_values <- na.omit(factor_values)
+  
+  # props 및 factor_values 정렬
+  props <- props[names(factor_values), , drop = FALSE]
+  
+  # Metadata dataframe 생성
+  df_meta <- data.frame(Group = factor(factor_values), row.names = names(factor_values))
+  
+  # Alignment 확인
+  if (!all(rownames(df_meta) == rownames(props))) {
+    stop("Row names of df_meta and props do not match.")
+  }
+  
+  # CLR transformation
+  props_clr <- compositions::clr(props + 1e-5)
+  
+  # Aitchison 거리 계산
+  dist_matrix <- dist(props_clr, method = "euclidean")
+  
+  # PERMANOVA 실행
+  #sprintf("sobj=%s, sample=%s, factor=%s, component=%s, nperm=%d",deparse(substitute(sobj)),sample,factor,component,nperm)
+  res <- vegan::adonis2(dist_matrix ~ Group, data = df_meta, permutations = nperm)
+  return(res)
+}
+```
+
+#### MGLM; multivariate GLM; dirichlet-multinomial model
+it's not that good.
+all the p-values are so low.
+#### logstic regression between cluster frequencys
+```{r}
+test_cluster_association <- function(sobj,
+                                    identity = "seurat_clusters",
+                                    variable_of_interest = "disease",
+                                    covariates = c("sex", "age"),
+                                    idents = NULL,
+                                    test_method = c("logistic", "chisq", "fisher"),
+                                    reference_level = NULL,
+                                    p_adjust_method = "BH") {
+  
+  # Set identity class
+  Idents(sobj) <- identity
+  cluster_ids <- Idents(sobj)
+  metadata <- sobj@meta.data
+  
+  # Validate inputs
+  all_vars <- c(variable_of_interest, covariates)
+  missing_vars <- all_vars[!all_vars %in% colnames(metadata)]
+  if(length(missing_vars) > 0) {
+    stop(paste("The following variables are missing from metadata:", 
+              paste(missing_vars, collapse = ", ")))
+  }
+  
+  # Create base dataframe with all relevant variables
+  data <- data.frame(cluster = cluster_ids)
+  for(var in all_vars) {
+    data[[var]] <- metadata[[var]]
+  }
+  
+  # Filter identities if specified
+  if(!is.null(idents)) {
+    data <- data[data$cluster %in% idents,]
+  }
+  
+  # Determine test method
+  test_method <- match.arg(test_method)
+  
+  # Get unique clusters
+  clusters <- unique(data$cluster)
+  
+  # Function to create a binary indicator for each cluster
+  create_binary <- function(data, target_cluster) {
+    data$is_cluster <- ifelse(data$cluster == target_cluster, 1, 0)
+    return(data)
+  }
+  
+  # Initialize results
+  results <- list()
+  
+  # Analyze each cluster
+  for(curr_cluster in clusters) {
+    # Create binary indicator for current cluster
+    test_data <- create_binary(data, curr_cluster)
+    
+    # Apply the selected statistical test
+    if(test_method == "logistic") {
+      # Set reference level if provided
+      if(!is.null(reference_level)) {
+        test_data[[variable_of_interest]] <- relevel(factor(test_data[[variable_of_interest]]), 
+                                                   ref = reference_level)
+      }
+      
+      # Formulate model
+      formula_str <- paste0("is_cluster ~ ", paste(all_vars, collapse = " + "))
+      model <- glm(as.formula(formula_str), data = test_data, family = binomial())
+      
+      # Extract results
+      summary_obj <- summary(model)
+      coefs <- summary_obj$coefficients
+      
+      # Extract only the variables of interest (not covariates)
+      var_indices <- grep(paste0("^", variable_of_interest), rownames(coefs))
+      
+      if(length(var_indices) > 0) {
+        cluster_results <- data.frame(
+          cluster = curr_cluster,
+          term = rownames(coefs)[var_indices],
+          estimate = coefs[var_indices, "Estimate"],
+          std_error = coefs[var_indices, "Std. Error"],
+          p_value = coefs[var_indices, "Pr(>|z|)"],
+          odds_ratio = exp(coefs[var_indices, "Estimate"]),
+          lower_ci = exp(coefs[var_indices, "Estimate"] - 1.96 * coefs[var_indices, "Std. Error"]),
+          upper_ci = exp(coefs[var_indices, "Estimate"] + 1.96 * coefs[var_indices, "Std. Error"])
+        )
+        
+        results[[as.character(curr_cluster)]] <- cluster_results
+      }
+    } else if(test_method %in% c("chisq", "fisher")) {
+      # Create contingency table
+      cont_table <- table(test_data[[variable_of_interest]], test_data$is_cluster)
+      
+      # Apply test
+      if(test_method == "chisq") {
+        test_result <- chisq.test(cont_table)
+      } else {
+        test_result <- fisher.test(cont_table)
+      }
+      
+      # Store results
+      cluster_results <- data.frame(
+        cluster = curr_cluster,
+        test = test_method,
+        p_value = test_result$p.value
+      )
+      
+      results[[as.character(curr_cluster)]] <- cluster_results
+    }
+  }
+  
+  # Combine results
+  combined_results <- do.call(rbind, results)
+  
+  # Apply multiple testing correction
+  if(!is.null(p_adjust_method) && nrow(combined_results) > 1) {
+    combined_results$p_adjusted <- p.adjust(combined_results$p_value, method = p_adjust_method)
+  }
+  
+  return(combined_results)
+}
+
+# Function to visualize the statistical results
+plot_cluster_stats <- function(stats_results, 
+                              p_threshold = 0.05,
+                              plot_type = c("forest", "heatmap"),
+                              sort_by = c("p_value", "odds_ratio", "cluster")) {
+  
+  plot_type <- match.arg(plot_type)
+  sort_by <- match.arg(sort_by)
+  
+  # Add significance indicator
+  stats_results$significant <- ifelse(stats_results$p_adjusted < p_threshold, "Yes", "No")
+  
+  # Sort data
+  if(sort_by == "p_value") {
+    stats_results <- stats_results[order(stats_results$p_value),]
+  } else if(sort_by == "odds_ratio") {
+    stats_results <- stats_results[order(stats_results$odds_ratio, decreasing = TRUE),]
+  } else {
+    # Sort by cluster (assuming numeric clusters)
+    if(all(grepl("^[0-9]+$", unique(as.character(stats_results$cluster))))) {
+      stats_results$cluster <- as.numeric(as.character(stats_results$cluster))
+      stats_results <- stats_results[order(stats_results$cluster),]
+      stats_results$cluster <- as.character(stats_results$cluster)
+    }
+  }
+  
+  if(plot_type == "forest" && "odds_ratio" %in% colnames(stats_results)) {
+    # Forest plot for logistic regression results
+    p <- ggplot(stats_results, aes(x = odds_ratio, y = term, color = significant)) +
+      geom_point(size = 3) +
+      geom_errorbarh(aes(xmin = lower_ci, xmax = upper_ci), height = 0.2) +
+      geom_vline(xintercept = 1, linetype = "dashed", color = "gray50") +
+      facet_wrap(~cluster, scales = "free_y", ncol = 2) +
+      scale_color_manual(values = c("Yes" = "red", "No" = "blue")) +
+      theme_minimal() +
+      labs(x = "Odds Ratio (95% CI)", y = "", 
+           title = "Association Between Clusters and Variables of Interest",
+           subtitle = paste0("P-value threshold: ", p_threshold)) +
+      theme(legend.position = "bottom",
+            strip.background = element_rect(fill = "lightgrey"),
+            strip.text = element_text(face = "bold"))
+    
+    return(p)
+    
+  } else if(plot_type == "heatmap") {
+    # Create heatmap of p-values or adjusted p-values
+    if("p_adjusted" %in% colnames(stats_results)) {
+      p_col <- "p_adjusted"
+    } else {
+      p_col <- "p_value"
+    }
+    
+    # For logistic regression, we need to reshape
+    if("term" %in% colnames(stats_results)) {
+      heat_data <- stats_results %>%
+        select(cluster, term, !!sym(p_col)) %>%
+        tidyr::spread(key = term, value = !!sym(p_col))
+    } else {
+      # For simpler tests, just use p-value
+      heat_data <- stats_results %>%
+        select(cluster, !!sym(p_col)) %>%
+        rename(value = !!sym(p_col))
+    }
+    
+    # Melt data for heatmap if necessary
+    if(ncol(heat_data) > 2) {
+      heat_data <- reshape2::melt(heat_data, id.vars = "cluster")
+      colnames(heat_data)[2:3] <- c("variable", "value")
+    } else {
+      heat_data$variable <- "p-value"
+    }
+    
+    # Create heatmap
+    p <- ggplot(heat_data, aes(x = variable, y = cluster, fill = -log10(value))) +
+      geom_tile(color = "white") +
+      scale_fill_viridis_c(name = "-log10(p-value)") +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      labs(x = "", y = "Cluster", 
+           title = "Statistical Significance of Cluster Associations",
+           subtitle = paste0("P-value threshold: ", p_threshold, 
+                           " (", p_col, ")"))
+    
+    return(p)
+  }
+}
+
+# Usage example:
+# # Test association between clusters and disease, controlling for sex and age
+# stats <- test_cluster_association(s, variable_of_interest = "disease", 
+#                                 covariates = c("sex", "age"), 
+#                                 test_method = "logistic")
+# 
+# # Visualize results as a forest plot
+# plot_cluster_stats(stats, plot_type = "forest")
+
+
+```
+
+## Boxplot
+```{r}
+mybox=function(sobj, features, quantile_gene,quantile_number){
+# Step 1: Extract data and assign quartiles
+data <- FetchData(sobj, vars = c(features,quantile_gene)) #여기서 aoi 등 개별 unit을 정의할 metadata를 추출할 수도 있다.
+data$aoi=rownames(data)
+
+Quantiles <- quantile(data[[quantile_gene]], probs = seq(0,1,1/quantile_number))[c(-1,-1-quantile_number)]
+data$quantile <- cut(
+  data[[quantile_gene]],
+  breaks = c(-Inf, Quantiles, Inf),
+  labels = paste0("Q",1:quantile_number)
+)
+
+Title=paste0(features," Expression by ",quantile_gene," Quantile")
+X_label=paste0(quantile_gene, " Quantile")
+Y_label=paste0(features, " Expression")
+# Step 2: Create a boxplot segregated by quartile
+library(ggplot2)
+plot=ggplot(data, aes_string(x = "quantile", y = features, fill = "quantile")) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  geom_jitter(aes(color = aoi), width = 0.2, alpha = 0.5) + # Show individual cells by ROI
+  scale_fill_manual(values = c("Q1" = "blue", "Q2" = "green", "Q3" = "orange", "Q4" = "red","Q5"="yellow","Q6"="pink","Q7"="black","Q8"="white","Q9"="brown","Q10"="gold")) +
+  ggtitle(Title) +
+  labs(x = X_label, Y = Y_label) +
+  theme_minimal() +
+  theme(plot.title=element_text(size=14,face="bold",hjust=0.5))+
+  guides(color = "none") + # Hide the legend for "aoi"
+  stat_compare_means(method = "wilcox.test", label = "p.signif")  # Add p-values
+print(plot)
+return(plot)
+}
+```
+
+### advanced box
+```{r}
+mybox_ <- function(
+  sobj, 
+  features, 
+  quantile_gene,
+  quantile_number,
+  agg_feature = FALSE,    # If TRUE, aggregate multiple features into one
+  max_features = 5,       # Threshold for number of features before prompting
+  time_per_plot = 5,      # Estimated time per plot in seconds
+  color_palette = "Set3"  # Color palette name from RColorBrewer
+) {
+  # Load necessary libraries
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("ggplot2 package is required but not installed.")
+  }
+  if (!requireNamespace("ggpubr", quietly = TRUE)) {
+    stop("ggpubr package is required but not installed.")
+  }
+  if (!requireNamespace("RColorBrewer", quietly = TRUE)) {
+    stop("RColorBrewer package is required but not installed.")
+  }
+  if (!requireNamespace("dplyr", quietly = TRUE)) {
+    stop("dplyr package is required but not installed.")
+  }
+  
+  library(ggplot2)
+  library(ggpubr)
+  library(RColorBrewer)
+  library(dplyr)
+  
+  # Step A: Handle multiple features
+  if (length(features) > 1 && !agg_feature) {
+    total_est_time <- length(features) * time_per_plot
+    message(sprintf(
+      "[mybox] You requested %d features, which may take ~%.1f seconds to plot.\n",
+      length(features), total_est_time
+    ))
+    
+    if (length(features) > max_features) {
+      proceed <- utils::askYesNo("Number of features exceeds maximum allowed. Do you want to continue?")
+      if (is.na(proceed) || !proceed) {
+        stop("[mybox] User chose to stop due to large number of features.")
+      }
+    }
+  }
+  
+  # Step B: Fetch Data
+  data <- FetchData(sobj, vars = c(features, quantile_gene))
+  
+  # Check if quantile_gene exists
+  if (!(quantile_gene %in% colnames(data))) {
+    stop(sprintf("[mybox] The quantile_gene '%s' is not present in the data.", quantile_gene))
+  }
+  
+  data$aoi <- rownames(data)
+  
+  # Step C: Aggregate Features if required
+  if (agg_feature && length(features) > 1) {
+    agg_name <- paste(features, collapse = "_plus_")
+    data[[agg_name]] <- rowMeans(data[, features], na.rm = TRUE)
+    features <- agg_name
+  }
+  
+  # Step D: Assign Quantiles
+  quantiles_raw <- quantile(
+    data[[quantile_gene]], 
+    probs = seq(0, 1, length.out = quantile_number + 1),
+    na.rm = TRUE
+  )
+  
+  q_labels <- paste0("Q", 1:quantile_number)
+  
+  data$quantile <- cut(
+    data[[quantile_gene]],
+    breaks = quantiles_raw,
+    labels = q_labels,
+    include.lowest = TRUE
+  )
+  
+  # Inspect the quantile assignments
+  print("First few quantile assignments:")
+  print(head(data$quantile))
+  
+  print("Quantile distribution:")
+  print(table(data$quantile, useNA = "ifany"))
+  
+  # Check if 'quantile' column was created successfully and has no NAs
+  if (all(is.na(data$quantile))) {
+    stop("[mybox] All quantile assignments are NA. Check the distribution of 'quantile_gene'.")
+  }
+  
+  # Optionally, warn if some NAs exist
+  na_quantiles <- sum(is.na(data$quantile))
+  if (na_quantiles > 0) {
+    warning(sprintf("[mybox] %d entries have NA quantile assignments and will be excluded from the plot.", na_quantiles))
+    data <- data %>% filter(!is.na(quantile))
+  }
+  
+  # Step E: Define color palette dynamically
+  if (quantile_number <= brewer.pal.info[color_palette, "maxcolors"]) {
+    color_vector <- brewer.pal(n = quantile_number, name = color_palette)
+  } else {
+    # Extend the palette if needed
+    color_vector <- colorRampPalette(brewer.pal(brewer.pal.info[color_palette, "maxcolors"], color_palette))(quantile_number)
+  }
+  
+  # Step F: Function to create individual plots
+  create_plot <- function(feature) {
+    # Define titles and labels
+    plot_title <- paste0(feature, " Expression by ", quantile_gene, " Quantile")
+    x_label <- paste0(quantile_gene, " Quantile")
+    y_label <- paste0(feature, " Expression")
+    
+    # Define color palette dynamically
+    if (quantile_number <= brewer.pal.info[color_palette, "maxcolors"]) {
+      color_vector <- brewer.pal(n = quantile_number, name = color_palette)
+    } else {
+      # Extend the palette if needed
+      color_vector <- colorRampPalette(brewer.pal(brewer.pal.info[color_palette, "maxcolors"], color_palette))(quantile_number)
+    }
+    
+    # Step G: Compute p-values with sequential comparisons
+    q_labels_sorted <- q_labels  # Assuming Q1 < Q2 < Q3...
+    
+    # Initialize p-values dataframe
+    p_values <- data.frame(
+      group1 = character(),
+      group2 = character(),
+      p = numeric(),
+      p.signif = character(),
+      y.position = numeric(),
+      stringsAsFactors = FALSE
+    )
+    
+    # Function to perform Wilcoxon test
+    get_p_value <- function(df, g1, g2) {
+      x <- df[df$quantile == g1, feature]
+      y <- df[df$quantile == g2, feature]
+      if (length(x) == 0 | length(y) == 0) {
+        return(NA)
+      }
+      test <- wilcox.test(x, y)
+      return(test$p.value)
+    }
+    
+    # Implement sequential comparison logic
+    current_group <- q_labels_sorted[1]
+    y_max <- max(data[[feature]], na.rm = TRUE)
+    step <- (y_max * 0.05) # Adjust step as needed
+    y_position <- y_max + step
+    
+    for (i in 2:length(q_labels_sorted)) {
+      next_group <- q_labels_sorted[i]
+      pval <- get_p_value(data, current_group, next_group)
+      p_signif <- ifelse(is.na(pval), "NA",
+                        ifelse(pval < 0.001, "***",
+                               ifelse(pval < 0.01, "**",
+                                      ifelse(pval < 0.05, "*", "ns"))))
+      p_values <- rbind(p_values, data.frame(
+        group1 = current_group,
+        group2 = next_group,
+        p = pval,
+        p.signif = p_signif,
+        y.position = y_position,
+        stringsAsFactors = FALSE
+      ))
+      if (!is.na(pval) && pval < 0.05) {
+        # Significant difference, move to next group
+        current_group <- next_group
+      }
+      # Increment y.position for next label
+      y_position <- y_position + step
+    }
+    
+    # Create the plot
+    p <- ggplot(data, aes(x = quantile, y = .data[[feature]], fill = quantile)) +
+      geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+      geom_jitter(aes(color = aoi), width = 0.2, alpha = 0.5) +
+      scale_fill_manual(values = color_vector) +
+      ggtitle(plot_title) +
+      labs(x = x_label, y = y_label) +
+      theme_minimal() +
+      guides(color = "none") +
+      # Add p-values
+      stat_pvalue_manual(
+        data = p_values,
+        label = "p.signif",
+        xmin = "group1",
+        xmax = "group2",
+        y.position = "y.position",
+        tip.length = 0.01
+      )
+    
+    return(p)
+  }
+  
+  # Step H: Generate plots
+  plot_list <- list()
+  for (f in features) {
+    p <- create_plot(f)
+    print(p)  # Display the plot
+    plot_list[[f]] <- p
+  }
+  
+  # Step I: Return the plots
+  if (length(plot_list) == 1) {
+    return(plot_list[[1]])
+  } else {
+    return(plot_list)
+  }
+}
+
+
+
+```
+
+#### example usage
+```{r}
+# Example usage:
+
+# 1) Single feature, straightforward:
+p1 <- mybox(
+  sobj = my_seurat_object,
+  features = "GeneA",
+  quantile_gene = "Some_Gene_For_Quantile",
+  quantile_number = 5
+)
+# p1 is a ggplot object
+
+# 2) Multiple features, no aggregation, max_features=3 for demonstration:
+p_list <- mybox(
+  sobj = my_seurat_object,
+  features = c("GeneA", "GeneB", "GeneC"),
+  quantile_gene = "Some_Gene_For_Quantile",
+  quantile_number = 4,
+  max_features = 3
+)
+# p_list is a list of ggplots
+
+# 3) Multiple features, aggregated:
+p_agg <- mybox(
+  sobj = my_seurat_object,
+  features = c("GeneA", "GeneB", "GeneC", "GeneD"),
+  quantile_gene = "Some_Gene_For_Quantile",
+  quantile_number = 4,
+  agg_feature = TRUE
+)
+# p_agg is a single ggplot for the "mean" of GeneA,B,C,D
+
+```
+
+
+
+# GSEA
+```{r}
+my_gsea=function(findmarker, category=NULL, help=NULL){
+  deg_results=findmarker
+  deg_results$log10_p <- ifelse(deg_results$p_val == 0, 300, -log10(deg_results$p_val))
+
+  # rank metric 계산
+  deg_results$rank_metric <- deg_results$avg_log2FC * deg_results$log10_p
+  ranked_genes <- deg_results$rank_metric
+  names(ranked_genes) <- rownames(deg_results)
+  ranked_genes <- sort(ranked_genes, decreasing = TRUE)
+  ## Performing GSEA with fgsea
+  if(is.null(help)){
+    
+  }else{
+    print("
+      H: Hallmark (50개 경로)
+      C2: Curated gene sets (KEGG, REACTOME 등)
+      C3: Motif gene sets
+      C5: GO gene sets
+      C6: Oncogenic signatures
+      C7: Immunologic signatures
+      C8: Cell type signatures
+      ")
+  }
+  if(is.null(category)){
+    pathways <- msigdbr::msigdbr(species = "Homo sapiens") %>% 
+    split(x = .$gene_symbol, f = .$gs_name)
+  }else{
+      pathways <- msigdbr::msigdbr(species = "Homo sapiens", category = category) %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+
+  }
+
+  fgsea_results <- fgsea::fgsea(
+    pathways = pathways,
+    stats = ranked_genes,
+    minSize = 15,
+    maxSize = 500,
+    nproc=8
+  )
+  significant_pathways <- fgsea_results[fgsea_results$padj < 0.05, ]
+  
+  print(significant_pathways)
+  enrich_plot_list=list()
+  for(pathway in significant_pathways$pathway){
+    message("Enrichment plot for pathway: ", pathway)
+    enrich_plot_list[[pathway]] <- plotEnrichment(pathways[[ pathway ]], ranked_genes) +
+      labs(title = paste0("significant pathway - ",pathway)) +
+      theme_minimal()
+  }
+  return(list(fgsea_results,enrich_plot_list))
+  
+}
+
+```
+
+# AUC
+
+```{r}
+library(pROC)
+library(Seurat)
+
+# AUC 함수 정의
+AUC <- function(sobj,
+                feature,
+                label,
+                group.by       = NULL,
+                positive_level = NULL,
+                summarise_fun  = mean,
+                direction      = "auto"){
+  meta <- sobj@meta.data
+  
+  # 1) feature 값 추출
+  if (feature %in% colnames(meta)) {
+    values <- meta[[feature]]
+  } else {
+    values <- FetchData(sobj, vars = feature)[,1]
+  }
+  
+  # 2) label 꺼내서 factor 확인
+  labs <- meta[[label]]
+  if (!is.factor(labs)) labs <- factor(labs)
+  lvls <- levels(labs)
+  if (length(lvls) != 2) {
+    stop("'", label, "' 은 2-level factor 이어야 합니다.")
+  }
+  if (is.null(positive_level)) {
+    positive_level <- lvls[2]
+  }
+  
+  # 3) 그룹 지정이 있으면 aggregate
+  if (!is.null(group.by)){
+    if (!(group.by %in% colnames(meta))){
+      stop("'", group.by, "' 변수를 meta.data에서 찾을 수 없습니다.")
+    }
+    df <- data.frame(
+      grp   = meta[[group.by]],
+      val   = values,
+      lab   = labs,
+      stringsAsFactors = FALSE
+    )
+    # 평균 score
+    agg_score <- aggregate(val ~ grp, data = df, FUN = summarise_fun)
+    # 그룹별 label (유일하지 않으면 첫 번째 사용)
+    agg_lab <- aggregate(lab ~ grp, data = df, FUN = function(x){
+      ux <- unique(x)
+      if (length(ux)>1){
+        warning(
+         paste0("그룹 '", unique(df$grp[df$lab != x[1]]),
+                "' 에 서로 다른 label이 섞여있습니다. 첫 번째 수준('", ux[1], "')을 사용합니다.")
+        )
+      }
+      ux[1]
+    })
+    # 합치기
+    agg <- merge(agg_score, agg_lab, by = "grp")
+    scores <- agg$val
+    labs   <- factor(agg$lab, levels = lvls)
+  } else {
+    scores <- values
+    labs   <- labs
+  }
+  
+  # 4) 이진 레이블 벡터
+  binary <- ifelse(labs == positive_level, 1, 0)
+  
+  # 5) ROC 계산 & 그리기
+  roc_obj <- roc(response  = binary,
+                 predictor = scores,
+                 direction = direction,
+                 quiet     = TRUE)
+  
+  p=plot(roc_obj,
+       main      = paste0("ROC for ", feature),
+       print.auc = TRUE)
+  
+  # 6) 결과 리턴
+  invisible(list(
+    roc_plot = p,
+    roc=roc_obj,
+    auc = auc(roc_obj)
+  ))
+}
+
+# 사용 예시
+# sample_no 별 평균 HLA-DMA 발현으로 nih_change_level ROC
+res <- AUC(
+  sobj           = subset(stroke,annotation_gpt2=="CD4_TN"),
+  feature        = "HLA-DMA",
+  label          = "group3",
+  group.by       = "Best_Sample_final",
+  positive_level = NULL    # 없어도 두 번째 수준을 자동 선택
+)
+
+cat("Computed AUC =", res$auc, "\n")
+```
+
+# scatter plot
+```{r}
+scatter_smooth = function(sobj, feature, clinical_variable = "nih_change", sample_column="sample_no", transpose = FALSE, plot=T) {
+  library(dplyr)
+  library(ggplot2)
+
+  # 1) Make a per-cell data.frame with the expression for 'feature'
+  df <- data.frame(
+    "sample" = sobj@meta.data[[sample_column]],
+    FEATURE = as.numeric(FetchData(sobj, vars = feature)[, feature])
+  )
+
+  # 2) Compute average expression per patient
+  df_avg <- df %>%
+    group_by(sample) %>%
+    summarise(avg_FEATURE = mean(FEATURE, na.rm = TRUE))
+
+  # 3) Merge with your clinical variable
+  meta_patient <- sobj@meta.data %>%
+    mutate("sample"=sobj@meta.data[[sample_column]]) %>%
+    dplyr::select("sample", all_of(clinical_variable)) %>% #여기까진 변수로 인식
+    distinct(sample, .keep_all = TRUE) #여기서는 문자 그대로 인식
+
+  df_merged <- left_join(df_avg, meta_patient, by = "sample") %>%
+    mutate(
+      clinical_variable_numeric = as.numeric(as.character(.data[[clinical_variable]]))
+    )
+
+  # 4) Branch logic for transpose:
+  #    transpose = FALSE -> x = clinical_variable, y = avg_FEATURE
+  #    transpose = TRUE  -> x = avg_FEATURE,         y = clinical_variable
+
+  if (!transpose) {
+    # Model: avg_FEATURE ~ nih_change_numeric
+    model <- lm(avg_FEATURE ~ clinical_variable_numeric, data = df_merged)
+    summary(model)
+
+    intercept <- round(coef(model)[1], 3)
+    slope <- round(coef(model)[2], 3)
+    pval <- signif(summary(model)$coefficients[2, 4], 3)
+    label_text <- paste0("y = ", intercept, " + ", slope, " * x\np = ", pval)
+    
+    if(plot){
+      # Plot: x = nih_change_numeric, y = avg_FEATURE
+      p = ggplot(df_merged, aes(x = clinical_variable_numeric, y = avg_FEATURE)) +
+        geom_point() +
+        geom_smooth(method = "lm", se = TRUE) +
+        annotate(
+          "text",
+          x = min(df_merged$clinical_variable_numeric, na.rm = TRUE),
+          y = max(df_merged$avg_FEATURE, na.rm = TRUE),
+          label = label_text, hjust = 0, vjust = 1, size = 5
+        ) +
+        theme_bw() +
+        xlab(clinical_variable) +
+        ylab(paste0("Average ", feature, " Expression"))
+    }
+
+  } else {
+    # transpose = TRUE -> we flip the roles:
+    # Model: nih_change_numeric ~ avg_FEATURE
+    model <- lm(clinical_variable_numeric ~ avg_FEATURE, data = df_merged)
+    summary(model)
+
+    intercept <- round(coef(model)[1], 3)
+    slope <- round(coef(model)[2], 3)
+    pval <- signif(summary(model)$coefficients[2, 4], 3)
+    label_text <- paste0("y = ", intercept, " + ", slope, " * x\np = ", pval)
+    
+    if(plot){
+      # Plot: x = avg_FEATURE, y = nih_change_numeric
+      p = ggplot(df_merged, aes(x = avg_FEATURE, y = clinical_variable_numeric)) +
+        geom_point() +
+        geom_smooth(method = "lm", se = TRUE) +
+        annotate(
+          "text",
+          x = min(df_merged$avg_FEATURE, na.rm = TRUE),
+          y = max(df_merged$clinical_variable_numeric, na.rm = TRUE),
+          label = label_text, hjust = 0, vjust = 1, size = 5
+        ) +
+        theme_bw() +
+        xlab(paste0("Average ", feature, " Expression")) +
+        ylab(clinical_variable)
+    }
+  }
+  if(plot){
+    return(list(gene=feature, plot=p,clinical_variable=clinical_variable,sample_column=sample_column,transpose=transpose,intercept=intercept,slope=slope,pval=pval,label_text=label_text))
+  }else{
+    return(list(gene=feature,clinical_variable=clinical_variable,sample_column=sample_column,transpose=transpose,intercept=intercept,slope=slope,pval=pval,label_text=label_text))
+  }
+
+}
+```
+
+# getting linear regression coefficient
+```{r}
+# genes of interest
+linear_fit=function(sobj, genes,category="type",outcome="nih_change")
+{
+gene_list=genes
+
+# Get expression matrix
+expr <- FetchData(sobj, vars = gene_list)
+
+# Add sample_no info
+expr[[category]] <- sobj@meta.data[[category]]
+
+# Average gene expression per patient
+avg_expr_by_patient <- expr %>%
+  group_by(!!sym(category)) %>%
+  summarise(across(all_of(gene_list), ~ mean(.x, na.rm = TRUE)))
+
+
+
+meta_patient <- sobj@meta.data %>%
+  select(category, outcome) %>%
+  distinct()
+
+
+# type unifying
+# meta_patient[[category]]=as.character(meta_patient[[category]])
+# avg_expr_by_patient[[category]]=as.character(avg_expr_by_patient[[category]])
+
+df_merged <- left_join(avg_expr_by_patient, meta_patient, by = category)
+df_merged[[outcome]] <- as.numeric(as.character(df_merged[[outcome]]))
+
+
+results_lm <- lapply(gene_list, function(gene) {
+  model <- lm(df_merged[[gene]] ~ df_merged[[outcome]])
+  summary_model <- summary(model)
+  data.frame(
+    gene = gene,
+    intercept = coef(model)[1],
+    slope = coef(model)[2],
+    p_value = summary_model$coefficients[2, 4],
+    r_squared = summary_model$r.squared
+  )
+})
+
+results_lm_df <- do.call(rbind, results_lm)
+return(results_lm_df)
+}
+
+#coeffs=linear_fit(stroke,good_genes,"sample_no")
+#coeffs=linear_fit(subset(stroke,annotation1=="Tc"),good_genes,"sample_no")
+```
+
+# NicheNet
+```{r}
+NN=function(NN_folder){
+  lr_network = readRDS(paste0(NN_folder,"/lr_network_human_21122021.rds")) %>% distinct(from, to)
+  ligands = lr_network %>% pull(from) %>% unique()
+  receptors = lr_network %>% pull(to) %>% unique()
+  weighted_networks = readRDS(paste0(NN_folder,"/weighted_networks_nsga2r_final.rds"))
+  # lr_sig: interactions and their weights in the ligand-receptor+signaling network
+  # gr: interactions and their weights in the gene regulatory network
+  weighted_networks_lr = weighted_networks$lr_sig %>% inner_join(lr_network, by = c("from","to"))
+  ligand_target_matrix = readRDS(paste0(NN_folder,"/ligand_target_matrix_nsga2r_final.rds"))
+  ligand_tf_matrix = readRDS(paste0(NN_folder,"/ligand_tf_matrix_nsga2r_final.rds"))
+  sig_network = readRDS(paste0(NN_folder,"/signaling_network_human_21122021.rds"))
+  gr_network = readRDS(paste0(NN_folder,"/gr_network_human_21122021.rds"))
+  
+  NN_list=list(lr_network=lr_network,
+               ligands=ligands,
+               receptors=receptors,
+               weighted_networks=weighted_networks,
+               weighted_networks_lr=weighted_networks_lr,
+               ligand_target_matrix=ligand_target_matrix,
+               ligand_tf_matrix=ligand_tf_matrix,
+               sig_network=sig_network,
+               gr_network=gr_network)
+  return(NN_list)
+}
+
+```
+
+#GeoMx - 베타
+```{r}
+
+geomx_pipeline=function(inital_dataset_url){
+  raw_data <- read_excel(
+  path = inital_dataset_url,
+  sheet = "BioProbeCountMatrix"
+)
+
+rownames(raw_data)=raw_data$ProbeDisplayName
+
+seg_props <- read_excel(
+  path = inital_dataset_url, 
+  sheet = "SegmentProperties"
+)
+
+rownames(seg_props)=seg_props$SegmentDisplayName
+
+
+data_selected <- raw_data %>%
+  dplyr::select(
+    `ProbeDisplayName`,
+    `TargetName`,
+    `HUGOSymbol`,
+    matches("\\|")  # 파이프(|) 문자 포함된 컬럼명, 백틱으로 감싸야 함
+  )
+
+# 1) 우선 numeric 타입 컬럼만 찾음
+numeric_cols <- names(data_selected)[sapply(data_selected, is.numeric)]
+
+# 2) 여기서도 B, C, D 등 메타열(문자형)이 섞여있으면 제외
+#    원래 계획대로라면 AOI 카운트 열만 남겨야 함
+#    예: meta_cols <- c("ProbeDisplayName","TargetName","HUGOSymbol", ...)
+meta_cols <- c("ProbeDisplayName", "TargetName", "HUGOSymbol") 
+# 실제 이름과 맞춰 수정 가능
+
+# 3) 최종적으로 우리가 sum을 구하고 싶은 AOI 열만 선택
+aoi_cols <- setdiff(numeric_cols, meta_cols)
+
+# 4) colSums
+aoi_sum <- colSums(data_selected[aoi_cols], na.rm = TRUE)
+
+## (예시) AOI outlier(너무 낮은 count) 필터링 기준 설정
+## 실제론 boxplot/IQR/임계값/수동 선택 등 다양한 방식 가능
+q1 <- quantile(aoi_sum, 0.25)
+q3 <- quantile(aoi_sum, 0.75)
+iqr_val <- q3 - q1
+low_cutoff <- q1 - 1.5 * iqr_val  # 예: 1.5*IQR 미만이면 outlier로 간주
+remove_aoi <- names(aoi_sum[aoi_sum < low_cutoff])
+
+## 현재 데이터셋에서 특정 AOI(예: 4mm 68번)가 유일하게 이상치라고 가정
+## 'remove_aoi'에 해당하면 필터링
+data_filtered_aoi <- data_selected %>%
+  dplyr::select(-all_of(remove_aoi))
+
+remove_aoi=names(aoi_sum[aoi_sum==min(aoi_sum)])
+## 'remove_aoi'에 해당하면 필터링
+data_filtered_aoi <- data_selected %>%
+  dplyr::select(-all_of(remove_aoi))
+
+aoi_cols=aoi_cols[aoi_sum!=min(aoi_sum)]
+
+# -1.5IQR 미만인 AOI를 제거해준 후, negprobe만 선택
+neg_data <- data_filtered_aoi %>%
+  dplyr::filter(grepl("NegProbe-WTX", ProbeDisplayName))
+
+# 최솟값을 제거
+neg_aoi <- neg_data[aoi_cols]
+neg_geo_mean <- exp(rowMeans(log(neg_aoi), na.rm = TRUE))  # +1: log(0) 방지 --> 애초에 1이 더해져 있다.
+neg_overall_geo_mean <- geoMean(neg_geo_mean, na.rm = TRUE)
+
+neg_log_sd <- sd(log(neg_geo_mean), na.rm = TRUE)
+LOQ <- exp(log(neg_overall_geo_mean) + 2 * neg_log_sd)
+
+## NegProbe-WTX가 아닌 행만: (과거엔 filter(!grepl("NegProbe-WTX", B)) )
+bio_data <- data_filtered_aoi %>%
+  dplyr::filter(!grepl("NegProbe-WTX", ProbeDisplayName))
+
+bio_aoi <- bio_data[aoi_cols]
+probe_geo_mean <- exp(rowMeans(log(bio_aoi), na.rm = TRUE))
+
+## ratio_to_target: probe별 geomean / 해당 target의 geomean
+ratio_to_target <- probe_geo_mean/geoMean(probe_geo_mean)
+
+keep_idx_1 <- ratio_to_target >= 0.1
+
+
+grubbs_percent_rosner <- apply(bio_aoi, 1, function(x) {
+  # x: 한 probe의 모든 AOI 카운트
+  # k = 최대 검출할 outlier 개수 (적당히 지정. 예: 전체 AOI 수의 10%나 20% 정도?)
+  k_max <- floor(0.5 * length(x))  # 예) 최대 절반까지 outlier로 잡을 수 있다고 가정
+
+  # rosnerTest로 한 번에 다중 outlier 검출
+  # alpha는 0.05(기본), 필요시 조정
+  # NOTE: x에 NA가 있으면 에러 -> na.omit(x) 등 미리 처리 필요
+  out <- suppressWarnings(
+    rosnerTest(na.omit(x), k = k_max)
+  )
+
+  # outlier로 판정된 관측치 개수
+  n_out <- out$n.outliers
+
+  # outlier 비율
+  frac_out <- n_out / length(x)
+  return(frac_out)
+})
+
+# grubbs test 안한다.
+keep_idx_2 <- grubbs_percent_rosner < 10
+
+bio_data_qc <- bio_data[keep_idx_1 & keep_idx_2, ]
+
+length(keep_idx_2[keep_idx_2==TRUE])
+length(keep_idx_1[keep_idx_1==TRUE])
+
+
+## 2. Filter
+## (주어진 frequency & threshold 조건)
+## Frequency >= 10% segments above threshold
+## Threshold = max(LOQ, user_defined=2) 등
+
+threshold_used=LOQ
+#threshold_used <- max(LOQ, 2)
+
+
+
+bio_aoi_qc <- bio_data_qc[aoi_cols]
+
+freq_above_geo <- apply(bio_aoi_qc, 1, function(x) {
+  gm_x <- exp(mean(log(x), na.rm = TRUE))
+  # geomean이 threshold_used보다 큰 경우 1, 그렇지 않으면 0
+  as.numeric(gm_x >= threshold_used)
+})
+keep_idx_geo <- (freq_above_geo == 1)  # 또는 TRUE
+bio_data_filtered <- bio_data_qc[keep_idx_geo, ]
+
+## (예시) Area, Nuclei 정보는 다른 sheet("SegmentProperties")에서 불러온다고 가정
+
+## manually remove the abnormal AOI
+seg_props=subset(seg_props,SegmentDisplayName!=remove_aoi)
+
+area_info <- seg_props$AOISurfaceArea
+nuclei_info <- seg_props$AOINucleiCount
+names(area_info) <- seg_props$SegmentDisplayName  # 실제 ID 컬럼 매핑 필요
+names(nuclei_info) <- seg_props$SegmentDisplayName
+
+## (예시) AOI이름과 SegmentID 매핑 필요. 스켈레톤 예시
+## scale_to_area = count / geomean(area)
+area_geo_mean <- exp(mean(log(area_info), na.rm = TRUE))
+## scale_to_nuclei = count / geomean(nuclei)
+nuclei_geo_mean <- exp(mean(log(nuclei_info), na.rm = TRUE))
+
+scaled_data_area <- sweep(bio_data_filtered[aoi_cols], 2, area_info/area_geo_mean, "/")
+scaled_data_nuclei <- sweep(bio_data_filtered[aoi_cols], 2, nuclei_info/nuclei_geo_mean, "/")
+
+
+## (예: NegProbe-WTX의 지오메트릭 평균, Signal-to-Background 등)
+neg_probe_geo <- exp(colMeans(log(neg_aoi), na.rm=TRUE))
+bg_corrected <- sweep(scaled_data_area, 2, neg_probe_geo, "/")  # 예: x1 배수
+
+## (Q3, Geomean, 등 선택 가능. 여기선 Q3 예시)
+norm_factors <- apply(bg_corrected, 2, quantile, 0.75)
+data_norm <- sweep(bg_corrected, 2, norm_factors, "/")
+rownames(data_norm)=bio_data_filtered$HUGOSymbol #HUGOSymbol이 좋은 선택인듯하다. CancerHallmark에서 TargetName을 뱉어냄. Metascape는 보긴 본다.
+
+##
+norm_factors_2=apply(bio_data_filtered[4:length(bio_data_filtered)], 2, quantile, 0.75)
+data_norm_2=sweep(bio_data_filtered[4:length(bio_data_filtered)], 2, norm_factors_2, "/")
+rownames(data_norm_2)=bio_data_filtered$HUGOSymbol
+
+tag_data <- seg_props %>% dplyr::select(SegmentDisplayName, names(seg_props)[7:which(colnames(seg_props)=="QCFlags")-1]) # 등
+
+
+expr_matrix <- do.call(cbind, data_norm)
+expr_df <- as.data.frame(expr_matrix)
+rownames(expr_df)=rownames(data_norm)
+t_data=as.data.frame(t(expr_df))
+t_data$AOI=colnames(data_norm)
+merged_df <- merge(t_data, seg_props,
+                   by.x = "AOI",
+                   by.y = "SegmentDisplayName")  # 실제 key column 명 맞춰야
+return(list("raw_data"=raw_data, seg_props=seg_props,bio_data=bio_data,bio_aoi=bio_aoi,bio_data_filtered=bio_data_filtered))
+}
+```
+
+# GMM
+```{r}
+# 함수 정의
+library(mclust)
+GMM <- function(seurat_obj, gene, graph = F) {
+  # Seurat 객체에서 유전자 발현 값 가져오기
+  data <- FetchData(seurat_obj, vars = gene)[[gene]]
+  
+  # BIC기준 가장 점수가 좋은 모델의 k값을 구함
+  k=mclustModel(ge,mclustBIC(gene),1:9)$G
+  # 해당 k 값으로 GMM 적합
+  gmm_model <- Mclust(data,G=k)
+  
+  # 각 데이터 포인트에 대한 클러스터 할당
+  cluster_assignments <- gmm_model$classification
+  
+  # 각 데이터 포인트에 대해 가장 높은 가능도를 갖는 컴포넌트 선택
+  probabilities <- gmm_model$z
+  max_probabilities <- apply(probabilities, 1, which.max)
+  
+  # 각 가우시안 분포의 평균, 표준 편차, 가중치 추출
+  means <- gmm_model$parameters$mean
+  if (is.matrix(gmm_model$parameters$variance$sigmasq)) {
+    sds <- sqrt(diag(gmm_model$parameters$variance$sigmasq))
+  } else {
+    sds <- sqrt(gmm_model$parameters$variance$sigmasq)
+  }
+  
+  weights <- gmm_model$parameters$pro
+  # variance가 제대로 안 구해졌을 경우 강제로 지정해줌.
+  while(length(sds)<length(weights)){
+    sds[length(sds)+1]=sds[length(sds)]
+    }
+  # 데이터 프레임 생성
+  df <- data.frame(data = data, cluster = as.factor(cluster_assignments))
+  
+  # 전체 모형의 분포 생성
+  x_seq <- seq(min(data), max(data), length.out = 1000)
+  total_density <- data.frame(x = x_seq, y = rowSums(sapply(1:gmm_model$G, function(i) {
+    weights[i] * dnorm(x_seq, mean = means[i], sd = sds[i], log = FALSE)
+  })), component = "Total")
+  
+  # 각 컴포넌트의 분포 생성
+  component_densities <- lapply(1:gmm_model$G, function(i) {
+    y_values <- weights[i] * dnorm(x_seq, mean = means[i], sd = sds[i], log = FALSE)
+    data.frame(x = x_seq, y = y_values, component = paste("Component", i))
+  })
+  component_densities <- do.call(rbind, component_densities)
+  
+    # 각 x값에 대해 가장 큰 y값을 주는 컴포넌트 찾기
+  component_matrix <- do.call(cbind, lapply(1:gmm_model$G, function(i) {
+    weights[i] * dnorm(x_seq, mean = means[i], sd = sds[i], log = FALSE)
+    }))
+  
+  max_component <- apply(component_matrix, 1, which.max)
+  component_densities$max=max_component
+  thresholds=c()
+  for(i in 1:(k-1)){
+    thresholds=c(thresholds,min(component_densities[component_densities$max==(i+1),]$x))
+    }
+  # ggplot으로 시각화
+  plot <- NULL
+  if (graph) {
+    plot <- ggplot() +
+      geom_histogram(data = df, aes(x = data, y = ..density.., fill = cluster), bins = 30, alpha = 0.5, position = "identity") +
+      geom_line(data = component_densities, aes(x = x, y = y, color = component), size = 1) +
+      geom_line(data = total_density, aes(x = x, y = y), color = "black", size = 1, linetype = "dashed") +
+      labs(title = paste("GMM Clustering with mclust -", gene), x = paste(gene, "Expression"), y = "Density") +
+      scale_fill_manual(values = scales::hue_pal()(gmm_model$G)) +
+      scale_color_manual(values = scales::hue_pal()(gmm_model$G)) +
+      geom_vline(xintercept = thresholds, linetype = "dashed", color = "blue", size = 1)+
+      theme_minimal()
+    
+    print(plot)
+  }
+  
+  # 결과 리스트 반환
+  result <- list(
+    plot = plot,
+    components = component_densities,
+    total = total_density,
+    means = means,
+    sds = sds,
+    weights = weights,
+    thresholds=thresholds
+  )
+  
+  return(result)
+}
+```
+
+##findmarker 업데이트 함수
+```{r}
+# FindMarkers 결과 수정 함수 정의
+update_find_markers <- function(seurat_obj, m, ident.1, ident.2=NULL) {
+  # Seurat 객체의 ID 설정
+  Idents(seurat_obj) <- "seurat_clusters"
+  
+  #ident.2 동적 설정
+  if(is.null(ident.2)){
+    all_clusters <- levels(Idents(seurat_obj))
+    ident.2 <- setdiff(all_clusters, ident.1)
+  }
+  
+  # 기존 pct.1과 pct.2를 저장
+  existing_pct1 <- m$pct.1
+  existing_pct2 <- m$pct.2
+  
+  # apply 계열 함수 사용하여 각 gene에 대해 업데이트 수행
+  m <- lapply(rownames(m), function(gene) {
+    gmm_result <- GMM(seurat_obj, gene)
+    threshold <- gmm_result$thresholds[1]
+    
+    # ident.1 클러스터에서 threshold 초과 비율 계산
+    cluster_cells_1 <- WhichCells(seurat_obj, idents = ident.1)
+    gene_expr_1 <- FetchData(seurat_obj, vars = gene, cells = cluster_cells_1)[[gene]]
+    pct.1_ <- sum(gene_expr_1 >= threshold) / length(gene_expr_1)
+    
+    # ident.2 클러스터에서 threshold 초과 비율 계산
+    cluster_cells_2 <- WhichCells(seurat_obj, idents = ident.2)
+    gene_expr_2 <- FetchData(seurat_obj, vars = gene, cells = cluster_cells_2)[[gene]]
+    pct.2_ <- sum(gene_expr_2 >= threshold) / length(gene_expr_2)
+    
+    # ident.1 클러스터에서 평균 발현량 계산
+    if (sum(gene_expr_1 >= threshold) > 0) {
+      avg_expr_1 <- mean(gene_expr_1[gene_expr_1 >= threshold])
+    } else {
+      avg_expr_1 <- 0
+    }
+    
+    # ident.2 클러스터에서 평균 발현량 계산
+    if (sum(gene_expr_2 >= threshold) > 0) {
+      avg_expr_2 <- mean(gene_expr_2[gene_expr_2 >= threshold])
+    } else {
+      avg_expr_2 <- 0
+    }
+    
+    # 행 업데이트
+    row <- m[gene, ]
+    row["threshold"] <- threshold
+    row["pct.1_"] <- pct.1_
+    row["pct.2_"] <- pct.2_
+    row["avg"] <- avg_expr_1 - avg_expr_2
+    
+    return(row)
+  })
+  
+  # Data frame으로 다시 변환
+  m <- do.call(rbind, m)
+  
+  return(m)
+}
+```
+
+## GMM version 2
+
+```{r}
+
+PlotGeneExpressionGMM <- function(
+  seurat_obj,
+  gene,
+  assay = "RNA",    # 기본 RNA assay
+  slot = "data",    # 기본 slot ("data", "counts", "scale.data" 등)
+  bins = 50         # 히스토그램 bin 개수
+){
+  # 1) Seurat object 에서 해당 유전자 발현량 추출
+  #    FetchData를 사용 (또는 DefaultAssay를 설정 후 seurat_obj[[assay]]@data[gene, ] 로 직접 접근 가능)
+  expr_vec <- FetchData(
+    object = seurat_obj,
+    vars = gene,
+    slot = slot,
+    assay = assay
+  )[[gene]]
+  
+  # expr_vec는 모든 셀에 대한 해당 유전자의 발현값 벡터
+  
+  # 2) 히스토그램과 스무스 라인(커널 밀도 추정) 그리기
+  #    geom_histogram(aes(y = ..density..)) 로 density 스케일 변환
+  #    + geom_density() 로 스무스 라인
+  df_expr <- data.frame(expr_value = expr_vec)
+  
+  p <- ggplot(df_expr, aes(x = expr_value)) +
+    geom_histogram(aes(y = ..density..), bins = bins, color = "black", fill = "lightgray") +
+    geom_density(color = "blue", linewidth = 1) +
+    xlab(paste0(gene, " expression")) +
+    ylab("Density") +
+    ggtitle(
+      paste0("Expression histogram of '", gene, "' (", assay, " assay, slot = ", slot, ")")
+    )
+  
+  # 3) GMM 피팅: mclust 패키지 활용
+  #    G 를 따로 지정하지 않으면, 1~9(기본값)까지 모델 중 BIC가 가장 높은 모형 선택
+  #    더 많은 k를 탐색하려면 G=1:10 혹은 G=1:20 등으로 변경 가능
+  gmm_result <- Mclust(expr_vec, G = 1:5)  # 여기서는 1~5개 컴포넌트 탐색 예시
+  
+  # 적합한 컴포넌트 개수
+  best_k <- gmm_result$G
+  
+  # 각 컴포넌트별 평균, 분산, mixing proportion
+  means <- gmm_result$parameters$mean           # 길이: best_k
+  vars  <- gmm_result$parameters$variance$sigmasq  # 보통 길이: best_k (단일차원 가정)
+  props <- gmm_result$parameters$pro           # 길이: best_k
+  
+  # 히스토그램 위에 GMM의 전체 밀도합(overall density)을 덧그릴 수 있음
+  # x축 범위를 촘촘하게 샘플링하여 mclust 모델의 PDF를 그려본다.
+  x_vals <- seq(min(expr_vec), max(expr_vec), length.out = 200)
+  
+  # 각 컴포넌트별 밀도를 구한 뒤 모두 합친다(혼합분포)
+  total_gmm_density <- rep(0, length(x_vals))
+  for(i in 1:best_k){
+    total_gmm_density <- total_gmm_density +
+      props[i] * dnorm(x_vals, mean = means[i], sd = sqrt(vars[i]))
+  }
+  
+  # GMM 밀도 라인 추가
+  gmm_df <- data.frame(x = x_vals, density = total_gmm_density)
+  
+  p <- p +
+    geom_line(
+      data = gmm_df,
+      aes(x = x, y = density),
+      color = "red", linewidth = 1
+    )
+  
+  # 4) threshold(클러스터 경계) 표시: 
+  #    보통 GMM에서 컴포넌트간 경계점은 posterior probability가 1:1이 되는 지점.
+  #    예시는 각 컴포넌트 ‘평균’ 또는 ‘클래스 전이점’을 표시하는 방법을 보여준다.
+  
+  # (a) 컴포넌트 평균 위치를 vertical line으로 찍기
+  #     (컴포넌트 평균이 곧 스플릿 기준이 되지는 않을 수 있지만, 참고용)
+  mean_order <- order(means)
+  p <- p + 
+    geom_vline(
+      xintercept = means[mean_order],
+      linetype = "dashed",
+      color = "red"
+    )
+  
+  # (b) 실제 후방 확률이 교차하는 지점(클러스터 간 경계) 계산 (optional)
+  #     cluster가 2개 이상일 때, 인접한 클러스터간 경계 계산:
+  #     각 x에서 posterior_i(x) = posterior_j(x)가 되는 점.
+  #     여기서는 인접 mean 순으로만 경계를 찾는 예시.
+  if(best_k > 1){
+    boundaries <- c()
+    for(idx in 1:(best_k-1)){
+      i <- mean_order[idx]
+      j <- mean_order[idx+1]
+      
+      # 두 개의 정규분포(파라미터가 (m1, s1), (m2, s2))에 대해
+      # props[i]*dnorm(...) = props[j]*dnorm(...)  되는 x를 해 찾기
+      # 여러 개가 나올 수 있으나 단일봉이면 1개, 또는 없을 수도 있음
+      # 여기서는 log-scale 식을 풀어 적용
+      #   log(props[i]) - (x - m1)^2 / (2*s1^2) ... = log(props[j]) - ...
+      # 이 식을 x에 대해 정리하면 2차 방정식
+      # 실습 편의상 uniroot으로 근을 찾는다.
+      
+      f_cross <- function(x){
+        props[i]*dnorm(x, mean=means[i], sd=sqrt(vars[i])) -
+          props[j]*dnorm(x, mean=means[j], sd=sqrt(vars[j]))
+      }
+      
+      # 가능한 표현 범위 내에서 root 탐색
+      lower_x <- min(means[i], means[j]) - 5*sqrt(max(vars[i], vars[j]))
+      upper_x <- max(means[i], means[j]) + 5*sqrt(max(vars[i], vars[j]))
+      
+      # uniroot 시도 (근이 없으면 에러 -> tryCatch 처리)
+      boundary_x <- tryCatch(
+        {
+          uniroot(f_cross, lower=lower_x, upper=upper_x)$root
+        },
+        error = function(e) NA
+      )
+      
+      if(!is.na(boundary_x)){
+        boundaries <- c(boundaries, boundary_x)
+      }
+    }
+    # 실제 후방확률 경계선을 dotted line으로 표시
+    if(length(boundaries) > 0){
+      p <- p + 
+        geom_vline(
+          xintercept = boundaries,
+          linetype = "dotted",
+          color = "purple"
+        )
+    }
+  }
+  
+  # best_k(혼합분포에서의 컴포넌트 개수)를 제목 혹은 annotate로 표시
+  p <- p +
+    labs(
+      subtitle = paste0("Best k (number of mixtures) = ", best_k)
+    )
+  
+  # 출력
+  return(p)
+}
+```
+
+# HTODemux2
+dependency: cluster, Seurat, naturalsort, fitdistrplus, cellhashR
+```{r}
+HTODemux2 <- function(
+	object,
+	assay = "HTO",
+	positive.quantile = 0.95,
+	nstarts = 100,
+	kfunc = "clara",
+	nsamples = 100,
+	verbose = TRUE,
+	plotDist = TRUE,
+	metricsFile = NULL
+) {
+	#initial clustering
+	data <- GetAssayData(object = object, assay = assay)
+	counts <- GetAssayData(
+		object = object,
+		assay = assay,
+		slot = 'counts'
+	)[, colnames(x = object)]
+
+	ncenters <- (nrow(x = data) + 1)
+	switch(
+		EXPR = kfunc,
+		'kmeans' = {
+			init.clusters <- stats::kmeans(
+				x = t(x = data),
+				centers = ncenters,
+				nstart = nstarts
+			)
+			#identify positive and negative signals for all HTO
+			Idents(object = object, cells = names(x = init.clusters$cluster)) <- init.clusters$cluster
+		},
+		'clara' = {
+			#use fast k-medoid clustering
+			init.clusters <- cluster::clara(
+				x = t(x = data),
+				k = ncenters,
+				samples = nsamples
+			)
+			#identify positive and negative signals for all HTO
+			Idents(object = object, cells = names(x = init.clusters$clustering), drop = TRUE) <- init.clusters$clustering
+		},
+		stop("Unknown k-means function ", kfunc, ", please choose from 'kmeans' or 'clara'")
+	)
+
+	#average hto signals per cluster
+	#work around so we don't average all the RNA levels which takes time
+	average.expression <- suppressWarnings(Seurat::AverageExpression(
+		object = object,
+		assays = c(assay),
+		slot = 'counts',
+		verbose = FALSE
+	))[[assay]]
+
+	#create a matrix to store classification result
+	discrete <- GetAssayData(object = object, assay = assay)
+	discrete[discrete > 0] <- 0
+	# for each HTO, we will use the minimum cluster for fitting
+	thresholds <- list()
+	for (hto in naturalsort::naturalsort(rownames(x = data))) {
+		values <- counts[hto, colnames(object)]
+
+		# Take the bottom 2 clusters (top 2 assumed to be HTO and doublet) as background.
+		maxPossibleBackgroundCols <- max(nrow(data) - 2, 1)
+		numBackgroundCols <- min(2, maxPossibleBackgroundCols)
+		backgroundIndices <- order(average.expression[hto, ])[1:numBackgroundCols]
+
+		if (sum(average.expression[hto, backgroundIndices]) == 0) {
+			allPossibleBackgroundIndices <- order(average.expression[hto, ])[1:maxPossibleBackgroundCols]
+			for (i in 1:maxPossibleBackgroundCols) {
+				print('Expanding clusters until non-zero background obtained')
+				backgroundIndices <- allPossibleBackgroundIndices[1:i]
+				if (sum(average.expression[hto, backgroundIndices]) > 0) {
+					break
+				}
+			}
+		}
+
+		if (verbose) {
+			print(paste0('Will select bottom ', numBackgroundCols, ' barcodes as background'))
+			print(paste0('Background clusters for ', hto, ': ', paste0(backgroundIndices, collapse = ',')))
+		}
+
+		if (sum(average.expression[hto, backgroundIndices]) == 0) {
+			stop('The background clusters have zero reads, cannot call')
+		}
+
+		cutoff <- NULL
+		values.use <- values[WhichCells(
+			object = object,
+			idents = levels(x = Idents(object = object))[backgroundIndices]
+		)]
+
+		if (verbose) {
+			print(paste0('total cells for background: ', length(values.use)))
+		}
+
+		tryCatch(expr = {
+			fit <- suppressWarnings(fitdistrplus::fitdist(data = values.use, distr = "nbinom"))
+			if (plotDist) {
+				print(plot(fit))
+			}
+
+			cutoff <- as.numeric(x = quantile(x = fit, probs = positive.quantile)$quantiles[1])
+		}, error = function(e) {
+			saveRDS(values.use, file = paste0('./', hto, '.fail.nbinom.rds'))
+		})
+
+		if (is.null(cutoff)) {
+			print(paste0('Skipping HTO due to failure to fit distribution: ', hto))
+			next
+		}
+
+		thresholds[[hto]] <- cutoff
+
+		if (verbose) {
+			print(paste0("Cutoff for ", hto, " : ", cutoff, " reads"))
+		}
+		# 각 cutoff를 넘은 것에 1 넣어준다.
+		discrete[hto, names(x = which(x = values > cutoff))] <- 1
+	}
+
+	# now assign cells to HTO based on discretized values
+	object <- .AssignCallsToMatrix2(object, discrete, suffix = 'htodemux', assay = assay)
+
+	print("Thresholds:")
+	for (hto in names(thresholds)) {
+		print(paste0(hto, ': ', thresholds[[hto]]))
+		.LogMetric(metricsFile, paste0('cutoff.htodemux.', hto), thresholds[[hto]])
+	}
+
+	return(object)
+}
+```
+
+##.AssignCallsToMatrix
+```{r}
+.AssignCallsToMatrix2 <- function(object, discrete, suffix, assay = 'HTO') {
+	npositive <- Matrix::colSums(x = discrete)
+	
+	#classification.global 정의: discrete에서 1인 값을 cell 별로 합쳐서 2이상은 doublet처리한다.
+	classification.global <- npositive
+	classification.global[npositive == 0] <- "Negative"
+	classification.global[npositive == 1] <- "Singlet"
+	classification.global[npositive > 1] <- "Doublet"
+
+	# hash.called <- rownames(object)[apply(X = discrete, MARGIN = 2, FUN = which.max)]
+	hash.called <- rownames(discrete)[apply(X = discrete, MARGIN = 2, FUN = which.max)]
+
+	classification <- classification.global
+	classification[classification.global == "Negative"] <- "Negative"
+	classification[classification.global == "Singlet"] <- hash.called[which(x = classification.global == "Singlet")]
+	classification[classification.global == "Doublet"] <- "Doublet"
+	classification.metadata <- data.frame(
+		classification,
+		classification.global
+	)
+
+	# NOTE: leave these as strings to allow easier rbind later:
+	#classification.metadata$classification <- naturalsort::naturalfactor(as.character(classification.metadata$classification))
+	#classification.metadata$classification.global <- naturalsort::naturalfactor(as.character(classification.metadata$classification.global))
+
+	colnames(x = classification.metadata) <- paste(c('classification', 'classification.global'), suffix, sep = '.')
+	object <- AddMetaData(object = object, metadata = classification.metadata)
+
+	return(object)
+}
+```
+
+.LogMetric
+```{r}
+.LogMetric <- function(metricsFile, metricName, metricValue, category = 'CellHashing', append = TRUE) {
+	if (!is.null(metricsFile)) {
+		write(x = paste0(category, '\t', metricName, '\t', metricValue), file = metricsFile, append = append)
+	}
+}
+```
+
+## HTO demulti - max/secondmax capture ratio histogram
+```{r}
+# HTO counts 행렬 가져오기
+HTO_ratio_hst=function(sobj, name="sobj"){
+  hto_counts <- sobj@assays$RNA$`counts.Multiplexing Capture`
+  
+  # 각 세포(열)별로 최대값 찾기
+  max_counts <- apply(hto_counts, 2, max)
+  
+  # 각 세포(열)별로 두 번째로 높은 값 찾기 함수
+  second_max <- function(x) {
+    sorted_x <- sort(x, decreasing = TRUE)
+    if(length(sorted_x) >= 2) {
+      return(sorted_x[2])
+    } else {
+      return(0)  # 값이 하나뿐인 경우 0 반환
+    }
+  }
+  
+  # 각 세포별로 두 번째 최대값 찾기
+  second_max_counts <- apply(hto_counts, 2, second_max)
+  
+  # 최대값/두번째 최대값 비율 계산
+  ratio <- max_counts / second_max_counts
+  
+  # 결과 확인
+  summary(ratio)
+  
+  # 히스토그램으로 분포 시각화
+  p=hist(log10(ratio), 
+       main = paste0("Log10(Max HTO / Second Max HTO) Distribution: ", name), 
+       xlab = "Log10(Max/Second Max Ratio)",
+       breaks = 50)
+  return(list(p, ratio))
+}
+```
+
+# h5ad saving
+```{r}
+save_seurat_to_h5ad=function(seurat_obj,
+                             condaenv="/home/jaecheon/miniconda3/envs/scenvi",
+                             save_path="/data/kjc1/projects/#130.stroke/sobj/h5ad/",
+                             save_name=NULL,
+                             save_SCT=FALSE){
+  # anndata 패키지 설치 및 로드
+  if(!require(reticulate)) install.packages("reticulate")
+  library(reticulate)
+  
+  # Python과 anndata 설정
+  use_condaenv(condaenv)  # 또는 use_python()으로 Python 지정
+  anndata <- import("anndata")
+  np <- import("numpy")
+  
+  
+  # 기본 카운트 매트릭스 (X로 사용할 데이터)
+  # 일반적으로 raw counts를 기본으로 사용
+  if(save_SCT){
+    DefaultAssay(seurat_obj)="SCT"
+  }else{
+    DefaultAssay(seurat_obj)="RNA"
+  }
+  if (DefaultAssay(seurat_obj) == "SCT" && dim(seurat_obj[["SCT"]]@counts)[1] > 0) {
+    main_matrix <- as.matrix(seurat_obj[["SCT"]]@counts)
+  } else {
+    main_matrix <- as.matrix(seurat_obj[["RNA"]]@layers$counts)
+  }
+  
+  # 메타데이터 준비
+  metadata <- as.data.frame(seurat_obj@meta.data)
+  
+  # 유전자 정보 준비
+  var_data <- data.frame(
+    gene_symbols = rownames(seurat_obj), 
+    row.names = rownames(seurat_obj)
+  )
+  
+  # 모든 assay의 layer를 Python 딕셔너리로 준비
+  layers_dict <- dict()
+  
+  # RNA assay의 layer 추가
+  if ("RNA" %in% names(seurat_obj@assays)) {
+    for(layer in Layers(seurat_obj@assays$RNA)){
+      layer_name=paste0("RNA_",layer)
+      layers_dict[layer_name]=np$array(t(as.matrix(seurat_obj[["RNA"]]@layers[[layer]])))
+    }
+  }
+  if(save_SCT){
+    # SCT assay의 layer 추가; SCT assay가 있다면, 하위 layers를 iteration하여 저장
+    if ("SCT" %in% names(seurat_obj@assays)) {
+      if (!is.null(Layers(seurat_obj[["SCT"]]))) {
+        for (layer_name in Layers(seurat_obj[["SCT"]])) {
+          # scale.data는 전체 유전자가 아닌 일부만 포함할 수 있으므로 별도 처리
+          # 지금 여기서는 scale.data로는 한정되지 않는다. 실은 data, counts 모두 feature 수가 SCT layer가 RNA에 비해 적다.
+          # 따라서 일반화하였으나 변수명은 바꾸지 않았음.
+          scale_data <- GetAssayData(seurat_obj[["SCT"]],layer=layer_name)
+          scale_genes <- rownames(scale_data)
+          scale_cells <- colnames(scale_data)
+    
+          # 모든 유전자 x 모든 세포 크기의 매트릭스 생성
+          full_scale_data <- matrix(0, nrow = nrow(main_matrix), ncol = ncol(main_matrix))
+          rownames(full_scale_data) <- rownames(seurat_obj)
+          colnames(full_scale_data) <- colnames(seurat_obj)
+    
+          # scale.data 값을 적절한 위치에 복사
+          gene_idx <- match(scale_genes, rownames(full_scale_data))
+          cell_idx <- match(scale_cells, colnames(full_scale_data))
+          gene_idx <- gene_idx[!is.na(gene_idx)]
+          cell_idx <- cell_idx[!is.na(cell_idx)]
+          
+          layer_key <- paste0("SCT_", layer_name)
+          if (length(gene_idx) > 0 && length(cell_idx) > 0) {
+            full_scale_data[gene_idx, cell_idx] <- as.matrix(scale_data[rownames(scale_data) %in% rownames(full_scale_data),
+                                                                      colnames(scale_data) %in% colnames(full_scale_data)])
+            layers_dict[layer_key]= np$array(t(full_scale_data))
+          }
+          
+          
+          # 단순하게 하자면 for 문 아래로 이 것만 있으면 된다. 하지만 그러면 h5ad로 저장이 안 됨.
+          # layers_dict[layer_key]= np$array(t(as.matrix(GetAssayData(seurat_obj[["SCT"]],layer=layer_name))))
+        }
+      }
+    }
+  }
+  
+  # 차원 축소 결과 추가를 위한 obsm 딕셔너리 생성
+  obsm_dict <- dict()
+  if ("pca" %in% names(seurat_obj@reductions)) {
+    obsm_dict["X_pca"]= np$array(as.matrix(seurat_obj[["pca"]]@cell.embeddings))
+  }
+  if ("umap" %in% names(seurat_obj@reductions)) {
+    obsm_dict["X_umap"]= np$array(as.matrix(seurat_obj[["umap"]]@cell.embeddings))
+  }
+  if ("tsne" %in% names(seurat_obj@reductions)) {
+    obsm_dict["X_tsne"]= np$array(as.matrix(seurat_obj[["tsne"]]@cell.embeddings))
+  }
+  
+  # 유전자 차원 축소 결과(varm)가 있다면 추가 -> HVG에 대한 PC만 계산하여, adata 형식과 incompatible함.
+  # varm_dict <- dict()
+  # if ("pca" %in% names(seurat_obj@reductions) && !is.null(seurat_obj[["pca"]]@feature.loadings)) {
+  #   varm_dict["PCs"]= np$array(as.matrix(seurat_obj[["pca"]]@feature.loadings))
+  # }
+  
+  # uns에 추가 정보 저장 (선택 사항)
+  uns_dict <- dict()
+  uns_dict["seurat_default_assay"]=DefaultAssay(seurat_obj)
+  uns_dict["seurat_version"]= packageVersion("Seurat")
+  if (!is.null(seurat_obj@project.name)) {
+    uns_dict["project_name"]= seurat_obj@project.name
+  }
+  
+  
+  # AnnData 객체 생성 (X는 transpose해야 함 - AnnData는 세포 x 유전자 형식)
+  adata <- anndata$AnnData(
+    X = np$array(t(main_matrix)),
+    obs = metadata,
+    var = var_data,
+    layers = layers_dict, #SCT의 경우 feature 갯수가 줄어드는 문제가 있음.
+    obsm = obsm_dict,
+    uns=uns_dict,
+    #varm = varm_dict
+  )
+  
+  # h5ad 파일로 저장
+  if(is.null(save_name)){
+    save_name=format(Sys.time(),"%y-%m-%d-%H-%M")
+  }
+  file_name <- paste0(save_path, save_name, ".h5ad")
+  adata$write(file_name)
+  
+  print(paste0("Successfully saved ", save_name, " to ", file_name))
+}
+```
+
+# package making
+```{r}
+# 원하는 폴더에서
+usethis::create_package("myR")   # 폴더·RStudio 프로젝트 자동 생성
+
+# git을 쓸 거라면, 바로
+usethis::use_git()
+
+#함수 파일 옮기거나, 새로 만들기.
+usethis::use_r("data_clean")   # R/data_clean.R 파일 자동 생성·열기
+
+#함수 주석 및 정의
+#' Calculate trimmed mean
+#'
+#' @param x numeric vector
+#' @param trim proportion (0–0.5) to trim from each end
+#' @return numeric scalar
+#' @export
+trim_mean <- function(x, trim = 0.1) {
+  mean(x, trim = trim)
+}
+
+# Description 갱신
+usethis::use_description(fields = list(
+  Title       = "Awesome Helpers for XYZ Analysis",
+  Description = "Utility functions for ...",
+  License     = "MIT + file LICENSE",
+  Encoding    = "UTF-8"
+))
+usethis::use_mit_license("Jaecheon Ko")
+
+#문서·NAMESPACE 자동 생성
+devtools::document()   # roxygen2가 man/*.Rd와 NAMESPACE 파일 생성
+
+# 단위 테스트
+usethis::use_testthat()
+usethis::use_test("trim_mean")   # tests/testthat/test-trim_mean.R
+
+
+# 빌드*로컬 설치*검사
+devtools::build()          # tar.gz 생성
+devtools::install()        # 로컬 라이브러리에 설치
+devtools::check()          # R CMD check 전체 수행
+
+
+```
+
+# markers
+
+## gene vectors - rcc, skin
+```{r}
+g_rcc_yap=c("VHL","YAP1","CTGF","CYR61","AREG","MYC","GLI2","VIMENTIN","AXL","FRAS1","FBLN5","ERBB3") #YAP related
+g_rcc_src=c("VHL","FYN", "YES", "LCK", "LYN", "HCK", "FGR","BLK") #src related
+g_rcc_CCN=c("VHL","CCN1","CCN2","CCN3","CCN4","CCN5","CCN6","SERPINE1","SERPINE2","SERPINE3","VEGFA","VEGFB","VEGFC","VEGFD") #CYR61, CTGF, PAI1, VEGF
+g_skin_HFSm=c("KRT15", "KRT19", "CD34", "ITGA6", "ITGB1", "LGR5", "LGR6", "SOX9", "SOX10", "MSI2", "KRT73", "KRT83", "FGF22")
+g_skin_DPCm=c("ALPL", "SOX2", "LEF1", "BMP4", "BMP6", "NOG", "WNT5A", "WNT10B", "PDGFRA", "PDGFRB", "FOXC1", "VCAN", "COL1A1", "COL1A2", "DCN", "ALDH1A1")
+g_skin_SMCm <- c("ACTA2", "CNN1", "MYH11", "TAGLN", "DES", "SMTN", "CALD1", "VIM", "MYLK", "HSPB1", "LMOD1", "PDGFRB", "CAV1")
+g_skin_wnt=c("WNT2B",  "WNT7B", "RASSF6", "TGFBR2", "BIRC3") #DLG2, WNT3A 제외
+g_skin_ys=c("SOD2","PTGDS","MT2A","CXCL14","CFD","CD9","CCL19","C3","APOD","APCDD1","VMP1","TIMP3","SFN","RGS5","EGR1","DPP8","DDX5","CD34","TAGLN","SFRP4","POSTN","OGN","MDK","HTRA1","FN1","CTHRC1","BGN","ASPN") #NEAT1, MALAT1 제외
+g_skin_piezo=c("YAP1","TAZ","PIEZO1","RHOA","ROCK1","ROCK2")
+g_skin_psoriasis_choi=c("KRT1", "KRT5", "KRT14", "KRT10", "STMN1", "UBE2C", "GJB6", "KRT17", 
+  "COL1A1", "LUM", "PDGFRA", "SELE", "VWF", "PECAM1", "ACKR1", "PLVAP", 
+  "LYZ", "CD68", "ITGAX", "CD80", "CD86", "CD3E", "CD3D", "CD8A", "IL2RA", 
+  "CD4", "LYVE1", "CCL21", "PROX1", "TAGLN", "ACTA2", "RGS5", "MYH11", 
+  "DES", "MLANA", "DCT", "TYR", "PMEL", "PIP", "SCGB2A2", "AQP5", "MUC1", "SCGB1B2P")
+```
+
+## Gene sets
+
+### Azimuth
+https://azimuth.hubmapconsortium.org/references/human_pbmc/
+```{r}
+G_azi=list(
+azi_bi=c('MS4A1','TNFRSF13B','IGHM','IGHD','AIM2','CD79A','LINC01857','RALGPS2','BANK1','CD79B'),
+azi_bm=c('MS4A1','COCH','AIM2','BANK1','SSPN','CD79A','TEX9','RALGPS2','TNFRSF13C','LINC01781'),
+azi_bn=c('IGHM','IGHD','CD79A','IL4R','MS4A1','CXCR4','BTG1','TCL1A','CD79B','YBX3'),
+azi_pb=c('IGHA2','MZB1','TNFRSF17','DERL3','TXNDC5','TNFRSF13B','POU2AF1','CPNE5','HRASLS2','NT5DC2'),
+azi_4ctl=c('GZMH','CD4','FGFBP2','ITGB1','GZMA','CST7','GNLY','B2M','IL32','NKG7'),
+azi_4n=c('TCF7','CD4','CCR7','IL7R','FHIT','LEF1','MAL','NOSIP','LDHB','PIK3IP1'),
+azi_4pro=c('MKI67','TOP2A','PCLAF','CENPF','TYMS','NUSAP1','ASPM','PTTG1','TPX2','RRM2'),
+azi_4tcm=c('IL7R','TMSB10','CD4','ITGB1','LTB','TRAC','AQP3','LDHB','IL32','MAL'),
+azi_4tem=c('IL7R','CCL5','FYB1','GZMK','IL32','GZMA','KLRB1','TRAC','LTB','AQP3'),
+azi_treg=c('RTKN2','FOXP3','AC133644.2','CD4','IL2RA','TIGIT','CTLA4','FCRL3','LAIR2','IKZF2'),
+azi_8n=c('CD8B','S100B','CCR7','RGS10','NOSIP','LINC02446','LEF1','CRTAM','CD8A','OXNAD1'),
+azi_8pro=c('MKI67','CD8B','TYMS','TRAC','PCLAF','CD3D','CLSPN','CD3G','TK1','RRM2'),
+azi_8tcm=c('CD8B','ANXA1','CD8A','KRT1','LINC02446','YBX3','IL7R','TRAC','NELL2','LDHB'),
+azi_8tem=c('CCL5','GZMH','CD8A','TRAC','KLRD1','NKG7','GZMK','CST7','CD8B','TRGC2'),
+azi_asdc=c('PPP1R14A','LILRA4','AXL','IL3RA','SCT','SCN9A','LGMN','DNASE1L3','CLEC4C','GAS6'),
+azi_cdc1=c('CLEC9A','DNASE1L3','C1orf54','IDO1','CLNK','CADM1','FLT3','ENPP1','XCR1','NDRG2'),
+azi_cdc2=c('FCER1A','HLA-DQA1','CLEC10A','CD1C','ENHO','PLD4','GSN','SLC38A1','NDRG2','AFF3'),
+azi_pdc=c('ITM2C','PLD4','SERPINF1','LILRA4','IL3RA','TPM2','MZB1','SPIB','IRF4','SMPD3'),
+azi_14mo=c('S100A9','CTSS','S100A8','LYZ','VCAN','S100A12','IL1B','CD14','G0S2','FCN1'),
+azi_16mo=c('CDKN1C','FCGR3A','PTPRC','LST1','IER5','MS4A7','RHOC','IFITM3','AIF1','HES4'),
+azi_nk=c('GNLY','TYROBP','NKG7','FCER1G','GZMB','TRDC','PRF1','FGFBP2','SPON2','KLRF1'),
+azi_nkpro=c('MKI67','KLRF1','TYMS','TRDC','TOP2A','FCER1G','PCLAF','CD247','CLSPN','ASPM'),
+azi_nk56=c('XCL2','FCER1G','SPINK2','TRDC','KLRC1','XCL1','SPTSSB','PPP1R9A','NCAM1','TNFRSF11A'),
+azi_eryth=c('HBD','HBM','AHSP','ALAS2','CA1','SLC4A1','IFIT1B','TRIM58','SELENBP1','TMCC2'),
+azi_hspc=c('SPINK2','PRSS57','CYTL1','EGFL7','GATA2','CD34','SMIM24','AVP','MYB','LAPTM4B'),
+azi_ilc=c('KIT','TRDC','TTLL10','LINC01229','SOX4','KLRB1','TNFRSF18','TNFRSF4','IL1R1','HPGDS'),
+azi_plt=c('PPBP','PF4','NRGN','GNG11','CAVIN2','TUBB1','CLU','HIST1H2AC','RGS18','GP9'),
+azi_dnt=c('PTPN3','MIR4422HG','NUCB2','CAV1','DTHD1','GZMA','MYB','FXYD2','GZMK','AC004585.1'),
+azi_gdt=c('TRDC','TRGC1','TRGC2','KLRC1','NKG7','TRDV2','CD7','TRGV9','KLRD1','KLRG1'),
+azi_mait=c('KLRB1','NKG7','GZMK','IL7R','SLC4A10','GZMA','CXCR6','PRSS35','RBM24','NCR3'),
+mast = c('SIGLEC6','KIT', 'TPSAB1', 'CPA3', 'HDC', 'FCER1A', 'MS4A2', 'HPGD', 'CAVIN2', 'IL1RL1', 'CKLF'),
+th1 = c('TBX21', 'IFNG', 'STAT1', 'STAT4', 'IL12RB2', 'CXCR3', 'CCR5', 'IL2', 'TNF', 'CD40LG'),
+th2 = c('GATA3', 'IL4', 'IL5', 'IL13', 'STAT6', 'IL4R', 'CCR4', 'IL10', 'IRF4', 'PTGDR2'),
+th17 = c('RORC', 'IL17A', 'IL17F', 'IL21', 'IL22', 'STAT3', 'CCR6', 'IL23R', 'CTLA4', 'CSF2'),
+mono = c('CD14', 'LYZ', 'FCGR3A', 'MS4A7', 'CD68', 'ITGAM', 'CCR2', 'CSF1R', 'S100A8', 'S100A9'),
+Treg_markers = c(
+  "FOXP3",  # Master transcription factor for Tregs
+  "IL2RA",  # CD25, high expression in Tregs
+  "CTLA4",  # Immune checkpoint molecule
+  "TNFRSF18",  # GITR, involved in Treg activation
+  "IKZF2",  # Helios, a marker for thymic-derived Tregs
+  "IKZF4",  # Eos, involved in Treg function
+  "LAG3",  # Inhibitory receptor
+  "CD274",  # PD-L1, involved in immune suppression
+  "ENTPD1",  # CD39, contributes to adenosine-mediated suppression
+  "NT5E",  # CD73, works with CD39 for adenosine production
+  "TGFB1",  # Produces TGF-β, a key immunosuppressive cytokine
+  "IL10",  # Produces IL-10, another immunosuppressive cytokine
+  "CCR4",  # Chemokine receptor guiding Treg migration
+  "CCR8",  # Enriched in suppressive Tregs
+  "STAT5B",  # Required for Treg stability
+  "CD127"  # IL7R (LOW expression in Tregs)
+),
+mDC_markers=c(
+  "CD1C",  # Classical cDC1 marker
+  "CLEC10A",  # Classical cDC2 marker
+  "FLT3",  # Key growth factor receptor for DCs
+  "IRF8",  # Transcription factor for cDC1 differentiation
+  "IRF4",  # Transcription factor for cDC2 differentiation
+  "BATF3",  # Involved in cross-presentation function
+  "HLA-DRA",  # MHC class II molecule for antigen presentation
+  "HLA-DRB1",  # Another MHC-II molecule
+  "CD80",  # Co-stimulatory molecule
+  "CD86",  # Co-stimulatory molecule
+  "CCR7",  # Guides migration to lymph nodes
+  "XCR1",  # Marker for cross-presenting cDC1
+  "LAMP3",  # Migratory mature DC marker
+  "CCL17",  # Chemokine involved in T cell attraction
+  "CSF1R",  # Myeloid growth factor receptor
+  "SIRPA",  # Differentiates cDC2 from cDC1
+  "CD209",  # DC-SIGN, involved in pathogen recognition
+  "FCER1A",  # Fc epsilon receptor, found in some DC subsets
+  "CCR6"  # Found in migratory DCs
+),
+cDC1_markers=c("XCR1", "CLEC9A", "IRF8", "BATF3", "FLT3", "HLA-DRA", "CD80", "CD86"),
+cDC2_markers=c("CD1C", "CLEC10A", "IRF4", "SIRPA", "CSF1R", "HLA-DRA", "CD80", "CD86")
+
+)
+## -------------------- 1.2  fresh 2022‑25 marker additions ---------------
+G_new <- list(
+  ## memory / atypical B cells (FCRL5, TBX21) – Su2023; Hao2024
+  memB_FCRL5 = c("FCRL5","T‑BET","ITGAX","ZEB2","CXCR3","CD11C"),                 # :contentReference[oaicite:0]{index=0}
+  ## TPEX / progenitor‑exhausted CD8 (TCF7, SLAMF6, CXCR5) – anti‑PD‑1 atlas
+  CD8_TPEX   = c("TCF7","SLAMF6","PDCD1","CXCR5","LAG3","CR2","IL7R"),             # :contentReference[oaicite:1]{index=1}
+  ## GZMKhigh CD8 TEM (pro‑inflammatory) – CRC & airway atlases
+  CD8_GZMK   = c("GZMK","RUNX3","ZBTB38","CXCR3","KLRC1","ITGA1","HLA‑DPA1"),      # :contentReference[oaicite:2]{index=2}
+  ## STAB1+ foetal‑like M2 TAM – NSCLC onco‑foetal macrophages
+  TAM_STAB1  = c("STAB1","KYNU","NAMPT","MERTK","MARCO","TGFB1","C1QC"),           # :contentReference[oaicite:3]{index=3}
+  ## pDC maturation (LAMP5, TCL1A) – updated DC primer 2024
+  pDC_mature = c("LILRA4","IL3RA","LAMP5","TCL1A","IRF7","TCF4"),                  # :contentReference[oaicite:4]{index=4}
+  ## cDC1 refined
+  cDC1_2024  = c("XCR1","CLEC9A","BATF3","IRF8","WDFY4","ID2","NEC3"),             # :contentReference[oaicite:5]{index=5}
+  ## cDC2 refined
+  cDC2_2024  = c("CD1C","CLEC10A","IRF4","SIRPA","FCER1A","CD301A","LAMP3"),       # :contentReference[oaicite:6]{index=6}
+  ## STMN1+ cycling DCs – anti‑PD‑1 atlas
+  DC_cycle   = c("MKI67","TOP2A","STMN1","NUSAP1","UBE2C","PTTG1"),                # :contentReference[oaicite:7]{index=7}
+  ## IFN‑stimulated monocyte state (ISG high)
+  ISG_mono   = c("IFI6","ISG15","MX1","OAS1","IFIT1","IFIT3","CXCL10"),            # :contentReference[oaicite:8]{index=8}
+  ## Treg stability panel (updated 2024)
+  Treg_core  = c("FOXP3","IL2RA","CTLA4","TNFRSF18","IKZF2","ENTPD1","CCR8")       # :contentReference[oaicite:9]{index=9}
+)
+```
+
+### RCC
+#### for geomx
+```{r}
+G_rcc <- list(
+  ccRCC_VHL_related_pathways = c("VEGFA", "CA9", "EGLN3", "HIF1A", "EPAS1"),
+  ccRCC_lipid_metabolism = c("PLIN2", "FABP7", "HMGCS1"),
+  ccRCC_hypoxia_markers = c("GLUT1", "ENO1", "HK2", "LDHA"),
+  ccRCC_markers = c("CD10", "CA9"),
+  ccRCC_proliferation_markers = c("MKI67", "PCNA"),
+  CAF_activation = c("ACTA2", "FAP", "POSTN", "PDGFRB"),
+  CAF_matrix_remodeling = c("COL1A1", "COL3A1", "MMP2", "MMP9", "SPARC"),
+  CAF_growth_factors = c("TGFB1", "CTGF", "PDGFA", "PDGFB"),
+  immune_T_cells = c("CD3D", "CD3E", "CD3G", "CD8A", "GZMB", "PRF1"),
+  immune_Tregs = c("FOXP3", "IL2RA"),
+  immune_exhausted_T_cells = c("PDCD1", "CTLA4", "LAG3", "HAVCR2"),
+  immune_B_cells = c("CD19", "MS4A1", "CD79A", "CD79B"),
+  immune_NK_cells = c("NCAM1", "NKG7", "PRF1", "GZMA"),
+  immune_M1_macrophages = c("CD68", "IL6", "TNF", "CXCL9", "CXCL10"),
+  immune_M2_macrophages = c("CD163", "MRC1", "TGFB1", "IL10", "CCL22"),
+  immune_dendritic_cells = c("CD1C", "CLEC9A", "BATF3", "XCR1"),
+  immune_MDSCs = c("ARG1", "NOS2", "S100A8", "S100A9"),
+  endothelial_cells = c("PECAM1", "VWF", "FLT1", "KDR"),
+  stromal_pericytes = c("PDGFRB", "RGS5", "CSPG4"),
+  stromal_adipocytes = c("ADIPOQ", "FABP4", "LEP"),
+  stromal_MSCs = c("ENG", "THY1", "NT5E")
+)
+```
+#### for scRNAseq
+```{r}
+G_rcc2 <- list(
+  # Clear Cell Renal Cell Carcinoma (ccRCC) Tumor Cells
+  ccRCC_markers = c("CA9", "CD10", "PAX8", "VHL", "NDUFA4L2"),
+  general_carcinoma_markers = c(
+  "CD274",  # PD-L1
+  "MUC1",   # Mucin 1
+  "CEACAM5", # CEA (Carcinoembryonic Antigen)
+  "VIM",    # Vimentin
+  "MKI67",  # Ki-67
+  "CD44"    # CD44
+)
+,
+  
+  # Endothelial Cells
+  endothelial_cells = c("PECAM1", "CD34", "VWF", "KDR"),
+  
+  # Lymphatic Endothelial Cells
+  lymphatic_endothelial_cells = c("FLT4", "PROX1", "PDPN", "LYVE1"),
+  
+  # Cancer-Associated Fibroblasts (CAFs)
+  CAF_activation = c("ACTA2", "FAP", "PDGFRB", "POSTN"),
+  CAF_matrix_remodeling = c("COL1A1", "COL3A1", "MMP2", "MMP9"),
+  
+  # Adipocytes
+  stromal_adipocytes = c("ADIPOQ", "FABP4", "PLIN1"),
+  
+  # Mesenchymal Stem Cells (MSCs)
+  stromal_MSCs = c("ENG", "THY1", "NT5E", "PDGFRB"),
+  
+  # Pericytes
+  stromal_pericytes = c("PDGFRB", "RGS5", "CSPG4", "ACTA2"),
+  
+  # Smooth Muscle Cells
+  smooth_muscle_cells = c("ACTA2", "MYH11", "CNN1", "TAGLN"),
+  
+  # Neuronal Cells
+  neuronal_cells = c("RBFOX3", "MAP2", "TUBB3", "NEFL"),
+  
+  # Glomerular Cells
+  glomerular_podocytes = c("NPHS1", "PODXL", "WT1", "SYNPO"),
+  
+  # Tubular Cells
+  proximal_tubule_cells = c("SLC34A1", "LRP2", "AQP1", "CUBN"),
+  distal_tubule_cells = c("SLC12A3", "CALB1", "TRPM6", "FXYD2"),
+  
+  # Immune Cells
+  immune_T_cells = c("CD3D", "CD3E", "CD3G", "CD4", "CD8A"),
+  immune_Tregs = c("FOXP3", "IL2RA", "CTLA4", "TNFRSF4"),
+  immune_exhausted_T_cells = c("PDCD1", "LAG3", "HAVCR2", "TIGIT"),
+  immune_B_cells = c("CD19", "MS4A1", "CD79A", "CD79B"),
+  immune_NK_cells = c("NCAM1", "NKG7", "KLRD1", "GZMA"),
+  immune_M1_macrophages = c("CD68", "NOS2", "IL6", "TNF"),
+  immune_M2_macrophages = c("CD163", "MRC1", "TGFB1", "IL10"),
+  immune_dendritic_cells = c("CD1C", "CLEC9A", "BATF3", "XCR1"),
+  immune_MDSCs = c("ARG1", "S100A8", "S100A9", "IL1B")
+)
+
+
+```
+
+
+
+### skin
+```{r}
+G_skin_anno = list(
+    # Keratinocytes
+    Basal_Keratinocytes = c("KRT5", "KRT14", "TP63"),
+    Spinous_Keratinocytes = c("KRT1", "KRT10", "IVL"),
+    Granular_Keratinocytes = c("FLG", "LOR", "SPINK5"),
+    Corneocytes_Keratinocytes = c("FLG", "LOR", "IVL", "HRNR"),
+    Keratinocytes = c("KRT1", "KRT5", "KRT10", "KRT14", "IVL", "FLG", "LOR"),
+      # Melanocytes
+    Melanocytes = c("MITF", "TYR", "TYRP1", "DCT", "PMEL"),
+      # Fibroblasts
+    Fibroblasts = c("COL1A1", "DCN", "POSTN", "COL3A1", "FAP", "IGFBP5"),
+      # T Cells
+    T_Cells = c("CD3D", "CD3E", "CD3G", "TRAC"),
+    CD4_T_Helpers = c("CD4", "IL7R", "FOXP3"),
+    CD8_T_Cytotoxic = c("CD8A", "CD8B", "GZMB"),
+      # Dendritic Cells
+    Dendritic_Cells = c("CD1C", "CLEC9A", "ITGAX"),
+    Langerhans_Cells = c("CD207", "CD1A", "Langerin"),
+      # Macrophages
+    Macrophages = c("CD68", "CD163", "CD14"),
+      # Mast Cells
+    Mast_Cells = c("TPSB2", "KIT", "FCER1A"),
+      # Endothelial Cells
+    Endothelial_Cells = c("PECAM1", "VWF", "CDH5"),
+      # Adipocytes
+    Adipocytes = c("ADIPOQ", "FABP4", "LEP"),
+      # Merkel Cells
+    Merkel_Cells = c("KRT20", "KRT8", "PLEKHA1"),
+  
+    # Hair Follicle Cells
+    Hair_Follicle_Stem = c("SOX9", "LEF1", "CD34"),
+    Dermal_Papilla = c("AXIN2", "WIF1", "PDGFRB"),
+  
+    # Sebaceous Gland Cells
+    Sebaceous_Gland = c("SOX9", "MUC1", "KRT7", "KRT19"),
+  
+    # Eccrine Gland Cells
+    Eccrine_Gland = c("KRT7", "KRT19", "AQP5", "SCGB2A2"),
+  
+    # Lymphatic Endothelial Cells
+    Lymphatic_Endothelial = c("PROX1", "LYVE1", "PDPN", "VEGFR3"),
+  
+    # Stem Cells
+    Stem_Cells = c("SOX9", "LGR5", "KRT15", "CD34"),
+  
+    # Monocytes
+    Monocytes = c("CD14", "FCGR3A", "LYZ", "S100A8"),
+    schwann = c(  "S100B", "S100A4", "S100A6", "PMP22", "MPZ", "PLP1", "NGFR", "SOX10", "GFAP"),
+    neuronal_markers = c(  # Synaptic and Adhesion
+  "CNTNAP2", "NRXN1", "NRXN3", "CNTN5", "DSCAM", "DLG2", "DLGAP1", 
+  "PTPRD", "ROBO1", "ROBO2", "CDH12", "CDH18", "SHANK2"),
+    g_skin_HFSm=c("KRT15", "KRT19", "CD34", "ITGA6", "ITGB1", "LGR5", "LGR6", "SOX9", "SOX10", "MSI2", "KRT73", "KRT83", "FGF22"),
+    g_skin_DPCm=c("ALPL", "SOX2", "LEF1", "BMP4", "BMP6", "NOG", "WNT5A", "WNT10B", "PDGFRA", "PDGFRB", "FOXC1", "VCAN", "COL1A1", "COL1A2", "DCN", "ALDH1A1"),
+    g_skin_SMCm <- c("ACTA2", "CNN1", "MYH11", "TAGLN", "DES", "SMTN", "CALD1", "VIM", "MYLK", "HSPB1", "LMOD1", "PDGFRB", "CAV1"),
+  wnt=g_skin_wnt,
+  ys=g_skin_ys,
+  piezo=g_skin_piezo
+)
+
+```
+
+### CRC
+
+```{r}
+crc_gpt <- list(
+  
+  # Epithelial / Tumor Epithelial Cells
+  Epithelial = c("EPCAM", "KRT8", "KRT18", "KRT19", "KRT20", "CDH1", "TFF3"),
+  
+  # Cancer Stem-like Cells (often associated with tumor-initiating capacity)
+  Cancer_Stem_Cells = c("LGR5", "ALDH1A1", "CD44", "PROM1"),  # PROM1 = CD133
+  
+  # Fibroblasts (including CAFs if tumor-associated)
+  Fibroblasts = c("FAP", "COL1A1", "DCN", "PDGFRA", "PDGFRB"),
+  
+  # Myofibroblasts
+  Myofibroblasts = c("ACTA2", "TAGLN", "MYH11"),
+  
+  # Endothelial Cells
+  Endothelial_Cells = c("PECAM1", "CDH5", "VWF", "FLT1"),
+  
+  # Pericytes
+  Pericytes = c("PDGFRB", "RGS5", "CSPG4"),  # also known as NG2
+  
+  # T Cells (pan T-cell markers)
+  T_Cells = c("CD3D", "CD3E", "CD3G", "TRAC", "TRBC2"),
+  
+  # T Helper (CD4+)
+  CD4_T_Helpers = c("CD4", "IL7R", "CXCR4"),
+  
+  # Cytotoxic T Cells (CD8+)
+  CD8_T_Cytotoxic = c("CD8A", "CD8B", "GZMB", "PRF1"),
+  
+  # Regulatory T Cells (Tregs)
+  Tregs = c("FOXP3", "IL2RA", "CTLA4"),
+  
+  # B Cells
+  B_Cells = c("MS4A1", "CD19", "CD79A", "CD79B"),
+  
+  # Plasma Cells
+  Plasma_Cells = c("SDC1", "MZB1", "IGJ", "CD38"),
+  
+  # NK Cells
+  NK_Cells = c("NCAM1", "NCR1", "KLRD1", "GNLY"),
+  
+  # Monocytes
+  Monocytes = c("CD14", "FCGR3A"),
+  
+  # Macrophages
+  Macrophages = c("CD68", "CD14", "CD163", "MRC1"),
+  
+  # Dendritic Cells
+  Dendritic_Cells = c("CD1C", "ITGAX", "CLEC9A"),
+  
+  # Neutrophils
+  Neutrophils = c("S100A8", "S100A9", "FCGR3B"),
+  
+  # Mast Cells
+  Mast_Cells = c("TPSAB1", "KIT", "FCER1A")
+  
+)
+```
+
+### deprecated
+```{r}
+#HAM 선생
+gene_plots=list(keratinocyte=c("KRT5", "KRT14", "TP63","KRT1", "KRT10","FLG", "LOR", "SPINK5","IVL", "HRNR"),
+                melanocyte=c("MITF", "TYR", "TYRP1", "DCT", "PMEL"),
+                fibroblast=c("COL1A1", "DCN", "POSTN","COL3A1", "FAP", "IGFBP5"),
+                smooth_muscle=c("RGS5", "TAGLN", "ACTA2"),
+                B_cell_plasma_cell=c("CD19", "MS4A1", "CD79A", "SDC1","PRDM1", "XBP1","CD38"),
+                T_cell=c("CD3D", "CD3E", "CD3G", "TRAC","CD4", "IL7R", "FOXP3","CD8A", "CD8B", "GZMB"),
+                DC=c("CD1C", "CLEC9A", "ITGAX","CD207", "CD1A"),
+                macrophage=c("CD68", "CD163", "CD14"),
+                mast_cell=c("TPSB2", "KIT", "FCER1A"),
+                EC=c("PECAM1", "VWF", "CDH5"),
+                LEC=c("PROX1", "LYVE1"),
+                adipocyte=c("ADIPOQ", "FABP4", "LEP"),
+                merkel_cell=c("KRT20", "KRT8", "PLEKHA1"),
+                HFS=c("SOX9", "LEF1", "CD34"),
+                dermal_papilla=c("AXIN2", "WIF1", "PDGFRB")
+)
+
+
+gene.plots <- c("KRT5", "KRT14", "TP63",
+"KRT1", "KRT10",
+"FLG", "LOR", "SPINK5",
+"IVL", "HRNR",
+"MITF", "TYR", "TYRP1", "DCT", "PMEL",
+"COL1A1", "DCN", "POSTN",
+"COL3A1", "FAP", "IGFBP5",
+"RGS5", "TAGLN", "ACTA2",
+"CD19", "MS4A1", "CD79A", "SDC1","PRDM1", "XBP1","CD38",
+"CD3D", "CD3E", "CD3G", "TRAC",
+"CD4", "IL7R", "FOXP3",
+"CD8A", "CD8B", "GZMB",
+"CD1C", "CLEC9A", "ITGAX",
+"CD207", "CD1A",
+"CD68", "CD163", "CD14",
+"TPSB2", "KIT", "FCER1A",
+"PECAM1", "VWF", "CDH5",
+"PROX1", "LYVE1",
+"ADIPOQ", "FABP4", "LEP",
+"KRT20", "KRT8", "PLEKHA1",
+"SOX9", "LEF1", "CD34",
+"AXIN2", "WIF1", "PDGFRB"
+)
+
+skin_gpt <- list(
+
+    # Melanocytes
+    Melanocytes = c("MITF", "TYR", "TYRP1", "DCT", "PMEL"),
+    
+    # Fibroblasts
+    Papillary_Fibroblasts = c("COL1A1", "DCN", "POSTN"),
+    Reticular_Fibroblasts = c("COL3A1", "FAP", "IGFBP5"),
+    
+    # T Cells
+    T_Cells = c("CD3D", "CD3E", "CD3G", "TRAC"),
+    CD4_T_Helpers = c("CD4", "IL7R", "FOXP3"),
+    CD8_T_Cytotoxic = c("CD8A", "CD8B", "GZMB"),
+    
+    # Dendritic Cells
+    Dendritic_Cells = c("CD1C", "CLEC9A", "ITGAX"),
+    Langerhans_Cells = c("CD207", "CD1A", "Langerin"),
+    
+    # Macrophages
+    Macrophages = c("CD68", "CD163", "CD14"),
+    
+    # Mast Cells
+    Mast_Cells = c("TPSB2", "KIT", "FCER1A"),
+    
+    # Endothelial Cells
+    Endothelial_Cells = c("PECAM1", "VWF", "CDH5"),
+    
+    # Adipocytes
+    Adipocytes = c("ADIPOQ", "FABP4", "LEP"),
+    
+    # Merkel Cells
+    Merkel_Cells = c("KRT20", "KRT8", "PLEKHA1"),
+    
+    # Hair Follicle Cells
+    Hair_Follicle_Stem = c("SOX9", "LEF1", "CD34"),
+    Dermal_Papilla = c("AXIN2", "WIF1", "PDGFRB")
+  )
+
+G_skin_anno_1=list(keratinocyte=c("KRT5", "KRT14", "TP63","KRT1", "KRT10","FLG", "LOR", "SPINK5","IVL", "HRNR"),
+                melanocyte=c("MITF", "TYR", "TYRP1", "DCT", "PMEL"),
+                fibroblast=c("COL1A1", "DCN", "POSTN","COL3A1", "FAP", "IGFBP5"),
+                pericyte=c("RGS5","PDGFRB","ACTA2"),
+                smooth_muscle=c("RGS5", "TAGLN", "ACTA2"),
+                B_cell_plasma_cell=c("CD19", "MS4A1", "CD79A", "SDC1","PRDM1", "XBP1","CD38"),
+                T_cell=c("CD3D", "CD3E", "CD3G", "TRAC","CD4", "IL7R", "FOXP3","CD8A", "CD8B", "GZMB"),
+                DC=c("CD1C", "CLEC9A", "ITGAX","CD207", "CD1A"),
+                pDC=c("TCF4","IRF7","IL3RA"),
+                macrophage=c("CD68", "CD163", "CD14"),
+                mast_cell=c("TPSB2", "KIT", "FCER1A"),
+                EC=c("PECAM1", "VWF", "CDH5"),
+                LEC=c("PROX1", "LYVE1","PDPN"),
+                adipocyte=c("ADIPOQ", "FABP4", "LEP","PLIN1"),
+                merkel_cell=c("KRT20", "KRT8", "PLEKHA1"),
+                HFS=c("SOX9", "LEF1","LGR5","LGR6", "KRT15","KRT19"), #"CD34" removed, LGR5 added, KRT15, KRT19 added 
+                dermal_papilla=c("AXIN2", "WIF1", "PDGFRB","LEF1","SOX2","PDGFRA"),
+                neuron=c("TUBB3","RBFOX3","MAP2"),
+                sebaceous=c("SOX9","SOX10","MKI67"),
+                eccrine=c("KRT7","KRT8","KRT18","KRT19","AQP5","DCD")
+)
+```
+
+#시간
+```{r}
+format(Sys.time(),"%y-%m-%d-%H-%M")
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+

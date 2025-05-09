@@ -1,0 +1,2303 @@
+---
+title: "Cluster Proportion Analysis"
+output: html_document
+date: "2025-04-07"
+---
+
+```{r}
+
+```
+
+# PCA and UMAP of Clusters by Frequency axes.
+
+## GetClusterFrequencies
+```{r}
+# 1. Extract cluster frequencies by sample
+# Assuming you have sample information in a metadata column (e.g., 's$orig.ident')
+
+# Get cluster frequencies for each sample
+GetClusterFrequencies <- function(seurat_obj, cluster_col = "annotation1", sample_col = "orig.ident") {
+  # Ensure the columns exist
+  if(!cluster_col %in% colnames(seurat_obj@meta.data) || !sample_col %in% colnames(seurat_obj@meta.data)) {
+    stop("Cluster or sample column not found in metadata")
+  }
+  
+  # Get frequencies table
+  freq_table <- table(seurat_obj@meta.data[[sample_col]], seurat_obj@meta.data[[cluster_col]])
+  
+  # Convert to proportions per sample
+  prop_table <- prop.table(freq_table, margin = 1)
+  
+  # Convert to data frame
+  freq_df <- as.data.frame(prop_table)
+  colnames(freq_df) <- c("Sample", "Cluster", "Frequency")
+  
+  # Reshape to wide format
+  freq_wide <- reshape2::dcast(freq_df, Sample ~ Cluster, value.var = "Frequency")
+  rownames(freq_wide) <- freq_wide$Sample
+  freq_wide$Sample <- NULL
+  
+  return(freq_wide)
+}
+
+# # 2. Create a new Seurat object from cluster frequencies
+# ClusterFreqToSeurat <- function(freq_matrix) {
+#   # Create Seurat object (treating each sample as a "cell" and each cluster as a "gene")
+#   freq_seurat <- CreateSeuratObject(t(as.matrix(freq_matrix)))
+#   
+#   # Add original sample names as metadata
+#   freq_seurat$sample <- colnames(freq_matrix)
+#   
+#   return(freq_seurat)
+# }
+```
+
+## adjust dataframe for seurat pipeline
+### Option1
+```{r}
+# 2. Create a new Seurat object from cluster frequencies
+ClusterFreqToSeurat <- function(freq_matrix) {
+  # Create Seurat object (treating each sample as a "cell" and each cluster as a "gene")
+  freq_seurat <- CreateSeuratObject(t(as.matrix(freq_matrix)))
+  
+  # Add original sample names as metadata
+  freq_seurat$sample <- colnames(freq_matrix)
+  
+  return(freq_seurat)
+}
+# Option 1: Skip normalization but still scale the data
+AnalyzeClusterFrequencies <- function(freq_seurat) {
+  # Skip NormalizeData() and directly scale
+  # Center but don't scale (scale=FALSE) to preserve relative differences
+  freq_seurat <- ScaleData(freq_seurat, scale = FALSE)
+  
+  # Run PCA
+  freq_seurat <- RunPCA(freq_seurat, features = rownames(freq_seurat))
+  
+  # Rest of the workflow remains the same
+  freq_seurat <- RunUMAP(freq_seurat, dims = 1:10)
+  freq_seurat <- FindNeighbors(freq_seurat, dims = 1:10)
+  freq_seurat <- FindClusters(freq_seurat, resolution = 0.5)
+  
+  return(freq_seurat)
+}
+
+```
+
+#### option 1 usage
+```{r}
+# Main workflow
+# Extract frequencies using annotation1 (or annotation2)
+cluster_freqs <- GetClusterFrequencies(s, cluster_col = "annotation3", sample_col="sample_no")
+
+# Create a Seurat object from frequencies
+freq_seurat <- ClusterFreqToSeurat(cluster_freqs)
+
+# Analyze
+freq_seurat <- AnalyzeClusterFrequencies(freq_seurat)
+
+# Visualize results
+# PCA plot
+PCAPlot(freq_seurat, label = TRUE) + 
+  ggtitle("PCA of Samples Based on Cluster Frequencies")
+
+# UMAP plot
+UMAPPlot(freq_seurat, label = TRUE) + 
+  ggtitle("UMAP of Samples Based on Cluster Frequencies")
+
+# Heatmap of the scaled frequencies
+DoHeatmap(freq_seurat, features = rownames(freq_seurat), 
+          label = TRUE, size = 3) +
+  ggtitle("Cluster Frequencies Across Samples")
+
+# Get PCA loadings (contribution of each cluster to PCs)
+pca_loadings <- Loadings(freq_seurat, reduction = "pca")
+head(pca_loadings)
+```
+
+### option2
+```{r}
+# Option 2: Use a custom slot for the data and bypass Seurat's preprocessing
+ClusterFreqToSeurat <- function(freq_matrix) {
+  # Create Seurat object
+  freq_seurat <- CreateSeuratObject(t(as.matrix(freq_matrix)))
+  # freq_seurat@assays$RNA@layers$data=freq_seurat@assays$RNA@layers$count
+  
+  freq_seurat=NormalizeData(freq_seurat)
+  # Store the raw frequencies directly in the scale.data slot
+  freq_seurat=ScaleData(freq_seurat)
+  
+  # Add original sample names as metadata
+  freq_seurat$sample <- colnames(freq_matrix)
+  
+  return(freq_seurat)
+}
+
+# With Option 2, modify the analysis function
+AnalyzeClusterFrequenciesOption2 <- function(freq_seurat) {
+  # Skip normalization and scaling since we put data directly in scale.data
+  
+  # Run PCA on the frequencies directly
+  freq_seurat <- RunPCA(freq_seurat, features = rownames(freq_seurat), assay = "RNA", 
+                        scale.data = freq_seurat@assays$RNA@layers$scale.data)
+  
+  # Run UMAP
+  freq_seurat <- RunUMAP(freq_seurat, dims = 1:10)
+  
+  # Clustering
+  freq_seurat <- FindNeighbors(freq_seurat, dims = 1:10)
+  freq_seurat <- FindClusters(freq_seurat, resolution = 2)
+  
+  return(freq_seurat)
+}
+```
+
+#### option 2 usage
+```{r}
+# Main workflow
+# Extract frequencies using annotation1 (or annotation2)
+cluster_freqs <- GetClusterFrequencies(s, cluster_col = "annotation3", sample_col="sample_no")
+
+# Create a Seurat object from frequencies
+freq_seurat <- ClusterFreqToSeurat(cluster_freqs)
+
+# Analyze
+freq_seurat <- AnalyzeClusterFrequenciesOption2(freq_seurat)
+freq_seurat$sample_no=colnames(freq_seurat)
+
+meta_freq=freq_seurat@meta.data
+meta_freq=left_join(meta_freq,meta_merged,by=c("sample_no"))
+table(meta_freq$group,meta_freq$seurat_clusters)
+meta_freq2=meta_freq[meta_freq$group%in%c(3:4),]
+table(meta_freq2$group,meta_freq2$seurat_clusters)
+chisq.test(table(meta_freq2$group,meta_freq2$seurat_clusters))
+fisher.test(table(meta_freq2$group,meta_freq2$seurat_clusters))
+
+# Visualize results
+# PCA plot
+PCAPlot(freq_seurat, label = TRUE) + 
+  ggtitle("PCA of Samples Based on Cluster Frequencies")
+
+# UMAP plot
+UMAPPlot(freq_seurat, label = TRUE) + 
+  ggtitle("UMAP of Samples Based on Cluster Frequencies")
+
+# Heatmap of the scaled frequencies
+DoHeatmap(freq_seurat, features = rownames(freq_seurat), 
+          label = TRUE, size = 3) +
+  ggtitle("Cluster Frequencies Across Samples")
+
+# Get PCA loadings (contribution of each cluster to PCs)
+pca_loadings <- Loadings(freq_seurat, reduction = "pca")
+head(pca_loadings)
+```
+
+### option3
+
+```{r}
+
+# Option 3: Use base R or other packages for PCA and clustering
+AnalyzeFrequenciesDirectly <- function(freq_matrix,k=3) {
+  # Run PCA directly
+  pca_result <- prcomp(freq_matrix, scale. = TRUE)
+  
+  # Get UMAP (using uwot package)
+  library(uwot)
+  umap_result <- umap(freq_matrix, n_neighbors = 10, min_dist = 0.1)
+  
+  # Clustering (using stats package)
+  dist_matrix <- dist(freq_matrix)
+  hc <- hclust(dist_matrix, method = "ward.D2")
+  clusters <- cutree(hc, k = k)  # Adjust k as needed
+  
+  # Combine results
+  results <- list(
+    pca = pca_result,
+    umap = umap_result,
+    clusters = clusters,
+    data = freq_matrix
+  )
+  
+  return(results)
+}
+
+# Usage:
+cluster_freqs <- GetClusterFrequencies(s, cluster_col = "annotation2", sample_col="sample_no")
+
+freq_results <- AnalyzeFrequenciesDirectly(as.matrix(cluster_freqs))
+
+
+
+# Plot PCA
+library(ggplot2)
+pca_df <- as.data.frame(freq_results$pca$x[,1:2])
+pca_df$sample <- rownames(pca_df)
+pca_df$cluster <- as.factor(freq_results$clusters)
+
+freq_result_to_pca_df=function(freq_result){
+pca_df <- as.data.frame(freq_results$pca$x[,1:2])
+pca_df$sample <- rownames(pca_df)
+pca_df$cluster <- as.factor(freq_results$clusters)
+return(pca_df)
+}
+
+freq_results3 <- AnalyzeFrequenciesDirectly(as.matrix(cluster_freqs))
+freq_results4 <- AnalyzeFrequenciesDirectly(as.matrix(cluster_freqs),4)
+freq_results5 <- AnalyzeFrequenciesDirectly(as.matrix(cluster_freqs),5)
+
+pca_df3=freq_result_to_pca_df(freq_result3)
+pca_df4=freq_result_to_pca_df(freq_result4)
+pca_df5=freq_result_to_pca_df(freq_result5)
+
+
+ggplot(pca_df, aes(x = PC1, y = PC2, color = cluster, label = sample)) +
+  geom_point(size = 3) +
+  geom_text(hjust = 0, vjust = 0, nudge_x = 0.5, nudge_y = 0.5) +
+  theme_minimal() +
+  ggtitle("PCA of Samples Based on Cluster Frequencies")
+
+# Plot UMAP
+umap_df <- as.data.frame(freq_results$umap)
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+umap_df$sample <- rownames(cluster_freqs)
+umap_df$cluster <- as.factor(freq_results$clusters)
+
+ggplot(umap_df, aes(x = UMAP1, y = UMAP2, color = cluster, label = sample)) +
+  geom_point(size = 3) +
+  geom_text(hjust = 0, vjust = 0, nudge_x = 0.05, nudge_y = 0.05) +
+  theme_minimal() +
+  ggtitle("UMAP of Samples Based on Cluster Frequencies")
+```
+
+#### option 3 - seurat functions
+```{r}
+# Create a Seurat object with the PCA and UMAP results
+freq_seurat <- CreateSeuratObject(t(as.matrix(cluster_freqs)))
+freq_seurat$sample <- rownames(cluster_freqs)
+freq_seurat$cluster <- as.factor(freq_results$clusters)
+
+# Add PCA and UMAP as dimensional reductions
+pca_reduction <- CreateDimReducObject(
+  embeddings = freq_results$pca$x, 
+  key = "PC_", 
+  assay = "RNA"
+)
+freq_seurat[["pca"]] <- pca_reduction
+
+umap_reduction <- CreateDimReducObject(
+  embeddings = freq_results$umap, 
+  key = "UMAP_", 
+  assay = "RNA"
+)
+freq_seurat[["umap"]] <- umap_reduction
+
+# Now you can use Seurat plotting functions
+DimPlot(freq_seurat, reduction = "pca", group.by = "cluster", label = TRUE)
+DimPlot(freq_seurat, reduction = "umap", group.by = "cluster", label = TRUE)
+```
+
+
+```{r}
+# pca_df_=left_join(pca_df,meta_merged,by=c("sample"="sample_no"))
+# table(pca_df_[pca_df_$group%in%c(1,2,3,4),]$group,pca_df_[pca_df_$group%in%c(1,2,3,4),]$cluster)
+
+
+pca_df3_=left_join(pca_df3,meta_merged,by=c("sample"="sample_no"))
+pca_df4_=left_join(pca_df4,meta_merged,by=c("sample"="sample_no"))
+pca_df5_=left_join(pca_df5,meta_merged,by=c("sample"="sample_no"))
+
+pca_df_func=function(pca_df_){
+  print(table(pca_df_[pca_df_$group%in%c(1,2,3,4),]$group,pca_df_[pca_df_$group%in%c(1,2,3,4),]$cluster))
+}
+
+pca_df_func(pca_df3_)
+pca_df_func(pca_df4_)
+pca_df_func(pca_df5_)
+```
+
+# corr plots
+
+## ver1: no p-value
+```{r}
+# Correlation analysis of cluster proportions across patients
+
+# Step 1: Calculate the proportion of each cluster in each patient
+calculate_cluster_proportions <- function(seurat_obj, cluster_col = "annotation1", patient_col = "sample_no") {
+  # Extract metadata
+  meta <- seurat_obj@meta.data
+  meta=drop_na(meta)
+  
+  # Get unique patients and clusters
+  patients <- unique(meta[[patient_col]])
+  clusters <- unique(meta[[cluster_col]])
+  
+  # Initialize a matrix to store the proportions
+  prop_matrix <- matrix(0, nrow = length(patients), ncol = length(clusters))
+  rownames(prop_matrix) <- patients
+  colnames(prop_matrix) <- clusters
+  
+  # Calculate proportions
+  for (patient in patients) {
+    patient_cells <- meta[meta[[patient_col]] == patient, ]
+    patient_total <- nrow(patient_cells)
+    
+    for (cluster in clusters) {
+      cluster_count <- sum(patient_cells[[cluster_col]] == cluster)
+      prop_matrix[patient, cluster] <- cluster_count / patient_total
+    }
+  }
+  
+  return(prop_matrix)
+}
+
+# Step 2: Calculate correlation matrix and p-values
+calculate_correlation <- function(prop_matrix, method = "pearson") {
+  # Number of clusters
+  n_clusters <- ncol(prop_matrix)
+  
+  # Initialize matrices for correlation coefficients and p-values
+  cor_matrix <- matrix(0, nrow = n_clusters, ncol = n_clusters)
+  pval_matrix <- matrix(0, nrow = n_clusters, ncol = n_clusters)
+  
+  colnames(cor_matrix) <- colnames(pval_matrix) <- colnames(prop_matrix)
+  rownames(cor_matrix) <- rownames(pval_matrix) <- colnames(prop_matrix)
+  
+  # Calculate correlation and p-values for each pair of clusters
+  for (i in 1:n_clusters) {
+    for (j in 1:n_clusters) {
+      cor_test <- cor.test(prop_matrix[, i], prop_matrix[, j], method = method)
+      cor_matrix[i, j] <- cor_test$estimate
+      pval_matrix[i, j] <- cor_test$p.value
+    }
+  }
+  
+  return(list(correlation = cor_matrix, p_values = pval_matrix))
+}
+
+# Step 3: Visualize the correlation matrix as a heatmap
+plot_correlation_heatmap <- function(cor_results, p_threshold = 0.05, title = "Cluster Proportion Correlation") {
+  cor_matrix <- cor_results$correlation
+  pval_matrix <- cor_results$p_values
+  
+  # Mark non-significant correlations with 'X'
+  # Create a matrix for text annotations
+  sig_markers <- matrix("", nrow = nrow(cor_matrix), ncol = ncol(cor_matrix))
+  sig_markers[pval_matrix > p_threshold] <- "X"
+  
+  # Create the heatmap
+  library(pheatmap)
+  library(RColorBrewer)
+  
+  # Generate a divergent color palette
+  my_colors <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(100)
+  
+  # Plot the heatmap
+  pheatmap(
+    cor_matrix,
+    color = my_colors,
+    display_numbers = sig_markers,
+    main = title,
+    fontsize = 10,
+    fontsize_number = 8,
+    number_color = "black",
+    breaks = seq(-1, 1, length.out = 101)
+  )
+}
+
+
+
+
+```
+
+
+## usage
+```{r}
+# Example usage
+# Assuming 's' is your Seurat object:
+
+# Calculate proportions for annotation1
+prop_annotation1 <- calculate_cluster_proportions(s, "annotation1", "sample_no")
+
+# Calculate correlation for annotation1
+cor_annotation1 <- calculate_correlation(prop_annotation1, method = "spearman")
+
+# Plot heatmap
+plot_correlation_heatmap(cor_annotation1, p_threshold = 0.05, title = "Correlation of annotation1 Clusters")
+
+# Repeat for annotation3 if needed
+# prop_annotation3 <- calculate_cluster_proportions(s, "annotation3", "sample_no")
+# cor_annotation3 <- calculate_correlation(prop_annotation3, method = "spearman")
+# plot_correlation_heatmap(cor_annotation3, p_threshold = 0.05, title = "Correlation of annotation3 Clusters")
+
+# If you want to analyze by group
+analyze_by_group <- function(seurat_obj, group_col = "group", cluster_col = "annotation1", patient_col = "sample_no") {
+  meta <- seurat_obj@meta.data
+  meta=drop_na(meta)
+  groups <- unique(meta[[group_col]])
+
+  results <- list()
+
+  for (group in groups) {
+    # Subset to just this group's patients
+    group_patients <- unique(meta[meta[[group_col]] == group, patient_col])
+    group_cells <- meta[meta[[patient_col]] %in% group_patients, ]
+
+    # Create temporary Seurat object with just these cells
+    temp_seurat <- subset(seurat_obj, cells = rownames(group_cells))
+
+    # Calculate proportions and correlations
+    prop_matrix <- calculate_cluster_proportions(temp_seurat, cluster_col, patient_col)
+    cor_results <- calculate_correlation(prop_matrix)
+
+    # Store results
+    results[[group]] <- cor_results
+  }
+
+  return(results)
+}
+
+# Example usage for group analysis
+group_results <- analyze_by_group(s)
+
+# Plot for a specific group
+plot_correlation_heatmap(group_results[["group_name"]], title = "Correlation in Group Name")
+```
+
+## ver 2. p-value
+```{r}
+# Correlation analysis of cluster proportions across patients
+
+# Step 1: Calculate the proportion of each cluster in each patient
+calculate_cluster_proportions <- function(seurat_obj, cluster_col = "annotation1", patient_col = "sample_no") {
+  # Extract metadata
+  meta <- seurat_obj@meta.data
+  meta=drop_na(meta)
+  
+  # Get unique patients and clusters
+  patients <- unique(meta[[patient_col]])
+  clusters <- unique(meta[[cluster_col]])
+  
+  # Initialize a matrix to store the proportions
+  prop_matrix <- matrix(0, nrow = length(patients), ncol = length(clusters))
+  rownames(prop_matrix) <- patients
+  colnames(prop_matrix) <- clusters
+  
+  # Calculate proportions
+  for (patient in patients) {
+    patient_cells <- meta[meta[[patient_col]] == patient, ]
+    patient_total <- nrow(patient_cells)
+    
+    for (cluster in clusters) {
+      cluster_count <- sum(patient_cells[[cluster_col]] == cluster)
+      prop_matrix[patient, cluster] <- cluster_count / patient_total
+    }
+  }
+  
+  return(prop_matrix)
+}
+
+# Step 2: Calculate correlation matrix and p-values
+calculate_correlation <- function(prop_matrix, method = "pearson") {
+  # Number of clusters
+  n_clusters <- ncol(prop_matrix)
+  
+  # Initialize matrices for correlation coefficients and p-values
+  cor_matrix <- matrix(0, nrow = n_clusters, ncol = n_clusters)
+  pval_matrix <- matrix(0, nrow = n_clusters, ncol = n_clusters)
+  
+  colnames(cor_matrix) <- colnames(pval_matrix) <- colnames(prop_matrix)
+  rownames(cor_matrix) <- rownames(pval_matrix) <- colnames(prop_matrix)
+  
+  # Calculate correlation and p-values for each pair of clusters
+  for (i in 1:n_clusters) {
+    for (j in 1:n_clusters) {
+      cor_test <- cor.test(prop_matrix[, i], prop_matrix[, j], method = method)
+      cor_matrix[i, j] <- cor_test$estimate
+      pval_matrix[i, j] <- cor_test$p.value
+    }
+  }
+  
+  return(list(correlation = cor_matrix, p_values = pval_matrix))
+}
+
+# Step 3: Visualize the correlation matrix as a heatmap
+plot_correlation_heatmap <- function(cor_results, p_threshold = 0.05, title = "Cluster Proportion Correlation", show_legend = TRUE) {
+  cor_matrix <- cor_results$correlation
+  pval_matrix <- cor_results$p_values
+  
+  # Create a matrix for text annotations with p-values
+  sig_markers <- matrix("", nrow = nrow(cor_matrix), ncol = ncol(cor_matrix))
+  
+  # Format p-values to show in the cells
+  for (i in 1:nrow(pval_matrix)) {
+    for (j in 1:ncol(pval_matrix)) {
+      # Format p-value with scientific notation for very small values
+      if (pval_matrix[i, j] < 0.001) {
+        p_text <- sprintf("%.1e", pval_matrix[i, j])
+      } else {
+        p_text <- sprintf("%.3f", pval_matrix[i, j])
+      }
+      
+      # Mark non-significant values
+      if (pval_matrix[i, j] > p_threshold) {
+        sig_markers[i, j] <- paste0(p_text, "*")
+      } else {
+        sig_markers[i, j] <- p_text
+      }
+    }
+  }
+  
+  # Create the heatmap
+  library(pheatmap)
+  library(RColorBrewer)
+  
+  # Generate a divergent color palette
+  my_colors <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(100)
+  
+  # Plot the heatmap
+  pheatmap(
+    cor_matrix,
+    color = my_colors,
+    display_numbers = sig_markers,
+    main = title,
+    fontsize = 10,
+    fontsize_number = 7,  # Smaller font size to accommodate p-values
+    number_color = "black",
+    breaks = seq(-1, 1, length.out = 101),
+    angle_col = 45,  # Angle column labels for better readability
+    cellwidth = 15,  # Increase cell width for p-values
+    cellheight = 15  # Increase cell height for p-values
+  )
+}
+
+
+```
+
+# ratio-effect
+
+## function - doesnt' work
+```{r}
+# Analysis of cluster proportion ratios across groups
+
+# Function to calculate cluster proportion ratios for each patient
+calculate_cluster_ratios <- function(seurat_obj, cluster_col = "annotation1", 
+                                    patient_col = "sample_no", group_col = "group") {
+  # Extract metadata
+  meta <- seurat_obj@meta.data
+  meta=drop_na(meta)
+  
+  # Get unique patients, clusters, and groups
+  patients <- unique(meta[[patient_col]])
+  clusters <- unique(meta[[cluster_col]])
+  groups <- unique(meta[[group_col]])
+  
+  # Initialize a matrix to store the proportions
+  prop_matrix <- matrix(0, nrow = length(patients), ncol = length(clusters))
+  rownames(prop_matrix) <- patients
+  colnames(prop_matrix) <- clusters
+  
+  # Calculate proportions
+  for (patient in patients) {
+    patient_cells <- meta[meta[[patient_col]] == patient, ]
+    patient_total <- nrow(patient_cells)
+    
+    for (cluster in clusters) {
+      cluster_count <- sum(patient_cells[[cluster_col]] == cluster)
+      prop_matrix[patient, cluster] <- cluster_count / patient_total
+    }
+  }
+  
+  # Create a dataframe with patient and group information
+  patient_info <- data.frame(
+    patient = patients,
+    group = sapply(patients, function(p) {
+      unique(meta[meta[[patient_col]] == p, group_col])[1]
+    })
+  )
+  rownames(patient_info) <- patients
+  
+  # Create a list of all possible cluster ratios
+  n_clusters <- length(clusters)
+  ratio_data <- list()
+  
+  for (i in 1:(n_clusters-1)) {
+    for (j in (i+1):n_clusters) {
+      cluster1 <- clusters[i]
+      cluster2 <- clusters[j]
+      
+      # Create a ratio name
+      ratio_name <- paste0(cluster1, "/", cluster2)
+      
+      # Calculate the ratio for each patient
+      ratio_values <- prop_matrix[, cluster1] / prop_matrix[, cluster2]
+      
+      # Handle division by zero or very small numbers
+      ratio_values[is.infinite(ratio_values)] <- NA
+      ratio_values[prop_matrix[, cluster2] < 1e-10] <- NA
+      
+      # Add to the data
+      ratio_data[[ratio_name]] <- ratio_values
+    }
+  }
+  
+  return(list(ratios = ratio_data, patient_info = patient_info, 
+              proportions = prop_matrix, clusters = clusters))
+}
+
+# Function to test group effects on ratios
+test_ratio_group_effects <- function(ratio_data, test_type = "kruskal") {
+  # Extract ratio data and patient info
+  ratios <- ratio_data$ratios
+  patient_info <- ratio_data$patient_info
+  
+  # Initialize results matrix
+  n_ratios <- length(ratios)
+  ratio_names <- names(ratios)
+  
+  p_values <- numeric(n_ratios)
+  names(p_values) <- ratio_names
+  
+  # Run tests for each ratio
+  for (i in 1:n_ratios) {
+    ratio_name <- ratio_names[i]
+    ratio_vals <- ratios[[ratio_name]]
+    
+    # Create a data frame for testing
+    test_df <- data.frame(
+      ratio = ratio_vals,
+      group = patient_info$group
+    )
+    
+    # Remove NA values
+    test_df <- test_df[!is.na(test_df$ratio), ]
+    
+    if (nrow(test_df) < 3) {
+      # Not enough data for testing
+      p_values[i] <- NA
+      next
+    }
+    
+    if (test_type == "anova") {
+      # Run ANOVA
+      test_result <- try(summary(aov(ratio ~ group, data = test_df)), silent = TRUE)
+      if (inherits(test_result, "try-error")) {
+        p_values[i] <- NA
+      } else {
+        p_values[i] <- test_result[[1]]["group", "Pr(>F)"]
+      }
+    } else if (test_type == "kruskal") {
+      # Run Kruskal-Wallis test
+      test_result <- try(kruskal.test(ratio ~ group, data = test_df), silent = TRUE)
+      if (inherits(test_result, "try-error")) {
+        p_values[i] <- NA
+      } else {
+        p_values[i] <- test_result$p.value
+      }
+    }
+  }
+  
+  return(p_values)
+}
+
+# Function to create a matrix of cluster pairs with -log10(p-values)
+create_cluster_pair_matrix <- function(p_values, clusters) {
+  n_clusters <- length(clusters)
+  result_matrix <- matrix(NA, nrow = n_clusters, ncol = n_clusters)
+  rownames(result_matrix) <- colnames(result_matrix) <- clusters
+  
+  # Fill the matrix with -log10(p-values)
+  for (pair_name in names(p_values)) {
+    # Extract cluster names from pair name (format: "clusterA/clusterB")
+    clusters_in_pair <- strsplit(pair_name, "/")[[1]]
+    cluster1 <- clusters_in_pair[1]
+    cluster2 <- clusters_in_pair[2]
+    
+    if (!is.na(p_values[pair_name])) {
+      # Calculate -log10(p-value)
+      neg_log_p <- -log10(p_values[pair_name])
+      
+      # Fill both positions in the matrix (for symmetry in visualization)
+      result_matrix[cluster1, cluster2] <- neg_log_p
+      result_matrix[cluster2, cluster1] <- neg_log_p
+    }
+  }
+  
+  return(result_matrix)
+}
+
+# Function to plot the heatmap of -log10(p-values)
+plot_ratio_significance_heatmap <- function(p_value_matrix, 
+                                          title = "Group Effect on Cluster Proportion Ratios",
+                                          sig_threshold = 0.05) {
+  # Convert p-value matrix to -log10 scale if not already
+  if (max(p_value_matrix, na.rm = TRUE) < 10) {
+    # Likely still in p-value scale, convert to -log10
+    neg_log_matrix <- p_value_matrix
+  } else {
+    # Already in -log10 scale
+    neg_log_matrix <- p_value_matrix
+  }
+  
+  # Create significance threshold line
+  sig_line <- -log10(sig_threshold)
+  
+  # Create a matrix for text annotations
+  text_matrix <- matrix("", nrow = nrow(neg_log_matrix), ncol = ncol(neg_log_matrix))
+  for (i in 1:nrow(neg_log_matrix)) {
+    for (j in 1:ncol(neg_log_matrix)) {
+      if (!is.na(neg_log_matrix[i, j])) {
+        # Convert back to p-value for text
+        p_val <- 10^(-neg_log_matrix[i, j])
+        
+        # Format the text based on significance
+        if (p_val < 0.001) {
+          text_matrix[i, j] <- sprintf("%.1e", p_val)
+        } else {
+          text_matrix[i, j] <- sprintf("%.3f", p_val)
+        }
+        
+        # Add asterisk for non-significant values
+        if (p_val > sig_threshold) {
+          text_matrix[i, j] <- paste0(text_matrix[i, j], "*")
+        }
+      }
+    }
+  }
+  
+  # Set diagonal to NA (no ratio for same cluster)
+  diag(neg_log_matrix) <- NA
+  diag(text_matrix) <- ""
+  
+  # Create color scale
+  library(pheatmap)
+  library(RColorBrewer)
+  
+  # Create color palette - using orange-red for significance
+  my_colors <- colorRampPalette(brewer.pal(9, "YlOrRd"))(100)
+  
+  # Find the maximum value for the color scale
+  max_val <- max(neg_log_matrix, na.rm = TRUE)
+  
+  # Plot the heatmap
+  pheatmap(
+    neg_log_matrix,
+    color = my_colors,
+    display_numbers = text_matrix,
+    main = title,
+    fontsize = 10,
+    fontsize_number = 7,
+    number_color = "black",
+    breaks = seq(0, max(max_val, sig_line * 2), length.out = 101),
+    na_col = "white",
+    cellwidth = 15,
+    cellheight = 15,
+    angle_col = 45
+  )
+  
+  # Display a note about the significance threshold
+  cat(paste0("Note: -log10(p-values) are color-coded. Values with * exceed p-threshold of ", 
+             sig_threshold, " (i.e., -log10(p) < ", round(sig_line, 2), ").\n"))
+  
+  # Return the matrix invisibly
+  invisible(neg_log_matrix)
+}
+
+# Main function to perform the entire analysis
+analyze_cluster_ratio_by_group <- function(seurat_obj, cluster_col = "annotation1", 
+                                         patient_col = "sample_no", group_col = "group",
+                                         test_type = "kruskal", sig_threshold = 0.05) {
+  # Calculate ratios
+  ratio_data <- calculate_cluster_ratios(seurat_obj, cluster_col, patient_col, group_col)
+  
+  # Test group effects
+  p_values <- test_ratio_group_effects(ratio_data, test_type)
+  
+  # Create matrix for visualization
+  p_value_matrix <- create_cluster_pair_matrix(p_values, ratio_data$clusters)
+  
+  # Plot the heatmap
+  plot_ratio_significance_heatmap(p_value_matrix, 
+                               title = paste0("Group Effect on ", cluster_col, " Cluster Ratios"),
+                               sig_threshold = sig_threshold)
+  
+  # Return the results invisibly
+  invisible(list(
+    ratio_data = ratio_data,
+    p_values = p_values,
+    p_value_matrix = p_value_matrix
+  ))
+}
+
+
+```
+
+## ver2
+```{r}
+# Simplified version for troubleshooting
+analyze_simple_cluster_ratios <- function(seurat_obj, cluster_col = "annotation1", 
+                                        patient_col = "sample_no", group_col = "group") {
+  # Extract metadata and check available columns
+  meta <- seurat_obj@meta.data
+  meta=drop_na(meta)
+  cat("Available columns in metadata:", paste(colnames(meta), collapse=", "), "\n\n")
+  
+  # Get unique values
+  patients <- unique(meta[[patient_col]])
+  clusters <- unique(meta[[cluster_col]])
+  groups <- unique(meta[[group_col]])
+  
+  
+  cat("Found", length(patients), "patients\n")
+  cat("Found", length(clusters), "clusters:", paste(head(clusters, 10), collapse=", "), "...\n")
+  cat("Found", length(groups), "groups:", paste(groups, collapse=", "), "\n\n")
+  
+  # Initialize a matrix to store the proportions  
+  prop_matrix <- matrix(0, nrow = length(patients), ncol = length(clusters))
+  rownames(prop_matrix) <- patients
+  colnames(prop_matrix) <- clusters
+  
+  # Calculate proportions
+  for (patient in patients) {
+    patient_cells <- meta[meta[[patient_col]] == patient, ]
+    patient_total <- nrow(patient_cells)
+    
+    for (cluster in clusters) {
+      cluster_count <- sum(patient_cells[[cluster_col]] == cluster)
+      prop_matrix[patient, cluster] <- cluster_count / patient_total
+    }
+  }
+  
+  # Print the proportion matrix
+  cat("Cluster proportion matrix (first 5 patients, first 5 clusters):\n")
+  print(prop_matrix[1:min(5, nrow(prop_matrix)), 1:min(5, ncol(prop_matrix))])
+  
+  # Create a dataframe with counts for easier inspection
+  count_df <- data.frame(
+    patient = rep(patients, each = length(clusters)),
+    cluster = rep(clusters, times = length(patients)),
+    proportion = as.vector(prop_matrix),
+    group = rep(sapply(patients, function(p) {
+      unique(meta[meta[[patient_col]] == p, group_col])[1]
+    }), each = length(clusters))
+  )
+  
+  # Return data
+  return(list(
+    count_df = count_df,
+    prop_matrix = prop_matrix,
+    patients = patients,
+    clusters = clusters,
+    groups = groups
+  ))
+}
+
+# Example usage:
+# debug_data <- analyze_simple_cluster_ratios(s)
+```
+
+## usage
+```{r}
+# Example usage
+# Assuming 's' is your Seurat object:
+# 
+# Analyze cluster ratios by group using Kruskal-Wallis test
+results_kw <- analyze_cluster_ratio_by_group(s, "annotation1", "sample_no", "group",
+                                           test_type = "kruskal", sig_threshold = 0.05)
+
+# Analyze using ANOVA if your data is normally distributed
+results_anova <- analyze_cluster_ratio_by_group(s, "annotation1", "sample_no", "group",
+                                              test_type = "anova", sig_threshold = 0.05)
+
+# You can also analyze annotation3 clusters
+results_annotation3 <- analyze_cluster_ratio_by_group(s, "annotation3", "sample_no", "group")
+
+# If you want to get the actual ratio values for specific clusters:
+ratio_values <- results_kw$ratio_data$ratios[["ClusterA/ClusterB"]]
+patient_groups <- results_kw$ratio_data$patient_info$group
+
+# You can then create boxplots of specific ratios across groups:
+boxplot_data <- data.frame(
+  ratio = ratio_values,
+  group = patient_groups
+)
+
+library(ggplot2)
+ggplot(boxplot_data, aes(x = group, y = ratio)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.6) +
+  theme_minimal() +
+  labs(title = "ClusterA/ClusterB Ratio Across Groups",
+       y = "Proportion Ratio", x = "Group")
+```
+
+## ver3
+```{r}
+# Fixed analysis for clusters with special characters in names
+analyze_cluster_ratios_fixed <- function(seurat_obj, cluster_col = "annotation1", 
+                                       patient_col = "sample_no", group_col = "group") {
+  # Extract metadata
+  meta <- seurat_obj@meta.data
+  meta=drop_na(meta)
+  
+  # Get unique patients, clusters, and groups
+  patients <- as.character(unique(meta[[patient_col]]))
+  clusters <- as.character(unique(meta[[cluster_col]]))
+  groups <- as.character(unique(meta[[group_col]]))
+  
+  # Clean and sanitize cluster names for matrix indexing
+  clusters_clean <- make.names(clusters, unique = TRUE)
+  cluster_mapping <- setNames(clusters, clusters_clean)
+  
+  cat("Found", length(patients), "patients\n")
+  cat("Found", length(clusters), "clusters\n")
+  cat("Found", length(groups), "groups:", paste(groups, collapse=", "), "\n\n")
+  
+  # Create a data frame to store all cell counts
+  counts_df <- data.frame()
+  
+  # Count cells in each patient/cluster combination
+  for (patient in patients) {
+    patient_cells <- meta[meta[[patient_col]] == patient, ]
+    patient_total <- nrow(patient_cells)
+    
+    if (patient_total == 0) {
+      cat("Warning: No cells found for patient", patient, "\n")
+      next
+    }
+    
+    for (cluster in clusters) {
+      # Count cells in this patient/cluster combination
+      cluster_count <- sum(patient_cells[[cluster_col]] == cluster)
+      proportion <- cluster_count / patient_total
+      
+      # Get the group for this patient
+      patient_group <- NA
+      if (!is.null(meta[[group_col]])) {
+        group_values <- unique(patient_cells[[group_col]])
+        if (length(group_values) > 0 && !all(is.na(group_values))) {
+          patient_group <- group_values[1]
+        }
+      }
+      
+      # Add to the data frame
+      counts_df <- rbind(counts_df, data.frame(
+        patient = patient,
+        cluster = cluster,
+        cluster_clean = make.names(cluster, unique = TRUE),
+        count = cluster_count,
+        total = patient_total,
+        proportion = proportion,
+        group = patient_group
+      ))
+    }
+  }
+  
+  # Create a proportion matrix using the clean cluster names
+  prop_matrix <- reshape2::dcast(counts_df, patient ~ cluster_clean, 
+                               value.var = "proportion", fill = 0)
+  prop_matrix=drop_na(prop_matrix)
+  rownames(prop_matrix) <- prop_matrix$patient
+  prop_matrix$patient <- NULL
+  
+  # Create patient info dataframe
+  patient_info <- unique(counts_df[, c("patient", "group")])
+  rownames(patient_info) <- patient_info$patient
+  
+  # Calculate all possible ratios
+  clusters_clean <- unique(counts_df$cluster_clean)
+  ratios <- list()
+  
+  for (i in 1:(length(clusters_clean)-1)) {
+    for (j in (i+1):length(clusters_clean)) {
+      cluster1 <- clusters_clean[i]
+      cluster2 <- clusters_clean[j]
+      
+      # Get original cluster names for ratio name
+      orig_name1 <- cluster_mapping[cluster1]
+      orig_name2 <- cluster_mapping[cluster2]
+      if (is.null(orig_name1)) orig_name1 <- cluster1
+      if (is.null(orig_name2)) orig_name2 <- cluster2
+      
+      ratio_name <- paste0(orig_name1, "/", orig_name2)
+      
+      # Calculate ratio
+      ratio_values <- prop_matrix[, cluster1] / prop_matrix[, cluster2]
+      
+      # Handle division by zero
+      ratio_values[is.infinite(ratio_values) | is.nan(ratio_values)] <- NA
+      ratio_values[prop_matrix[, cluster2] < 1e-10] <- NA
+      
+      # Store the ratio
+      ratios[[ratio_name]] <- ratio_values
+    }
+  }
+  
+  return(list(
+    ratios = ratios,
+    patient_info = patient_info,
+    proportions = prop_matrix,
+    clusters = clusters,
+    clusters_clean = clusters_clean,
+    cluster_mapping = cluster_mapping,
+    counts_df = counts_df
+  ))
+}
+
+# Function to test for group effects
+test_group_effects_fixed <- function(ratio_data, test_type = "kruskal") {
+  ratios <- ratio_data$ratios
+  patient_info <- ratio_data$patient_info
+  
+  # Initialize results
+  p_values <- numeric(length(ratios))
+  names(p_values) <- names(ratios)
+  
+  # Run tests for each ratio
+  for (i in 1:length(ratios)) {
+    ratio_name <- names(ratios)[i]
+    ratio_vals <- ratios[[ratio_name]]
+    
+    # Create a data frame for testing
+    test_df <- data.frame(
+      ratio = ratio_vals,
+      group = patient_info$group[match(names(ratio_vals), patient_info$patient)]
+    )
+    
+    # Remove NA values and check if we have enough data
+    test_df <- test_df[!is.na(test_df$ratio) & !is.na(test_df$group), ]
+    
+    if (nrow(test_df) < 5 || length(unique(test_df$group)) < 2) {
+      # Not enough data for testing
+      p_values[i] <- NA
+      next
+    }
+    
+    # Run appropriate test
+    if (test_type == "anova") {
+      test_result <- try(summary(aov(ratio ~ group, data = test_df)), silent = TRUE)
+      if (inherits(test_result, "try-error")) {
+        p_values[i] <- NA
+      } else {
+        p_values[i] <- test_result[[1]]["group", "Pr(>F)"]
+      }
+    } else if (test_type == "kruskal") {
+      test_result <- try(kruskal.test(ratio ~ group, data = test_df), silent = TRUE)
+      if (inherits(test_result, "try-error")) {
+        p_values[i] <- NA
+      } else {
+        p_values[i] <- test_result$p.value
+      }
+    }
+  }
+  
+  return(p_values)
+}
+
+# Function to create heatmap of p-values
+plot_ratio_heatmap <- function(p_values, clusters, sig_threshold = 0.05, 
+                             title = "Group Effect on Cluster Proportion Ratios") {
+  # Create a matrix to store -log10(p-values)
+  n_clusters <- length(clusters)
+  neg_log_matrix <- matrix(NA, nrow = n_clusters, ncol = n_clusters)
+  rownames(neg_log_matrix) <- colnames(neg_log_matrix) <- clusters
+  
+  # Create a matrix for text annotations
+  text_matrix <- matrix("", nrow = n_clusters, ncol = n_clusters)
+  rownames(text_matrix) <- colnames(text_matrix) <- clusters
+  
+  # Fill matrices with p-values
+  for (ratio_name in names(p_values)) {
+    # Extract cluster names from ratio name
+    pair <- strsplit(ratio_name, "/")[[1]]
+    if (length(pair) != 2) next
+    
+    cluster1 <- pair[1]
+    cluster2 <- pair[2]
+    
+    # Check if both clusters exist in the matrix
+    if (!(cluster1 %in% rownames(neg_log_matrix)) || 
+        !(cluster2 %in% colnames(neg_log_matrix))) {
+      next
+    }
+    
+    p_val <- p_values[ratio_name]
+    if (is.na(p_val)) {
+      text_matrix[cluster1, cluster2] <- text_matrix[cluster2, cluster1] <- "N/A"
+    } else {
+      # Calculate -log10(p) and format text
+      neg_log_p <- -log10(p_val)
+      neg_log_matrix[cluster1, cluster2] <- neg_log_matrix[cluster2, cluster1] <- neg_log_p
+      
+      # Format p-value for display
+      if (p_val < 0.001) {
+        p_text <- sprintf("%.1e", p_val)
+      } else {
+        p_text <- sprintf("%.3f", p_val)
+      }
+      
+      # Mark non-significant values
+      if (p_val > sig_threshold) {
+        p_text <- paste0(p_text, "*")
+      }
+      
+      text_matrix[cluster1, cluster2] <- text_matrix[cluster2, cluster1] <- p_text
+    }
+  }
+  
+  # Set diagonal to NA
+  diag(neg_log_matrix) <- NA
+  diag(text_matrix) <- ""
+  
+  # Create color palette
+  library(pheatmap)
+  library(RColorBrewer)
+  
+  my_colors <- colorRampPalette(brewer.pal(9, "YlOrRd"))(100)
+  
+  # Set max value for color scale
+  max_val <- max(neg_log_matrix, na.rm = TRUE)
+  if (!is.finite(max_val)) max_val <- 3
+  
+  sig_line <- -log10(sig_threshold)
+  
+  # Plot the heatmap
+  pheatmap(
+    neg_log_matrix,
+    color = my_colors,
+    display_numbers = text_matrix,
+    main = title,
+    fontsize = 8,
+    fontsize_number = 7,
+    number_color = "black",
+    breaks = seq(0, max(max_val, sig_line * 2, na.rm = TRUE), length.out = 101),
+    na_col = "white",
+    cellwidth = 14,
+    cellheight = 14,
+    angle_col = 45
+  )
+  
+  # Display a note about the significance threshold
+  cat(paste0("Note: -log10(p-values) are color-coded. Values with * exceed p-threshold of ", 
+             sig_threshold, " (i.e., -log10(p) < ", round(sig_line, 2), ").\n"))
+  
+  # Return the matrix invisibly
+  invisible(list(neg_log_matrix = neg_log_matrix, text_matrix = text_matrix))
+}
+
+# Main analysis function
+analyze_cluster_ratio_by_group_fixed <- function(seurat_obj, 
+                                              cluster_col = "annotation1", 
+                                              patient_col = "sample_no",
+                                              group_col = "group",
+                                              test_type = "kruskal", 
+                                              sig_threshold = 0.05) {
+  # Calculate ratios
+  cat("Calculating cluster proportions and ratios...\n")
+  ratio_data <- analyze_cluster_ratios_fixed(seurat_obj, cluster_col, patient_col, group_col)
+  
+  # Test group effects
+  cat("Testing group effects on cluster ratios...\n")
+  p_values <- test_group_effects_fixed(ratio_data, test_type)
+  
+  # Plot heatmap
+  cat("Creating heatmap visualization...\n")
+  heatmap_results <- plot_ratio_heatmap(
+    p_values = p_values,
+    clusters = ratio_data$clusters,
+    sig_threshold = sig_threshold,
+    title = paste0("Group Effect on ", cluster_col, " Cluster Ratios")
+  )
+  
+  # Return results
+  invisible(list(
+    ratio_data = ratio_data,
+    p_values = p_values,
+    heatmap_results = heatmap_results
+  ))
+}
+
+# Usage example:
+# results <- analyze_cluster_ratio_by_group_fixed(s, "annotation1", "sample_no", "group")
+```
+
+## ver4
+```{r}
+# Robust cluster proportion ratio analysis that handles NA values
+library(dplyr)
+library(tidyr)
+library(pheatmap)
+library(RColorBrewer)
+
+analyze_cluster_proportions_robust <- function(meta_data, 
+                                             cluster_col = "annotation1", 
+                                             patient_col = "sample_no", 
+                                             group_col = "group") {
+  # First, remove any rows with NA in critical columns
+  meta <- meta_data %>% 
+    filter(!is.na(!!sym(cluster_col)), 
+           !is.na(!!sym(patient_col)))
+  
+  # Get unique patients, clusters, and groups
+  patients <- unique(meta[[patient_col]])
+  patients <- patients[!is.na(patients)]  # Remove NA patients
+  
+  clusters <- unique(meta[[cluster_col]])
+  clusters <- clusters[!is.na(clusters)]  # Remove NA clusters
+  
+  # Create a count table directly from the data
+  count_table <- meta %>%
+    group_by(!!sym(patient_col), !!sym(cluster_col)) %>%
+    summarize(count = n(), .groups = "drop") %>%
+    # Join with group information
+    left_join(
+      meta %>% 
+        group_by(!!sym(patient_col)) %>%
+        summarize(
+          group = first(!!sym(group_col)),
+          total = n(),
+          .groups = "drop"
+        ),
+      by = patient_col
+    ) %>%
+    # Calculate proportion
+    mutate(proportion = count / total)
+  
+  # Create a wide-format proportion matrix
+  prop_matrix <- count_table %>%
+    select(!!sym(patient_col), !!sym(cluster_col), proportion) %>%
+    tidyr::pivot_wider(
+      names_from = !!sym(cluster_col),
+      values_from = proportion,
+      values_fill = 0
+    )
+  
+  # Create a patient_info dataframe
+  patient_info <- count_table %>%
+    select(!!sym(patient_col), group, total) %>%
+    distinct()
+  
+  # Get clean cluster names for internal use (no special characters)
+  clean_clusters <- make.names(clusters, unique = TRUE)
+  cluster_mapping <- data.frame(
+    original = clusters,
+    clean = clean_clusters,
+    stringsAsFactors = FALSE
+  )
+  
+  # Extract matrix without patient column for calculations
+  prop_values <- prop_matrix %>%
+    select(-one_of(patient_col)) %>%
+    as.matrix()
+  rownames(prop_values) <- prop_matrix[[patient_col]]
+  
+  # Calculate all pairwise ratios
+  ratios <- list()
+  ratio_names <- list()
+  
+  for (i in 1:(length(clusters)-1)) {
+    for (j in (i+1):length(clusters)) {
+      cluster1 <- clusters[i]
+      cluster2 <- clusters[j]
+      
+      # Create safer column names for indexing
+      col1 <- make.names(cluster1, unique = TRUE)
+      col2 <- make.names(cluster2, unique = TRUE)
+      
+      # Skip if columns don't exist in the proportion matrix
+      if (!(col1 %in% colnames(prop_values)) || !(col2 %in% colnames(prop_values))) {
+        next
+      }
+      
+      # Create a meaningful ratio name with original cluster names
+      ratio_name <- paste0(cluster1, "/", cluster2)
+      
+      # Calculate ratio
+      ratio_values <- prop_values[, col1] / prop_values[, col2]
+      
+      # Handle division by zero or very small numbers
+      ratio_values[is.infinite(ratio_values) | is.nan(ratio_values)] <- NA
+      ratio_values[prop_values[, col2] < 1e-10] <- NA
+      
+      # Store the ratio
+      ratios[[ratio_name]] <- ratio_values
+      ratio_names[[length(ratio_names) + 1]] <- ratio_name
+    }
+  }
+  
+  # Combine everything into a result list
+  return(list(
+    ratios = ratios,
+    ratio_names = unlist(ratio_names),
+    patient_info = patient_info,
+    proportions = prop_values,
+    clusters = clusters,
+    clean_clusters = clean_clusters,
+    cluster_mapping = cluster_mapping,
+    count_table = count_table
+  ))
+}
+
+# Test group effects on cluster ratios
+test_ratio_group_effects_robust <- function(ratio_data, test_type = "kruskal") {
+  ratios <- ratio_data$ratios
+  patient_info <- ratio_data$patient_info
+  
+  # Initialize results
+  p_values <- numeric(length(ratios))
+  names(p_values) <- names(ratios)
+  
+  # Run tests for each ratio
+  for (i in 1:length(ratios)) {
+    ratio_name <- names(ratios)[i]
+    ratio_vals <- ratios[[ratio_name]]
+    
+    # Get patient IDs for matching with group info
+    patient_ids <- names(ratio_vals)
+    
+    # Create a data frame for testing
+    test_df <- data.frame(
+      patient = patient_ids,
+      ratio = ratio_vals
+    ) %>%
+      # Join with group information
+      left_join(
+        patient_info %>% select(!!sym(colnames(patient_info)[1]), group),
+        by = c("patient" = colnames(patient_info)[1])
+      ) %>%
+      # Remove NA values
+      filter(!is.na(ratio), !is.na(group))
+    
+    # Only test if we have enough data
+    if (nrow(test_df) < 5 || length(unique(test_df$group)) < 2) {
+      p_values[i] <- NA
+      next
+    }
+    
+    # Run the appropriate test
+    if (test_type == "anova") {
+      test_result <- try(summary(aov(ratio ~ group, data = test_df)), silent = TRUE)
+      if (inherits(test_result, "try-error")) {
+        p_values[i] <- NA
+      } else {
+        p_values[i] <- test_result[[1]]["group", "Pr(>F)"]
+      }
+    } else if (test_type == "kruskal") {
+      test_result <- try(kruskal.test(ratio ~ group, data = test_df), silent = TRUE)
+      if (inherits(test_result, "try-error")) {
+        p_values[i] <- NA
+      } else {
+        p_values[i] <- test_result$p.value
+      }
+    }
+  }
+  
+  return(p_values)
+}
+
+# Function to create heatmap of p-values
+plot_ratio_heatmap_robust <- function(p_values, clusters, sig_threshold = 0.05, 
+                                    title = "Group Effect on Cluster Proportion Ratios") {
+  # Create a matrix for p-values
+  n_clusters <- length(clusters)
+  p_matrix <- matrix(NA, nrow = n_clusters, ncol = n_clusters)
+  rownames(p_matrix) <- colnames(p_matrix) <- clusters
+  
+  # Fill the matrix with p-values
+  for (ratio_name in names(p_values)) {
+    # Split the ratio name to get cluster pair
+    clusters_pair <- strsplit(ratio_name, "/")[[1]]
+    if (length(clusters_pair) != 2) next
+    
+    cluster1 <- clusters_pair[1]
+    cluster2 <- clusters_pair[2]
+    
+    # Check if both clusters exist in the matrix
+    if (!(cluster1 %in% rownames(p_matrix)) || !(cluster2 %in% colnames(p_matrix))) {
+      next
+    }
+    
+    # Add p-value to matrix
+    p_val <- p_values[ratio_name]
+    if (!is.na(p_val)) {
+      p_matrix[cluster1, cluster2] <- p_matrix[cluster2, cluster1] <- p_val
+    }
+  }
+  
+  # Convert to -log10(p-value) for visualization
+  neg_log_matrix <- -log10(p_matrix)
+  
+  # Create a matrix for text annotations
+  text_matrix <- matrix("", nrow = n_clusters, ncol = n_clusters)
+  rownames(text_matrix) <- colnames(text_matrix) <- clusters
+  
+  for (i in 1:nrow(p_matrix)) {
+    for (j in 1:ncol(p_matrix)) {
+      p_val <- p_matrix[i, j]
+      
+      if (!is.na(p_val)) {
+        # Format the p-value text
+        if (p_val < 0.001) {
+          text_matrix[i, j] <- sprintf("%.1e", p_val)
+        } else {
+          text_matrix[i, j] <- sprintf("%.3f", p_val)
+        }
+        
+        # Mark non-significant values
+        if (p_val > sig_threshold) {
+          text_matrix[i, j] <- paste0(text_matrix[i, j], "*")
+        }
+      } else {
+        text_matrix[i, j] <- ""
+      }
+    }
+  }
+  
+  # Remove diagonal elements
+  diag(neg_log_matrix) <- NA
+  diag(text_matrix) <- ""
+  
+  # Color palette
+  my_colors <- colorRampPalette(brewer.pal(9, "YlOrRd"))(100)
+  
+  # Find max value for color scale
+  max_val <- max(neg_log_matrix, na.rm = TRUE)
+  if (!is.finite(max_val) || max_val < 1) max_val <- 3
+  
+  sig_line <- -log10(sig_threshold)
+  
+  # Plot the heatmap
+  pheatmap(
+    neg_log_matrix,
+    color = my_colors,
+    display_numbers = text_matrix,
+    main = title,
+    fontsize = 8,
+    fontsize_number = 7,
+    number_color = "black",
+    breaks = seq(0, max(max_val, sig_line * 2, na.rm = TRUE), length.out = 101),
+    na_col = "white",
+    cellwidth = 14,
+    cellheight = 14,
+    angle_col = 45
+  )
+  
+  cat(paste0("Note: -log10(p-values) are color-coded. Values with * exceed p-threshold of ", 
+             sig_threshold, " (i.e., -log10(p) < ", round(sig_line, 2), ").\n"))
+  
+  return(list(neg_log_matrix = neg_log_matrix, text_matrix = text_matrix))
+}
+
+# Main analysis function
+analyze_cluster_ratio_by_group_robust <- function(meta_data, 
+                                               cluster_col = "annotation1", 
+                                               patient_col = "sample_no",
+                                               group_col = "group",
+                                               test_type = "kruskal", 
+                                               sig_threshold = 0.05) {
+  # Calculate proportions and ratios
+  cat("Calculating cluster proportions and ratios...\n")
+  ratio_data <- analyze_cluster_proportions_robust(meta_data, cluster_col, patient_col, group_col)
+  
+  # Test group effects
+  cat("Testing group effects on cluster ratios...\n")
+  p_values <- test_ratio_group_effects_robust(ratio_data, test_type)
+  
+  # Plot heatmap
+  cat("Creating heatmap visualization...\n")
+  heatmap_results <- plot_ratio_heatmap_robust(
+    p_values = p_values,
+    clusters = ratio_data$clusters,
+    sig_threshold = sig_threshold,
+    title = paste0("Group Effect on ", cluster_col, " Cluster Ratios")
+  )
+  
+  # Return results
+  return(list(
+    ratio_data = ratio_data,
+    p_values = p_values,
+    heatmap_results = heatmap_results
+  ))
+}
+
+# Usage example:
+# results <- analyze_cluster_ratio_by_group_robust(meta_data, "annotation1", "sample_no", "group")
+```
+
+# one by one
+```{r}
+# Assuming 's' is your Seurat object
+# and 'annotation1' is the column you're interested in
+
+# First, create a data frame with all metadata and the annotation1 column
+metadata_df <- s@meta.data
+
+# Check the distribution of your annotation1 clusters
+annotation_counts <- table(metadata_df$annotation1)
+print(annotation_counts)
+
+# For each metadata variable, test its relationship with annotation1
+# We'll need to handle different types of variables differently
+
+# Get all variable names except annotation1
+variables <- setdiff(colnames(metadata_df), "annotation1")
+
+# Function to test relationship between a variable and annotation1
+test_relationship <- function(variable_name, dependent_name) {
+  var_data <- metadata_df[[variable_name]]
+  
+  # Skip if the variable has all NA values
+  if(all(is.na(var_data))) {
+    return(list(variable = variable_name, p_value = NA, test = "skipped - all NA"))
+  }
+  
+  # Check variable type and perform appropriate test
+  if(is.numeric(var_data)) {
+    # For numeric variables, use ANOVA or Kruskal-Wallis
+    if(length(unique(var_data)) > 10) {
+      # ANOVA for continuous variables
+      test_result <- try(summary(aov(var_data ~ metadata_df$dependent_name)))
+      p_value <- try(summary(aov(var_data ~ metadata_df$dependent_name))[[1]][["Pr(>F)"]][1])
+      test_type <- "ANOVA"
+    } else {
+      # Chi-square for discrete numeric variables with few levels
+      ct <- table(var_data, metadata_df$dependent_name)
+      test_result <- try(chisq.test(ct))
+      p_value <- try(test_result$p.value)
+      test_type <- "Chi-square"
+    }
+  } else if(is.factor(var_data) || is.character(var_data)) {
+    # Chi-square test for categorical variables
+    ct <- table(var_data, metadata_df$dependent_name)
+    test_result <- try(chisq.test(ct))
+    p_value <- try(test_result$p.value)
+    test_type <- "Chi-square"
+  } else if(is.logical(var_data)) {
+    # Chi-square test for logical variables
+    ct <- table(var_data, metadata_df$dependent_name)
+    test_result <- try(chisq.test(ct))
+    p_value <- try(test_result$p.value)
+    test_type <- "Chi-square"
+  } else {
+    # Skip other variable types
+    return(list(variable = variable_name, p_value = NA, test = "skipped - unsupported type"))
+  }
+  
+  # Handle errors
+  if(inherits(p_value, "try-error")) {
+    return(list(variable = variable_name, p_value = NA, test = paste0(test_type, " - error")))
+  }
+  
+  return(list(variable = variable_name, p_value = p_value, test = test_type))
+}
+
+# Apply the test function to all variables
+results <- lapply(variables, test_relationship)
+
+# Convert results to data frame
+results_df <- do.call(rbind, lapply(results, function(x) {
+  data.frame(variable = x$variable, 
+             p_value = x$p_value, 
+             test = x$test,
+             significant = ifelse(!is.na(x$p_value), x$p_value < 0.05, NA),
+             stringsAsFactors = FALSE)
+}))
+
+# Sort by p-value
+results_df <- results_df[order(results_df$p_value), ]
+
+# Apply multiple testing correction
+results_df$adjusted_p_value <- p.adjust(results_df$p_value, method = "BH")
+results_df$significant_adjusted <- results_df$adjusted_p_value < 0.05
+
+# Print results
+print(results_df)
+
+# Visualize top significant relationships
+# Visualize top significant relationships with error handling
+for(i in 1:min(5, sum(results_df$significant_adjusted, na.rm = TRUE))) {
+  var_name <- results_df$variable[i]
+  var_data <- metadata_df[[var_name]]
+  
+  if(is.numeric(var_data)) {
+    # For numeric variables, plot boxplots
+    boxplot(var_data ~ metadata_df$annotation1, 
+            main = paste("Relationship between", var_name, "and annotation1"),
+            xlab = "annotation1", ylab = var_name)
+  } else {
+    # For categorical variables, create contingency table
+    ct <- table(var_data, metadata_df$annotation1)
+    
+    # Check dimensions before attempting heatmap
+    if(nrow(ct) >= 2 && ncol(ct) >= 2) {
+      # Calculate proportions
+      prop_table <- prop.table(ct, margin = 2)  # Normalize by column (cluster)
+      
+      # Create heatmap
+      heatmap(as.matrix(prop_table), 
+              main = paste("Relationship between", var_name, "and annotation1"),
+              xlab = "annotation1", ylab = var_name,
+              scale = "none")
+    } else {
+      # Alternative visualization for small tables
+      par(mar = c(8, 10, 4, 2) + 0.1)  # Increase margins for labels
+      
+      # If we have a 1xN or Nx1 table, we can still create a barplot
+      if(nrow(ct) == 1) {
+        barplot(as.matrix(ct), 
+                main = paste("Distribution of", var_name, "across annotation1"),
+                las = 2,   # Rotate labels
+                cex.names = 0.8)  # Smaller text
+      } else if(ncol(ct) == 1) {
+        barplot(as.matrix(ct), 
+                main = paste("Distribution of annotation1 for", var_name),
+                las = 2,
+                cex.names = 0.8)
+      } else {
+        # For empty tables, just print a message
+        plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
+        text(1, 1, paste("Cannot create visualization for", var_name, 
+                         "\nInsufficient data for cross-tabulation"))
+      }
+      par(mar = c(5, 4, 4, 2) + 0.1)  # Reset margins
+    }
+  }
+}
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+# convert variable types
+```{r}
+convert_variable_types <- function(metadata_df) {
+  for (col_name in colnames(metadata_df)) {
+    # Skip processing if not character type
+    if (!is.character(metadata_df[[col_name]])) {
+      next
+    }
+    
+    # Case 1: Convert to numeric if all non-NA values can be converted to numbers
+    if (all(grepl("^[0-9.+-]+$|^NA$", metadata_df[[col_name]]))) {
+      metadata_df[[col_name]] <- as.numeric(metadata_df[[col_name]])
+      next
+    }
+    
+    # Case 2: Special date/time handling
+    if (col_name %in% c("birthdate", "adm_date") || 
+        grepl("time$", col_name) || 
+        col_name %in% c("last_normal_dt", "symtpom_onset_dt", "arrival_dt", "blood_sample_time.1", "sx_onset")) {
+      
+      # Check if it's already in numeric format (like 45416.54...)
+      if (all(grepl("^[0-9.]+$|^NA$", metadata_df[[col_name]]))) {
+        metadata_df[[col_name]] <- as.numeric(metadata_df[[col_name]])
+      } else if (grepl("time$", col_name) || col_name == "sx_onset") {
+        # Convert "yyyy.mm.dd hh:mm" to Excel numeric date
+        tryCatch({
+          dates <- as.POSIXct(metadata_df[[col_name]], format = "%Y.%m.%d %H:%M")
+          # Convert to Excel numeric date (days since 1899-12-30)
+          metadata_df[[col_name]] <- as.numeric(dates) / 86400 + 25569
+        }, error = function(e) {
+          # In case of error, keep as is
+          message(paste("Could not convert", col_name, "to date/time format"))
+        })
+      } else {
+        # Convert "yyyy.mm.dd" to Excel numeric date
+        tryCatch({
+          dates <- as.Date(metadata_df[[col_name]], format = "%Y.%m.%d")
+          # Convert to Excel numeric date (days since 1899-12-30)
+          metadata_df[[col_name]] <- as.numeric(dates) + 25569
+        }, error = function(e) {
+          # In case of error, keep as is
+          message(paste("Could not convert", col_name, "to date format"))
+        })
+      }
+      next
+    }
+    
+    # Case 3: Default - convert remaining character variables to factors
+    metadata_df[[col_name]] <- as.factor(metadata_df[[col_name]])
+  }
+  
+  return(metadata_df)
+}
+
+```
+
+```{r}
+# Modified test_relationship function with dependent_name parameter
+test_relationship <- function(variable_name, dependent_name = "annotation1") {
+  var_data <- metadata_df[[variable_name]]
+  dependent_data <- metadata_df[[dependent_name]]
+  
+  # Skip if the variable has all NA values or is the same as dependent
+  if (all(is.na(var_data)) || variable_name == dependent_name) {
+    return(list(variable = variable_name, p_value = NA, test = "skipped"))
+  }
+  
+  # Check variable type and perform appropriate test
+  if (is.numeric(var_data)) {
+    # For numeric variables, use ANOVA or Kruskal-Wallis
+    if (length(unique(var_data)) > 10) {
+      # ANOVA for continuous variables
+      formula_str <- paste0(variable_name, " ~ ", dependent_name)
+      test_result <- try(summary(aov(as.formula(formula_str), data = metadata_df)))
+      p_value <- try(test_result[[1]][["Pr(>F)"]][1])
+      test_type <- "ANOVA"
+    } else {
+      # Chi-square for discrete numeric variables with few levels
+      ct <- table(var_data, dependent_data)
+      test_result <- try(chisq.test(ct))
+      p_value <- try(test_result$p.value)
+      test_type <- "Chi-square"
+    }
+  } else if (is.factor(var_data) || is.character(var_data)) {
+    # Chi-square test for categorical variables
+    ct <- table(var_data, dependent_data)
+    test_result <- try(chisq.test(ct))
+    p_value <- try(test_result$p.value)
+    test_type <- "Chi-square"
+  } else if (is.logical(var_data)) {
+    # Chi-square test for logical variables
+    ct <- table(var_data, dependent_data)
+    test_result <- try(chisq.test(ct))
+    p_value <- try(test_result$p.value)
+    test_type <- "Chi-square"
+  } else {
+    # Skip other variable types
+    return(list(variable = variable_name, p_value = NA, test = "skipped - unsupported type"))
+  }
+  
+  # Handle errors
+  if (inherits(p_value, "try-error")) {
+    return(list(variable = variable_name, p_value = NA, test = paste0(test_type, " - error")))
+  }
+  
+  return(list(variable = variable_name, p_value = p_value, test = test_type))
+}
+
+# Main analysis function
+analyze_metadata_relationships <- function(seurat_obj, dependent_name = "annotation1") {
+  # Create a data frame with all metadata
+  metadata_df <- seurat_obj@meta.data
+  
+  # Convert variable types
+  metadata_df <- convert_variable_types(metadata_df)
+  
+  # Check the distribution of your dependent variable
+  dependent_counts <- table(metadata_df[[dependent_name]])
+  print(dependent_counts)
+  
+  # Get all variable names except the dependent variable
+  variables <- setdiff(colnames(metadata_df), dependent_name)
+  
+  # Apply the test function to all variables with the dependent name
+  results <- lapply(variables, function(var) test_relationship(var, dependent_name))
+  
+  # Convert results to data frame
+  results_df <- do.call(rbind, lapply(results, function(x) {
+    data.frame(variable = x$variable, 
+               p_value = x$p_value, 
+               test = x$test,
+               significant = ifelse(!is.na(x$p_value), x$p_value < 0.05, NA),
+               stringsAsFactors = FALSE)
+  }))
+  
+  # Sort by p-value
+  results_df <- results_df[order(results_df$p_value), ]
+  
+  # Apply multiple testing correction
+  results_df$adjusted_p_value <- p.adjust(results_df$p_value, method = "BH")
+  results_df$significant_adjusted <- results_df$adjusted_p_value < 0.05
+  
+  # Print results
+  print(results_df)
+  
+  # Visualize top significant relationships
+  visualize_relationships(metadata_df, results_df, dependent_name)
+  
+  return(list(metadata = metadata_df, results = results_df))
+}
+
+# Separate visualization function
+visualize_relationships <- function(metadata_df, results_df, dependent_name) {
+  library(ggplot2)
+  
+  for (i in 1:min(5, sum(results_df$significant_adjusted, na.rm = TRUE))) {
+    var_name <- results_df$variable[i]
+    var_data <- metadata_df[[var_name]]
+    dependent_data <- metadata_df[[dependent_name]]
+    
+    if (is.numeric(var_data)) {
+      # For numeric variables, plot boxplots using ggplot2
+      plot_data <- data.frame(var = var_data, dependent = dependent_data)
+      p <- ggplot(plot_data, aes(x = dependent, y = var)) +
+        geom_boxplot() +
+        labs(title = paste("Relationship between", var_name, "and", dependent_name),
+             x = dependent_name, y = var_name) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      print(p)
+      
+    } else {
+      # For categorical variables, create contingency table
+      ct <- table(var_data, dependent_data)
+      
+      # Check dimensions before attempting visualization
+      if (nrow(ct) >= 2 && ncol(ct) >= 2) {
+        # Calculate proportions
+        prop_table <- prop.table(ct, margin = 2)  # Normalize by column
+        
+        # Convert to data frame for ggplot
+        plot_data <- as.data.frame(as.table(prop_table))
+        colnames(plot_data) <- c("Variable", "Dependent", "Proportion")
+        
+        # Create heatmap with ggplot2
+        p <- ggplot(plot_data, aes(x = Dependent, y = Variable, fill = Proportion)) +
+          geom_tile() +
+          scale_fill_gradient(low = "white", high = "blue") +
+          labs(title = paste("Relationship between", var_name, "and", dependent_name)) +
+          theme_minimal() +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        print(p)
+        
+      } else {
+        # For small tables, create a simple barplot
+        ct_df <- as.data.frame(as.table(ct))
+        colnames(ct_df) <- c("Variable", "Dependent", "Frequency")
+        
+        p <- ggplot(ct_df, aes(x = Dependent, y = Frequency, fill = Variable)) +
+          geom_bar(stat = "identity", position = "dodge") +
+          labs(title = paste("Distribution of", var_name, "across", dependent_name)) +
+          theme_minimal() +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        print(p)
+      }
+    }
+  }
+}
+```
+
+```{r}
+# Example usage:
+# Assuming 's' is your Seurat object
+results <- analyze_metadata_relationships(s, dependent_name = "annotation1")
+
+# To use with a different dependent variable:
+# results <- analyze_metadata_relationships(s, dependent_name = "other_cluster_variable")
+
+# To access the converted metadata:
+converted_metadata <- results$metadata
+
+# To access the test results:
+significant_variables <- results$results[results$results$significant_adjusted, ]
+```
+
+# corr
+## cell level
+```{r}
+corr_cell=function(sobj,genes,assay="SCT"){
+gene_expr_mat <- GetAssayData(object = sobj, assay = assay, layer = "data")[genes, ]
+
+# Calculate correlation of genes based on cell-to-cell variation
+# This yields an NxN correlation matrix, where N is number of genes
+cor_matrix_cell <- cor(t(data.frame(gene_expr_mat)))
+
+# Plot heatmap
+p=pheatmap(cor_matrix_cell,
+         main = "Correlation of DEGs (cell-level)",
+         clustering_method = "complete")
+return(p)
+}
+```
+## cluster level
+```{r}
+corr_cluster=function(sobj,genes,cluster="seurat_clusters",assay="SCT"){
+  # Suppose your cluster identities are stored in the Seurat object
+  Idents(sobj) <- cluster
+  
+  # Average expression for each gene in each cluster
+  cluster_averages <- AverageExpression(sobj, 
+                                        features = genes, 
+                                        assays = assay, 
+                                        return.seurat = FALSE)[[assay]]
+  
+  # Now cluster_averages is a matrix with genes in rows and clusters in columns
+  cor_matrix_cluster <- cor(t(data.frame(cluster_averages)))
+  
+  # Plot heatmap
+  p=pheatmap(cor_matrix_cluster,
+           main = "Correlation of DEGs (cluster-level)")
+  return(p)
+}
+```
+## patient level
+```{r}
+# Assign patient IDs as the active identity
+
+corr_sample=function(sobj,genes,sample="sample_no",assay="SCT"){
+# Average expression by patient
+  Idents(sobj) <- sample
+  patient_averages <- AverageExpression(sobj, 
+                                        features = genes,
+                                        assays = assay,
+                                        return.seurat = FALSE)[["SCT"]]
+  # Genes in rows, patient in columns
+  cor_matrix_patient <- cor(t(data.frame(patient_averages)))
+  
+  p=pheatmap(cor_matrix_patient,
+           main = "Correlation of DEGs (patient-level)")
+  return(p)
+}
+```
+
+## usage
+```{r}
+
+corr_cell(sobj,bad_genes)
+corr_cluster(sobj,bad_genes,"annotation1")
+corr_sample(sobj,bad_genes,"sample_no")
+```
+
+# performance
+
+## genes and Binary outcome
+```{r}
+performance_genes_categorical_outcome=function(sobj,genes,sample_ID="sample_no",prognosis_bin="nih_change_level",assay="SCT"){
+  # Example: Build a simple signature from your DEGs at the patient level
+  # (just an average expression, or a sum, or the first principal component, etc.)
+  
+  Idents(sobj) <- sample_ID
+  patient_expr <- AverageExpression(sobj, 
+                                    features = genes,
+                                    assays = assay,
+                                    return.seurat = FALSE)[[assay]]
+  old_names <- colnames(patient_expr)
+
+  # 1) remove the leading "g"
+  # 2) replace "-" with "_"
+  new_names <- old_names %>%
+    sub("^g", "", .) %>%    # remove leading 'g'
+    gsub("-", "_", .)       # replace '-' with '_'
+  
+  colnames(patient_expr) <- new_names
+  
+  # Suppose 'patient_expr' is now a G x N matrix 
+  #   where G = number of DEGs, N = number of patients
+  # We'll compute a simple average expression per patient
+  signature_scores <- colMeans(patient_expr)
+  
+  # Merge these scores with your patient metadata
+  meta <- sobj@meta.data %>%
+    distinct(!!sym(sample_ID), .keep_all = TRUE) %>% # if just put sample_ID, it is recognized as "sample_ID"
+    select(!!sym(sample_ID), prognosis_bin)  # e.g. 1=good, 0=bad or vice versa
+  
+  # Turn them into a data frame
+  df_for_classification <- data.frame(
+    colnames(patient_expr),
+    score = signature_scores
+  ) %>%
+    setNames(c(sample_ID, "score")) %>% #column name change! vey useful
+    left_join(meta, by = sample_ID)
+  
+  # Install/load caret or ROCR or pROC for classification metrics
+  library(pROC)
+  
+  # Compute ROC/AUC
+  roc_obj <- roc(df_for_classification[[prognosis_bin]],
+                 df_for_classification$score,
+                 plot = FALSE)
+  
+  auc_value <- auc(roc_obj)
+  cat("AUC =", auc_value, "\n")
+  
+  # You can also derive a threshold that maximizes e.g. Youden’s index:
+  best_thresh <- coords(roc_obj, "best", ret="threshold")
+  best_thresh <- as.numeric(best_thresh)  # convert that 1-row object to numeric #if not, ifelse(..>best_thresh) would return only one value
+  
+  # 5. The predicted classes: if score >= threshold => "case_label", else => "control_label"
+  # control_label <- roc_obj$levels[1]  # negative group
+  # case_label    <- roc_obj$levels[2]  # positive group
+  control_label <- unique(df_for_classification[[prognosis_bin]])[1]  # negative group
+  case_label    <- unique(df_for_classification[[prognosis_bin]])[2]  # positive group
+
+  preds <- ifelse(df_for_classification$score >= best_thresh, control_label, case_label)
+  truth <- df_for_classification[[prognosis_bin]]
+
+  # 6. Calculate confusion matrix counts
+  tp <- sum(preds == case_label & truth == case_label)
+  tn <- sum(preds == control_label & truth == control_label)
+  fp <- sum(preds == case_label & truth == control_label)
+  fn <- sum(preds == control_label & truth == case_label)
+  
+  sensitivity <- tp / (tp + fn)
+  specificity <- tn / (tn + fp)
+  ppv         <- tp / (tp + fp)
+  npv         <- tn / (tn + fn)
+  
+  cat("Sensitivity =", sensitivity, "\n")
+  cat("Specificity =", specificity, "\n")
+  cat("PPV =", ppv, "\n")
+  cat("NPV =", npv, "\n")
+
+}
+```
+
+```{r}
+
+```
+## usage
+```{r}
+performance_genes_categorical_outcome(stroke,bad_genes[1:3])
+```
+
+# index 1
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+
+
+
+# index 1
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+
+
+# index 1
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+
+
+# index 1
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+
+
+# index 1
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+
+
+# index 1
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+## index 2
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+### index3
+```{r}
+
+```
+
+
+
+

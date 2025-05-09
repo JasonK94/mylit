@@ -1,0 +1,577 @@
+---
+title: "NicheNet"
+output: html_document
+date: "2025-03-24"
+---
+# defaulting
+```{r}
+seuratObj=stroke
+annotation_str="annotation1"
+primary_factor="nih_change_level"
+
+default_array="SCT"
+sender_celltypes = c("Tc", "Bc","NKc", "CD14+Monocytes")
+receiver = "Bc"
+
+target_genes1=all_bad
+target_genes2=all_good
+
+DE_table_receiver <- FindMarkers(seuratObj, ident.1 ="3", ident.2 ="4", group.by="group", subset.ident = "Bc",min.pct = 0.10) %>%
+  fm_re("+",0.001)
+DE_table_receiver <- FindMarkers(seuratObj, ident.1 ="high", ident.2 ="low", group.by="nih_change", subset.ident = "Bc",min.pct = 0.10) %>%
+  fm_re("+",0.001)
+```
+
+
+
+# loading NN objects
+
+```{r}
+library(nichenetr)
+library(Seurat)
+library(tidyverse)
+### I. Read in NicheNet V2 ligand-target prior model
+# download https://zenodo.org/record/7074291
+lr_network = readRDS(
+  "/data/kjc1/projects/NicheNet/lr_network_human_21122021.rds")
+lr_network = lr_network %>% distinct(from, to)
+ligands = lr_network %>% pull(from) %>% unique()
+receptors = lr_network %>% pull(to) %>% unique()
+
+weighted_networks = readRDS(
+  "/data/kjc1/projects/NicheNet/weighted_networks_nsga2r_final.rds")
+# lr_sig: interactions and their weights in the ligand-receptor+signaling network
+# gr: interactions and their weights in the gene regulatory network
+weighted_networks_lr = weighted_networks$lr_sig %>% 
+  inner_join(lr_network, by = c("from","to"))
+
+ligand_target_matrix = readRDS(
+  "/data/kjc1/projects/NicheNet/ligand_target_matrix_nsga2r_final.rds")
+# # load the networks to infer signaling paths between ligand and target genes
+ligand_tf_matrix = readRDS(
+  "/data/kjc1/projects/NicheNet/ligand_tf_matrix_nsga2r_final.rds")
+sig_network = readRDS(
+  "/data/kjc1/projects/NicheNet/signaling_network_human_21122021.rds")
+gr_network = readRDS(
+  "/data/kjc1/projects/NicheNet/gr_network_human_21122021.rds")
+
+```
+
+
+# Lecture 2
+https://www.youtube.com/watch?v=JnJM-QEF7yg&t=520s
+```{r}
+
+# ### II. Loading Seurat objects (Seurat Video 17&20)
+# CONIPF.combined = readRDS(
+#   "../Desktop/Video_Tutorials/NicheNet/Data/CONIPF.combined.RDS")
+# 
+# view(CONIPF.combined@meta.data)
+# DimPlot(CONIPF.combined, reduction = "umap", label=TRUE, split.by ="orig.ident")
+# 
+# CONIPF.combined.list <- SplitObject(CONIPF.combined, split.by = "orig.ident")
+# 
+# seuratObj <- CONIPF.combined.list[["IPF"]]
+# view(seuratObj@meta.data)
+# DimPlot(seuratObj, reduction = "umap", label = TRUE)
+# 
+# rm(CONIPF.combined.list, weighted_networks)
+
+### III. Perform NicheNet analysis
+# A basic NicheNet analysis consist of the following steps:
+
+## Setp 1: Define a “sender” cell population and a “receiver/target” cell 
+# population presented in your expression data and determine which genes 
+# are expressed in both populations
+
+# TGFB1/TGFBR1 and IL1B/IL1R1 signalling in lung fibrosis
+DefaultAssay(seuratObj) <- default_array
+
+# define sender and receiver cell types
+# receiver = c("IPF_Fibro", "IPF_Endo", "IPF_Meso")
+
+# get_expressed_genes from sender and receiver cell types
+list_expressed_genes_sender = sender_celltypes %>% unique() %>% 
+                   lapply(get_expressed_genes, seuratObj, 0.10)
+
+expressed_genes_sender = list_expressed_genes_sender %>% unlist() %>% unique()
+
+expressed_genes_receiver = get_expressed_genes(receiver, seuratObj, pct = 0.10)
+
+background_expressed_genes = expressed_genes_receiver %>%
+                         .[. %in% rownames(ligand_target_matrix)]
+
+## Sept 2: Define a gene set of interest: these are the genes in the  
+# “receiver/target” cell population that are potentially affected by 
+# ligands expressed byinteracting cells (eg. DEGs)
+
+
+geneset_oi = DE_table_receiver$gene %>% .[. %in% rownames(ligand_target_matrix)]
+#geneset_oi = geneset_oi[geneset_oi %in% rownames(ligand_target_matrix)]
+
+## Step 3: Define a set of potential ligands: these are ligands that are  
+# expressed by the “sender/niche” cell population and bind a (putative)  
+# receptor expressed by the “receiver/target” population
+ligands = lr_network %>% pull(from) %>% unique()
+receptors = lr_network %>% pull(to) %>% unique()
+
+expressed_ligands = intersect(ligands, expressed_genes_sender)
+expressed_receptors = intersect(receptors, expressed_genes_receiver)
+
+potential_ligands = lr_network %>% 
+  filter(from %in% expressed_ligands & to %in% expressed_receptors) %>% 
+  pull(from) %>% unique()
+
+potential_ligands
+
+## Step 4: Perform NicheNet ligand activity analysis: rank the potential  
+# ligands based on the presence of their target genes in the gene set of 
+# interest (compared to the background set of genes)
+ligand_activities = predict_ligand_activities(geneset = geneset_oi, 
+    background_expressed_genes = background_expressed_genes, 
+    ligand_target_matrix = ligand_target_matrix,
+    potential_ligands = potential_ligands)
+
+ligand_activities = arrange(ligand_activities, -aupr_corrected)
+
+best_upstream_ligands = ligand_activities %>% top_n(20, aupr_corrected) %>%
+  arrange(-aupr_corrected) %>% pull(test_ligand) %>% unique()
+
+# DotPlot(seuratObj,features=best_upstream_ligands, cols ="RdYlBu")+RotatedAxis()
+
+## Step 5: Infer receptors and top-predicted target genes of ligands that 
+# are top-ranked in the ligand activity analysis
+
+# Active target gene inference
+active_ligand_target_links_df = best_upstream_ligands %>% 
+  lapply(get_weighted_ligand_target_links, geneset = geneset_oi, 
+  ligand_target_matrix = ligand_target_matrix, n = 200) %>% 
+  bind_rows() %>% drop_na()
+
+active_ligand_target_links = prepare_ligand_target_visualization(
+  ligand_target_df = active_ligand_target_links_df, 
+  ligand_target_matrix = ligand_target_matrix, cutoff = 0.33)
+
+order_ligands = intersect(best_upstream_ligands, 
+   colnames(active_ligand_target_links)) %>% rev() %>% make.names()
+
+order_targets = active_ligand_target_links_df$target %>% unique() %>%
+  intersect(rownames(active_ligand_target_links)) %>% make.names()
+
+rownames(active_ligand_target_links) = rownames(active_ligand_target_links) %>%
+  make.names() # make.names() for heatmap visualization of genes like H2-T23
+
+colnames(active_ligand_target_links) = colnames(active_ligand_target_links) %>% 
+  make.names() # make.names() for heatmap visualization of genes like H2-T23
+
+vis_ligand_target=active_ligand_target_links[order_targets,order_ligands]%>%t()
+
+p_ligand_target_network = vis_ligand_target %>% 
+  make_heatmap_ggplot("Prioritized ligands", "Predicted target genes", 
+  color = "purple", legend_position = "top", x_axis_position = "top",
+  legend_title = "Regulatory potential")  + 
+  theme (axis.text.x = element_text(face = "italic")) + 
+  scale_fill_gradient2(low = "whitesmoke", high = "purple", 
+                       breaks = c(0,0.0045,0.0090))
+
+# p_ligand_target_network
+
+# Receptors of top-ranked ligands
+lr_network_top = lr_network %>% 
+  filter(from %in% best_upstream_ligands & to %in% expressed_receptors) %>% 
+  distinct(from,to)
+
+best_upstream_receptors = lr_network_top %>% pull(to) %>% unique()
+
+lr_network_top_df_large = weighted_networks_lr %>% 
+  filter(from %in% best_upstream_ligands & to %in% best_upstream_receptors)
+
+lr_network_top_df = lr_network_top_df_large %>% spread("from","weight", fill=0)
+
+lr_network_top_matrix = lr_network_top_df %>% select(-to) %>% as.matrix() %>% 
+  magrittr::set_rownames(lr_network_top_df$to)
+
+dist_receptors = dist(lr_network_top_matrix, method = "binary")
+hclust_receptors = hclust(dist_receptors, method = "ward.D2")
+order_receptors = hclust_receptors$labels[hclust_receptors$order]
+
+dist_ligands = dist(lr_network_top_matrix %>% t(), method = "binary")
+hclust_ligands = hclust(dist_ligands, method = "ward.D2")
+order_ligands_receptor = hclust_ligands$labels[hclust_ligands$order]
+
+order_receptors = order_receptors %>% intersect(rownames(lr_network_top_matrix))
+order_ligands_receptor = order_ligands_receptor %>% 
+  intersect(colnames(lr_network_top_matrix))
+
+vis_ligand_receptor_network = lr_network_top_matrix[order_receptors, 
+                                                    order_ligands_receptor]
+rownames(vis_ligand_receptor_network) = order_receptors %>% make.names()
+colnames(vis_ligand_receptor_network) = order_ligands_receptor %>% make.names()
+
+p_ligand_receptor_network = vis_ligand_receptor_network %>% t() %>% 
+  make_heatmap_ggplot("Ligands", "Receptors", color = "mediumvioletred", 
+  x_axis_position = "top", legend_title = "Prior interaction potential")
+
+# p_ligand_receptor_network
+
+# write_csv(active_ligand_target_links_df, file="/data/kjc1/projects/NicheNet/active_ligand_target_links_stroke.csv")
+```
+
+# Lecture 3
+https://www.youtube.com/watch?v=v9-HAyt1QwM
+```{r}
+# Inferring Ligand-to-target Signaling Paths
+
+# ligands_all = c("IL1B") # can be a list of multiple ligands if required
+# targets_all = c("BMP2", "C15orf48", "CCL20", "CXCL1", "CXCL10", "CXCL2", "CXCL5", 
+#   "CXCR4", "DUSP5", "ENC1", "EPSTI1", "F3", "FGF2", "FST", "GBP4", "GFPT2",
+#   "HAS1", "HAS2", "HMOX1", "HSD11B1", "IL1B", "IL6", "INHBA", "LIF", "PDLIM4", 
+#   "PLAU", "PPARG", "PTGES", "PTGS2", "PTX3", "RCAN1", "SDC4", "SELE", "SELP", 
+#   "SERPINE1", "TNC", "TNFAIP3", "TNFAIP6", "TNFRSF11B", "TRIB1", "VCAM1")
+
+# STROKE - ALL
+ligands_all = vis_ligand_target %>% data.frame() %>% rowSums() %>% sort(decreasing = T) %>% .[1] %>% names()
+# STROKE - ALL BAD
+# targets_all=c("JUND","TXNIP")
+targets_all = c("FKBP5", "SMAP2")
+
+active_signaling_network = get_ligand_signaling_path (
+         ligand_tf_matrix = ligand_tf_matrix, ligands_all = ligands_all, 
+         targets_all = targets_all, weighted_networks = weighted_networks)
+
+# For better visualization of edge weigths: normalize edge weights to 
+# make them comparable between signaling and gene regulatory interactions
+active_signaling_network_min_max = active_signaling_network
+
+active_signaling_network_min_max$sig = active_signaling_network_min_max$sig %>% 
+  mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+
+active_signaling_network_min_max$gr = active_signaling_network_min_max$gr %>% 
+  mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+
+graph_min_max = diagrammer_format_signaling_graph (
+  signaling_graph_list = active_signaling_network_min_max, 
+  ligands_all = ligands_all, targets_all = targets_all, 
+  sig_color = "indianred", gr_color = "steelblue")
+
+# To render the graph: uncomment following line of code
+DiagrammeR::render_graph(graph_min_max, layout = "tree")
+```
+## functionalize and iteration
+### function
+```{r}
+ligand_to_target=function(ligand,target){
+  active_signaling_network = get_ligand_signaling_path (
+         ligand_tf_matrix = ligand_tf_matrix, ligands_all = ligand, 
+         targets_all = target, weighted_networks = weighted_networks)
+
+  # For better visualization of edge weigths: normalize edge weights to 
+  # make them comparable between signaling and gene regulatory interactions
+  active_signaling_network_min_max = active_signaling_network
+  
+  active_signaling_network_min_max$sig = active_signaling_network_min_max$sig %>% 
+    mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+  
+  active_signaling_network_min_max$gr = active_signaling_network_min_max$gr %>% 
+    mutate(weight = ((weight-min(weight))/(max(weight)-min(weight))) + 0.75)
+  
+  graph_min_max = diagrammer_format_signaling_graph (
+    signaling_graph_list = active_signaling_network_min_max, 
+    ligands_all = ligand, targets_all = target, 
+    sig_color = "indianred", gr_color = "steelblue")
+  
+  # To render the graph: uncomment following line of code
+  plot=DiagrammeR::render_graph(graph_min_max, layout = "tree")
+  
+  return(plot)
+}
+```
+### iteration; target_genes에 작용하는 것으로 알려진 ligands (ligands_all), targets_all
+```{r}
+ligands_all = vis_ligand_target %>% data.frame() %>% rowSums() %>% sort(decreasing = T) %>% .[1:5] %>% names()
+targets_all=target_genes1
+l_to_t=list()
+for(ligand in ligands_all){
+  for(target in targets_all){
+    pathway_name=paste(ligand,target,sep="_to_")
+    l_to_t[[pathway_name]]=ligand_to_target(ligand,target)
+    print(l_to_t[[pathway_name]])
+  }
+}
+
+```
+
+```{r}
+for(ligand in ligands_all){
+  for(target in targets_all){
+    pathway_name=paste(ligand,target,sep="_to_")
+    print(l_to_t[[pathway_name]])
+  }
+}
+```
+
+# tutorials
+
+## seurat_steps
+
+### ligand activity histogram
+```{r}
+p_hist_lig_activity <- ggplot(ligand_activities, aes(x=aupr_corrected)) + 
+  geom_histogram(color="black", fill="darkorange")  + 
+  geom_vline(aes(xintercept=min(ligand_activities %>% top_n(30, aupr_corrected) %>% pull(aupr_corrected))),
+             color="red", linetype="dashed", size=1) + 
+  labs(x="ligand activity (PCC)", y = "# ligands") +
+  theme_classic()
+
+p_hist_lig_activity
+```
+
+### activity of the top ligands
+```{r}
+best_upstream_ligands <- ligand_activities %>% top_n(30, aupr_corrected) %>% arrange(-aupr_corrected) %>% pull(test_ligand)
+
+vis_ligand_aupr <- ligand_activities %>% filter(test_ligand %in% best_upstream_ligands) %>%
+  column_to_rownames("test_ligand") %>% select(aupr_corrected) %>% arrange(aupr_corrected) %>% as.matrix(ncol = 1)
+
+(make_heatmap_ggplot(vis_ligand_aupr,
+                     "Prioritized ligands", "Ligand activity", 
+                     legend_title = "AUPR", color = "darkorange") + 
+    theme(axis.text.x.top = element_blank()))  
+```
+```{r}
+
+```
+
+# plots from L2
+```{r}
+DotPlot(seuratObj,features=best_upstream_ligands, cols ="RdYlBu")+RotatedAxis()
+p_ligand_target_network
+p_ligand_receptor_network
+```
+
+# plots to checkout top ligand & DEGs
+## bad
+```{r}
+
+FeaturePlot(stroke, target_genes1)
+DotPlot(stroke,target_genes, cols ="RdYlBu",group.by = annotation_str)
+
+#이 부분은 사실 receiver[[1]]과 같이 돼야 맞긴 함.
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[1]]),target_genes1, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[2]]),target_genes1, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[3]]),target_genes1, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[4]]),target_genes1, cols ="RdYlBu",group.by = primary_factor)
+
+# 
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[1]]),ligands_all, cols ="RdYlBu",group.by = "nih_change")
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[2]]),ligands_all, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[3]]),ligands_all, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=!!sym(annotation_str)==sender_celltypes[[4]]),ligands_all, cols ="RdYlBu",group.by = primary_factor)
+```
+###
+```{r}
+scatter_smooth(subset(stroke,annotation1=="Tc"),ligands_all[[1]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Tc"),ligands_all[[2]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Tc"),ligands_all[[3]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Tc"),ligands_all[[4]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Tc"),"HLA-DMA",clinical_variable = "nih_change", transpose=F)
+
+scatter_smooth(subset(stroke,annotation1=="Bc"),ligands_all[[1]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Bc"),ligands_all[[2]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Bc"),ligands_all[[3]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Bc"),ligands_all[[4]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="Bc"),"HLA-DMA",clinical_variable = "nih_change", transpose=F)
+
+scatter_smooth(subset(stroke,annotation1=="NKc"),ligands_all[[1]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="NKc"),ligands_all[[2]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="NKc"),ligands_all[[3]],clinical_variable = "nih_change", transpose=F) #
+scatter_smooth(subset(stroke,annotation1=="NKc"),ligands_all[[4]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="NKc"),"HLA-DMA",clinical_variable = "nih_change", transpose=F) #
+
+scatter_smooth(subset(stroke,annotation1=="CD14+Monocytes"),ligands_all[[1]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="CD14+Monocytes"),ligands_all[[2]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="CD14+Monocytes"),ligands_all[[3]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="CD14+Monocytes"),ligands_all[[4]],clinical_variable = "nih_change", transpose=F)
+scatter_smooth(subset(stroke,annotation1=="CD14+Monocytes"),"HLA-DMA",clinical_variable = "nih_change", transpose=F) #
+```
+
+## good
+```{r}
+FeaturePlot(stroke, target_genes2)
+DotPlot(stroke,target_genes2, cols ="RdYlBu",group.by = annotation_str)
+DotPlot(subset(stroke,subset=annotation1=="Tc"),target_genes2, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=annotation1=="Bc"),target_genes2, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=annotation1=="NKc"),target_genes2, cols ="RdYlBu",group.by = primary_factor)
+DotPlot(subset(stroke,subset=annotation1=="CD14+Monocytes"),target_genes2, cols ="RdYlBu",group.by = primary_factor)
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
