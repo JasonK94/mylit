@@ -4,15 +4,20 @@ Version: 0.0.0.9000
 Authors@R: 
     person("Jaecheon", "Ko", , "eaoaeaoa@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = ".."))
-Description: 다양한 샘플 데이터 생성, 더블렛 검출, 바코드 매핑 등
-    single-cell 분석 워크플로우에 유용한 헬퍼 함수들을 제공합니다.
+Description: I provide with many helper functions that make you work with scRNAseq, and other multi-omics data analysis better. Sample data generation, doublet detection & removal, metadata mapping, etc.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Imports:
     dplyr (>= 1.0.0),
     stringr,
     Seurat (>= 4.0.0),
-    reticulate
+    reticulate,
+    ggplot2,
+    car,
+    userfriendlyscience,
+    FSA,
+    stats,
+    reshape,
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Config/testthat/edition: 3

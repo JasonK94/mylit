@@ -86,3 +86,4 @@ scatter_smooth = function(sobj, feature, clinical_variable = "nih_change", trans
   
   return(p)
 }
+
