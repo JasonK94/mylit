@@ -84,7 +84,7 @@ marker_filter=function(markers, filter=c("rb","mt","hb","AC","ENSG","LINC")){
   }
   filter_pattern=paste(rb,mt,AC,ENSG,LINC,sep="|")
   if("cluster"%in%names(markers)){}else{ #FindAllMarkers object has "cluster" column, FindMarkers not.
-    markers$gene=rownames(markers)
+    markers$gene=rownames(markers) # FindAllMarkers object generates "gene" column automatically
   }
   markers=markers[!grepl(filter_pattern,markers$gene),]
   
