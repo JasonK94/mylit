@@ -127,12 +127,39 @@ sort_samples <- function(samples) {
 }
 
 
-#' This function shows relative frequency of each cluster per each sample(or group)
-#' 
-#' @import dplyr ggplot2
-#' @param
+#' Create a Proportional Bar Graph of Clusters
 #'
-#' @return
+#' This function creates a stacked bar plot showing the proportional distribution of clusters
+#' across different samples or groups.
+#'
+#' @param sobj A Seurat object
+#' @param identity Character string specifying the identity to use for clustering.
+#'                Default is "seurat_clusters"
+#' @param group.by Character string specifying the metadata column to group by.
+#'                 Default is "sample"
+#' @param idents Character vector specifying which identities to include.
+#'              If NULL, includes all identities
+#' @param df Logical. If TRUE, returns the data frame used for plotting instead of the plot.
+#'          Default is FALSE
+#' @param vlines Numeric vector specifying x-axis positions for vertical lines.
+#'              Default is NULL
+#' @param vline_color Character string specifying the color for vertical lines.
+#'                   Default is "red"
+#'
+#' @return A ggplot object showing the proportional distribution of clusters, or a data frame
+#'         if df = TRUE
+#'
+#' @examples
+#' \dontrun{
+#' # Create proportional bar plot for all clusters
+#' p <- cmb(sobj, identity = "seurat_clusters", group.by = "sample")
+#' 
+#' # Create plot for specific clusters with vertical lines
+#' p <- cmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
+#' 
+#' # Get the underlying data frame
+#' df <- cmb(sobj, df = TRUE)
+#' }
 #' @export
 cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents = NULL, df=F, vlines=NULL, vline_color = "red") {
   Idents(sobj) <- identity
@@ -181,12 +208,39 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
 }
 
 
-#' This function shows absolute counts of each cluster per each sample(or group)
-#' 
-#' @import dplyr ggplot2
-#' @param
+#' Create an Absolute Count Bar Graph of Clusters
 #'
-#' @return
+#' This function creates a stacked bar plot showing the absolute count distribution of clusters
+#' across different samples or groups.
+#'
+#' @param sobj A Seurat object
+#' @param identity Character string specifying the identity to use for clustering.
+#'                Default is "seurat_clusters"
+#' @param group.by Character string specifying the metadata column to group by.
+#'                 Default is "sample"
+#' @param idents Character vector specifying which identities to include.
+#'              If NULL, includes all identities
+#' @param df Logical. If TRUE, returns the data frame used for plotting instead of the plot.
+#'          Default is FALSE
+#' @param vlines Numeric vector specifying x-axis positions for vertical lines.
+#'              Default is NULL
+#' @param vline_color Character string specifying the color for vertical lines.
+#'                   Default is "red"
+#'
+#' @return A ggplot object showing the absolute count distribution of clusters, or a data frame
+#'         if df = TRUE
+#'
+#' @examples
+#' \dontrun{
+#' # Create absolute count bar plot for all clusters
+#' p <- acmb(sobj, identity = "seurat_clusters", group.by = "sample")
+#' 
+#' # Create plot for specific clusters with vertical lines
+#' p <- acmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
+#' 
+#' # Get the underlying data frame
+#' df <- acmb(sobj, df = TRUE)
+#' }
 #' @export
 acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = NULL, df=F, vlines=NULL, vline_color = "red") {
   Idents(sobj) <- identity
@@ -230,7 +284,45 @@ acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = N
   return(output)
 }
 
-#' awesome function for making heatmap(tile plot) of gene modules
+#' Create a Heatmap of Gene Set Expression per Cluster
+#'
+#' This function creates a heatmap showing the normalized expression of gene sets across clusters.
+#' The expression values are z-score normalized for better visualization.
+#'
+#' @param sobj A Seurat object
+#' @param group Character string specifying the identity to use for clustering.
+#'             Default is "seurat_clusters"
+#' @param value Character string specifying how to aggregate expression values.
+#'             Options: "average" (default) or "sum"
+#' @param assay Character string specifying which assay to use.
+#'             Default is "SCT"
+#' @param gene_sets A list of character vectors, where each vector contains gene names.
+#'                 The list can be named, and names will be used as gene set labels.
+#'                 If a single vector is provided, it will be converted to a list.
+#' @param title Character string for the plot title.
+#'             Default is "Normalized Gene Set Expression per Cluster"
+#' @param x_label Character string for the x-axis label.
+#'               Default is "Cluster"
+#' @param y_label Character string for the y-axis label.
+#'               Default is "Gene Set"
+#'
+#' @return A data frame containing the normalized expression values for each gene set
+#'         across clusters, with an additional column indicating the assigned cell type
+#'         based on highest expression
+#'
+#' @examples
+#' \dontrun{
+#' # Create heatmap with named gene sets
+#' gene_sets <- list(
+#'   T_cells = c("CD3D", "CD3E", "CD4", "CD8A"),
+#'   B_cells = c("MS4A1", "CD19", "CD79A"),
+#'   Myeloid = c("CD14", "FCGR3A", "LYZ")
+#' )
+#' result <- myhm_genesets2(sobj, gene_sets = gene_sets)
+#' 
+#' # Create heatmap with a single gene set
+#' result <- myhm_genesets2(sobj, gene_sets = c("CD3D", "CD3E", "CD4"))
+#' }
 #' @export
 myhm_genesets2 <- function(
     sobj,
@@ -400,9 +492,42 @@ myhm_genesets2 <- function(
 
 
 
-#' title = "Normalized Gene Set Expression per Cluster",
-#' x = "Cluster",
-#' y = "Gene Set"
+#' Create a Heatmap of Individual Gene Expression per Cluster
+#'
+#' This function creates a heatmap showing the normalized expression of individual genes
+#' across clusters. The expression values are z-score normalized for better visualization.
+#'
+#' @param sobj A Seurat object
+#' @param group Character string specifying the identity to use for clustering.
+#'             Default is "seurat_clusters"
+#' @param value Character string specifying how to aggregate expression values.
+#'             Options: "average" (default) or "sum"
+#' @param assay Character string specifying which assay to use.
+#'             Default is "SCT"
+#' @param genes Character vector containing gene names to plot
+#' @param title Character string for the plot title.
+#'             Default is "Normalized Gene Expression per Cluster"
+#' @param x_label Character string for the x-axis label.
+#'               Default is "Cluster"
+#' @param y_label Character string for the y-axis label.
+#'               Default is "Genes"
+#'
+#' @return A data frame containing the normalized expression values for each gene
+#'         across clusters
+#'
+#' @examples
+#' \dontrun{
+#' # Create heatmap for a set of genes
+#' genes <- c("CD3D", "CD3E", "CD4", "CD8A", "MS4A1", "CD19")
+#' result <- myhm_genes2(sobj, genes = genes)
+#' 
+#' # Create heatmap with custom title and labels
+#' result <- myhm_genes2(sobj, 
+#'                      genes = genes,
+#'                      title = "T and B Cell Markers",
+#'                      x_label = "Cell Clusters",
+#'                      y_label = "Marker Genes")
+#' }
 #' @export
 myhm_genes2 <- function(
     sobj,
