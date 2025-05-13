@@ -2,10 +2,25 @@
 % Please edit documentation in R/demulti_utils.R
 \name{generate_sample_names}
 \alias{generate_sample_names}
-\title{c("a","b","c")과 같이 문자 벡터를 넣으면, "a+b", "b+c" 형태의 조합을 만들어줌.}
+\title{Generate Sample Names for Demultiplexing}
 \usage{
 generate_sample_names(vector)
 }
+\arguments{
+\item{vector}{Character vector containing sample names}
+}
+\value{
+A character vector containing all possible sample combinations:
+singlets (original names) and doublets (combinations with '+')
+}
 \description{
-c("a","b","c")과 같이 문자 벡터를 넣으면, "a+b", "b+c" 형태의 조합을 만들어줌.
+This function generates a vector of sample names including both singlets and
+doublets for demultiplexing analysis.
+}
+\examples{
+\dontrun{
+# Generate sample names for samples A, B, C
+samples <- generate_sample_names(c("A", "B", "C"))
+# Returns: c("A", "B", "C", "A+B", "A+C", "B+C")
+}
 }

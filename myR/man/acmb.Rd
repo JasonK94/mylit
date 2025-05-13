@@ -2,7 +2,7 @@
 % Please edit documentation in R/plots.R
 \name{acmb}
 \alias{acmb}
-\title{This function shows absolute counts of each cluster per each sample(or group)}
+\title{Create an Absolute Count Bar Graph of Clusters}
 \usage{
 acmb(
   sobj,
@@ -14,6 +14,44 @@ acmb(
   vline_color = "red"
 )
 }
+\arguments{
+\item{sobj}{A Seurat object}
+
+\item{identity}{Character string specifying the identity to use for clustering.
+Default is "seurat_clusters"}
+
+\item{group.by}{Character string specifying the metadata column to group by.
+Default is "sample"}
+
+\item{idents}{Character vector specifying which identities to include.
+If NULL, includes all identities}
+
+\item{df}{Logical. If TRUE, returns the data frame used for plotting instead of the plot.
+Default is FALSE}
+
+\item{vlines}{Numeric vector specifying x-axis positions for vertical lines.
+Default is NULL}
+
+\item{vline_color}{Character string specifying the color for vertical lines.
+Default is "red"}
+}
+\value{
+A ggplot object showing the absolute count distribution of clusters, or a data frame
+if df = TRUE
+}
 \description{
-This function shows absolute counts of each cluster per each sample(or group)
+This function creates a stacked bar plot showing the absolute count distribution of clusters
+across different samples or groups.
+}
+\examples{
+\dontrun{
+# Create absolute count bar plot for all clusters
+p <- acmb(sobj, identity = "seurat_clusters", group.by = "sample")
+
+# Create plot for specific clusters with vertical lines
+p <- acmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
+
+# Get the underlying data frame
+df <- acmb(sobj, df = TRUE)
+}
 }

@@ -2,10 +2,24 @@
 % Please edit documentation in R/demulti_utils.R
 \name{is_doublet}
 \alias{is_doublet}
-\title{doublet 판정}
+\title{Check if a Sample is a Doublet}
 \usage{
 is_doublet(sample)
 }
+\arguments{
+\item{sample}{Character string containing the sample name}
+}
+\value{
+Logical value: TRUE if the sample is a doublet, FALSE otherwise
+}
 \description{
-doublet 판정
+This function checks if a sample name contains a '+' character, indicating it is
+a doublet (combination of two samples).
+}
+\examples{
+\dontrun{
+# Check if samples are doublets
+is_doublet("1")     # Returns FALSE
+is_doublet("1+2")   # Returns TRUE
+}
 }

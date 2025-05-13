@@ -2,10 +2,25 @@
 % Please edit documentation in R/demulti_utils.R
 \name{get_best_two}
 \alias{get_best_two}
-\title{가장 probability가 큰 2개 sample을 골라줌.}
+\title{Get the Two Highest Probability Values}
 \usage{
 get_best_two(row)
 }
+\arguments{
+\item{row}{A numeric vector of probability values}
+}
+\value{
+A numeric vector of length 2 containing the indices of the two highest
+probability values
+}
 \description{
-가장 probability가 큰 2개 sample을 골라줌.
+This function takes a row of probability values and returns the indices of the two
+highest values.
+}
+\examples{
+\dontrun{
+# Get indices of two highest probabilities
+probs <- c(0.1, 0.5, 0.3, 0.8, 0.2)
+best_two <- get_best_two(probs)  # Returns c(4, 2)
+}
 }

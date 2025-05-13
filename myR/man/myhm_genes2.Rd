@@ -2,9 +2,7 @@
 % Please edit documentation in R/plots.R
 \name{myhm_genes2}
 \alias{myhm_genes2}
-\title{title = "Normalized Gene Set Expression per Cluster",
-x = "Cluster",
-y = "Gene Set"}
+\title{Create a Heatmap of Individual Gene Expression per Cluster}
 \usage{
 myhm_genes2(
   sobj,
@@ -17,8 +15,48 @@ myhm_genes2(
   y_label = "Genes"
 )
 }
+\arguments{
+\item{sobj}{A Seurat object}
+
+\item{group}{Character string specifying the identity to use for clustering.
+Default is "seurat_clusters"}
+
+\item{value}{Character string specifying how to aggregate expression values.
+Options: "average" (default) or "sum"}
+
+\item{assay}{Character string specifying which assay to use.
+Default is "SCT"}
+
+\item{genes}{Character vector containing gene names to plot}
+
+\item{title}{Character string for the plot title.
+Default is "Normalized Gene Expression per Cluster"}
+
+\item{x_label}{Character string for the x-axis label.
+Default is "Cluster"}
+
+\item{y_label}{Character string for the y-axis label.
+Default is "Genes"}
+}
+\value{
+A data frame containing the normalized expression values for each gene
+across clusters
+}
 \description{
-title = "Normalized Gene Set Expression per Cluster",
-x = "Cluster",
-y = "Gene Set"
+This function creates a heatmap showing the normalized expression of individual genes
+across clusters. The expression values are z-score normalized for better visualization.
+}
+\examples{
+\dontrun{
+# Create heatmap for a set of genes
+genes <- c("CD3D", "CD3E", "CD4", "CD8A", "MS4A1", "CD19")
+result <- myhm_genes2(sobj, genes = genes)
+
+# Create heatmap with custom title and labels
+result <- myhm_genes2(sobj, 
+                     genes = genes,
+                     title = "T and B Cell Markers",
+                     x_label = "Cell Clusters",
+                     y_label = "Marker Genes")
+}
 }

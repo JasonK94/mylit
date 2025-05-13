@@ -2,10 +2,33 @@
 % Please edit documentation in R/demulti_utils.R
 \name{get_barcode_mapping}
 \alias{get_barcode_mapping}
-\title{demultiplexing의 핵심.}
+\title{Create Barcode Mapping from Demultiplexing Data}
 \usage{
 get_barcode_mapping(demux_data)
 }
+\arguments{
+\item{demux_data}{A data frame containing demultiplexing results. Must have a 'BARCODE'
+column and additional columns for sample probabilities}
+}
+\value{
+A data frame containing:
+- Barcode: The cell barcode
+- Best_Sample: The sample with highest probability
+- Best_Probability: The highest probability value
+- Second_Best_Sample: The sample with second highest probability
+- Second_Best_Probability: The second highest probability value
+- Probability_Ratio: Ratio of best to second-best probabilities
+}
 \description{
-demultiplexing의 핵심.
+This function processes demultiplexing data to create a mapping between barcodes
+and their most likely sample assignments, including probability information.
+}
+\examples{
+\dontrun{
+# Create barcode mapping from demultiplexing results
+mapping <- get_barcode_mapping(demux_data)
+
+# Filter for high confidence assignments
+high_conf <- mapping[mapping$Probability_Ratio > 2, ]
+}
 }

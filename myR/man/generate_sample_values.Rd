@@ -2,10 +2,27 @@
 % Please edit documentation in R/demulti_utils.R
 \name{generate_sample_values}
 \alias{generate_sample_values}
-\title{1:6과 같이 숫자 벡터를 넣으면, 1+2, 2+3 형태의 조합을 만들어줌.}
+\title{Generate Sample Values for Demultiplexing}
 \usage{
 generate_sample_values(start_num, end_num)
 }
+\arguments{
+\item{start_num}{Integer specifying the starting sample number}
+
+\item{end_num}{Integer specifying the ending sample number}
+}
+\value{
+A character vector containing all possible sample combinations:
+singlets (e.g., "1", "2", "3") and doublets (e.g., "1+2", "1+3", "2+3")
+}
 \description{
-1:6과 같이 숫자 벡터를 넣으면, 1+2, 2+3 형태의 조합을 만들어줌.
+This function generates a vector of sample values including both singlets and
+doublets for demultiplexing analysis.
+}
+\examples{
+\dontrun{
+# Generate sample values for samples 1-3
+samples <- generate_sample_values(1, 3)
+# Returns: c("1", "2", "3", "1+2", "1+3", "2+3")
+}
 }

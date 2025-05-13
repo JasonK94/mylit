@@ -2,7 +2,7 @@
 % Please edit documentation in R/plots.R
 \name{myhm_genesets2}
 \alias{myhm_genesets2}
-\title{awesome function for making heatmap(tile plot) of gene modules}
+\title{Create a Heatmap of Gene Set Expression per Cluster}
 \usage{
 myhm_genesets2(
   sobj,
@@ -15,6 +15,51 @@ myhm_genesets2(
   y_label = "Gene Set"
 )
 }
+\arguments{
+\item{sobj}{A Seurat object}
+
+\item{group}{Character string specifying the identity to use for clustering.
+Default is "seurat_clusters"}
+
+\item{value}{Character string specifying how to aggregate expression values.
+Options: "average" (default) or "sum"}
+
+\item{assay}{Character string specifying which assay to use.
+Default is "SCT"}
+
+\item{gene_sets}{A list of character vectors, where each vector contains gene names.
+The list can be named, and names will be used as gene set labels.
+If a single vector is provided, it will be converted to a list.}
+
+\item{title}{Character string for the plot title.
+Default is "Normalized Gene Set Expression per Cluster"}
+
+\item{x_label}{Character string for the x-axis label.
+Default is "Cluster"}
+
+\item{y_label}{Character string for the y-axis label.
+Default is "Gene Set"}
+}
+\value{
+A data frame containing the normalized expression values for each gene set
+across clusters, with an additional column indicating the assigned cell type
+based on highest expression
+}
 \description{
-awesome function for making heatmap(tile plot) of gene modules
+This function creates a heatmap showing the normalized expression of gene sets across clusters.
+The expression values are z-score normalized for better visualization.
+}
+\examples{
+\dontrun{
+# Create heatmap with named gene sets
+gene_sets <- list(
+  T_cells = c("CD3D", "CD3E", "CD4", "CD8A"),
+  B_cells = c("MS4A1", "CD19", "CD79A"),
+  Myeloid = c("CD14", "FCGR3A", "LYZ")
+)
+result <- myhm_genesets2(sobj, gene_sets = gene_sets)
+
+# Create heatmap with a single gene set
+result <- myhm_genesets2(sobj, gene_sets = c("CD3D", "CD3E", "CD4"))
+}
 }
