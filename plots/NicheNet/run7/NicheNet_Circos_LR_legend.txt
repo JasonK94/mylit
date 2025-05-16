@@ -1,0 +1,7 @@
+Circos Legend:
+B_Cell_Lineage (Ligands): #E41A1C
+NK_Cell (Ligands): #377EB8
+Monocyte_Macrophage (Ligands): #4DAF4A
+Dendritic_Cell (Ligands): #984EA3
+CD4_T_Cell (Ligands): #FF7F00
+Receptor: #66C2A5
