@@ -1,0 +1,279 @@
+# prepare_pseudobulk_edgeR -> 슈도벌크 내부 함수로서 잘 작동함. 엄밀히는 정확히 이건지는 모르나 슈도벌크 문서 안의 함수는 잘 작동함. (250513)
+```{r}
+prepare_pseudobulk_edgeR <- function(seurat_obj,
+                                     assay = "SCT",
+                                     slot = "counts",
+                                     sample_col,
+                                     cluster_col,
+                                     group_col,
+                                     min_count = 10,
+                                     norm_method = "TMM",
+                                     design_formula = NULL,
+                                     verbose = TRUE) {
+  
+  if (!requireNamespace("Seurat", quietly = TRUE)) stop("Seurat 패키지가 필요합니다.")
+  if (!requireNamespace("edgeR", quietly = TRUE)) stop("edgeR 패키지가 필요합니다.")
+  if (!requireNamespace("dplyr", quietly = TRUE)) stop("dplyr 패키지가 필요합니다.")
+  if (!requireNamespace("tidyr", quietly = TRUE)) stop("tidyr 패키지가 필요합니다.")
+  if (!requireNamespace("tibble", quietly = TRUE)) stop("tibble 패키지가 필요합니다.")
+  
+  # 1. Check input columns exist in metadata
+  meta_cols <- colnames(seurat_obj@meta.data)
+  required_cols <- c(sample_col, cluster_col, group_col)
+  if (!all(required_cols %in% meta_cols)) {
+    stop("다음 컬럼이 Seurat 객체 메타데이터에 없습니다: ",
+         paste(required_cols[!required_cols %in% meta_cols], collapse = ", "))
+  }
+  
+  # Ensure group_col is a factor for reliable level ordering
+  seurat_obj@meta.data[[group_col]] <- factor(seurat_obj@meta.data[[group_col]])
+  
+  # 2. Aggregate Expression
+  if (verbose) message("1. Aggregating expression to pseudo-bulk...")
+  pb <- AggregateExpression(
+    seurat_obj,
+    assays = assay,
+    slot = slot,
+    group.by = c(sample_col, cluster_col),
+    return.seurat = FALSE
+  )[[assay]] # Get the specific assay matrix
+  
+  if (nrow(pb) == 0 || ncol(pb) == 0) {
+    stop("AggregateExpression 결과 pseudo-bulk 매트릭스가 비어있습니다. group.by 컬럼들을 확인하세요.")
+  }
+  
+  # 3. Create Metadata for pseudo-bulk samples
+if (verbose) message("2. Creating metadata for pseudo-bulk samples...")
+col_example <- colnames(pb)[1]
+# AggregateExpression은 group.by 값들을 _로 연결합니다.
+# 만약 sample_col이나 cluster_col 값 자체에 _나 -가 있다면 문제가 될 수 있으나,
+# 보통은 _를 구분자로 사용합니다.
+sep <- "_" 
+
+meta_pb <- tryCatch({
+    tibble(pb_sample_id = colnames(pb)) %>%
+        # extra="merge"는 첫번째 구분자 뒤의 모든 것을 두번째 변수(ctype)에 할당
+        tidyr::separate(pb_sample_id, into = c("patient_temp", "ctype_temp"), sep = sep, extra = "merge", remove = FALSE)
+}, error = function(e) {
+    stop("Pseudo-bulk 컬럼 이름 ('", col_example, "')을 'patient'", sep, "'ctype' 형태로 분리할 수 없습니다. ",
+         "AggregateExpression의 group.by 순서나 컬럼 내용을 확인하세요. 에러: ", e$message)
+})
+
+# ---- 디버깅을 위한 추가 출력 ----
+if (verbose) {
+  message("Debug: First 5 raw pb_sample_id from AggregateExpression: ", paste(head(colnames(pb), 5), collapse=", "))
+  message("Debug: First 5 separated 'patient_temp': ", paste(head(meta_pb$patient_temp, 5), collapse=", "))
+  message("Debug: First 5 separated 'ctype_temp': ", paste(head(meta_pb$ctype_temp, 5), collapse=", "))
+}
+
+# patient와 ctype 컬럼 값에서 앞뒤 공백 제거 및 문자형으로 확실히 변환
+meta_pb <- meta_pb %>%
+  mutate(
+    patient = trimws(as.character(patient_temp)),
+    ctype = trimws(as.character(ctype_temp))
+  ) %>%
+  select(-patient_temp, -ctype_temp) # 임시 컬럼 제거
+
+# Map group information from original Seurat metadata
+sample_group_map <- seurat_obj@meta.data %>%
+  select(!!sym(sample_col), !!sym(group_col)) %>%
+  distinct() %>%
+  # 매칭을 위해 sample_col도 문자형으로 변환하고 공백 제거
+  mutate(!!sym(sample_col) := trimws(as.character(!!sym(sample_col))))
+
+# ---- 디버깅을 위한 추가 출력 ----
+if (verbose) {
+  message("Debug: Unique values for matching from Seurat's '", sample_col, "' (in sample_group_map, after trim/as.character): ", 
+          paste(head(unique(sample_group_map[[sample_col]]), 10), collapse=", "))
+  message("Debug: Unique values for matching from aggregated names 'patient' (in meta_pb, after trim/as.character): ", 
+          paste(head(unique(meta_pb$patient), 10), collapse=", "))
+}
+
+# setNames를 사용하여 join 키를 동적으로 설정
+# (기존 코드와 동일하나, 위에서 patient와 sample_col의 값들이 정리되었음)
+join_by_col <- sample_col
+names(join_by_col) <- "patient" # meta_pb의 'patient' 컬럼과 sample_group_map의 'sample_col'을 매칭
+
+meta_pb <- meta_pb %>%
+  left_join(sample_group_map, by = join_by_col)
+
+# ---- 디버깅을 위한 추가 출력 ----
+if (sum(is.na(meta_pb[[group_col]]))) {
+    message("Debug: WARNING - Group mapping failed for some samples.")
+    # 매칭 실패한 patient 값 확인
+    failed_patients <- meta_pb %>% filter(is.na(!!sym(group_col))) %>% pull(patient) %>% unique()
+    message("Debug: Patient IDs from aggregated names that failed to map: ", paste(head(failed_patients, 10), collapse=", "))
+} else {
+    message("Debug: Group mapping appears successful for all pseudo-bulk samples.")
+}
+if (verbose) {
+  message("Debug: First 5 rows of meta_pb after group mapping:")
+  print(head(meta_pb))
+  message("Debug: Unique 'ctype' values in meta_pb: ", paste(sort(unique(meta_pb$ctype)), collapse="', '"))
+}
+
+  
+  # Make sure row order of meta_pb matches column order of pb
+  meta_pb <- meta_pb[match(colnames(pb), meta_pb$pb_sample_id),]
+  rownames(meta_pb) <- meta_pb$pb_sample_id # Set rownames for edgeR convenience
+  
+  # 4. Prepare for edgeR
+  if (verbose) message("3. Preparing DGEList and design matrix...")
+  dge <- DGEList(counts = pb, group = meta_pb[[group_col]], samples = meta_pb)
+  
+  # filterByExpr 전에 그룹 정보가 올바른지 한번 더 확인
+if (any(is.na(meta_pb[[group_col]]))) {
+    warning("그룹 정보에 NA 값이 포함되어 있습니다. filterByExpr 및 DEG 분석에 영향을 줄 수 있습니다.")
+    # NA 그룹을 가진 샘플을 제외할지, 아니면 특정 값으로 대체할지 결정 필요
+    # 여기서는 NA를 가진 샘플을 dge 객체에서 제외하는 것을 고려해볼 수 있음 (또는 에러 발생)
+    # valid_samples <- !is.na(meta_pb[[group_col]])
+    # dge <- dge[, valid_samples]
+    # meta_pb <- meta_pb[valid_samples,]
+    # if(nrow(dge) == 0) stop("NA 그룹 제외 후 남은 샘플이 없습니다.")
+}
+# 그룹 레벨이 2개 이상인지 확인
+if (length(unique(na.omit(meta_pb[[group_col]]))) < 2) {
+    stop("DEG 분석을 수행하기에 그룹 레벨 수가 부족합니다 (2개 미만). 그룹 정보를 확인하세요: ",
+         paste(unique(na.omit(meta_pb[[group_col]])), collapse=", "))
+}
+  
+  # Filtering
+  keep <- filterByExpr(dge, group = meta_pb[[group_col]], min.count = min_count)
+  if (verbose) message("   - Filtering: Kept ", sum(keep), " out of ", nrow(dge), " genes.")
+  if (sum(keep) == 0) {
+    warning("filterByExpr 결과 남은 유전자가 없습니다. min.count 값을 낮추거나 데이터를 확인하세요.")
+  }
+  dge <- dge[keep, , keep.lib.sizes = FALSE]
+  
+  # Normalization
+  dge <- calcNormFactors(dge, method = norm_method)
+  
+  # Design Matrix
+  contrast_levels <- levels(meta_pb[[group_col]])
+  if (is.null(design_formula)) {
+    # Default design: ~ group_col (intercept + group effects)
+    formula_str <- paste("~", group_col)
+  } else {
+    # User-provided formula string (replace 'group_col' placeholder if present)
+    formula_str <- gsub("group_col", group_col, deparse(design_formula))
+  }
+  
+  design <- tryCatch({
+    model.matrix(as.formula(formula_str), data = meta_pb)
+  }, error = function(e) {
+    stop("디자인 매트릭스 생성 실패: ", e$message,
+         "\n   Formula: ", formula_str,
+         "\n   Metadata head:\n", paste(utils::capture.output(head(meta_pb)), collapse="\n"))
+  })
+  
+  # Clean up design matrix column names (remove backticks or invalid chars)
+  colnames(design) <- make.names(colnames(design))
+  
+  if (verbose) message("4. Preparation complete.")
+  
+  return(list(
+    pb = pb,
+    meta = meta_pb,
+    dge = dge,
+    design = design,
+    contrast_levels = contrast_levels
+  ))
+}
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+```
