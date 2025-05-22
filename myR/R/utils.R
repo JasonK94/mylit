@@ -26,3 +26,87 @@ downsample_sobj=function(sobj, ratio=10,seed=1234){
   sobj_down=sobj[,barcodes_down]
   return(sobj_down)
 }
+
+
+printmy=function(markers, sign="+",num=100, pseudobulk=FALSE){
+  if(!"gene"%in%names(markers)){
+    markers$gene=rownames(markers)
+  }
+  if(!pseudobulk){
+    if(sign=="-"){
+      print(paste(markers[markers$avg_log2FC<0,][1:num,]$gene,collapse = ", "))
+    }else{
+      print(paste(markers[markers$avg_log2FC>0,][1:num,]$gene,collapse = ", "))
+    } 
+  }else{
+    if(sign=="-"){
+      print(paste(markers[markers$logFC<0,][1:num,]$gene,collapse = ", "))
+    }else{
+      print(paste(markers[markers$logFC>0,][1:num,]$gene,collapse = ", "))
+    } 
+  }
+}
+
+printMy=function(markers_list, ...){
+  args=list(...)
+  for(name in names(markers_list)){
+    print(name)
+    printmy(markers_list[[name]], pseudobulk=args[["pseudobulk"]])
+  }
+}
+
+
+
+
+
+#' Print Top Genes per Set Combination
+#'
+#' @param gene_list Named list of character vectors. 각 원소가 유전자 벡터입니다.
+#' @param num_print Integer. 각 조합별로 출력할 최대 유전자 수 (기본 100).
+#' @examples
+#' L <- list(
+#'   A = c("TP53","EGFR","MYC","BRCA1"),
+#'   B = c("EGFR","MYC","PTEN","BRCA2"),
+#'   C = c("MYC","PTEN","ALK")
+#' )
+#' print_gene_combinations(L, num_print = 2)
+print_gene_combinations <- function(gene_list, num_print = 100) {
+  if (!is.list(gene_list) || is.null(names(gene_list))) {
+    stop("gene_list는 반드시 이름이 있는 list여야 합니다.")
+  }
+  set_names <- names(gene_list)
+  n_sets <- length(set_names)
+  
+  cat(sprintf("Printing top %d genes per combination...\n\n", num_print))
+  
+  # 1) 각 k-조합에 대해서
+  for (k in seq_len(n_sets)) {
+    combos <- combn(set_names, k, simplify = FALSE)
+    for (comb in combos) {
+      # 조합 이름
+      comb_name <- paste(comb, collapse = "&")
+      
+      # 2) 조합 내 모든 리스트에 공통인 유전자
+      genes_in <- Reduce(intersect, gene_list[comb])
+      
+      # 3) 그 밖의 리스트에 있는 유전자는 제외
+      other_sets <- setdiff(set_names, comb)
+      if (length(other_sets) > 0) {
+        genes_out <- unique(unlist(gene_list[other_sets], use.names = FALSE))
+        genes_in <- setdiff(genes_in, genes_out)
+      }
+      
+      # 4) 정렬 및 샘플링
+      genes_in <- sort(genes_in)
+      to_print <- head(genes_in, num_print)
+      
+      # 5) 출력
+      cat(comb_name, ":\n")
+      if (length(to_print) == 0) {
+        cat("  (none)\n\n")
+      } else {
+        cat(" ", paste(to_print, collapse = ", "), "\n\n")
+      }
+    }
+  }
+}
