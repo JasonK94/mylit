@@ -28,8 +28,8 @@
 #' @import Seurat
 #' @import slingshot
 #' @import SingleCellExperiment
-#' @import SummarizedExperiment # For colData<-
-#' @importFrom S4Vectors DataFrame # Explicitly import DataFrame
+#' @import SummarizedExperiment
+#' @importFrom S4Vectors DataFrame
 #' @export
 #' @examples
 #' \dontrun{

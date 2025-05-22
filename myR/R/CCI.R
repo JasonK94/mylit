@@ -101,7 +101,7 @@ ligand_to_target=function(ligand,target,NN_data=NicheNetData,ligand_tf_matrix=NU
 #' @importFrom tibble column_to_rownames rownames_to_column as_tibble tibble
 #' @importFrom magrittr set_rownames
 #' @importFrom nichenetr get_expressed_genes predict_ligand_activities get_weighted_ligand_target_links prepare_ligand_target_visualization make_heatmap_ggplot get_ligand_signaling_path diagrammer_format_signaling_graph
-#' @importFrom ggplot2 ggplot aes geom_histogram geom_vline labs theme_classic theme element_text scale_fill_gradient2 RotatedAxis ggsave
+#' @importFrom ggplot2 ggplot aes geom_histogram geom_vline labs theme_classic theme element_text scale_fill_gradient2 ggsave
 #' @importFrom utils download.file capture.output
 #' @importFrom stats dist hclust
 #' @importFrom grDevices recordPlot dev.off pdf png
