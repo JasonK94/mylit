@@ -1,3 +1,4 @@
+#' @export
 mybar=function(data, column, bins = NULL, x_unit = NULL, y_unit = NULL) {
   col_quo <- enquo(column)
   col_name <- as_label(col_quo)
@@ -16,6 +17,7 @@ mybar=function(data, column, bins = NULL, x_unit = NULL, y_unit = NULL) {
   print(p)
 }
 
+#' @export
 mydensity=function(data, column, adjust = 1, x_unit = NULL, y_unit = NULL) {
   col_quo <- enquo(column)
   col_name <- as_label(col_quo)
@@ -33,94 +35,6 @@ mydensity=function(data, column, adjust = 1, x_unit = NULL, y_unit = NULL) {
 }
 
 
-#' Statistical Analysis for scRNA-seq Metadata
-#'
-#' This function performs comprehensive statistical analysis on scRNA-seq data
-#' comparing groups across different categorical variables.
-#' @import dplyr ggplot2
-#' @param
-#'
-#' @return
-#' @export
-scatter_smooth = function(sobj, feature, clinical_variable = "nih_change", transpose = FALSE) {
-  
-  # 1) Make a per-cell data.frame with the expression for 'feature'
-  df <- data.frame(
-    sample_no = sobj@meta.data$sample_no,
-    FEATURE = as.numeric(FetchData(sobj, vars = feature)[, feature])
-  )
-  
-  # 2) Compute average expression per patient
-  df_avg <- df %>%
-    group_by(sample_no) %>%
-    summarise(avg_FEATURE = mean(FEATURE, na.rm = TRUE))
-  
-  # 3) Merge with your clinical variable
-  meta_patient <- sobj@meta.data %>%
-    select(sample_no, all_of(clinical_variable)) %>%
-    distinct(sample_no, .keep_all = TRUE)
-  
-  df_merged <- left_join(df_avg, meta_patient, by = "sample_no") %>%
-    mutate(
-      nih_change_numeric = as.numeric(as.character(.data[[clinical_variable]]))
-    )
-  
-  # 4) Branch logic for transpose:
-  #    transpose = FALSE -> x = clinical_variable, y = avg_FEATURE
-  #    transpose = TRUE  -> x = avg_FEATURE,         y = clinical_variable
-  
-  if (!transpose) {
-    # Model: avg_FEATURE ~ nih_change_numeric
-    model <- lm(avg_FEATURE ~ nih_change_numeric, data = df_merged)
-    summary(model)
-    
-    intercept <- round(coef(model)[1], 3)
-    slope <- round(coef(model)[2], 3)
-    pval <- signif(summary(model)$coefficients[2, 4], 3)
-    label_text <- paste0("y = ", intercept, " + ", slope, " * x\np = ", pval)
-    
-    # Plot: x = nih_change_numeric, y = avg_FEATURE
-    p = ggplot(df_merged, aes(x = nih_change_numeric, y = avg_FEATURE)) +
-      geom_point() +
-      geom_smooth(method = "lm", se = TRUE) +
-      annotate(
-        "text",
-        x = min(df_merged$nih_change_numeric, na.rm = TRUE),
-        y = max(df_merged$avg_FEATURE, na.rm = TRUE),
-        label = label_text, hjust = 0, vjust = 1, size = 5
-      ) +
-      theme_bw() +
-      xlab(clinical_variable) +
-      ylab(paste0("Average ", feature, " Expression"))
-    
-  } else {
-    # transpose = TRUE -> we flip the roles:
-    # Model: nih_change_numeric ~ avg_FEATURE
-    model <- lm(nih_change_numeric ~ avg_FEATURE, data = df_merged)
-    summary(model)
-    
-    intercept <- round(coef(model)[1], 3)
-    slope <- round(coef(model)[2], 3)
-    pval <- signif(summary(model)$coefficients[2, 4], 3)
-    label_text <- paste0("y = ", intercept, " + ", slope, " * x\np = ", pval)
-    
-    # Plot: x = avg_FEATURE, y = nih_change_numeric
-    p = ggplot(df_merged, aes(x = avg_FEATURE, y = nih_change_numeric)) +
-      geom_point() +
-      geom_smooth(method = "lm", se = TRUE) +
-      annotate(
-        "text",
-        x = min(df_merged$avg_FEATURE, na.rm = TRUE),
-        y = max(df_merged$nih_change_numeric, na.rm = TRUE),
-        label = label_text, hjust = 0, vjust = 1, size = 5
-      ) +
-      theme_bw() +
-      xlab(paste0("Average ", feature, " Expression")) +
-      ylab(clinical_variable)
-  }
-  
-  return(p)
-}
 
 #' UpSet Plot for Multiple Gene Lists
 #'
@@ -187,7 +101,7 @@ upset_gene_lists <- function(gene_lists,
   return(p)
 }
 
-function(sobj, feature, group.by, split.by, pt.size=0, ...){
+vln_p=function(sobj, feature, group.by, split.by, pt.size=0, ...){
   plist <- VlnPlot(
     object    = sobj,
     features  = feature,
@@ -216,44 +130,6 @@ function(sobj, feature, group.by, split.by, pt.size=0, ...){
   return(patchwork::wrap_plots(plist2, ncol = 2))
 }
 
-
-#' helper for cmb, acmb
-sort_samples <- function(samples) {
-  # Helper function to extract numbers from a string
-  extract_numbers <- function(x) {
-    nums <- as.numeric(strsplit(x, "\\+")[[1]])
-    if (length(nums) == 0 || any(is.na(nums))) return(c(Inf, Inf))
-    return(nums)
-  }
-  
-  # Check if all samples are non-numeric (no '+' and can't be converted to number)
-  all_non_numeric <- all(sapply(samples, function(x) {
-    !grepl("\\+", x) && is.na(suppressWarnings(as.numeric(x)))
-  }))
-  
-  if (all_non_numeric) {
-    return(sort(samples))  # If all non-numeric, just return alphabetically sorted
-  }
-  
-  # Separate samples into those with and without "+"
-  single_samples <- samples[!grepl("\\+", samples)]
-  doublet_samples <- samples[grepl("\\+", samples)]
-  
-  # Sort single samples
-  single_sorted <- single_samples[order(sapply(single_samples, function(x) {
-    num <- suppressWarnings(as.numeric(x))
-    if (is.na(num)) Inf else num
-  }))]
-  
-  # Sort doublet samples
-  doublet_sorted <- doublet_samples[order(
-    sapply(doublet_samples, function(x) extract_numbers(x)[1]),  # First number
-    sapply(doublet_samples, function(x) extract_numbers(x)[2])   # Second number
-  )]
-  
-  # Combine and return
-  return(c(single_sorted, doublet_sorted))
-}
 
 
 #' Create a Proportional Bar Graph of Clusters
@@ -1171,31 +1047,6 @@ cdf_multi <- function(
     ungroup()
   
   return(list(plot = p, summary = summary_stats))
-}
-
-## Helper: Sort Sample Identifiers
-##
-## @description
-## Sorts character sample identifiers, handling single-number and dual-number strings (e.g., "1+2").
-## @param samples Character vector of sample identifiers.
-## @return Sorted character vector of sample IDs.
-## @keywords internal
-sort_samples <- function(samples) {
-  extract_numbers <- function(x) {
-    parts <- strsplit(x, "\\+")[[1]]
-    nums  <- as.numeric(parts)
-    if (any(is.na(nums))) return(c(Inf, Inf))
-    nums
-  }
-  
-  is_double <- grepl("\\+", samples)
-  single  <- samples[!is_double]
-  double  <- samples[ is_double]
-  
-  single_sorted <- single[order(suppressWarnings(as.numeric(single)), single)]
-  double_sorted <- double[order(sapply(double, function(x) extract_numbers(x)[1]),
-                                sapply(double, function(x) extract_numbers(x)[2]))]
-  c(single_sorted, double_sorted)
 }
 
 

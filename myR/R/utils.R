@@ -55,8 +55,68 @@ printMy=function(markers_list, ...){
   }
 }
 
+#' helper for cmb, acmb
+sort_samples <- function(samples) {
+  # Helper function to extract numbers from a string
+  extract_numbers <- function(x) {
+    nums <- as.numeric(strsplit(x, "\\+")[[1]])
+    if (length(nums) == 0 || any(is.na(nums))) return(c(Inf, Inf))
+    return(nums)
+  }
+  
+  # Check if all samples are non-numeric (no '+' and can't be converted to number)
+  all_non_numeric <- all(sapply(samples, function(x) {
+    !grepl("\\+", x) && is.na(suppressWarnings(as.numeric(x)))
+  }))
+  
+  if (all_non_numeric) {
+    return(sort(samples))  # If all non-numeric, just return alphabetically sorted
+  }
+  
+  # Separate samples into those with and without "+"
+  single_samples <- samples[!grepl("\\+", samples)]
+  doublet_samples <- samples[grepl("\\+", samples)]
+  
+  # Sort single samples
+  single_sorted <- single_samples[order(sapply(single_samples, function(x) {
+    num <- suppressWarnings(as.numeric(x))
+    if (is.na(num)) Inf else num
+  }))]
+  
+  # Sort doublet samples
+  doublet_sorted <- doublet_samples[order(
+    sapply(doublet_samples, function(x) extract_numbers(x)[1]),  # First number
+    sapply(doublet_samples, function(x) extract_numbers(x)[2])   # Second number
+  )]
+  
+  # Combine and return
+  return(c(single_sorted, doublet_sorted))
+}
 
-
+## Helper: Sort Sample Identifiers
+##
+## @description
+## Sorts character sample identifiers, handling single-number and dual-number strings (e.g., "1+2").
+## @param samples Character vector of sample identifiers.
+## @return Sorted character vector of sample IDs.
+## @keywords internal
+sort_samples <- function(samples) {
+  extract_numbers <- function(x) {
+    parts <- strsplit(x, "\\+")[[1]]
+    nums  <- as.numeric(parts)
+    if (any(is.na(nums))) return(c(Inf, Inf))
+    nums
+  }
+  
+  is_double <- grepl("\\+", samples)
+  single  <- samples[!is_double]
+  double  <- samples[ is_double]
+  
+  single_sorted <- single[order(suppressWarnings(as.numeric(single)), single)]
+  double_sorted <- double[order(sapply(double, function(x) extract_numbers(x)[1]),
+                                sapply(double, function(x) extract_numbers(x)[2]))]
+  c(single_sorted, double_sorted)
+}
 
 
 #' Print Top Genes per Set Combination
@@ -70,6 +130,7 @@ printMy=function(markers_list, ...){
 #'   C = c("MYC","PTEN","ALK")
 #' )
 #' print_gene_combinations(L, num_print = 2)
+#' @export
 print_gene_combinations <- function(gene_list, num_print = 100) {
   if (!is.list(gene_list) || is.null(names(gene_list))) {
     stop("gene_list는 반드시 이름이 있는 list여야 합니다.")
