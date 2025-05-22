@@ -1,6 +1,7 @@
 # R 패키지 빌드 아티팩트
 myR.Rcheck/          # R CMD check 출력
 myR_*.tar.gz        # devtools::build() 결과물
+myR/data/NicheNetData
 
 # RStudio
 .Rhistory
