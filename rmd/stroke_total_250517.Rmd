@@ -1847,7 +1847,7 @@ plist2 <- lapply(plist, function(p){
 
 patchwork::wrap_plots(plist2, ncol = 2)
 
-vln_p=function(sobj, feature, group.by, split.by, pt.size=0, ...){
+vln_p=function(sobj, feature, group.by, split.by, pt.size=0, ncol=3, ...){
   plist <- VlnPlot(
   object    = sobj,
   features  = feature,
@@ -1873,7 +1873,7 @@ plist2 <- lapply(plist, function(p){
     theme(legend.position = "none")
 })
 
-return(patchwork::wrap_plots(plist2, ncol = 2))
+return(patchwork::wrap_plots(plist2, ncol = ncol))
 }
 
 
@@ -1887,6 +1887,29 @@ p6=vln_p(is_sub, "TXNIP","Monocyte_Macrophage_sub","group3")
 p7=vln_p(is_sub, "TXNIP","Dendritic_Cell_sub","group3")
 p8=vln_p(is_sub, "TXNIP","B_Cell_Lineage_sub","group3")
 
+pc1=vln_p(is, cmkr[[1]], group.by="annotation2_big", "group3")
+pc2=vln_p(is, cmkr[[2]], group.by="annotation2_big", "group3")
+pc3=vln_p(is, cmkr[[3]], group.by="annotation2_big", "group3")
+pc4=vln_p(is, cmkr[[4]], group.by="annotation2_big", "group3")
+pc5=vln_p(is, cmkr[[5]], group.by="annotation2_big", "group3")
+pc6=vln_p(is, cmkr[[6]], group.by="annotation2_big", "group3")
+pc7=vln_p(is, cmkr[[7]], group.by="annotation2_big", "group3")
+pc8=vln_p(is, cmkr[[8]], group.by="annotation2_big", "group3")
+
+pc9=vln_p(is, unique(unlist(inte_list))[1:10], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pc10=vln_p(is, unique(unlist(inte_list))[11:20], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pc11=vln_p(is, unique(unlist(inte_list))[21:30], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pc12=vln_p(is, unique(unlist(inte_list))[31:40], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pc13=vln_p(is, unique(unlist(inte_list))[41:50], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pc14=vln_p(is, unique(unlist(inte_list))[51:60], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pc15=vln_p(is, unique(unlist(inte_list))[61:66], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+
+pi1=vln_p(is, unlist(immune_cell_functional_gene_sets[[1]][[1]]), group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pi2=vln_p(is, immune_cell_functional_gene_sets[[2]], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pi3=vln_p(is, immune_cell_functional_gene_sets[[3]], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pi4=vln_p(is, immune_cell_functional_gene_sets[[4]], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pi5=vln_p(is, immune_cell_functional_gene_sets[[5]], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
+pi6=vln_p(is, immune_cell_functional_gene_sets[[6]], group.by="annotation2_big", "group3", ncol=3, assay="SCT", layer="data")
 
 
 cmb(subset(is_sub,annotation2_big=="CD4_T_Cell"), "CD4_T_Cell_sub", group.by="group3")
