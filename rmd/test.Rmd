@@ -1,4 +1,5 @@
 # prepare_pseudobulk_edgeR -> 슈도벌크 내부 함수로서 잘 작동함. 엄밀히는 정확히 이건지는 모르나 슈도벌크 문서 안의 함수는 잘 작동함. (250513)
+
 ```{r}
 prepare_pseudobulk_edgeR <- function(seurat_obj,
                                      assay = "SCT",
@@ -181,17 +182,631 @@ if (length(unique(na.omit(meta_pb[[group_col]]))) < 2) {
 }
 ```
 
+# chemokines
 
 ```{r}
+# 케모카인 리간드 (Chemokine Ligands)
+# cmkl <- list(
+#   # --- 특정 백혈구 유인 리간드 ---
+#   attract_monocytes_macrophages = c("CCL2", "CCL3", "CCL4", "CCL5", "CCL7", "CCL8", "CCL13", "CXCL12"), # MCP-1, MIP-1a, MIP-1b, RANTES, MCP-3, MCP-2, MCP-4, SDF-1
+#   attract_t_cells = c(
+#     # 일반 T cell 유인
+#     "CCL2", "CCL3", "CCL4", "CCL5", "CXCL12",
+#     # Th1 세포 유인
+#     "CXCL9", "CXCL10", "CXCL11", # MIG, IP-10, I-TAC
+#     # Th2 세포 유인
+#     "CCL17", "CCL22", # TARC, MDC
+#     # Th17 세포 유인
+#     "CCL20", # MIP-3a
+#     # Treg 유인
+#     "CCL17", "CCL22", "CCL20",
+#     # 피부 귀소 T 세포 유인 (CLA+)
+#     "CCL1", "CCL17", "CCL27", # I-309, TARC, CTACK
+#     # 장 귀소 T 세포 유인 (CCR9+)
+#     "CCL25" # TECK
+#   ),
+#   attract_b_cells = c("CXCL13", "CCL19", "CCL21", "CXCL12"), # BLC/BCA-1, MIP-3b/ELC, SLC/6Ckine, SDF-1
+#   attract_nk_cells = c("CCL3", "CCL4", "CCL5", "CXCL8", "CXCL10", "CXCL11", "CX3CL1"), # MIP-1a, MIP-1b, RANTES, IL-8, IP-10, I-TAC, Fractalkine
+#   attract_dcs = c( # 수지상 세포
+#     # 미성숙 DC
+#     "CCL3", "CCL4", "CCL5", "CCL20",
+#     # 성숙 DC (림프절 귀소)
+#     "CCL19", "CCL21" # MIP-3b/ELC, SLC/6Ckine
+#   ),
+#   attract_neutrophils = c("CXCL1", "CXCL2", "CXCL3", "CXCL5", "CXCL6", "CXCL8"), # GROa/KC, GROb, GROg, ENA-78, GCP-2, IL-8 (ELR+ CXCLs)
+#   attract_eosinophils = c("CCL5", "CCL11", "CCL24", "CCL26"), # RANTES, Eotaxin-1, Eotaxin-2, Eotaxin-3
+#   attract_basophils = c("CCL2", "CCL3", "CCL5", "CCL11"),
+# 
+#   # --- 항상성 및 림프 기관 관련 리간드 ---
+#   homeostatic_lymphoid_organ_ligands = c(
+#     "CXCL12", # 골수 (조혈모세포), 일반적 조직 항상성
+#     "CXCL13", # B cell 여포
+#     "CCL19", "CCL21", # T cell zone, DC 이동
+#     "CCL25" # 소장, 흉선
+#   ),
+# 
+#   # --- 뇌척수액(CSF) 구획 / 혈액뇌장벽(BBB) 통과 관련 리간드 (연구 중인 내용 포함) ---
+#   # 주의: BBB 통과는 매우 복잡하며, 염증 상태에 따라 크게 달라짐
+#   csf_bbb_homing_related_ligands = c(
+#     "CCL2",   # 단핵구의 BBB 통과 및 CNS 염증에 중요
+#     "CCL5",   # T세포 및 단핵구의 CNS 유입
+#     "CXCL10", # 활성화 T세포의 CNS 유입 (특히 Th1)
+#     "CXCL12", # 다양한 세포의 CNS 이동, 신경염증 및 항상성 유지에 관여
+#     "CCL11",  # 호산구 CNS 침투 (일부 조건)
+#     "CCL19", "CCL21" # 림프구/DC의 CNS 유입 (특히 다발성 경화증 같은 염증 상황)
+#   ),
+# 
+#   # --- 내피세포 및 기질세포에서 주로 생산되는 리간드 ---
+#   produced_by_endothelial_stromal = c(
+#     "CXCL1", "CXCL8", "CCL2", "CCL5", "CXCL12", # 염증 시 이들 세포에서 많이 발현
+#     "CX3CL1" # Fractalkine (내피세포에서 막결합형 또는 분비형으로 발현)
+#   ),
+# 
+#   # --- 기타 주요 리간드 ---
+#   other_key_ligands = c(
+#     "CX3CL1" # Fractalkine (주로 막결합형, 단핵구/NK/T세포 유인 및 부착)
+#   )
+# )
+# 
+# # 케모카인 수용체 (Chemokine Receptors)
+# cmkr <- list(
+#   # --- 특정 백혈구에 주로 발현하는 수용체 ---
+#   on_monocytes_macrophages = c("CCR1", "CCR2", "CCR5", "CXCR4", "CX3CR1"),
+#   on_t_cells = c(
+#     # 일반 T cell
+#     "CCR2", "CCR5", "CXCR3", "CXCR4",
+#     # Th1 세포
+#     "CXCR3", "CCR5",
+#     # Th2 세포
+#     "CCR3", "CCR4", "CCR8",
+#     # Th17 세포
+#     "CCR6", "CCR4", # CCR4는 일부 Th17 아형
+#     # Treg
+#     "CCR4", "CCR5", "CCR6", "CCR8", "CXCR3",
+#     # 피부 귀소 T 세포 (CLA+)
+#     "CCR4", "CCR10",
+#     # 장 귀소 T 세포
+#     "CCR9", "CXCR3" # 일부 장 귀소 T세포는 CXCR3 발현
+#   ),
+#   on_b_cells = c("CXCR4", "CXCR5", "CCR6", "CCR7"), # CCR7은 특정 B세포 아형
+#   on_nk_cells = c("CXCR1", "CXCR2", "CXCR3", "CCR2", "CCR5", "CX3CR1"),
+#   on_dcs = c( # 수지상 세포
+#     # 미성숙 DC
+#     "CCR1", "CCR2", "CCR5", "CCR6",
+#     # 성숙 DC (림프절 귀소)
+#     "CCR7"
+#   ),
+#   on_neutrophils = c("CXCR1", "CXCR2", "CXCR4"), # CXCR4는 특정 조건에서 호중구 동원
+#   on_eosinophils = c("CCR1", "CCR3"),
+#   on_basophils = c("CCR1", "CCR2", "CCR3", "CXCR4"),
+# 
+#   # --- 항상성 및 림프 기관 관련 수용체 ---
+#   homeostatic_lymphoid_organ_receptors = c(
+#     "CXCR4", # 골수 귀소 및 유지
+#     "CXCR5", # B cell 여포 귀소
+#     "CCR7",  # T cell 및 DC의 2차 림프기관 귀소
+#     "CCR9"   # 소장 귀소
+#   ),
+# 
+#   # --- 뇌척수액(CSF) 구획 / 혈액뇌장벽(BBB) 통과 관련 수용체 (연구 중인 내용 포함) ---
+#   csf_bbb_homing_related_receptors = c(
+#     "CCR2",   # 단핵구의 BBB 통과 및 CNS 염증
+#     "CCR5",   # T세포 및 단핵구의 CNS 유입
+#     "CXCR3",  # 활성화 T세포의 CNS 유입
+#     "CXCR4",  # 다양한 세포의 CNS 이동, 신경염증
+#     "CCR6",   # Th17 세포의 CNS 유입 (예: EAE 모델)
+#     "CX3CR1"  # 미세아교세포(microglia), 일부 순환 단핵구에 발현, CNS 항상성 및 염증
+#   ),
+# 
+#   # --- 내피세포 및 기질세포에 발현하는 수용체 (이들 세포의 반응 유도) ---
+#   on_endothelial_stromal = c(
+#     "CXCR4", # 혈관신생, 세포 이동
+#     "CXCR1", "CXCR2", # 혈관신생, 염증 반응 조절
+#     "ACKR3"  # 이전 CXCR7, CXCL12, CXCL11과 결합, 청소 수용체, 신호 전달 가능성
+#   ),
+# 
+#   # --- 비정형 케모카인 수용체 (Atypical Chemokine Receptors, ACKR) - 주로 청소 기능 ---
+#   ackr_scavengers = c("ACKR1", "ACKR2", "ACKR3", "ACKR4") # 이전 DARC/Duffy, D6, CXCR7, CCRL1
+# )
+# 
+# # 인테그린 (Integrins)
+# integrin_list <- list(
+#   # --- 주요 알파 소단위체 유전자 (ITGA) ---
+#   alpha_subunits = c(
+#     "ITGAL",  # L (CD11a) - part of LFA-1
+#     "ITGAM",  # M (CD11b) - part of Mac-1/CR3
+#     "ITGAX",  # X (CD11c) - part of p150,95/CR4
+#     "ITGAD",  # D (CD11d)
+#     "ITGAE",  # E (CD103) - forms heterodimer with ITGB7, mucosal lymphocytes
+#     "ITGA1", "ITGA2", "ITGA3", "ITGA5", "ITGA6", "ITGA7", "ITGA8", "ITGA9", "ITGA10", "ITGA11", # Collagen, Laminin, Fibronectin receptors
+#     "ITGA4",  # Part of VLA-4 (with ITGB1) and LPAM-1 (with ITGB7)
+#     "ITGAV"   # Part of various receptors for Vitronectin, Fibronectin etc. (with ITGB1, ITGB3, ITGB5, ITGB6, ITGB8)
+#   ),
+#   # --- 주요 베타 소단위체 유전자 (ITGB) ---
+#   beta_subunits = c(
+#     "ITGB1",  # (CD29) - Forms VLA integrins with ITGA1-9, ITGAV
+#     "ITGB2",  # (CD18) - Forms leukocyte integrins LFA-1, Mac-1, p150,95, ITGAD/ITGB2
+#     "ITGB3",  # (CD61) - Forms receptors with ITGAV (vitronectin receptor) and ITGA2B (platelet glycoprotein IIb/IIIa)
+#     "ITGB4",  # Forms alpha6beta4 (laminin receptor, hemidesmosomes)
+#     "ITGB5",  # Forms alphaVbeta5 (vitronectin receptor)
+#     "ITGB6",  # Forms alphaVbeta6 (fibronectin/TGF-beta activation)
+#     "ITGB7",  # Forms LPAM-1 with ITGA4 (gut homing), and with ITGAE (mucosal T cells)
+#     "ITGB8"   # Forms alphaVbeta8 (TGF-beta activation)
+#   ),
+#   # --- 주요 이종이합체 (Heterodimers) 예시 (리간드 결합에 중요) ---
+#   # (실제 분석 시에는 각 소단위체의 발현량 조합으로 추론)
+#   key_heterodimers_example_subunits = list(
+#     LFA_1 = c("ITGAL", "ITGB2"),    # Ligands: ICAM1, ICAM2, ICAM3
+#     Mac_1_CR3 = c("ITGAM", "ITGB2"), # Ligands: ICAM1, C3bi, Fibrinogen
+#     VLA_4 = c("ITGA4", "ITGB1"),    # Ligands: VCAM1, Fibronectin (CS-1)
+#     LPAM_1 = c("ITGA4", "ITGB7"),   # Ligands: MAdCAM1, VCAM1, Fibronectin
+#     alphaE_beta7 = c("ITGAE", "ITGB7"), # Ligand: E-cadherin
+#     alphaV_beta3 = c("ITGAV", "ITGB3") # Ligands: Vitronectin, Fibronectin, Osteopontin
+#   ),
+#   # --- 주요 인테그린 세포외기질 리간드 (ECM Ligands for Integrins - 단백질명) ---
+#   # (유전자 발현 분석 시 해당 단백질을 코딩하는 유전자 사용)
+#   ecm_ligands_genes = c(
+#     "FN1",      # Fibronectin
+#     "COL1A1", "COL1A2", "COL2A1", "COL3A1", "COL4A1", "COL4A2", # Collagens
+#     "LAMA1", "LAMA2", "LAMA3", "LAMA4", "LAMA5", # Laminins alpha
+#     "LAMB1", "LAMB2", "LAMB3", # Laminins beta
+#     "LAMC1", "LAMC2", "LAMC3", # Laminins gamma
+#     "VTN",      # Vitronectin
+#     "TNC",      # Tenascin C
+#     "SPP1"      # Osteopontin (Secreted Phosphoprotein 1)
+#   ),
+#   # --- 주요 인테그린 세포 표면 리간드 (Cellular Ligands for Integrins - 유전자명) ---
+#   cellular_ligands_genes = c(
+#     "ICAM1", "ICAM2", "ICAM3", "ICAM4", "ICAM5", # Intercellular Adhesion Molecules
+#     "VCAM1",    # Vascular Cell Adhesion Molecule 1
+#     "MADCAM1",  # Mucosal Addressin Cell Adhesion Molecule 1
+#     "CDH1",     # E-cadherin (Cadherin 1)
+#     "PECAM1"    # CD31 (Platelet Endothelial Cell Adhesion Molecule) - 인테그린 리간드는 아니지만 상호작용
+#   ),
+#   # --- 인테그린 활성화 및 신호 전달 관련 주요 내부 분자 (Inside-out, Outside-in signaling) ---
+#   integrin_signaling_associated = c(
+#     "TLN1", "TLN2", # Talin 1, 2
+#     "KIND1", "KIND2", "KIND3", # Kindlin 1, 2, 3 (FERMT1, FERMT2, FERMT3)
+#     "PTK2",     # FAK (Focal Adhesion Kinase)
+#     "SRC",      # Src kinase
+#     "ILK",      # Integrin Linked Kinase
+#     "ACTN1", "ACTN4", # Alpha-actinins
+#     "VCL"       # Vinculin
+#   )
+# )
 
+# 사용 예시:
+# print(cmkl$attract_monocytes_macrophages)
+# print(cmkr$on_t_cells)
+# print(integrin_list$key_heterodimers_example_subunits$LFA_1)
+# print(integrin_list$cellular_ligands_genes)
 ```
 
-
+# chemokines -> gene symbol
 ```{r}
+# 케모카인 리간드 (Chemokine Ligands) - 공식 유전자 기호 사용
+cmkl <- list(
+  # --- 특정 백혈구 유인 리간드 ---
+  attract_monocytes_macrophages = c("CCL2", "CCL3", "CCL4", "CCL5", "CCL7", "CCL8", "CCL13", "CXCL12"),
+  attract_t_cells = c(
+    # 일반 T cell 유인
+    "CCL2", "CCL3", "CCL4", "CCL5", "CXCL12",
+    # Th1 세포 유인
+    "CXCL9", "CXCL10", "CXCL11",
+    # Th2 세포 유인
+    "CCL17", "CCL22",
+    # Th17 세포 유인
+    "CCL20",
+    # Treg 유인
+    "CCL17", "CCL22", "CCL20",
+    # 피부 귀소 T 세포 유인 (CLA+)
+    "CCL1", "CCL17", "CCL27",
+    # 장 귀소 T 세포 유인 (CCR9+)
+    "CCL25"
+  ),
+  attract_b_cells = c("CXCL13", "CCL19", "CCL21", "CXCL12"),
+  attract_nk_cells = c("CCL3", "CCL4", "CCL5", "CXCL8", "CXCL10", "CXCL11", "CX3CL1"),
+  attract_dcs = c( # 수지상 세포
+    # 미성숙 DC
+    "CCL3", "CCL4", "CCL5", "CCL20",
+    # 성숙 DC (림프절 귀소)
+    "CCL19", "CCL21"
+  ),
+  attract_neutrophils = c("CXCL1", "CXCL2", "CXCL3", "CXCL5", "CXCL6", "CXCL8"),
+  attract_eosinophils = c("CCL5", "CCL11", "CCL24", "CCL26"),
+  attract_basophils = c("CCL2", "CCL3", "CCL5", "CCL11"),
 
+  # --- 항상성 및 림프 기관 관련 리간드 ---
+  homeostatic_lymphoid_organ_ligands = c(
+    "CXCL12",
+    "CXCL13",
+    "CCL19", "CCL21",
+    "CCL25"
+  ),
+
+  # --- 뇌척수액(CSF) 구획 / 혈액뇌장벽(BBB) 통과 관련 리간드 ---
+  csf_bbb_homing_related_ligands = c(
+    "CCL2",
+    "CCL5",
+    "CXCL10",
+    "CXCL12",
+    "CCL11",
+    "CCL19", "CCL21"
+  ),
+
+  # --- 내피세포 및 기질세포에서 주로 생산되는 리간드 ---
+  produced_by_endothelial_stromal = c(
+    "CXCL1", "CXCL8", "CCL2", "CCL5", "CXCL12",
+    "CX3CL1"
+  ),
+
+  # --- 기타 주요 리간드 ---
+  other_key_ligands = c(
+    "CX3CL1"
+  )
+)
+
+# 케모카인 수용체 (Chemokine Receptors) - 공식 유전자 기호 사용
+cmkr <- list(
+  # --- 특정 백혈구에 주로 발현하는 수용체 ---
+  on_monocytes_macrophages = c("CCR1", "CCR2", "CCR5", "CXCR4", "CX3CR1"),
+  on_t_cells = c(
+    # 일반 T cell
+    "CCR2", "CCR5", "CXCR3", "CXCR4",
+    # Th1 세포
+    "CXCR3", "CCR5",
+    # Th2 세포
+    "CCR3", "CCR4", "CCR8",
+    # Th17 세포
+    "CCR6", "CCR4",
+    # Treg
+    "CCR4", "CCR5", "CCR6", "CCR8", "CXCR3",
+    # 피부 귀소 T 세포 (CLA+)
+    "CCR4", "CCR10",
+    # 장 귀소 T 세포
+    "CCR9", "CXCR3"
+  ),
+  on_b_cells = c("CXCR4", "CXCR5", "CCR6", "CCR7"),
+  on_nk_cells = c("CXCR1", "CXCR2", "CXCR3", "CCR2", "CCR5", "CX3CR1"),
+  on_dcs = c( # 수지상 세포
+    # 미성숙 DC
+    "CCR1", "CCR2", "CCR5", "CCR6",
+    # 성숙 DC (림프절 귀소)
+    "CCR7"
+  ),
+  on_neutrophils = c("CXCR1", "CXCR2", "CXCR4"),
+  on_eosinophils = c("CCR1", "CCR3"),
+  on_basophils = c("CCR1", "CCR2", "CCR3", "CXCR4"),
+
+  # --- 항상성 및 림프 기관 관련 수용체 ---
+  homeostatic_lymphoid_organ_receptors = c(
+    "CXCR4",
+    "CXCR5",
+    "CCR7",
+    "CCR9"
+  ),
+
+  # --- 뇌척수액(CSF) 구획 / 혈액뇌장벽(BBB) 통과 관련 수용체 ---
+  csf_bbb_homing_related_receptors = c(
+    "CCR2",
+    "CCR5",
+    "CXCR3",
+    "CXCR4",
+    "CCR6",
+    "CX3CR1"
+  ),
+
+  # --- 내피세포 및 기질세포에 발현하는 수용체 ---
+  on_endothelial_stromal = c(
+    "CXCR4",
+    "CXCR1", "CXCR2",
+    "ACKR3" # 이전 CXCR7
+  ),
+
+  # --- 비정형 케모카인 수용체 (Atypical Chemokine Receptors, ACKR) ---
+  ackr_scavengers = c("ACKR1", "ACKR2", "ACKR3", "ACKR4") # 각각 이전 DARC/Duffy, D6, CXCR7, CCRL1
+)
+
+# 인테그린 (Integrins) - 공식 유전자 기호 사용
+integrin_list <- list(
+  # --- 주요 알파 소단위체 유전자 (ITGA) ---
+  alpha_subunits = c(
+    "ITGAL", "ITGAM", "ITGAX", "ITGAD", "ITGAE",
+    "ITGA1", "ITGA2", "ITGA3", "ITGA5", "ITGA6", "ITGA7", "ITGA8", "ITGA9", "ITGA10", "ITGA11",
+    "ITGA4", "ITGAV"
+  ),
+  # --- 주요 베타 소단위체 유전자 (ITGB) ---
+  beta_subunits = c(
+    "ITGB1", "ITGB2", "ITGB3", "ITGB4", "ITGB5", "ITGB6", "ITGB7", "ITGB8"
+  ),
+  # --- 주요 이종이합체 (Heterodimers) 예시 (구성 소단위체 유전자) ---
+  key_heterodimers_example_subunits = list(
+    LFA_1 = c("ITGAL", "ITGB2"),
+    Mac_1_CR3 = c("ITGAM", "ITGB2"),
+    VLA_4 = c("ITGA4", "ITGB1"),
+    LPAM_1 = c("ITGA4", "ITGB7"),
+    alphaE_beta7 = c("ITGAE", "ITGB7"),
+    alphaV_beta3 = c("ITGAV", "ITGB3")
+  ),
+  # --- 주요 인테그린 세포외기질 리간드 (유전자명) ---
+  ecm_ligands_genes = c(
+    "FN1",
+    "COL1A1", "COL1A2", "COL2A1", "COL3A1", "COL4A1", "COL4A2",
+    "LAMA1", "LAMA2", "LAMA3", "LAMA4", "LAMA5",
+    "LAMB1", "LAMB2", "LAMB3",
+    "LAMC1", "LAMC2", "LAMC3",
+    "VTN",
+    "TNC",
+    "SPP1"
+  ),
+  # --- 주요 인테그린 세포 표면 리간드 (유전자명) ---
+  cellular_ligands_genes = c(
+    "ICAM1", "ICAM2", "ICAM3", "ICAM4", "ICAM5",
+    "VCAM1",
+    "MADCAM1",
+    "CDH1", # E-cadherin
+    "PECAM1"
+  ),
+  # --- 인테그린 활성화 및 신호 전달 관련 주요 내부 분자 (유전자명) ---
+  integrin_signaling_associated = c(
+    "TLN1", "TLN2", # Talin 1, 2
+    "FERMT1", "FERMT2", "FERMT3", # Kindlin 1 (KIND1), Kindlin 2 (KIND2), Kindlin 3 (KIND3)
+    "PTK2",     # FAK (Focal Adhesion Kinase)
+    "SRC",      # Src kinase
+    "ILK",      # Integrin Linked Kinase
+    "ACTN1", "ACTN4", # Alpha-actinins
+    "VCL"       # Vinculin
+  )
+)
+
+# 사용 예시:
+# print(cmkl$attract_t_cells)
+# print(cmkr$on_monocytes_macrophages)
+# print(integrin_list$alpha_subunits)
 ```
-```{r}
 
+# immune functional genes
+
+```{r}
+immune_cell_functional_gene_sets <- list(
+
+  # =========================================================================
+  # T Cells (T 림프구)
+  # =========================================================================
+  t_cell_functional_sets = list(
+
+    # -------------------------------------------------------------------------
+    # General T Cell Markers & Signaling (모든 T세포 공통)
+    # -------------------------------------------------------------------------
+    general_t_cell = list(
+      lineage_markers = c("CD3D", "CD3E", "CD3G", "CD2", "CD5", "CD7", "PTPRC"), # PTPRC (CD45)
+      tcr_signaling = c("TRAC", "TRBC1", "TRBC2", "CD247", # CD247 (CD3zeta)
+                        "LCK", "ZAP70", "LAT", "SLP76", # SLP76 is LCP2
+                        "PLCG1", "NFATC1", "NFATC2", "NFKB1", "RELA")
+    ),
+
+    # -------------------------------------------------------------------------
+    # CD4+ T Cells (보조 T 림프구)
+    # -------------------------------------------------------------------------
+    cd4_t_cell = list(
+      lineage_marker = c("CD4"),
+      naive = c("CCR7", "SELL", "LEF1", "TCF7", "IL7R", "S1PR1", "CD27", "CD28", "STAT5A", "STAT5B"), # Naive markers
+      activation_early = c("CD69", "CD25", # CD25 is IL2RA
+                           "FOS", "JUN", "EGR1", "EGR2", # Immediate early genes
+                           "NFKBIA", "ICOS", "CD40LG"), # CD40LG (CD154)
+      # --- Effector Subtypes (작동 아형) ---
+      effector_Th1 = c("TBX21", # T-bet
+                       "IFNG", "TNF", "LTA", # Cytokines
+                       "CXCR3", "CCR5", # Chemokine receptors
+                       "STAT1", "STAT4", "IL12RB1", "IL12RB2", "IL18R1"),
+      effector_Th2 = c("GATA3",
+                       "IL4", "IL5", "IL13", "AREG", # Cytokines
+                       "CCR3", "CCR4", "PTGDR2", # CRTH2 (Chemokine receptors)
+                       "STAT6", "IL4R", "IL1RL1"), # IL1RL1 (ST2)
+      effector_Th17 = c("RORC", # RORgammaT
+                        "IL17A", "IL17F", "IL21", "IL22", "IL26", "CSF2", # Cytokines (CSF2 is GM-CSF)
+                        "CCR6", "CXCR6", # Chemokine receptors
+                        "STAT3", "IL23R", "IL1R1"),
+      effector_Tfh = c("BCL6", "CXCR5", "PDCD1", "ICOS", "SLAMF1", "SLAMF6", # PDCD1 (PD-1)
+                       "IL21", "MAF", "ASCL2", "TOX2"), # Follicular helper T cells
+      effector_cytotoxic_cd4 = c( # 일부 CD4+ T세포에서 세포독성 발현
+                        "GZMA", "GZMB", "GZMH", "GZMK", "PRF1", "NKG7", "GNLY"
+      ),
+      # --- Memory Subtypes (기억 아형) ---
+      memory_Tcm = c("CCR7", "SELL", "IL7R", "CD27", "CD28", "TCF7", "LEF1", "CD62L"), # Central Memory
+      memory_Tem = c("IL7R", "CD44", "S1PR1", "ITGB1", # Effector Memory
+                     # Effector molecules often present at low/intermediate levels
+                     "IFNG", "GZMK", "GZMA", "CXCR3", "CXCR4", "CCR5"),
+      memory_Temra = c("KLRG1", "FCGR3A", "B3GAT1", # B3GAT1 (CD57)
+                       "GZMA", "GZMB", "GZMH", "PRF1", "NKG7", # High cytotoxic potential
+                       "ZEB2", "TBX21", "EOMES", "S1PR5"), # CD45RA+ Effector Memory
+      # --- Regulatory T Cells (조절 T 림프구) ---
+      Treg = c("FOXP3", "IL2RA", # IL2RA (CD25 high)
+               "CTLA4", "IKZF2", # IKZF2 (Helios)
+               "TNFRSF18", # GITR
+               "TNFRSF4",  # OX40
+               "IL10", "TGFB1", "LAG3", "TIGIT", "STAT5A", "STAT5B")
+    ),
+
+    # -------------------------------------------------------------------------
+    # CD8+ T Cells (세포독성 T 림프구)
+    # -------------------------------------------------------------------------
+    cd8_t_cell = list(
+      lineage_markers = c("CD8A", "CD8B"),
+      naive = c("CCR7", "SELL", "LEF1", "TCF7", "IL7R", "S1PR1", "CD27", "CD28"),
+      activation_early = c("CD69", "CD25", "CD38", "HLA-DRA", "FAS", # CD25 is IL2RA
+                           "FOS", "JUN", "EGR1", "ICOS"),
+      # --- Effector & Cytotoxicity (작동 및 세포 독성) ---
+      effector_CTL = c("TBX21", "EOMES", "RUNX3", "ZEB2", # Transcription factors
+                       "IFNG", "TNF", "LTA", # Cytokines
+                       "CXCR3", "CX3CR1", "KLRD1"), # Chemokine/NK receptors
+      cytotoxicity_molecules = c("GZMA", "GZMB", "GZMH", "GZMK", "GZMM", # Granzymes
+                                 "PRF1",   # Perforin
+                                 "FASLG",  # Fas Ligand
+                                 "TNFSF10", # TRAIL
+                                 "NKG7", "GNLY", # Granulysin
+                                 "LAMP1"), # CD107a (degranulation marker, mRNA may not reflect surface protein well)
+      # --- Memory Subtypes (기억 아형) ---
+      memory_Tcm = c("CCR7", "SELL", "IL7R", "CD27", "CD28", "TCF7", "LEF1", "EOMES"), # Central Memory
+      memory_Tem = c("IL7R", "CD44", "S1PR1", "ITGB1", "EOMES", "TBX21", # Effector Memory
+                     "GZMK", "GZMA", "IFNG", "CXCR3", "CX3CR1", "KLRG1" # KLRG1 can be on Tem
+                     ),
+      memory_Temra = c("KLRG1", "FCGR3A", "B3GAT1", # B3GAT1 (CD57)
+                       "GZMA", "GZMB", "GZMH", "PRF1", "NKG7", # High cytotoxic potential
+                       "ZEB2", "TBX21", "EOMES", "S1PR5"), # CD45RA+ Effector Memory
+      exhaustion_markers = c( # Often associated with chronic activation/memory
+                       "PDCD1", "CTLA4", "LAG3", "HAVCR2", # HAVCR2 (TIM-3)
+                       "TIGIT", "TOX", "ENTPD1" # ENTPD1 (CD39)
+      )
+    ),
+
+    # -------------------------------------------------------------------------
+    # General T Cell Proliferation & Checkpoints
+    # -------------------------------------------------------------------------
+    t_cell_proliferation = c("MKI67", "PCNA", "AURKA", "AURKB", "CDK1", "CCNB1", "CCNB2"),
+    t_cell_checkpoint_molecules = c( # Co-stimulatory / Co-inhibitory
+        "CD28", "ICOS", "CD27", "TNFRSF9", # TNFRSF9 (4-1BB)
+        "CD226", # DNAM-1
+        "PDCD1", "CTLA4", "LAG3", "HAVCR2", "TIGIT", "BTLA", "CD274", "PDCD1LG2" # CD274 (PD-L1), PDCD1LG2 (PD-L2)
+    )
+  ),
+
+  # =========================================================================
+  # B Cells (B 림프구)
+  # =========================================================================
+  b_cell_functional_sets = list(
+    general_b_cell = list(
+      lineage_markers = c("CD19", "MS4A1", # MS4A1 (CD20)
+                          "CD79A", "CD79B", "PAX5", "EBF1"),
+      bcr_components = c("IGHM", "IGHD", "IGHE", "IGHA1", "IGHA2", "IGHG1", "IGHG2", "IGHG3", "IGHG4",
+                         "IGKC", "IGLC1", "IGLC2", "IGLC3", "JCHAIN") # JCHAIN (J chain)
+    ),
+    naive_b_cell = c("IGHD", "IGHM", "IL4R", "FCER2", # FCER2 (CD23)
+                     "TCL1A", "CCR7", "SELL", "CD27" # CD27 typically low/negative
+                     ),
+    activation_b_cell = c("CD69", "CD80", "CD86", "CD40", "NFKB1", "REL", "FOS", "JUN",
+                          "IRF4", "AICDA"), # Activation-Induced Cytidine Deaminase
+    memory_b_cell = c("CD27", "AIM2", "BANK1", "MS4A1", # CD27 high
+                      # Switched memory typically express IGHG or IGHA
+                      "IGHG1", "IGHG2", "IGHG3", "IGHG4", "IGHA1", "IGHA2",
+                      "TNFRSF13B", # TACI
+                      "SUSD2" # May mark certain memory subsets
+                      ),
+    atypical_memory_b_cell = c("FCRL4", "FCRL5", "ITGAX", "ZEB2", "TBX21", "CD11C"), # CD11C is ITGAX
+    plasmablast_plasma_cell = c("SDC1",   # CD138
+                                "PRDM1",  # BLIMP1
+                                "XBP1",   # XBP1s (spliced form active)
+                                "IRF4",   # MUM1
+                                "TNFRSF17", # BCMA
+                                "SLAMF7", # CD319
+                                "DERL3", "SSR3", "SSR4", # ER protein processing
+                                "MZB1", # Marginal zone B and B1 cell specific protein
+                                "IGHG1", "IGHG2", "IGHG3", "IGHG4", "IGHA1", "IGHA2", "IGKC", "IGLC2", "JCHAIN" # High Ig secretion
+                                )
+  ),
+
+  # =========================================================================
+  # NK Cells (자연살해 세포)
+  # =========================================================================
+  nk_cell_functional_sets = list(
+    lineage_markers = c("NCR1", "NCR3", "NCAM1", "KLRD1", "FCGR3A", "CD244", # NCAM1 (CD56), KLRD1 (CD94), FCGR3A (CD16A)
+                        "IL2RB", "IL15RA"), # Absence of CD3
+    activation_nk_cell = c("CD69", "IFNG", "TNF", "XCL1", "XCL2", "CCL3", "CCL4", "CCL5",
+                           "LAMP1", # Degranulation marker
+                           "STAT1", "STAT4", "TBX21", "EOMES"),
+    cytotoxicity_nk_cell = c("GZMA", "GZMB", "GZMH", "GZMK", "PRF1", "GNLY", "FASLG", "TNFSF10",
+                             "KLRK1", # NKG2D
+                             "KLRC1", "KLRC2", "KLRC3", # NKG2A, NKG2C, NKG2E
+                             "KIR2DL1", "KIR2DL3", "KIR3DL1", "KIR3DL2", # Inhibitory KIRs (low expression could mean disinhibition)
+                             "KIR2DS1", "KIR2DS4", "KIR3DS1", # Activating KIRs
+                             "CD226", # DNAM-1
+                             "FCGR3A", # CD16 (ADCC)
+                             "HCST" # DAP10 (adapter for activating receptors)
+                             ),
+    cd56_bright_nk = c("NCAM1", # High CD56
+                       "SELL", "CCR7", "IL7R", "CD27", "GATA3", "KIT", # Typically FCGR3A low
+                       "IFNG", "TNF" # Strong early cytokine producers
+                       ),
+    cd56_dim_nk = c("FCGR3A", # High CD16
+                    "CX3CR1", "KLRB1", "S1PR5", # KLRB1 (CD161)
+                    "TBX21", "ZEB2",
+                    "GZMB", "PRF1" # High cytotoxic potential
+                    )
+  ),
+
+  # =========================================================================
+  # Monocytes / Macrophages (단핵구 / 대식세포) - PBMC context
+  # =========================================================================
+  myeloid_functional_sets = list(
+    general_monocyte_macrophage = c("CD14", "CD68", "CSF1R", "ITGAM", "ITGAX", "CD163", "MRC1"), # ITGAM (CD11b), ITGAX (CD11c), MRC1 (CD206)
+    classical_monocyte_CD14pp_CD16neg = c("CD14", "CCR2", "S100A8", "S100A9", "S100A12",
+                                           "LYZ", "VCAN", "FCN1", "SELL"),
+    non_classical_monocyte_CD14p_CD16pp = c("FCGR3A", "CX3CR1", "TCF7L2", "HES4", "CSF1R", "ITGAL"),
+    intermediate_monocyte_CD14pp_CD16p = c("CD14", "FCGR3A", "HLA-DRA", "HLA-DRB1", "HLA-DPA1", "HLA-DPB1",
+                                            "CCR5", "CD86", "TNF", "IL1B"),
+    # --- Activation / Polarization States (more for macrophages, but monocytes can show signatures) ---
+    m1_like_activation = c("STAT1", "IRF1", "IRF5", "SOCS3",
+                           "TNF", "IL1B", "IL6", "IL12A", "IL12B", "IL23A",
+                           "CXCL9", "CXCL10", "CXCL11", "CCL5",
+                           "NOS2", # iNOS
+                           "CD80", "CD86", "CD40", "FCGR1A"), # FCGR1A (CD64)
+    m2_like_activation = c("STAT6", "IRF4", "MAF", "MAFB", "KLF4", "PPAR gamma (PPARG)",
+                           "IL10", "TGFB1", "CCL13", "CCL17", "CCL18", "CCL22", "CCL24",
+                           "ARG1",   # Arginase 1
+                           "MRC1",   # CD206 (Mannose Receptor C-Type 1)
+                           "CD163",
+                           "CLEC7A", # Dectin-1
+                           "FOLR2"   # Folate Receptor Beta
+                           ),
+    phagocytosis_related = c("FCGR1A", "FCGR2A", "FCGR3A", "MARCO", "MSR1", "CD36", "TREM2", "SIRPA")
+  ),
+
+  # =========================================================================
+  # Dendritic Cells (DC, 수지상세포) - PBMC context
+  # =========================================================================
+  dc_functional_sets = list(
+    general_dc_lineage = c("ITGAX", "HLA-DRA", "HLA-DRB1", "HLA-DPA1", "HLA-DPB1", "FLT3"), # ITGAX (CD11c)
+    # --- Conventional DC type 1 (cDC1) ---
+    cDC1 = c("CLEC9A", "XCR1", "CADM1", "BATF3", "IRF8", "ID2",
+             "WDFY4", "THBD"), # THBD (CD141)
+    cDC1_function = c("IL12B", "IFNL1", "CCL5", "CXCL9", "CXCL10"), # Cross-presentation, Th1 polarization
+    # --- Conventional DC type 2 (cDC2) ---
+    cDC2 = c("CD1C", "FCER1A", "CLEC10A", "SIRPA", "IRF4", "CEBPB",
+             "NOTCH2", "HLA-DQA1", "HLA-DQB1"), # CLEC10A (CD301)
+    cDC2_function = c("IL1B", "IL6", "IL23A", "CCL17", "CCL22", "CXCL8", "AREG"), # Th2/Th17 polarization
+    # --- Plasmacytoid DC (pDC) ---
+    pDC = c("CLEC4C", "NRP1", # CLEC4C (CD303), NRP1 (CD304/BDCA-2)
+            "LILRA4", # ILT7 (CD85g)
+            "TLR7", "TLR9", "IRF7", "TCF4", # TCF4 (E2-2)
+            "IL3RA", # CD123
+            "GZMB" # some pDCs can express GZMB
+            ),
+    pDC_function = c("IFNA1", "IFNA2", "IFNB1", "IFNK", # High Type I IFN production
+                     "CXCL10", "TRAIL"), # TRAIL is TNFSF10
+    # --- General DC Activation ---
+    dc_activation = c("CD40", "CD80", "CD83", "CD86", "CCR7", "LAMP3", # LAMP3 (DC-LAMP)
+                      "IRF1", "RELB", "NFKB2", "STAT1", "SOCS1", "SOCS3",
+                      "TNF", "IL6", "IL12B") # IL12B for mature cDCs
+  ),
+
+  # =========================================================================
+  # General Proliferation Markers (모든 세포 유형에 적용 가능)
+  # =========================================================================
+  general_proliferation = c(
+    "MKI67",  # Ki-67
+    "PCNA",   # Proliferating Cell Nuclear Antigen
+    "TOP2A",  # Topoisomerase II Alpha
+    "CDK1",   # Cyclin Dependent Kinase 1
+    "CCNB1", "CCNB2", # Cyclin B1, B2
+    "AURKA", "AURKB"  # Aurora Kinase A, B
+  )
+)
+
+# 사용 예시:
+# print(immune_cell_functional_gene_sets$t_cell_functional_sets$cd4_t_cell$effector_Th1)
+# print(immune_cell_functional_gene_sets$b_cell_functional_sets$plasmablast_plasma_cell)
+# print(immune_cell_functional_gene_sets$nk_cell_functional_sets$cytotoxicity_nk_cell)
+# print(immune_cell_functional_gene_sets$myeloid_functional_sets$m1_like_activation)
 ```
 ```{r}
 
