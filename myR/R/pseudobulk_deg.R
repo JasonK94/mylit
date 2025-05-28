@@ -233,329 +233,208 @@ prepare_pseudobulk_edgeR <- function(seurat_obj,
   ))
 }
 
-
-#' Pseudo-bulk Differential Gene Expression Analysis
-#'
-#' 주어진 Seurat 객체 또는 준비된 pseudo-bulk 데이터에 대해
-#' 다양한 수준의 edgeR 기반 DEG 분석을 수행합니다.
-#'
-#' @param analysis_level 분석 수준:
-#'                       - "overall": 모든 클러스터를 통합하여 전체 그룹 간 비교 (코드 1 방식).
-#'                       - "per_cluster": 각 클러스터 내에서 그룹 간 비교 (코드 2 방식).
-#'                       - "specific_cluster": 지정된 단일 클러스터 내에서 그룹 간 비교.
-#' @param contrast edgeR의 glmQLFTest에 전달할 contrast 벡터. 그룹 레벨 순서에 맞게 지정해야 함.
-#'                 예: 그룹 레벨이 c("Control", "Treatment")일 때 Treatment vs Control 비교는 c(-1, 1).
-#'                 prepare_pseudobulk_edgeR 결과의 contrast_levels 참고.
-#' @param target_cluster analysis_level이 "specific_cluster"일 때 분석할 클러스터 이름.
-#' @param min_samples_per_group_cluster 클러스터별 분석 시, 각 그룹이 가져야 하는 최소 샘플 수.
-#'                                      미달 시 해당 클러스터 분석 건너뜀 (기본값: 2).
-#' @param ... prepare_pseudobulk_edgeR 함수에 전달할 인자들 (seurat_obj, assay, slot, sample_col, cluster_col, group_col 등)
-#'            또는 prepare_pseudobulk_edgeR 함수의 반환값인 리스트 (pb, meta, dge, design 포함).
-#' @param verbose 진행 상황 출력 여부 (기본값: TRUE)
-#'
-#' @return DEG 결과 테이블 (tibble).
-#'         - "overall" 분석: 단일 tibble.
-#'         - "per_cluster" 분석: 각 클러스터 결과가 합쳐진 tibble (cluster 컬럼 포함).
-#'         - "specific_cluster" 분석: 해당 클러스터 결과만 담긴 tibble (cluster 컬럼 포함).
-#'         결과 테이블에는 logFC, logCPM, F, PValue, FDR 등의 edgeR 결과와 gene 컬럼이 포함됩니다.
-#'
-#' @importFrom edgeR estimateDisp glmQLFit glmQLFTest topTags
-#' @importFrom dplyr %>% filter bind_rows mutate rename select group_by summarise n case_when pull
-#' @importFrom tibble tibble rownames_to_column
-#' @importFrom stats setNames
-#'
-#' @examples
-#' \dontrun{
-#' # 예제 데이터 준비 (prepare_pseudobulk_edgeR 예제 참고)
-#' counts <- matrix(rpois(10000, lambda = 10), ncol=100, nrow=100)
-#' rownames(counts) <- paste0("Gene", 1:100)
-#' colnames(counts) <- paste0("Cell", 1:100)
-#' metadata <- data.frame(
-#'   sample_id = sample(paste0("Sample", 1:4), 100, replace = TRUE),
-#'   cell_type = sample(paste0("Cluster", 1:3), 100, replace = TRUE),
-#'   condition = NA,
-#'   row.names = paste0("Cell", 1:100)
-#' )
-#' metadata$condition[metadata$sample_id %in% c("Sample1", "Sample2")] <- "Control"
-#' metadata$condition[metadata$sample_id %in% c("Sample3", "Sample4")] <- "Treatment"
-#' seurat_obj_example <- CreateSeuratObject(counts = counts, meta.data = metadata)
-#' seurat_obj_example[["SCT"]] <- seurat_obj_example[["RNA"]] # 예시용
-#'
-#' # 사용례 1: 전체 그룹 간 비교 (Overall)
-#' overall_results <- run_pseudobulk_deg(
-#'   analysis_level = "overall",
-#'   contrast = c(-1, 1), # Treatment vs Control (Control이 첫번째 레벨이라고 가정)
-#'   seurat_obj = seurat_obj_example,
-#'   assay = "SCT", slot = "counts",
-#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
-#' )
-#' head(overall_results)
-#'
-#' # 사용례 2: 클러스터별 그룹 간 비교 (Per Cluster)
-#' per_cluster_results <- run_pseudobulk_deg(
-#'   analysis_level = "per_cluster",
-#'   contrast = c(-1, 1),
-#'   seurat_obj = seurat_obj_example,
-#'   assay = "SCT", slot = "counts",
-#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
-#' )
-#' head(per_cluster_results)
-#' table(per_cluster_results$cluster) # 각 클러스터별 결과 확인
-#'
-#' # 사용례 3: 특정 클러스터("Cluster2") 내 그룹 간 비교 (Specific Cluster)
-#' specific_cluster_results <- run_pseudobulk_deg(
-#'   analysis_level = "specific_cluster",
-#'   target_cluster = "Cluster2",
-#'   contrast = c(-1, 1),
-#'   seurat_obj = seurat_obj_example,
-#'   assay = "SCT", slot = "counts",
-#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
-#' )
-#' head(specific_cluster_results)
-#' }
-run_pseudobulk_deg_legacy <- function(analysis_level = c("overall", "per_cluster", "specific_cluster"),
-                               contrast,
-                               target_cluster = NULL,
-                               min_samples_per_group_cluster = 2,
-                               min_count = 10,
-                               ...,
-                               verbose = TRUE) {
+prepare_pseudobulk_edgeR <- function(seurat_obj,
+                                     assay = "SCT",
+                                     slot = "counts",
+                                     sample_col,
+                                     cluster_col,
+                                     group_col,
+                                     min_count = 10,
+                                     norm_method = "TMM",
+                                     design_formula = NULL,
+                                     verbose = TRUE) {
   
-  analysis_level <- match.arg(analysis_level)
-  dot_args <- list(...)
+  if (!requireNamespace("Seurat", quietly = TRUE)) stop("Seurat 패키지가 필요합니다.")
+  if (!requireNamespace("edgeR", quietly = TRUE)) stop("edgeR 패키지가 필요합니다.")
+  if (!requireNamespace("dplyr", quietly = TRUE)) stop("dplyr 패키지가 필요합니다.")
+  if (!requireNamespace("tidyr", quietly = TRUE)) stop("tidyr 패키지가 필요합니다.")
+  if (!requireNamespace("tibble", quietly = TRUE)) stop("tibble 패키지가 필요합니다.")
   
-  # Check if prepared data is provided or needs to be generated
-  if (all(c("pb", "meta", "dge", "design", "contrast_levels") %in% names(dot_args))) {
-    if (verbose) message("Using pre-prepared pseudo-bulk data.")
-    prep_data <- dot_args
-    # Extract necessary components
-    pb   <- prep_data$pb
-    meta <- prep_data$meta
-    dge  <- prep_data$dge # This dge is for the 'overall' case initially
-    design <- prep_data$design
-    contrast_levels <- prep_data$contrast_levels
-    # Need to get group_col name from the prep_data structure if possible, or assume from contrast
-    # This part is tricky without knowing how prep_data was made. Let's try to find group_col.
-    group_col <- setdiff(colnames(meta), c("pb_sample_id", "patient", "ctype"))[1] # Best guess
-    if(length(group_col) != 1 || !group_col %in% colnames(meta)) {
-      warning("Could not automatically determine group_col from provided pre-prepared data. ",
-              "Ensure 'meta' dataframe contains the grouping column.")
-      # We might need to rely on contrast length or levels in design matrix columns
-      group_col <- names(attr(design, "contrasts"))[1] # Another guess
-      if(is.null(group_col)) stop("Cannot determine grouping column.")
-    }
-    
-    
-  } else if ("seurat_obj" %in% names(dot_args)) {
-    if (verbose) message("Preparing pseudo-bulk data using prepare_pseudobulk_edgeR...")
-    # Check if necessary args for prepare_pseudobulk_edgeR are present
-    req_args_prep <- c("seurat_obj", "sample_col", "cluster_col", "group_col")
-    if (!all(req_args_prep %in% names(dot_args))) {
-      stop("Seurat 객체를 사용할 경우, 다음 인수가 필요합니다: ", paste(req_args_prep, collapse=", "))
-    }
-    # Prepare data using the helper function
-    prep_data <- do.call(prepare_pseudobulk_edgeR, c(dot_args, list(verbose = verbose)))
-    pb   <- prep_data$pb
-    meta <- prep_data$meta
-    dge  <- prep_data$dge
-    design <- prep_data$design
-    contrast_levels <- prep_data$contrast_levels
-    group_col <- dot_args$group_col # Get group_col from input args
-  } else {
-    stop("Seurat 객체(seurat_obj) 또는 준비된 pseudo-bulk 데이터 리스트(pb, meta, dge, design 포함)를 제공해야 합니다.")
+  # 1. Check input columns exist in metadata
+  meta_cols <- colnames(seurat_obj@meta.data)
+  required_cols <- c(sample_col, cluster_col, group_col)
+  if (!all(required_cols %in% meta_cols)) {
+    stop("다음 컬럼이 Seurat 객체 메타데이터에 없습니다: ",
+         paste(required_cols[!required_cols %in% meta_cols], collapse = ", "))
   }
   
-  # Validate contrast
-  if (missing(contrast)) stop("'contrast' 인수는 필수입니다.")
-  expected_contrast_len <- ncol(design) - (!grepl("~ 0 +|~0+", deparse(attributes(design)$terms))) # Adjust based on intercept
-  if (length(contrast) != expected_contrast_len && analysis_level == "overall") {
-    warning("제공된 contrast 길이(", length(contrast), ")가 디자인 매트릭스 컬럼 수(", ncol(design), ", 인터셉트 제외 시 ", expected_contrast_len ,")와 다를 수 있습니다. ",
-            "Contrast levels: ", paste(contrast_levels, collapse=", "), "; Design columns: ", paste(colnames(design), collapse=", "))
+  # Ensure group_col is a factor for reliable level ordering
+  seurat_obj@meta.data[[group_col]] <- factor(seurat_obj@meta.data[[group_col]])
+  
+  # 2. Aggregate Expression
+  if (verbose) message("1. Aggregating expression to pseudo-bulk...")
+  pb <- AggregateExpression(
+    seurat_obj,
+    assays = assay,
+    slot = slot,
+    group.by = c(sample_col, cluster_col),
+    return.seurat = FALSE
+  )[[assay]] # Get the specific assay matrix
+  
+  if (nrow(pb) == 0 || ncol(pb) == 0) {
+    stop("AggregateExpression 결과 pseudo-bulk 매트릭스가 비어있습니다. group.by 컬럼들을 확인하세요.")
   }
   
+  # 3. Create Metadata for pseudo-bulk samples
+  if (verbose) message("2. Creating metadata for pseudo-bulk samples...")
+  # Determine separator based on column names (Seurat sometimes changes _)
+  col_example <- colnames(pb)[1]
+  sep <- ifelse(grepl("_", col_example), "_", "-") # Check if underscore exists
   
-  # --- Perform DEG based on analysis level ---
+  meta_pb <- tryCatch({
+    tibble(pb_sample_id = colnames(pb)) %>%
+      tidyr::separate(pb_sample_id, into = c("patient", "ctype"), sep = sep, extra = "merge", remove = FALSE)
+  }, error = function(e) {
+    stop("Pseudo-bulk 컬럼 이름 ('", col_example, "')을 'patient'", sep, "'ctype' 형태로 분리할 수 없습니다. ",
+         "AggregateExpression의 group.by 순서나 컬럼 내용을 확인하세요. 에러: ", e$message)
+  })
   
-  results <- NULL
+  # Modify this section:
+  # Map group information from original Seurat metadata
+  # sample_group_map 생성 로직 수정 시작
   
-  if (analysis_level == "overall") {
-    if (verbose) message("Performing 'overall' DEG analysis...")
-    # Use the already prepared dge and design
-    dge <- estimateDisp(dge, design)
-    fit <- glmQLFit(dge, design)
-    qlf <- glmQLFTest(fit, contrast = contrast)
-    results <- topTags(qlf, n = Inf)$table %>%
-      rownames_to_column("gene") %>%
-      tibble()
-    if (verbose) message("  Overall analysis complete. Found ", nrow(results), " genes.")
-    
-  } else if (analysis_level == "per_cluster" || analysis_level == "specific_cluster") {
-    
-    target_clusters_determination_code = { # Encapsulate this logic
-      # 입력된 target_cluster를 정리합니다.
-      target_cluster_cleaned <- trimws(as.character(target_cluster))
-      
-      # !!! 중요: AggregateExpression의 출력 형식(하이픈 사용)에 맞추기 위해
-      # target_cluster 값의 밑줄(_)을 하이픈(-)으로 변경합니다.
-      target_cluster_normalized <- gsub("_", "-", target_cluster_cleaned)
-      
-      # meta 데이터의 ctype 값들을 정리하고 고유한 값을 찾습니다.
-      all_meta_ctypes_cleaned <- trimws(as.character(meta$ctype))
-      unique_meta_ctypes_cleaned <- unique(all_meta_ctypes_cleaned)
-      
-      if (verbose) {
-        message("Debug run_pseudobulk_deg: Original target_cluster supplied (cleaned): '", target_cluster_cleaned, "'")
-        message("Debug run_pseudobulk_deg: Normalized target_cluster for matching (hyphenated): '", target_cluster_normalized, "'")
-        message("Debug run_pseudobulk_deg: Cleaned unique ctype values in meta for checking: '", paste(sort(unique_meta_ctypes_cleaned), collapse="', '"), "'")
+  # 원본 메타데이터에서 sample_col과 group_col을 가져옵니다.
+  # Ensure sample_col in original_meta_subset is character and trimmed
+  original_meta_subset <- seurat_obj@meta.data %>%
+    dplyr::select(dplyr::all_of(c(sample_col, group_col))) %>% # Removed cluster_col unless needed for debugging here
+    dplyr::mutate(!!rlang::sym(sample_col) := trimws(as.character(.data[[sample_col]])))
+  
+  # Apply g-prefixing logic consistently to sample_col in original_meta_subset
+  needs_g_prefix_flags <- grepl("^[0-9]+$", original_meta_subset[[sample_col]]) &
+    !startsWith(original_meta_subset[[sample_col]], "g")
+  
+  if (any(needs_g_prefix_flags) && verbose) {
+    message("Debug (prepare_pseudobulk_edgeR): Applying 'g' prefix to numeric-like values in '", sample_col, "' for sample_group_map creation.")
+  }
+  original_meta_subset[[sample_col]][needs_g_prefix_flags] <- paste0("g", original_meta_subset[[sample_col]][needs_g_prefix_flags])
+  
+  # Check for samples mapped to multiple distinct groups, which is problematic
+  sample_to_multiple_groups_check <- original_meta_subset %>%
+    dplyr::group_by(!!rlang::sym(sample_col)) %>%
+    dplyr::summarise(n_distinct_groups = dplyr::n_distinct(!!rlang::sym(group_col)), .groups = "drop") %>%
+    dplyr::filter(n_distinct_groups > 1)
+  
+  if(nrow(sample_to_multiple_groups_check) > 0 && verbose) {
+    warning("prepare_pseudobulk_edgeR: Multiple distinct groups (in '", group_col,
+            "') found for the same sample ID (in '", sample_col, "') in input Seurat object. Affected sample(s): ",
+            paste(utils::head(sample_to_multiple_groups_check[[sample_col]], 5), collapse=", "),
+            ". This can lead to ambiguous group assignments. `sample_group_map` will use the first encountered group for each such sample.")
+  }
+  
+  # Create sample_group_map, ensuring one group per sample_col value
+  sample_group_map <- original_meta_subset %>%
+    dplyr::select(!!rlang::sym(sample_col), !!rlang::sym(group_col)) %>%
+    dplyr::distinct(!!rlang::sym(sample_col), .keep_all = TRUE) # Critical: ensures one row per sample_col
+  
+  if (verbose) {
+    message("Debug (prepare_pseudobulk_edgeR): `sample_group_map` created with ", nrow(sample_group_map), " unique '", sample_col, "' entries.")
+    # message("Debug (prepare_pseudobulk_edgeR): Head of sample_group_map:\n", paste(utils::capture.output(utils::head(sample_group_map)), collapse="\n"))
+    # message("Debug (prepare_pseudobulk_edgeR): Head of meta_pb before join (patient column):\n", paste(utils::capture.output(utils::head(meta_pb[, "patient", drop=FALSE])), collapse="\n"))
+  }
+  # sample_group_map 생성 로직 수정 끝
+  
+  # join 키 설정: meta_pb의 'patient' 컬럼과 sample_group_map의 'sample_col'
+  join_key_map <- stats::setNames(sample_col, "patient") # meta_pb$patient = sample_group_map[[sample_col]]
+  
+  # Perform the join. If `sample_group_map` is correctly unique by `sample_col`,
+  # this should be a many-meta_pb-rows-to-one-sample_group_map-row relationship
+  meta_pb_joined <- meta_pb %>%
+    dplyr::left_join(sample_group_map, by = join_key_map #, relationship = "many-to-one" # Can be explicit if dplyr version supports
+    )
+  
+  meta_pb <- meta_pb_joined # Replace original meta_pb
+  
+  # ---- 디버깅을 위한 추가 출력 (기존과 동일하거나 유사하게 유지) ----
+  if (sum(is.na(meta_pb[[group_col]]))) {
+    message("Debug: WARNING - Group mapping resulted in NAs for some pseudo-bulk samples AFTER join modifications.")
+    failed_patients <- meta_pb %>% dplyr::filter(is.na(!!rlang::sym(group_col))) %>% dplyr::pull(patient) %>% unique()
+    message("Debug: Patient IDs from aggregated names (meta_pb$patient) that failed to map to a group: ", paste(utils::head(failed_patients, 10), collapse=", "))
+    # Further debugging: check if these failed_patients exist in sample_group_map[[sample_col]]
+    if (verbose && length(failed_patients) > 0) {
+      unmapped_in_sgm <- setdiff(failed_patients, sample_group_map[[sample_col]])
+      if (length(unmapped_in_sgm) > 0) {
+        message("Debug: Of these failed patients, the following were NOT found in the prepared sample_group_map[['",sample_col,"']]: ", paste(utils::head(unmapped_in_sgm, 5), collapse=", "))
       }
-      
-      # (이전 디버깅 코드 - 필요시 유지)
-      # Detailed check for the specific problematic value
-      if (target_cluster_normalized == "Monocyte-Macrophage") { # Or whatever the problematic one is
-        # ... (이전 디버깅 메시지들) ...
+      mapped_but_NA_group <- intersect(failed_patients, sample_group_map[[sample_col]][is.na(sample_group_map[[group_col]])])
+      if (length(mapped_but_NA_group) > 0) {
+        message("Debug: Of these failed patients, the following WERE found in sample_group_map but had an NA '",group_col,"' value: ", paste(utils::head(mapped_but_NA_group, 5), collapse=", "))
       }
-      
-      # 정규화된 target_cluster_normalized 값을 사용하여 비교합니다.
-      if (!target_cluster_normalized %in% unique_meta_ctypes_cleaned) {
-        stop("지정된 'target_cluster' (정규화 후: '", target_cluster_normalized, 
-             "')가 메타데이터의 ctype 컬럼에 없습니다. 확인된 ctype 값 (정리 후): '", 
-             paste(sort(unique_meta_ctypes_cleaned), collapse="', '"), "'")
-      }
-      target_cluster_normalized # 정규화된 값 반환
-    }
-    
-    target_clusters <- if (analysis_level == "specific_cluster") {
-      if (is.null(target_cluster)) stop("'specific_cluster' 분석 시 'target_cluster'를 지정해야 합니다.")
-      eval(target_clusters_determination_code)
-    } else {
-      all_meta_ctypes_cleaned <- trimws(as.character(meta$ctype))
-      # "per_cluster" 모드에서는 모든 ctype 이름이 이미 AggregateExpression의 출력 형식을 따르므로
-      # 추가적인 gsub은 필요하지 않습니다. unique()만 적용합니다.
-      unique(all_meta_ctypes_cleaned)
-    }
-    
-    if (verbose) message("Performing analysis for cluster(s): ", paste(target_clusters, collapse=", "))
-    
-    res_list <- list()
-    
-    for (cl in target_clusters) {
-      if (verbose) message("  Processing cluster: ", cl)
-      ix <- meta$ctype == cl
-      if (sum(ix) == 0) {
-        warning("클러스터 '", cl, "'에 해당하는 pseudo-bulk 샘플이 없습니다. 건너<0xEB>니다.")
-        next
-      }
-      pb_sub <- pb[, ix, drop = FALSE]
-      md_sub <- meta[ix, , drop = FALSE]
-      
-      # Check for sufficient samples per group within the cluster
-      sample_counts <- md_sub %>% count(!!sym(group_col))
-      if(any(sample_counts$n < min_samples_per_group_cluster)) {
-        warning("클러스터 '", cl, "'는 그룹별 최소 샘플 수(", min_samples_per_group_cluster, ")를 만족하지 못합니다: ",
-                paste(sample_counts[[group_col]], "=", sample_counts$n, collapse=", "), ". 건너<0xEB>니다.")
-        next
-      }
-      # Ensure group is factor with all original levels for consistent design matrix structure
-      md_sub[[group_col]] <- factor(md_sub[[group_col]], levels = contrast_levels)
-      
-      
-      # 1) DGEList (subsetted)
-      dge_sub <- DGEList(counts = pb_sub, group = md_sub[[group_col]], samples = md_sub)
-      
-      # 2) Filtering & Normalization (on subset)
-      # Use design matrix appropriate for this subset comparison
-      # Create design formula dynamically, preferring no intercept for within-cluster
-      formula_sub_str <- paste("~", group_col) # Or use ~ 0 + group_col if preferred
-      design_sub <- tryCatch({
-        model.matrix(as.formula(formula_sub_str), data = md_sub)
-      }, error = function(e) {
-        warning("클러스터 '", cl, "'에 대한 디자인 매트릭스 생성 실패: ", e$message, ". 건너<0xEB>니다.")
-        return(NULL) # Return NULL to skip this cluster
-      })
-      
-      if(is.null(design_sub)) next # Skip if design matrix failed
-      
-      colnames(design_sub) <- make.names(colnames(design_sub)) # Clean names
-      
-      keep_sub <- filterByExpr(dge_sub, design = design_sub, group = md_sub[[group_col]], min.count = min_count) # Use design here
-      if (verbose) message("    - Filtering for '", cl, "': Kept ", sum(keep_sub), " out of ", nrow(dge_sub), " genes.")
-      if(sum(keep_sub) == 0) {
-        warning("클러스터 '", cl, "'에서 filterByExpr 후 남은 유전자가 없습니다. 건너<0xEB>니다.")
-        next
-      }
-      dge_sub <- dge_sub[keep_sub, , keep.lib.sizes = FALSE]
-      dge_sub <- calcNormFactors(dge_sub)
-      
-      # Validate contrast for subset design matrix
-      expected_contrast_len_sub <- ncol(design_sub) - (!grepl("~ 0 +|~0+", deparse(attributes(design_sub)$terms)))
-      if (length(contrast) != expected_contrast_len_sub) {
-        warning("클러스터 '", cl, "' 분석에서 contrast 길이(", length(contrast), ")가 디자인 매트릭스 컬럼 수(", ncol(design_sub), ", 인터셉트 고려 시 ", expected_contrast_len_sub,")와 다를 수 있습니다. ",
-                "Design columns: ", paste(colnames(design_sub), collapse=", "))
-        # Attempt to create contrast dynamically if possible (e.g., for treatment vs control)
-        # This requires knowing which columns correspond to which groups, which can be complex.
-        # For now, rely on user providing correct contrast based on levels and formula.
-      }
-      
-      
-      # 3) Dispersion Estimation & Fit (on subset)
-      dge_sub <- tryCatch({
-        estimateDisp(dge_sub, design_sub)
-      }, warning = function(w){
-        warning("Dispersion estimation 경고 (클러스터 ", cl,"): ", w$message)
-        # Try robust estimation if default fails or gives warning (sometimes helps)
-        message("    - Robust dispersion estimation 시도 중...")
-        estimateDisp(dge_sub, design_sub, robust=TRUE)
-      }, error = function(e){
-        warning("Dispersion estimation 에러 (클러스터 ", cl,"): ", e$message, ". 건너<0xEB>니다.")
-        return(NULL)
-      })
-      
-      if(is.null(dge_sub)) next # Skip if dispersion failed
-      
-      fit_sub <- tryCatch({
-        glmQLFit(dge_sub, design_sub)
-      }, error = function(e){
-        warning("glmQLFit 에러 (클러스터 ", cl, "): ", e$message, ". 건너<0xEB>니다.")
-        return(NULL)
-      })
-      
-      if(is.null(fit_sub)) next # Skip if fit failed
-      
-      # 4) QL F-Test (on subset)
-      qlf_sub <- tryCatch({
-        glmQLFTest(fit_sub, contrast = contrast)
-      }, error = function(e){
-        warning("glmQLFTest 에러 (클러스터 ", cl, "): ", e$message, ". 건너<0xEB>니다.")
-        return(NULL)
-      })
-      
-      if(is.null(qlf_sub)) next # Skip if test failed
-      
-      # 5) Results
-      res_sub <- topTags(qlf_sub, n = Inf)$table %>%
-        rownames_to_column("gene") %>%
-        mutate(cluster = cl, .before = 1) %>%
-        tibble()
-      
-      res_list[[cl]] <- res_sub
-      if (verbose) message("    - Cluster '", cl, "' analysis complete. Found ", nrow(res_sub), " genes.")
-      
-    } # end for loop over clusters
-    
-    if (length(res_list) > 0) {
-      results <- bind_rows(res_list)
-    } else {
-      warning("분석 수준 '", analysis_level, "'에 대한 결과를 생성하지 못했습니다.")
-      results <- tibble() # Return empty tibble
     }
     
   } else {
-    stop("알 수 없는 analysis_level 입니다: ", analysis_level)
+    if (verbose) message("Debug (prepare_pseudobulk_edgeR): Group mapping appears successful for all pseudo-bulk samples after join modifications (no NAs introduced in group column).")
   }
   
-  return(results)
+  # Ensure factor levels are consistent and set reference level if needed (optional, depends on formula)
+  # This re-factors based on levels from original Seurat object's group_col,
+  # which might not match the actual levels present in meta_pb[[group_col]] if some groups are absent.
+  # It's generally safer to factor based on actual values in meta_pb[[group_col]]
+  # and ensure the reference level is set correctly if the design formula implies one.
+  # The `cluster_pseudobulk_deg` already factors `temp_group_col` with GROUP2_REFERENCE as the ref.
+  # Here, we just need to ensure it's a factor.
+  if (!is.factor(meta_pb[[group_col]])) {
+    meta_pb[[group_col]] <- factor(meta_pb[[group_col]])
+  }
+  # If a specific reference level from the original data is needed for other reasons:
+  # meta_pb[[group_col]] <- factor(meta_pb[[group_col]], levels = levels(seurat_obj@meta.data[[group_col]]))
+  
+  
+  # Make sure row order of meta_pb matches column order of pb
+  meta_pb <- meta_pb[match(colnames(pb), meta_pb$pb_sample_id),]
+  
+  # Replace `rownames(meta_pb) <- meta_pb$pb_sample_id` to avoid deprecation warning
+  if ("pb_sample_id" %in% colnames(meta_pb)) {
+    meta_pb <- tibble::column_to_rownames(meta_pb, var = "pb_sample_id")
+  } else if (verbose) {
+    warning("prepare_pseudobulk_edgeR: 'pb_sample_id' column not found in meta_pb after join. Cannot set rownames for DGEList samples.")
+  }
+  
+  # 4. Prepare for edgeR
+  if (verbose) message("3. Preparing DGEList and design matrix...")
+  dge <- DGEList(counts = pb, group = meta_pb[[group_col]], samples = meta_pb)
+  
+  # Filtering
+  keep <- filterByExpr(dge, group = meta_pb[[group_col]], min.count = min_count)
+  if (verbose) message("   - Filtering: Kept ", sum(keep), " out of ", nrow(dge), " genes.")
+  if (sum(keep) == 0) {
+    warning("filterByExpr 결과 남은 유전자가 없습니다. min.count 값을 낮추거나 데이터를 확인하세요.")
+  }
+  dge <- dge[keep, , keep.lib.sizes = FALSE]
+  
+  # Normalization
+  dge <- calcNormFactors(dge, method = norm_method)
+  
+  # Design Matrix
+  contrast_levels <- levels(meta_pb[[group_col]])
+  if (is.null(design_formula)) {
+    # Default design: ~ group_col (intercept + group effects)
+    formula_str <- paste("~", group_col)
+  } else {
+    # User-provided formula string (replace 'group_col' placeholder if present)
+    formula_str <- gsub("group_col", group_col, deparse(design_formula))
+  }
+  
+  design <- tryCatch({
+    model.matrix(as.formula(formula_str), data = meta_pb)
+  }, error = function(e) {
+    stop("디자인 매트릭스 생성 실패: ", e$message,
+         "\n   Formula: ", formula_str,
+         "\n   Metadata head:\n", paste(utils::capture.output(head(meta_pb)), collapse="\n"))
+  })
+  
+  # Clean up design matrix column names (remove backticks or invalid chars)
+  colnames(design) <- make.names(colnames(design))
+  
+  if (verbose) message("4. Preparation complete.")
+  
+  return(list(
+    pb = pb,
+    meta = meta_pb,
+    dge = dge,
+    design = design,
+    contrast_levels = contrast_levels
+  ))
 }
-
 
 #' Pseudo-bulk Differential Gene Expression Analysis
 #'
@@ -648,18 +527,81 @@ run_pseudobulk_deg <- function(analysis_level = c("overall", "per_cluster", "spe
   dot_args <- list(...)
   
   # --- 1. 데이터 준비 (prepare_pseudobulk_edgeR 호출 또는 기존 데이터 사용) ---
-  if (all(c("pb", "meta", "dge", "design", "contrast_levels") %in% names(dot_args))) {
-    if (verbose) message("Using pre-prepared pseudo-bulk data.")
-    prep_data <- dot_args
+  # <<< START MODIFIED SECTION >>>
+  prep_data <- NULL
+  group_col <- NULL
+  
+  if ("prepared_data" %in% names(dot_args) &&
+      is.list(dot_args$prepared_data) &&
+      all(c("pb", "meta", "dge", "design", "contrast_levels") %in% names(dot_args$prepared_data))) {
+    
+    if (verbose) message("Using explicitly provided 'prepared_data' argument.")
+    prep_data <- dot_args$prepared_data
+    # Extract necessary components from prep_data
     pb   <- prep_data$pb
-    meta <- prep_data$meta # 이 meta는 prepare_pseudobulk_edgeR의 meta_pb임
+    meta <- prep_data$meta # This meta is meta_pb from prepare_pseudobulk_edgeR
     dge  <- prep_data$dge
     design <- prep_data$design
     contrast_levels <- prep_data$contrast_levels
-    group_col <- setdiff(colnames(meta), c("pb_sample_id", "patient", "ctype"))[1]
+    
+    # Determine group_col from the design formula or meta structure
+    # This logic attempts to find the name of the grouping column used to create the design matrix.
+    # It's often the primary variable in the design formula (excluding intercept).
+    formula_terms <- try(terms(design), silent = TRUE) # Get terms from design matrix attributes
+    if (inherits(formula_terms, "try-error") || is.null(attr(formula_terms, "term.labels"))) {
+      # Fallback: try to infer from meta columns (excluding known ones)
+      group_col_inferred <- setdiff(colnames(meta), c("pb_sample_id", "patient", "ctype"))[1]
+      if (length(group_col_inferred) == 1 && nzchar(group_col_inferred) && group_col_inferred %in% colnames(meta)) {
+        group_col <- group_col_inferred
+        if (verbose) message("Inferred 'group_col' from meta structure: ", group_col)
+      } else {
+        stop("Cannot reliably determine grouping column from 'prepared_data$design' attributes or 'prepared_data$meta' structure.")
+      }
+    } else {
+      term_labels <- attr(formula_terms, "term.labels")
+      # Remove interactions or function calls to get base variable names
+      term_labels_cleaned <- gsub("factor\\((.*?)\\)", "\\1", term_labels) # Remove factor()
+      term_labels_cleaned <- gsub(":.*", "", term_labels_cleaned) # Remove interaction terms part
+      term_labels_cleaned <- unique(term_labels_cleaned)
+      
+      # Try to find a match in meta columns
+      possible_group_cols <- intersect(term_labels_cleaned, colnames(meta))
+      if (length(possible_group_cols) == 1) {
+        group_col <- possible_group_cols[1]
+        if (verbose) message("Determined 'group_col' from design formula: ", group_col)
+      } else if (length(possible_group_cols) > 1) {
+        group_col <- possible_group_cols[1] # Default to the first one if multiple
+        if (verbose) message("Multiple possible 'group_col's from design formula (", paste(possible_group_cols, collapse=", "), "), using first: ", group_col)
+      } else {
+        # If still not found, use the previous fallback
+        group_col_inferred <- setdiff(colnames(meta), c("pb_sample_id", "patient", "ctype"))[1]
+        if (length(group_col_inferred) == 1 && nzchar(group_col_inferred) && group_col_inferred %in% colnames(meta)) {
+          group_col <- group_col_inferred
+          if (verbose) message("Inferred 'group_col' from meta structure (fallback): ", group_col)
+        } else {
+          stop("Cannot determine grouping column from 'prepared_data'. Ensure design matrix attributes are set or meta structure is as expected.")
+        }
+      }
+    }
+    if (is.null(group_col) || !group_col %in% colnames(meta)) {
+      stop(paste0("Failed to determine a valid 'group_col' from 'prepared_data' that exists in 'prepared_data$meta'. Determined: '",
+                  ifelse(is.null(group_col), "NULL", group_col), "'. Meta columns: ", paste(colnames(meta), collapse=", ")))
+    }
+    
+    
+  } else if (all(c("pb", "meta", "dge", "design", "contrast_levels") %in% names(dot_args))) {
+    # This case is when pb, meta, etc., are passed as top-level arguments in ...
+    if (verbose) message("Using pre-prepared pseudo-bulk data components passed directly via ...")
+    prep_data <- dot_args # The whole dot_args is the list of components
+    pb   <- prep_data$pb
+    meta <- prep_data$meta
+    dge  <- prep_data$dge
+    design <- prep_data$design
+    contrast_levels <- prep_data$contrast_levels
+    group_col <- setdiff(colnames(meta), c("pb_sample_id", "patient", "ctype"))[1] # Best guess
     if(length(group_col) != 1 || !group_col %in% colnames(meta)) {
-      group_col <- names(attr(design, "contrasts"))[1]
-      if(is.null(group_col)) stop("Cannot determine grouping column from pre-prepared data.")
+      group_col <- names(attr(design, "contrasts"))[1] # Another guess
+      if(is.null(group_col)) stop("Cannot determine grouping column from direct components.")
     }
   } else if ("seurat_obj" %in% names(dot_args)) {
     if (verbose) message("Preparing pseudo-bulk data using prepare_pseudobulk_edgeR...")
@@ -667,21 +609,23 @@ run_pseudobulk_deg <- function(analysis_level = c("overall", "per_cluster", "spe
     if (!all(req_args_prep %in% names(dot_args))) {
       stop("Seurat 객체를 사용할 경우, 다음 인수가 필요합니다: ", paste(req_args_prep, collapse=", "))
     }
-    # min_count도 dot_args를 통해 prepare_pseudobulk_edgeR로 전달될 수 있음
+    group_col <- dot_args$group_col # Crucial: get group_col for prepare_pseudobulk_edgeR
+    
     all_args_for_prep <- c(dot_args, list(verbose = verbose))
-    if (!"min_count" %in% names(all_args_for_prep)) { # 만약 ...에 min_count가 없다면 함수 기본값 사용
-      all_args_for_prep$min_count <- formals(prepare_pseudobulk_edgeR)$min_count 
+    # Pass min_count from run_pseudobulk_deg to prepare_pseudobulk_edgeR if not already in dot_args
+    if (!"min_count" %in% names(all_args_for_prep)) {
+      all_args_for_prep$min_count <- min_count # Use min_count from run_pseudobulk_deg's signature
     }
     
-    prep_data <- do.call(prepare_pseudobulk_edgeR, all_args_for_prep)
-    pb   <- prep_data$pb
-    meta <- prep_data$meta
-    dge  <- prep_data$dge
-    design <- prep_data$design
-    contrast_levels <- prep_data$contrast_levels
-    group_col <- dot_args$group_col
+    prep_data_list_internal <- do.call(prepare_pseudobulk_edgeR, all_args_for_prep)
+    pb   <- prep_data_list_internal$pb
+    meta <- prep_data_list_internal$meta
+    dge  <- prep_data_list_internal$dge
+    design <- prep_data_list_internal$design
+    contrast_levels <- prep_data_list_internal$contrast_levels
+    # group_col is already defined from dot_args$group_col for this path
   } else {
-    stop("Seurat 객체(seurat_obj) 또는 준비된 pseudo-bulk 데이터 리스트(pb, meta, dge, design 포함)를 제공해야 합니다.")
+    stop("Seurat 객체(seurat_obj) 또는 준비된 pseudo-bulk 데이터 리스트('prepared_data' argument or direct components)를 제공해야 합니다.")
   }
   
   if (missing(contrast)) stop("'contrast' 인수는 필수입니다.")
@@ -837,6 +781,9 @@ run_pseudobulk_deg <- function(analysis_level = c("overall", "per_cluster", "spe
   
   return(results)
 }
+
+
+
 
 
 #' @title 유전자 발현 데이터에 대한 그룹별 또는 전체 선형 회귀 분석 수행 (최적화됨)
@@ -1238,4 +1185,536 @@ post_hoc_slope_comparison <- function(results_df,
   
   
   return(final_adjusted_results)
+}
+
+
+#' Identify Cluster Markers using Pseudo-bulk DEG
+#'
+#' This function identifies marker genes for specified clusters by performing
+#' pseudo-bulk differential expression analysis. It is similar to Seurat's
+#' FindMarkers/FindAllMarkers but uses a pseudo-bulk approach based on edgeR
+#' or t-tests.
+#'
+#' @param sobj A Seurat object.
+#' @param sample_col Character string. The column name in `sobj@meta.data` that
+#'   identifies individual biological samples/replicates. This is crucial for
+#'   forming pseudo-bulks.
+#' @param group.by Character string. The metadata column to use for defining clusters
+#'   (e.g., "seurat_clusters"). Default is "seurat_clusters".
+#' @param assay Character string. Assay to use. If NULL, uses DefaultAssay(sobj).
+#' @param layer Character string. Layer to use from the assay (Seurat v5).
+#'   Default is "data". If using Seurat v3/4, consider using the `slot` argument.
+#' @param slot Character string. Slot to use from the assay (Seurat v3/v4).
+#'   If `layer` is also provided, `layer` takes precedence. If NULL and `layer` is also NULL,
+#'   defaults to "data" for `pct.1`/`pct.2` and "counts" for DEG methods.
+#' @param features Character vector. Genes to test. If NULL, tests all genes.
+#' @param ident.1 Character or NULL. Identity of the first group. If NULL,
+#'   finds markers for all clusters against the rest (like FindAllMarkers).
+#' @param ident.2 Character or NULL. Identity of the second group. If NULL and
+#'   `ident.1` is specified, `ident.1` is compared against all other clusters.
+#' @param logfc.threshold Numeric. Limit testing to genes which show, on average,
+#'   at least X-fold difference (log-scale). Default is 0.1.
+#' @param test.use Character. Statistical test to use. Options are "wilcox" (uses
+#'   edgeR via `run_pseudobulk_deg`) or "t-test" (performs t-tests on pseudo-bulk averages).
+#'   Default is "wilcox".
+#' @param min.pct Numeric. Only test genes that are detected in a minimum fraction
+#'   of cells in either of the two populations. Default is 0.1.
+#' @param min.diff.pct Numeric. Only test genes that show a minimum difference in
+#'   the fraction of detection between the two groups. Default is -Inf (no filter).
+#' @param only.pos Logical. Only return positive markers (positive avg_log2FC). Default is FALSE.
+#' @param norm_method_edgeR Character. Normalization method for edgeR if `test.use = "wilcox"`.
+#'   Default is "TMM". Passed to `prepare_pseudobulk_edgeR`.
+#' @param min_count_edgeR Numeric. Minimum count for `filterByExpr` if `test.use = "wilcox"`.
+#'   Default is 10. Passed to `prepare_pseudobulk_edgeR`.
+#' @param p_adjust_method Character. Method for p-value adjustment (e.g., "BH", "bonferroni"). Default is "BH".
+#' @param verbose Logical. Print progress messages. Default is TRUE.
+#' @param ... Additional arguments passed to downstream functions if any (currently not extensively used).
+#'
+#' @return A data frame (or a list of data frames if `ident.1` is NULL and multiple
+#'   clusters are tested) containing marker genes, log2 fold changes, p-values,
+#'   adjusted p-values, and percentage of cells expressing the gene in each group.
+#'   The columns are named to be similar to Seurat's `FindMarkers` output.
+#'
+#' @importFrom Seurat DefaultAssay GetAssayData Idents AggregateExpression
+#' @importFrom dplyr %>% filter select mutate rename group_by summarise arrange bind_rows left_join distinct
+#' @importFrom tibble tibble rownames_to_column column_to_rownames
+#' @importFrom stats p.adjust t.test shapiro.test as.formula na.omit
+#' @importFrom car leveneTest
+#' @importFrom rlang sym
+#'
+#' @export
+cluster_pseudobulk_deg <- function(sobj,
+                                   sample_col,
+                                   group.by = "seurat_clusters",
+                                   assay = NULL,
+                                   layer = "data",
+                                   slot = NULL,
+                                   features = NULL,
+                                   ident.1 = NULL,
+                                   ident.2 = NULL,
+                                   logfc.threshold = 0.1,
+                                   test.use = "wilcox",
+                                   min.pct = 0.1,
+                                   min.diff.pct = -Inf,
+                                   only.pos = FALSE,
+                                   norm_method_edgeR = "TMM",
+                                   min_count_edgeR = 10,
+                                   p_adjust_method = "BH",
+                                   verbose = TRUE,
+                                   ...) {
+  
+  # --- 0. Preliminaries & Input Checks ---
+  if (verbose) message("Starting cluster_pseudobulk_deg analysis...")
+  
+  if (!requireNamespace("Seurat", quietly = TRUE)) stop("Seurat package is required.")
+  if (!requireNamespace("dplyr", quietly = TRUE)) stop("dplyr package is required.")
+  if (test.use == "wilcox" && !requireNamespace("edgeR", quietly = TRUE)) {
+    stop("edgeR package is required for test.use = 'wilcox'.")
+  }
+  if (test.use == "t-test" && !requireNamespace("car", quietly = TRUE)) {
+    stop("car package is required for Levene's test when test.use = 't-test'.")
+  }
+  
+  if (is.null(assay)) {
+    assay <- Seurat::DefaultAssay(sobj)
+    if (verbose) message("Using default assay: ", assay)
+  }
+  if (!assay %in% Seurat::Assays(sobj)) {
+    stop("Specified assay '", assay, "' not found in Seurat object.")
+  }
+  
+  # Handle layer vs slot for Seurat version compatibility
+  # Prioritize 'layer' if provided (Seurat v5), else use 'slot'
+  data_source_param <- if (!is.null(layer)) layer else slot
+  if (is.null(data_source_param)) data_source_param <- "data" # Default if both are NULL
+  
+  # For DEG methods (edgeR/t-test), raw counts are often preferred for pseudo-bulking
+  counts_source_param <- "counts" # Typically, pseudo-bulk methods start from counts
+  
+  if (!sample_col %in% colnames(sobj@meta.data)) {
+    stop("`sample_col` '", sample_col, "' not found in Seurat object metadata.")
+  }
+  if (!group.by %in% colnames(sobj@meta.data)) {
+    stop("`group.by` column '", group.by, "' not found in Seurat object metadata.")
+  }
+  
+  # Ensure the group.by column is a factor
+  sobj@meta.data[[group.by]] <- factor(sobj@meta.data[[group.by]])
+  all_group_by_levels <- levels(sobj@meta.data[[group.by]])
+  
+  all_results_list <- list()
+  clusters_to_iterate <- NULL
+  comparison_mode <- ""
+  
+  # --- 1. Determine comparison mode and clusters to iterate ---
+  if (is.null(ident.1)) {
+    comparison_mode <- "FindAllMarkers"
+    clusters_to_iterate <- all_group_by_levels
+    if (verbose) message("Mode: FindAllMarkers. Iterating through all clusters in '", group.by, "'.")
+  } else {
+    if (!ident.1 %in% all_group_by_levels) {
+      stop("`ident.1` ('", ident.1, "') not found in `group.by` column ('", group.by, "'). Available levels: ", paste(all_group_by_levels, collapse=", "))
+    }
+    if (is.null(ident.2)) {
+      comparison_mode <- "OneVsRest"
+      clusters_to_iterate <- ident.1
+      if (verbose) message("Mode: OneVsRest. Comparing cluster '", ident.1, "' vs all others.")
+    } else {
+      if (!ident.2 %in% all_group_by_levels) {
+        stop("`ident.2` ('", ident.2, "') not found in `group.by` column ('", group.by, "'). Available levels: ", paste(all_group_by_levels, collapse=", "))
+      }
+      if(ident.1 == ident.2) stop("`ident.1` and `ident.2` cannot be the same.")
+      comparison_mode <- "GroupVsGroup"
+      clusters_to_iterate <- ident.1 # Process once for this specific comparison
+      if (verbose) message("Mode: GroupVsGroup. Comparing cluster '", ident.1, "' vs '", ident.2, "'.")
+    }
+  }
+  
+  # --- 2. Loop through target clusters for DEG ---
+  for (current_target_cluster_name in clusters_to_iterate) {
+    if (verbose) message("\nProcessing comparison for: ", current_target_cluster_name)
+    
+    # Create a temporary Seurat object or a copy of metadata for modification
+    # Using a copy of metadata is safer if sobj is large
+    temp_meta <- sobj@meta.data
+    temp_group_col <- paste0("temp_comparison_status_", make.names(Sys.time())) # Unique temp column name
+    
+    group1_label <- "GROUP1_TARGET"
+    group2_label <- "GROUP2_REFERENCE"
+    
+    label_for_ident.1_in_output <- current_target_cluster_name # This will be used for the 'cluster' column
+    label_for_ident.2_in_output <- "Rest" # Default for OneVsRest/FindAllMarkers
+    
+    if (comparison_mode == "FindAllMarkers" || comparison_mode == "OneVsRest") {
+      temp_meta[[temp_group_col]] <- ifelse(
+        temp_meta[[group.by]] == current_target_cluster_name,
+        group1_label,
+        group2_label
+      )
+    } else { # GroupVsGroup
+      # Filter cells to only those in ident.1 or ident.2 for this specific comparison
+      cells_for_comparison <- rownames(temp_meta[temp_meta[[group.by]] %in% c(ident.1, ident.2), ])
+      if (length(cells_for_comparison) == 0) {
+        warning("No cells found for ident.1 ('", ident.1, "') or ident.2 ('", ident.2, "'). Skipping this comparison.")
+        next
+      }
+      temp_meta_subset <- temp_meta[cells_for_comparison, ]
+      temp_meta_subset[[temp_group_col]] <- ifelse(
+        temp_meta_subset[[group.by]] == ident.1,
+        group1_label,
+        group2_label
+      )
+      # For GroupVsGroup, ensure we operate on the subset of cells
+      # Create a temporary sobj for this specific comparison to pass to prepare_pseudobulk_edgeR
+      sobj_for_deg <- subset(sobj, cells = cells_for_comparison)
+      sobj_for_deg@meta.data <- temp_meta_subset # Assign the modified metadata for this subset
+      
+      label_for_ident.1_in_output <- ident.1
+      label_for_ident.2_in_output <- ident.2
+    }
+    
+    # If not GroupVsGroup, use the full sobj with the added temp_group_col
+    if (comparison_mode != "GroupVsGroup") {
+      sobj@meta.data[[temp_group_col]] <- temp_meta[[temp_group_col]]
+      sobj_for_deg <- sobj
+    }
+    
+    # Ensure temp_group_col is a factor with REFERENCE as the first level for edgeR contrast
+    # If GROUP1 is target, GROUP2 should be reference.
+    sobj_for_deg@meta.data[[temp_group_col]] <- factor(sobj_for_deg@meta.data[[temp_group_col]], levels = c(group2_label, group1_label))
+    
+    deg_results_final_for_loop <- NULL
+    
+    # --- 3. Perform DEG ---
+    if (test.use == "wilcox") { # Assuming "wilcox" implies using the edgeR backend from run_pseudobulk_deg
+      if (verbose) message("  Using edgeR via run_pseudobulk_deg...")
+      
+      # Check for sufficient samples in each group within temp_group_col *after pseudo-bulking*
+      # This is implicitly handled by prepare_pseudobulk_edgeR's internal checks or edgeR itself.
+      # We can add an explicit check if needed on the output of prepare_pseudobulk_edgeR$meta.
+      
+      # Prepare data for edgeR
+      # `cluster_col` in `prepare_pseudobulk_edgeR` should be the original `group.by`
+      # to form pseudo-bulks per original cluster before grouping them into GROUP1/GROUP2.
+      # This ensures that the variability within original clusters is part of the pseudo-bulk.
+      prep_args <- list(
+        seurat_obj = sobj_for_deg,
+        assay = assay,
+        slot = counts_source_param,
+        sample_col = sample_col,       # True biological sample ID
+        cluster_col = group.by,        # Original clusters/groups specified by user
+        group_col = temp_group_col,    # This is our GROUP1 vs GROUP2 comparison column
+        min_count = min_count_edgeR,
+        norm_method = norm_method_edgeR,
+        design_formula = as.formula(paste("~", temp_group_col)),
+        verbose = FALSE
+      )
+      
+      prepared_data_for_deg <- tryCatch(
+        do.call(prepare_pseudobulk_edgeR, prep_args),
+        error = function(e) {
+          message("    Error in prepare_pseudobulk_edgeR for ", current_target_cluster_name, ": ", e$message)
+          return(NULL)
+        }
+      )
+      
+      if (is.null(prepared_data_for_deg)) next # Skip if preparation failed
+      
+      # --- Enhanced Check for Sample Distribution Before DEG ---
+      grouping_col_in_meta_pb <- temp_group_col # This is "GROUP1_TARGET" / "GROUP2_REFERENCE" column
+      patient_col_in_meta_pb <- "patient"     # As defined in prepare_pseudobulk_edgeR's separate step
+      
+      if (!grouping_col_in_meta_pb %in% colnames(prepared_data_for_deg$meta)) {
+        message("    CRITICAL WARNING for '", current_target_cluster_name,
+                "': Expected comparison grouping column '", grouping_col_in_meta_pb,
+                "' NOT FOUND in pseudo-bulk metadata (prepared_data_for_deg$meta). Available columns: ",
+                paste(colnames(prepared_data_for_deg$meta), collapse=", "),
+                ". This indicates a problem in `prepare_pseudobulk_edgeR` or how `temp_group_col` was defined/passed.",
+                " Skipping DEG for this cluster.")
+        if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL # Cleanup
+        next
+      }
+      if (!patient_col_in_meta_pb %in% colnames(prepared_data_for_deg$meta)) {
+        message("    CRITICAL WARNING for '", current_target_cluster_name,
+                "': Expected patient identifier column '", patient_col_in_meta_pb,
+                "' NOT FOUND in pseudo-bulk metadata (prepared_data_for_deg$meta). Available columns: ",
+                paste(colnames(prepared_data_for_deg$meta), collapse=", "),
+                ". Cannot reliably check sample counts per group. Skipping DEG for this cluster to be safe.")
+        if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL # Cleanup
+        next
+      }
+      
+      sample_counts_per_comparison_group <- prepared_data_for_deg$meta %>%
+        dplyr::group_by(!!rlang::sym(grouping_col_in_meta_pb)) %>%
+        dplyr::summarise(
+          n_pseudo_bulks = dplyr::n(),
+          n_unique_samples = dplyr::n_distinct(!!rlang::sym(patient_col_in_meta_pb)),
+          .groups = "drop"
+        )
+      
+      min_reps_needed_per_group <- 2 # Standard minimum for edgeR comparisons
+      
+      if (verbose) {
+        message("    Pseudo-bulk sample distribution for comparison involving '", label_for_ident.1_in_output,
+                "' (vs '", label_for_ident.2_in_output, "'):")
+        print(sample_counts_per_comparison_group)
+      }
+      
+      # Check 1: Are there at least two groups to compare? (e.g., GROUP1_TARGET and GROUP2_REFERENCE)
+      if (nrow(sample_counts_per_comparison_group) < 2) {
+        message("    SKIPPING DEG for '", current_target_cluster_name,
+                "': Less than two comparison groups found in pseudo-bulk data (expected ",
+                group1_label, " and ", group2_label, "; found ",
+                nrow(sample_counts_per_comparison_group), " groups: ",
+                paste(sample_counts_per_comparison_group[[grouping_col_in_meta_pb]], collapse=", "),
+                "). This might occur if the target cluster '", current_target_cluster_name,
+                "' or the 'Rest' group has no cells/samples after aggregation and filtering.")
+        if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL # Cleanup
+        next
+      }
+      
+      # Check 2: Do all present groups have enough unique biological samples?
+      if (any(sample_counts_per_comparison_group$n_unique_samples < min_reps_needed_per_group, na.rm = TRUE)) {
+        problematic_group_details <- sample_counts_per_comparison_group %>%
+          dplyr::filter(is.na(n_unique_samples) | n_unique_samples < min_reps_needed_per_group)
+        message("    SKIPPING DEG for '", current_target_cluster_name,
+                "': One or more comparison groups have fewer than ", min_reps_needed_per_group,
+                " unique biological samples (derived from '", sample_col,
+                "'). This is a common cause for 'design matrix not full rank' errors in edgeR.")
+        message("    Problematic group counts for this comparison:")
+        print(problematic_group_details)
+        if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL # Cleanup
+        next
+      }
+      # --- End of Enhanced Check ---
+      
+      deg_results_raw <- tryCatch({
+        run_pseudobulk_deg(
+          analysis_level = "overall",
+          contrast = current_contrast, 
+          prepared_data = prepared_data_for_deg,
+          verbose = FALSE
+        )
+      }, error = function(e) {
+        message("    Error in run_pseudobulk_deg for ", current_target_cluster_name, ": ", e$message)
+        return(NULL)
+      })
+      
+      if (is.null(deg_results_raw) || nrow(deg_results_raw) == 0) {
+        if (verbose) message("    No DEG results from run_pseudobulk_deg for ", current_target_cluster_name)
+        # Clean up temp column before next iteration if it was added to original sobj
+        if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL
+        next
+      }
+      
+      deg_results_final_for_loop <- deg_results_raw %>%
+        dplyr::rename(avg_log2FC = logFC, p_val = PValue, p_val_adj = FDR) %>%
+        dplyr::select(gene, avg_log2FC, p_val, p_val_adj, dplyr::everything())
+      
+    } else if (test.use == "t-test") {
+      if (verbose) message("  Using t-tests on pseudo-bulk averages...")
+      
+      # 1. Create pseudo-bulks: sum counts per sample per (GROUP1/GROUP2)
+      # `AggregateExpression` sums counts by default if slot="counts"
+      pb_for_ttest <- Seurat::AggregateExpression(
+        sobj_for_deg, # This has the temp_group_col and is subsetted for GroupVsGroup
+        assays = assay,
+        slot = counts_source_param, 
+        group.by = c(sample_col, temp_group_col),
+        return.seurat = FALSE
+      )[[assay]]
+      
+      if (is.null(pb_for_ttest) || ncol(pb_for_ttest) == 0) {
+        message("    No pseudo-bulk data generated for t-test for ", current_target_cluster_name)
+        if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL
+        next
+      }
+      
+      # Create metadata for these pseudo-bulks
+      pb_meta_for_ttest <- data.frame(pb_sample_id = colnames(pb_for_ttest)) %>%
+        tidyr::separate(pb_sample_id, into = c("sample_id_temp", temp_group_col), 
+                        sep = "_", extra = "merge", remove = FALSE) %>%
+        dplyr::select(pb_sample_id, !!rlang::sym(temp_group_col))
+      
+      # Genes to test
+      genes_to_test_ttest <- if (!is.null(features)) intersect(features, rownames(pb_for_ttest)) else rownames(pb_for_ttest)
+      if (length(genes_to_test_ttest) == 0) {
+        message("    No valid features to test with t-test for ", current_target_cluster_name)
+        if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL
+        next
+      }
+      
+      pb_for_ttest_filtered <- pb_for_ttest[genes_to_test_ttest, , drop = FALSE]
+      
+      ttest_results_list <- lapply(rownames(pb_for_ttest_filtered), function(g) {
+        gene_expr_df <- data.frame(
+          expression = as.numeric(pb_for_ttest_filtered[g, ]),
+          group = pb_meta_for_ttest[[temp_group_col]]
+        )
+        
+        group1_vals <- gene_expr_df$expression[gene_expr_df$group == group1_label]
+        group2_vals <- gene_expr_df$expression[gene_expr_df$group == group2_label]
+        
+        # Ensure enough data points per group for t-test
+        if (length(group1_vals) < 2 || length(group2_vals) < 2) {
+          return(NULL)
+        }
+        
+        # Normalize (e.g., CPM or log2(CPM+1)) - edgeR does library size normalization internally
+        # For t-test on pseudo-bulk, it's common to use log-transformed normalized counts (e.g., log2(CPM+1))
+        # Here, using raw pseudo-bulk sums; consider normalization if variance is an issue.
+        # For simplicity, let's do log2(sum + 1) for FC calculation.
+        
+        logFC <- mean(log2(group1_vals + 1), na.rm = TRUE) - mean(log2(group2_vals + 1), na.rm = TRUE)
+        
+        # Levene's Test (homogeneity of variances)
+        levene_res <- car::leveneTest(expression ~ group, data = gene_expr_df)
+        levene_pval <- levene_res$"Pr(>F)"[1]
+        
+        # Shapiro-Wilk Test for normality (on each group)
+        shapiro_g1_pval <- if(length(group1_vals) >= 3) stats::shapiro.test(group1_vals)$p.value else NA
+        shapiro_g2_pval <- if(length(group2_vals) >= 3) stats::shapiro.test(group2_vals)$p.value else NA
+        
+        if (verbose) {
+          cat("  Gene:", g, "- Levene p-val:", format(levene_pval, digits=3),
+              "| Shapiro G1 p-val:", format(shapiro_g1_pval, digits=3),
+              "| Shapiro G2 p-val:", format(shapiro_g2_pval, digits=3), "\n")
+        }
+        
+        t_res <- stats::t.test(group1_vals, group2_vals, var.equal = (levene_pval > 0.05))
+        
+        data.frame(
+          gene = g,
+          avg_log2FC = logFC, # This is log2(mean(grp1)/mean(grp2)) if using geometric means, or diff of log-means
+          p_val = t_res$p.value,
+          t_statistic = t_res$statistic,
+          levene_pval = levene_pval,
+          shapiro_pval_g1 = shapiro_g1_pval,
+          shapiro_pval_g2 = shapiro_g2_pval
+        )
+      })
+      
+      deg_results_final_for_loop <- dplyr::bind_rows(ttest_results_list)
+      if (nrow(deg_results_final_for_loop) > 0) {
+        deg_results_final_for_loop$p_val_adj <- stats::p.adjust(deg_results_final_for_loop$p_val, method = p_adjust_method)
+      }
+    } else {
+      stop("Unsupported test.use method. Choose 'wilcox' (for edgeR) or 't-test'.")
+    }
+    
+    if (is.null(deg_results_final_for_loop) || nrow(deg_results_final_for_loop) == 0) {
+      if (verbose) message("    No DEG results for ", current_target_cluster_name)
+      if (comparison_mode != "GroupVsGroup") sobj@meta.data[[temp_group_col]] <- NULL
+      next
+    }
+    
+    # --- 4. Calculate pct.1 and pct.2 ---
+    # These should reflect the original cell populations, not pseudo-bulks
+    genes_for_pct_calc <- deg_results_final_for_loop$gene
+    
+    # Cells belonging to the target group (ident.1 or current_target_cluster_name)
+    cells_group1_orig <- rownames(sobj@meta.data[sobj@meta.data[[group.by]] == current_target_cluster_name, ])
+    
+    # Cells belonging to the reference group (ident.2 or "Rest")
+    if (comparison_mode == "FindAllMarkers" || comparison_mode == "OneVsRest") {
+      other_levels_for_group2 <- setdiff(all_group_by_levels, current_target_cluster_name)
+      cells_group2_orig <- rownames(sobj@meta.data[sobj@meta.data[[group.by]] %in% other_levels_for_group2, ])
+    } else { # GroupVsGroup
+      cells_group2_orig <- rownames(sobj@meta.data[sobj@meta.data[[group.by]] == ident.2, ])
+    }
+    
+    # Use the specified layer/slot for pct calculation (e.g., "data" for log-normalized, "counts" for raw)
+    assay_data_for_pct <- Seurat::GetAssayData(sobj, assay = assay, layer = data_source_param)
+    
+    # Ensure genes_for_pct_calc exist in the assay
+    genes_present_in_assay <- intersect(genes_for_pct_calc, rownames(assay_data_for_pct))
+    if(length(genes_present_in_assay) == 0) {
+      message("    No genes for pct calculation found in the assay for ", current_target_cluster_name)
+      deg_results_final_for_loop$pct.1 <- NA
+      deg_results_final_for_loop$pct.2 <- NA
+    } else {
+      data_group1_pct <- assay_data_for_pct[genes_present_in_assay, intersect(cells_group1_orig, colnames(assay_data_for_pct)), drop = FALSE]
+      data_group2_pct <- assay_data_for_pct[genes_present_in_assay, intersect(cells_group2_orig, colnames(assay_data_for_pct)), drop = FALSE]
+      
+      pct.1_values <- if(ncol(data_group1_pct) > 0) rowSums(data_group1_pct > 0) / ncol(data_group1_pct) else rep(0, length(genes_present_in_assay))
+      pct.2_values <- if(ncol(data_group2_pct) > 0) rowSums(data_group2_pct > 0) / ncol(data_group2_pct) else rep(0, length(genes_present_in_assay))
+      
+      names(pct.1_values) <- genes_present_in_assay
+      names(pct.2_values) <- genes_present_in_assay
+      
+      pct_df_for_merge <- data.frame(
+        gene = genes_present_in_assay,
+        pct.1 = pct.1_values[genes_present_in_assay],
+        pct.2 = pct.2_values[genes_present_in_assay]
+      )
+      
+      deg_results_final_for_loop <- deg_results_final_for_loop %>%
+        dplyr::left_join(pct_df_for_merge, by = "gene")
+    }
+    
+    deg_results_final_for_loop$cluster <- label_for_ident.1_in_output
+    if (comparison_mode == "GroupVsGroup") {
+      deg_results_final_for_loop$ident.2 <- label_for_ident.2_in_output
+    }
+    
+    all_results_list[[current_target_cluster_name]] <- deg_results_final_for_loop
+    
+    # Clean up temporary metadata column from the original sobj if it was modified
+    if (comparison_mode != "GroupVsGroup") {
+      sobj@meta.data[[temp_group_col]] <- NULL
+    }
+    if (verbose) message("  Finished comparison for: ", current_target_cluster_name)
+  } # End loop over clusters_to_iterate
+  
+  # --- 5. Combine results and apply final filters ---
+  if (length(all_results_list) == 0) {
+    if (verbose) message("No results generated.")
+    return(data.frame())
+  }
+  
+  final_df <- dplyr::bind_rows(all_results_list)
+  
+  # Ensure p_val_adj is present (might be missing if t-test path had issues)
+  if (!"p_val_adj" %in% names(final_df) && "p_val" %in% names(final_df)) {
+    final_df <- final_df %>%
+      dplyr::group_by(cluster) %>% # Adjust per comparison group
+      dplyr::mutate(p_val_adj = stats::p.adjust(p_val, method = p_adjust_method)) %>%
+      dplyr::ungroup()
+  }
+  
+  # Apply feature filter if provided
+  if (!is.null(features)) {
+    final_df <- final_df %>% dplyr::filter(gene %in% features)
+  }
+  
+  # Apply post-hoc filters
+  if (!is.null(final_df$avg_log2FC)) { # Check if column exists
+    final_df <- final_df %>% dplyr::filter(abs(avg_log2FC) >= logfc.threshold)
+  }
+  if (!is.null(final_df$pct.1) && !is.null(final_df$pct.2)) { # Check if columns exist
+    final_df <- final_df %>% dplyr::filter(pct.1 >= min.pct | pct.2 >= min.pct)
+    final_df <- final_df %>% dplyr::filter(abs(pct.1 - pct.2) >= min.diff.pct)
+  }
+  
+  if (only.pos && !is.null(final_df$avg_log2FC)) {
+    final_df <- final_df %>% dplyr::filter(avg_log2FC > 0)
+  }
+  
+  # Select and order columns
+  cols_ordered <- c("gene", "cluster", "avg_log2FC", "pct.1", "pct.2", "p_val", "p_val_adj")
+  # Add other common/useful columns if they exist
+  for (col_add in c("logCPM", "F", "t_statistic", "levene_pval", "shapiro_pval_g1", "shapiro_pval_g2", "ident.2")) {
+    if (col_add %in% names(final_df)) {
+      cols_ordered <- c(cols_ordered, col_add)
+    }
+  }
+  # Add any remaining columns not yet selected
+  cols_ordered <- unique(c(cols_ordered, names(final_df)))
+  
+  final_df <- final_df %>% 
+    dplyr::select(dplyr::all_of(intersect(cols_ordered, names(final_df)))) %>%
+    dplyr::arrange(cluster, p_val_adj, desc(abs(avg_log2FC)))
+  
+  if (verbose) message("Analysis complete. Returning ", nrow(final_df), " marker genes.")
+  return(final_df)
 }

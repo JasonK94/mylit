@@ -808,12 +808,161 @@ immune_cell_functional_gene_sets <- list(
 # print(immune_cell_functional_gene_sets$nk_cell_functional_sets$cytotoxicity_nk_cell)
 # print(immune_cell_functional_gene_sets$myeloid_functional_sets$m1_like_activation)
 ```
+
+#2
+```{r}
+stress_response_rna_signatures <- list(
+  # --- T Cells ---
+  t_cell_damp_response_rna = c( # TLR, RAGE, P2X7R 등 DAMP 수용체 경로 활성화 시
+    "NFKBIA", "TNF", "IFNG", "IL2", "IL17A", "IL2RA", # NFKBIA는 IkappaBalpha, 피드백
+    "FOS", "JUN", "EGR1", "EGR2", # AP-1 및 초기 반응 유전자
+    "CCL2", "CCL3", "CCL4", "CCL5", "CXCL10", # 케모카인
+    "TNFRSF9", "TNFRSF18", "ICOSLG", # 공동자극/조절 분자
+    "TBX21", "GATA3", "RORC", "FOXP3", # 아형 결정 전사인자 (만성 자극 시 변화)
+    "MYD88", "TICAM1", "IRF1", "IRF4", "IRF5" # 신호 전달 어댑터 및 IRF (발현 증가 가능)
+  ),
+  t_cell_hypoxia_response_rna = c( # HIF-1alpha, HIF-2alpha 경로 활성화 시
+    "HIF1A", "EPAS1", # HIF1A/EPAS1 mRNA 자체도 일부 조건에서 증가 가능
+    "SLC2A1", "SLC2A3", "PGK1", "LDHA", "ENO1", # 해당과정 효소
+    "VEGFA", "ADM", # 혈관신생/보호 인자
+    "CXCR4", "CCL20", # 케모카인 수용체 및 리간드
+    "FOXP3", "RORC", # Treg/Th17 분화 관련 (HIF 의존적 증가)
+    "BNIP3", "BNIP3L", # 미토파지/세포사멸
+    "IL1B", "IL10" # 사이토카인 (일부 조건)
+  ),
+  t_cell_oxidative_stress_response_rna = c( # Nrf2, AP-1, NF-kB 등 경로 활성화 시
+    "HMOX1", "SOD1", "SOD2", "CAT", "GCLC", "GSR", "TXN", "PRDX1", # 항산화 효소
+    "NFE2L2", # Nrf2 (피드백으로 자체 발현 증가 가능)
+    "FOS", "JUN", "ATF3", "ATF4", # AP-1 및 스트레스 반응 전사인자
+    "NFKBIA", "TNF", "IL6", # 염증 반응
+    "CDKN1A", # p21 (세포 주기 정지)
+    "GADD45A", "GADD45B", # DNA 손상 반응
+    "FOXO1", "FOXO3" # 전사 인자 (mRNA 레벨 변화 가능)
+  ),
+
+  # --- B Cells ---
+  b_cell_damp_response_rna = c( # 주로 TLR7/9 경로 활성화 시
+    "NFKBIA", "TNF", "IL6", "IL10", "IFNA1", "IFNB1", # 사이토카인 (IFNs는 pDC 유사 반응 시)
+    "CD69", "CD80", "CD86", "ICOSLG", # 활성화 및 공동자극 분자
+    "FOS", "JUN", "EGR1",
+    "IRF4", "IRF5", "IRF7", "MYD88", "TLR7", "TLR9", # 신호 전달 및 전사인자 (발현 증가 가능)
+    "AICDA", # AID (항체 유전자 변이)
+    "XBP1", "PRDM1", "ERN1", # 형질세포 분화 관련 (만성/강한 자극)
+    "CCL3", "CCL4", "CXCL10" # 케모카인
+  ),
+  b_cell_hypoxia_response_rna = c(
+    "HIF1A", "EPAS1",
+    "SLC2A1", "PGK1", "LDHA", # 해당과정
+    "VEGFA", "CXCR4",
+    "XBP1", "PRDM1", # 형질세포 생존/기능
+    "BNIP3"
+  ),
+  b_cell_oxidative_stress_response_rna = c(
+    "HMOX1", "SOD1", "SOD2", "GCLC", "GSR", "TXNRD1",
+    "NFE2L2",
+    "FOS", "JUN", "ATF4",
+    "NFKBIA", "IL6",
+    "CDKN1A",
+    "FOXO1"
+  ),
+
+  # --- NK Cells ---
+  nk_cell_damp_response_rna = c( # TLRs 및 사이토카인 수용체 경로 활성화 시
+    "IFNG", "TNF", "CSF2", "XCL1", "CCL3", "CCL4", "CCL5", # 사이토카인/케모카인
+    "CD69", "ICOSLG", "TNFSF10", # TNFSF10 (TRAIL)
+    "GZMB", "PRF1", "GNLY", "FASLG", # 세포독성 분자 (전사 증가)
+    "TBX21", "EOMES", "IRF1", "IRF8", "STAT1", "STAT4", # 전사인자 (발현 증가 또는 표적)
+    "MYD88", "TLR2", "TLR7", "TLR9" # 신호 전달 (발현 증가 가능)
+  ),
+  nk_cell_hypoxia_response_rna = c(
+    "HIF1A", "EPAS1",
+    "SLC2A1", "LDHA", "VEGFA",
+    "CXCR4", "CXCL12", # CXCL12은 HIF1A 표적
+    "GZMB", "PRF1", # 저산소증에 의해 조절될 수 있음 (맥락 의존적)
+    "BNIP3"
+  ),
+  nk_cell_oxidative_stress_response_rna = c(
+    "HMOX1", "SOD2", "TXN",
+    "NFE2L2",
+    "FOS", "JUN", "ATF3",
+    "NFKBIA", "IFNG", # 산화 스트레스가 IFNG 생산 조절
+    "CDKN1A"
+  ),
+
+  # --- Monocytes/Macrophages ---
+  mono_macro_damp_response_rna = c( # TLRs, NLRs, RLRs, RAGE 등 다양한 PRR 경로
+    "TNF", "IL1B", "IL6", "IL10", "IL12B", "IL18", "IFNB1", "CSF1", "CSF2", # 사이토카인 (매우 다양)
+    "CCL2", "CCL3", "CCL4", "CCL5", "CXCL1", "CXCL2", "CXCL8", "CXCL9", "CXCL10", # 케모카인 (매우 다양)
+    "CD40", "CD80", "CD86", "ICOSLG", "TNFSF9", # 공동자극/조절
+    "NFKBIA", "FOS", "JUN", "EGR1", "ATF3",
+    "IRF1", "IRF5", "IRF7", "IRF8",
+    "MYD88", "TICAM1", "NLRP3", "PYCARD", "CASP1", # 신호 전달/인플라마좀 (발현 증가 가능)
+    "PTGS2", # COX2
+    "IDO1", "SOCS1", "SOCS3" # 면역 조절/피드백
+  ),
+  mono_macro_hypoxia_response_rna = c(
+    "HIF1A", "EPAS1",
+    "SLC2A1", "LDHA", "PGK1", "PFKFB3", # 해당과정
+    "VEGFA", "ADM", "ANGPTL4",
+    "CCL2", "CXCL8", "CXCR4",
+    "IL1B", "TNF", # HIF1A에 의해 유도
+    "NOS2", "ARG1", # M1/M2 분극화 관련 (NOS2는 iNOS)
+    "BNIP3", "DDIT4", # DDIT4 (REDD1)
+    "EGLN1", "EGLN3" # PHD2, PHD3 (HIF 조절 인자, 피드백 가능)
+  ),
+  mono_macro_oxidative_stress_response_rna = c(
+    "HMOX1", "SOD2", "CAT", "GPX1", "GSR", "GCLC", "TXNIP",
+    "NFE2L2",
+    "FOS", "JUN", "ATF3", "ATF4", "MAF",
+    "NFKBIA", "IL1B", "TNF", "IL6",
+    "PTGS2",
+    "CDKN1A",
+    "CYBB", "NCF1", "NCF2" # NOX 복합체 구성요소 (ROS 생산 관련, 발현 조절 가능성)
+  ),
+
+  # --- Dendritic Cells ---
+  dc_damp_response_rna = c( # PRR 경로 (cDC1, cDC2, pDC 아형에 따라 패턴 다름)
+    # 공통적 또는 cDC1/cDC2
+    "TNF", "IL1B", "IL6", "IL12B", "IL23A", # 사이토카인
+    "CCL3", "CCL4", "CCL5", "CCL17", "CCL22", "CXCL9", "CXCL10", # 케모카인
+    "CD40", "CD80", "CD83", "CD86", "ICOSLG", "TNFSF4", # 공동자극/성숙 마커 (TNFSF4는 OX40L)
+    "CCR7", "LAMP3", # 성숙/이동
+    "NFKBIA", "RELB", "FOS", "JUN", "EGR1",
+    "IRF1", "IRF4", "IRF8",
+    "MYD88", "TICAM1", "TLR2", "TLR3", "TLR4",
+    # pDC 특이적 (TLR7/9 활성화 시)
+    "IFNA1", "IFNA2", "IFNB1", "IFNK", # 제1형 인터페론
+    "IRF7", "TCF4", "STAT1", "STAT2", # TCF4는 E2-2
+    "TLR7", "TLR9" # (발현 증가 가능)
+  ),
+  dc_hypoxia_response_rna = c(
+    "HIF1A", "EPAS1",
+    "SLC2A1", "LDHA", "VEGFA",
+    "CCR7", "CXCR4",
+    "IL1B", "IL6", # HIF1A 의존적 분비
+    "BNIP3"
+  ),
+  dc_oxidative_stress_response_rna = c(
+    "HMOX1", "SOD2", "GSR",
+    "NFE2L2",
+    "FOS", "JUN", "ATF3",
+    "NFKBIA", "IL6", "TNF",
+    "CDKN1A",
+    "CD83", "CD86" # 산화 스트레스에 의한 성숙 조절
+  )
+)
+
+# 사용 예시:
+# print(stress_response_rna_signatures$t_cell_damp_response_rna)
+# print(stress_response_rna_signatures$mono_macro_hypoxia_response_rna)
+```
+
+#3
 ```{r}
 
 ```
-```{r}
 
-```
+#4
 ```{r}
 
 ```
