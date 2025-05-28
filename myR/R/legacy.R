@@ -847,3 +847,608 @@ post_hoc_slope_comparison_legacy2 <- function(results_df,
   
   return(final_comparison_results)
 }
+
+
+#' Pseudo-bulk Differential Gene Expression Analysis
+#'
+#' 주어진 Seurat 객체 또는 준비된 pseudo-bulk 데이터에 대해
+#' 다양한 수준의 edgeR 기반 DEG 분석을 수행합니다.
+#'
+#' @param analysis_level 분석 수준:
+#'                       - "overall": 모든 클러스터를 통합하여 전체 그룹 간 비교 (코드 1 방식).
+#'                       - "per_cluster": 각 클러스터 내에서 그룹 간 비교 (코드 2 방식).
+#'                       - "specific_cluster": 지정된 단일 클러스터 내에서 그룹 간 비교.
+#' @param contrast edgeR의 glmQLFTest에 전달할 contrast 벡터. 그룹 레벨 순서에 맞게 지정해야 함.
+#'                 예: 그룹 레벨이 c("Control", "Treatment")일 때 Treatment vs Control 비교는 c(-1, 1).
+#'                 prepare_pseudobulk_edgeR 결과의 contrast_levels 참고.
+#' @param target_cluster analysis_level이 "specific_cluster"일 때 분석할 클러스터 이름.
+#' @param min_samples_per_group_cluster 클러스터별 분석 시, 각 그룹이 가져야 하는 최소 샘플 수.
+#'                                      미달 시 해당 클러스터 분석 건너뜀 (기본값: 2).
+#' @param ... prepare_pseudobulk_edgeR 함수에 전달할 인자들 (seurat_obj, assay, slot, sample_col, cluster_col, group_col 등)
+#'            또는 prepare_pseudobulk_edgeR 함수의 반환값인 리스트 (pb, meta, dge, design 포함).
+#' @param verbose 진행 상황 출력 여부 (기본값: TRUE)
+#'
+#' @return DEG 결과 테이블 (tibble).
+#'         - "overall" 분석: 단일 tibble.
+#'         - "per_cluster" 분석: 각 클러스터 결과가 합쳐진 tibble (cluster 컬럼 포함).
+#'         - "specific_cluster" 분석: 해당 클러스터 결과만 담긴 tibble (cluster 컬럼 포함).
+#'         결과 테이블에는 logFC, logCPM, F, PValue, FDR 등의 edgeR 결과와 gene 컬럼이 포함됩니다.
+#'
+#' @importFrom edgeR estimateDisp glmQLFit glmQLFTest topTags
+#' @importFrom dplyr %>% filter bind_rows mutate rename select group_by summarise n case_when pull
+#' @importFrom tibble tibble rownames_to_column
+#' @importFrom stats setNames
+#'
+#' @examples
+#' \dontrun{
+#' # 예제 데이터 준비 (prepare_pseudobulk_edgeR 예제 참고)
+#' counts <- matrix(rpois(10000, lambda = 10), ncol=100, nrow=100)
+#' rownames(counts) <- paste0("Gene", 1:100)
+#' colnames(counts) <- paste0("Cell", 1:100)
+#' metadata <- data.frame(
+#'   sample_id = sample(paste0("Sample", 1:4), 100, replace = TRUE),
+#'   cell_type = sample(paste0("Cluster", 1:3), 100, replace = TRUE),
+#'   condition = NA,
+#'   row.names = paste0("Cell", 1:100)
+#' )
+#' metadata$condition[metadata$sample_id %in% c("Sample1", "Sample2")] <- "Control"
+#' metadata$condition[metadata$sample_id %in% c("Sample3", "Sample4")] <- "Treatment"
+#' seurat_obj_example <- CreateSeuratObject(counts = counts, meta.data = metadata)
+#' seurat_obj_example[["SCT"]] <- seurat_obj_example[["RNA"]] # 예시용
+#'
+#' # 사용례 1: 전체 그룹 간 비교 (Overall)
+#' overall_results <- run_pseudobulk_deg(
+#'   analysis_level = "overall",
+#'   contrast = c(-1, 1), # Treatment vs Control (Control이 첫번째 레벨이라고 가정)
+#'   seurat_obj = seurat_obj_example,
+#'   assay = "SCT", slot = "counts",
+#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
+#' )
+#' head(overall_results)
+#'
+#' # 사용례 2: 클러스터별 그룹 간 비교 (Per Cluster)
+#' per_cluster_results <- run_pseudobulk_deg(
+#'   analysis_level = "per_cluster",
+#'   contrast = c(-1, 1),
+#'   seurat_obj = seurat_obj_example,
+#'   assay = "SCT", slot = "counts",
+#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
+#' )
+#' head(per_cluster_results)
+#' table(per_cluster_results$cluster) # 각 클러스터별 결과 확인
+#'
+#' # 사용례 3: 특정 클러스터("Cluster2") 내 그룹 간 비교 (Specific Cluster)
+#' specific_cluster_results <- run_pseudobulk_deg(
+#'   analysis_level = "specific_cluster",
+#'   target_cluster = "Cluster2",
+#'   contrast = c(-1, 1),
+#'   seurat_obj = seurat_obj_example,
+#'   assay = "SCT", slot = "counts",
+#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
+#' )
+#' head(specific_cluster_results)
+#' }
+run_pseudobulk_deg_legacy <- function(analysis_level = c("overall", "per_cluster", "specific_cluster"),
+                                      contrast,
+                                      target_cluster = NULL,
+                                      min_samples_per_group_cluster = 2,
+                                      min_count = 10,
+                                      ...,
+                                      verbose = TRUE) {
+  
+  analysis_level <- match.arg(analysis_level)
+  dot_args <- list(...)
+  
+  # Check if prepared data is provided or needs to be generated
+  if (all(c("pb", "meta", "dge", "design", "contrast_levels") %in% names(dot_args))) {
+    if (verbose) message("Using pre-prepared pseudo-bulk data.")
+    prep_data <- dot_args
+    # Extract necessary components
+    pb   <- prep_data$pb
+    meta <- prep_data$meta
+    dge  <- prep_data$dge # This dge is for the 'overall' case initially
+    design <- prep_data$design
+    contrast_levels <- prep_data$contrast_levels
+    # Need to get group_col name from the prep_data structure if possible, or assume from contrast
+    # This part is tricky without knowing how prep_data was made. Let's try to find group_col.
+    group_col <- setdiff(colnames(meta), c("pb_sample_id", "patient", "ctype"))[1] # Best guess
+    if(length(group_col) != 1 || !group_col %in% colnames(meta)) {
+      warning("Could not automatically determine group_col from provided pre-prepared data. ",
+              "Ensure 'meta' dataframe contains the grouping column.")
+      # We might need to rely on contrast length or levels in design matrix columns
+      group_col <- names(attr(design, "contrasts"))[1] # Another guess
+      if(is.null(group_col)) stop("Cannot determine grouping column.")
+    }
+    
+    
+  } else if ("seurat_obj" %in% names(dot_args)) {
+    if (verbose) message("Preparing pseudo-bulk data using prepare_pseudobulk_edgeR...")
+    # Check if necessary args for prepare_pseudobulk_edgeR are present
+    req_args_prep <- c("seurat_obj", "sample_col", "cluster_col", "group_col")
+    if (!all(req_args_prep %in% names(dot_args))) {
+      stop("Seurat 객체를 사용할 경우, 다음 인수가 필요합니다: ", paste(req_args_prep, collapse=", "))
+    }
+    # Prepare data using the helper function
+    prep_data <- do.call(prepare_pseudobulk_edgeR, c(dot_args, list(verbose = verbose)))
+    pb   <- prep_data$pb
+    meta <- prep_data$meta
+    dge  <- prep_data$dge
+    design <- prep_data$design
+    contrast_levels <- prep_data$contrast_levels
+    group_col <- dot_args$group_col # Get group_col from input args
+  } else {
+    stop("Seurat 객체(seurat_obj) 또는 준비된 pseudo-bulk 데이터 리스트(pb, meta, dge, design 포함)를 제공해야 합니다.")
+  }
+  
+  # Validate contrast
+  if (missing(contrast)) stop("'contrast' 인수는 필수입니다.")
+  expected_contrast_len <- ncol(design) - (!grepl("~ 0 +|~0+", deparse(attributes(design)$terms))) # Adjust based on intercept
+  if (length(contrast) != expected_contrast_len && analysis_level == "overall") {
+    warning("제공된 contrast 길이(", length(contrast), ")가 디자인 매트릭스 컬럼 수(", ncol(design), ", 인터셉트 제외 시 ", expected_contrast_len ,")와 다를 수 있습니다. ",
+            "Contrast levels: ", paste(contrast_levels, collapse=", "), "; Design columns: ", paste(colnames(design), collapse=", "))
+  }
+  
+  
+  # --- Perform DEG based on analysis level ---
+  
+  results <- NULL
+  
+  if (analysis_level == "overall") {
+    if (verbose) message("Performing 'overall' DEG analysis...")
+    # Use the already prepared dge and design
+    dge <- estimateDisp(dge, design)
+    fit <- glmQLFit(dge, design)
+    qlf <- glmQLFTest(fit, contrast = contrast)
+    results <- topTags(qlf, n = Inf)$table %>%
+      rownames_to_column("gene") %>%
+      tibble()
+    if (verbose) message("  Overall analysis complete. Found ", nrow(results), " genes.")
+    
+  } else if (analysis_level == "per_cluster" || analysis_level == "specific_cluster") {
+    
+    target_clusters_determination_code = { # Encapsulate this logic
+      # 입력된 target_cluster를 정리합니다.
+      target_cluster_cleaned <- trimws(as.character(target_cluster))
+      
+      # !!! 중요: AggregateExpression의 출력 형식(하이픈 사용)에 맞추기 위해
+      # target_cluster 값의 밑줄(_)을 하이픈(-)으로 변경합니다.
+      target_cluster_normalized <- gsub("_", "-", target_cluster_cleaned)
+      
+      # meta 데이터의 ctype 값들을 정리하고 고유한 값을 찾습니다.
+      all_meta_ctypes_cleaned <- trimws(as.character(meta$ctype))
+      unique_meta_ctypes_cleaned <- unique(all_meta_ctypes_cleaned)
+      
+      if (verbose) {
+        message("Debug run_pseudobulk_deg: Original target_cluster supplied (cleaned): '", target_cluster_cleaned, "'")
+        message("Debug run_pseudobulk_deg: Normalized target_cluster for matching (hyphenated): '", target_cluster_normalized, "'")
+        message("Debug run_pseudobulk_deg: Cleaned unique ctype values in meta for checking: '", paste(sort(unique_meta_ctypes_cleaned), collapse="', '"), "'")
+      }
+      
+      # (이전 디버깅 코드 - 필요시 유지)
+      # Detailed check for the specific problematic value
+      if (target_cluster_normalized == "Monocyte-Macrophage") { # Or whatever the problematic one is
+        # ... (이전 디버깅 메시지들) ...
+      }
+      
+      # 정규화된 target_cluster_normalized 값을 사용하여 비교합니다.
+      if (!target_cluster_normalized %in% unique_meta_ctypes_cleaned) {
+        stop("지정된 'target_cluster' (정규화 후: '", target_cluster_normalized, 
+             "')가 메타데이터의 ctype 컬럼에 없습니다. 확인된 ctype 값 (정리 후): '", 
+             paste(sort(unique_meta_ctypes_cleaned), collapse="', '"), "'")
+      }
+      target_cluster_normalized # 정규화된 값 반환
+    }
+    
+    target_clusters <- if (analysis_level == "specific_cluster") {
+      if (is.null(target_cluster)) stop("'specific_cluster' 분석 시 'target_cluster'를 지정해야 합니다.")
+      eval(target_clusters_determination_code)
+    } else {
+      all_meta_ctypes_cleaned <- trimws(as.character(meta$ctype))
+      # "per_cluster" 모드에서는 모든 ctype 이름이 이미 AggregateExpression의 출력 형식을 따르므로
+      # 추가적인 gsub은 필요하지 않습니다. unique()만 적용합니다.
+      unique(all_meta_ctypes_cleaned)
+    }
+    
+    if (verbose) message("Performing analysis for cluster(s): ", paste(target_clusters, collapse=", "))
+    
+    res_list <- list()
+    
+    for (cl in target_clusters) {
+      if (verbose) message("  Processing cluster: ", cl)
+      ix <- meta$ctype == cl
+      if (sum(ix) == 0) {
+        warning("클러스터 '", cl, "'에 해당하는 pseudo-bulk 샘플이 없습니다. 건너<0xEB>니다.")
+        next
+      }
+      pb_sub <- pb[, ix, drop = FALSE]
+      md_sub <- meta[ix, , drop = FALSE]
+      
+      # Check for sufficient samples per group within the cluster
+      sample_counts <- md_sub %>% count(!!sym(group_col))
+      if(any(sample_counts$n < min_samples_per_group_cluster)) {
+        warning("클러스터 '", cl, "'는 그룹별 최소 샘플 수(", min_samples_per_group_cluster, ")를 만족하지 못합니다: ",
+                paste(sample_counts[[group_col]], "=", sample_counts$n, collapse=", "), ". 건너<0xEB>니다.")
+        next
+      }
+      # Ensure group is factor with all original levels for consistent design matrix structure
+      md_sub[[group_col]] <- factor(md_sub[[group_col]], levels = contrast_levels)
+      
+      
+      # 1) DGEList (subsetted)
+      dge_sub <- DGEList(counts = pb_sub, group = md_sub[[group_col]], samples = md_sub)
+      
+      # 2) Filtering & Normalization (on subset)
+      # Use design matrix appropriate for this subset comparison
+      # Create design formula dynamically, preferring no intercept for within-cluster
+      formula_sub_str <- paste("~", group_col) # Or use ~ 0 + group_col if preferred
+      design_sub <- tryCatch({
+        model.matrix(as.formula(formula_sub_str), data = md_sub)
+      }, error = function(e) {
+        warning("클러스터 '", cl, "'에 대한 디자인 매트릭스 생성 실패: ", e$message, ". 건너<0xEB>니다.")
+        return(NULL) # Return NULL to skip this cluster
+      })
+      
+      if(is.null(design_sub)) next # Skip if design matrix failed
+      
+      colnames(design_sub) <- make.names(colnames(design_sub)) # Clean names
+      
+      keep_sub <- filterByExpr(dge_sub, design = design_sub, group = md_sub[[group_col]], min.count = min_count) # Use design here
+      if (verbose) message("    - Filtering for '", cl, "': Kept ", sum(keep_sub), " out of ", nrow(dge_sub), " genes.")
+      if(sum(keep_sub) == 0) {
+        warning("클러스터 '", cl, "'에서 filterByExpr 후 남은 유전자가 없습니다. 건너<0xEB>니다.")
+        next
+      }
+      dge_sub <- dge_sub[keep_sub, , keep.lib.sizes = FALSE]
+      dge_sub <- calcNormFactors(dge_sub)
+      
+      # Validate contrast for subset design matrix
+      expected_contrast_len_sub <- ncol(design_sub) - (!grepl("~ 0 +|~0+", deparse(attributes(design_sub)$terms)))
+      if (length(contrast) != expected_contrast_len_sub) {
+        warning("클러스터 '", cl, "' 분석에서 contrast 길이(", length(contrast), ")가 디자인 매트릭스 컬럼 수(", ncol(design_sub), ", 인터셉트 고려 시 ", expected_contrast_len_sub,")와 다를 수 있습니다. ",
+                "Design columns: ", paste(colnames(design_sub), collapse=", "))
+        # Attempt to create contrast dynamically if possible (e.g., for treatment vs control)
+        # This requires knowing which columns correspond to which groups, which can be complex.
+        # For now, rely on user providing correct contrast based on levels and formula.
+      }
+      
+      
+      # 3) Dispersion Estimation & Fit (on subset)
+      dge_sub <- tryCatch({
+        estimateDisp(dge_sub, design_sub)
+      }, warning = function(w){
+        warning("Dispersion estimation 경고 (클러스터 ", cl,"): ", w$message)
+        # Try robust estimation if default fails or gives warning (sometimes helps)
+        message("    - Robust dispersion estimation 시도 중...")
+        estimateDisp(dge_sub, design_sub, robust=TRUE)
+      }, error = function(e){
+        warning("Dispersion estimation 에러 (클러스터 ", cl,"): ", e$message, ". 건너<0xEB>니다.")
+        return(NULL)
+      })
+      
+      if(is.null(dge_sub)) next # Skip if dispersion failed
+      
+      fit_sub <- tryCatch({
+        glmQLFit(dge_sub, design_sub)
+      }, error = function(e){
+        warning("glmQLFit 에러 (클러스터 ", cl, "): ", e$message, ". 건너<0xEB>니다.")
+        return(NULL)
+      })
+      
+      if(is.null(fit_sub)) next # Skip if fit failed
+      
+      # 4) QL F-Test (on subset)
+      qlf_sub <- tryCatch({
+        glmQLFTest(fit_sub, contrast = contrast)
+      }, error = function(e){
+        warning("glmQLFTest 에러 (클러스터 ", cl, "): ", e$message, ". 건너<0xEB>니다.")
+        return(NULL)
+      })
+      
+      if(is.null(qlf_sub)) next # Skip if test failed
+      
+      # 5) Results
+      res_sub <- topTags(qlf_sub, n = Inf)$table %>%
+        rownames_to_column("gene") %>%
+        mutate(cluster = cl, .before = 1) %>%
+        tibble()
+      
+      res_list[[cl]] <- res_sub
+      if (verbose) message("    - Cluster '", cl, "' analysis complete. Found ", nrow(res_sub), " genes.")
+      
+    } # end for loop over clusters
+    
+    if (length(res_list) > 0) {
+      results <- bind_rows(res_list)
+    } else {
+      warning("분석 수준 '", analysis_level, "'에 대한 결과를 생성하지 못했습니다.")
+      results <- tibble() # Return empty tibble
+    }
+    
+  } else {
+    stop("알 수 없는 analysis_level 입니다: ", analysis_level)
+  }
+  
+  return(results)
+}
+
+
+#' Pseudo-bulk Differential Gene Expression Analysis
+#'
+#' 주어진 Seurat 객체 또는 준비된 pseudo-bulk 데이터에 대해
+#' 다양한 수준의 edgeR 기반 DEG 분석을 수행합니다.
+#'
+#' @param analysis_level 분석 수준:
+#'                       - "overall": 모든 클러스터를 통합하여 전체 그룹 간 비교 (코드 1 방식).
+#'                       - "per_cluster": 각 클러스터 내에서 그룹 간 비교 (코드 2 방식).
+#'                       - "specific_cluster": 지정된 단일 클러스터 내에서 그룹 간 비교.
+#' @param contrast edgeR의 glmQLFTest에 전달할 contrast 벡터. 그룹 레벨 순서에 맞게 지정해야 함.
+#'                 예: 그룹 레벨이 c("Control", "Treatment")일 때 Treatment vs Control 비교는 c(-1, 1).
+#'                 prepare_pseudobulk_edgeR 결과의 contrast_levels 참고.
+#' @param target_cluster analysis_level이 "specific_cluster"일 때 분석할 클러스터 이름.
+#' @param min_samples_per_group_cluster 클러스터별 분석 시, 각 그룹이 가져야 하는 최소 샘플 수.
+#'                                      미달 시 해당 클러스터 분석 건너뜀 (기본값: 2).
+#' @param ... prepare_pseudobulk_edgeR 함수에 전달할 인자들 (seurat_obj, assay, slot, sample_col, cluster_col, group_col 등)
+#'            또는 prepare_pseudobulk_edgeR 함수의 반환값인 리스트 (pb, meta, dge, design 포함).
+#' @param verbose 진행 상황 출력 여부 (기본값: TRUE)
+#'
+#' @return DEG 결과 테이블 (tibble).
+#'         - "overall" 분석: 단일 tibble.
+#'         - "per_cluster" 분석: 각 클러스터 결과가 합쳐진 tibble (cluster 컬럼 포함).
+#'         - "specific_cluster" 분석: 해당 클러스터 결과만 담긴 tibble (cluster 컬럼 포함).
+#'         결과 테이블에는 logFC, logCPM, F, PValue, FDR 등의 edgeR 결과와 gene 컬럼이 포함됩니다.
+#'
+#' @importFrom edgeR estimateDisp glmQLFit glmQLFTest topTags
+#' @importFrom dplyr %>% filter bind_rows mutate rename select group_by summarise n case_when pull
+#' @importFrom tibble tibble rownames_to_column
+#' @importFrom stats setNames
+#'
+#' @examples
+#' \dontrun{
+#' # 예제 데이터 준비 (prepare_pseudobulk_edgeR 예제 참고)
+#' counts <- matrix(rpois(10000, lambda = 10), ncol=100, nrow=100)
+#' rownames(counts) <- paste0("Gene", 1:100)
+#' colnames(counts) <- paste0("Cell", 1:100)
+#' metadata <- data.frame(
+#'   sample_id = sample(paste0("Sample", 1:4), 100, replace = TRUE),
+#'   cell_type = sample(paste0("Cluster", 1:3), 100, replace = TRUE),
+#'   condition = NA,
+#'   row.names = paste0("Cell", 1:100)
+#' )
+#' metadata$condition[metadata$sample_id %in% c("Sample1", "Sample2")] <- "Control"
+#' metadata$condition[metadata$sample_id %in% c("Sample3", "Sample4")] <- "Treatment"
+#' seurat_obj_example <- CreateSeuratObject(counts = counts, meta.data = metadata)
+#' seurat_obj_example[["SCT"]] <- seurat_obj_example[["RNA"]] # 예시용
+#'
+#' # 사용례 1: 전체 그룹 간 비교 (Overall)
+#' overall_results <- run_pseudobulk_deg(
+#'   analysis_level = "overall",
+#'   contrast = c(-1, 1), # Treatment vs Control (Control이 첫번째 레벨이라고 가정)
+#'   seurat_obj = seurat_obj_example,
+#'   assay = "SCT", slot = "counts",
+#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
+#' )
+#' head(overall_results)
+#'
+#' # 사용례 2: 클러스터별 그룹 간 비교 (Per Cluster)
+#' per_cluster_results <- run_pseudobulk_deg(
+#'   analysis_level = "per_cluster",
+#'   contrast = c(-1, 1),
+#'   seurat_obj = seurat_obj_example,
+#'   assay = "SCT", slot = "counts",
+#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
+#' )
+#' head(per_cluster_results)
+#' table(per_cluster_results$cluster) # 각 클러스터별 결과 확인
+#'
+#' # 사용례 3: 특정 클러스터("Cluster2") 내 그룹 간 비교 (Specific Cluster)
+#' specific_cluster_results <- run_pseudobulk_deg(
+#'   analysis_level = "specific_cluster",
+#'   target_cluster = "Cluster2",
+#'   contrast = c(-1, 1),
+#'   seurat_obj = seurat_obj_example,
+#'   assay = "SCT", slot = "counts",
+#'   sample_col = "sample_id", cluster_col = "cell_type", group_col = "condition"
+#' )
+#' head(specific_cluster_results)
+#' }
+run_pseudobulk_deg_legacy2 <- function(analysis_level = c("overall", "per_cluster", "specific_cluster"),
+                                       contrast,
+                                       target_cluster = NULL, # 기본값을 NULL로 유지
+                                       min_samples_per_group_cluster = 2,
+                                       min_count = 10,
+                                       ...,
+                                       verbose = TRUE) {
+  
+  analysis_level <- match.arg(analysis_level)
+  dot_args <- list(...)
+  
+  # --- 1. 데이터 준비 (prepare_pseudobulk_edgeR 호출 또는 기존 데이터 사용) ---
+  if (all(c("pb", "meta", "dge", "design", "contrast_levels") %in% names(dot_args))) {
+    if (verbose) message("Using pre-prepared pseudo-bulk data.")
+    prep_data <- dot_args
+    pb   <- prep_data$pb
+    meta <- prep_data$meta # 이 meta는 prepare_pseudobulk_edgeR의 meta_pb임
+    dge  <- prep_data$dge
+    design <- prep_data$design
+    contrast_levels <- prep_data$contrast_levels
+    group_col <- setdiff(colnames(meta), c("pb_sample_id", "patient", "ctype"))[1]
+    if(length(group_col) != 1 || !group_col %in% colnames(meta)) {
+      group_col <- names(attr(design, "contrasts"))[1]
+      if(is.null(group_col)) stop("Cannot determine grouping column from pre-prepared data.")
+    }
+  } else if ("seurat_obj" %in% names(dot_args)) {
+    if (verbose) message("Preparing pseudo-bulk data using prepare_pseudobulk_edgeR...")
+    req_args_prep <- c("seurat_obj", "sample_col", "cluster_col", "group_col")
+    if (!all(req_args_prep %in% names(dot_args))) {
+      stop("Seurat 객체를 사용할 경우, 다음 인수가 필요합니다: ", paste(req_args_prep, collapse=", "))
+    }
+    # min_count도 dot_args를 통해 prepare_pseudobulk_edgeR로 전달될 수 있음
+    all_args_for_prep <- c(dot_args, list(verbose = verbose))
+    if (!"min_count" %in% names(all_args_for_prep)) { # 만약 ...에 min_count가 없다면 함수 기본값 사용
+      all_args_for_prep$min_count <- formals(prepare_pseudobulk_edgeR)$min_count 
+    }
+    
+    prep_data <- do.call(prepare_pseudobulk_edgeR, all_args_for_prep)
+    pb   <- prep_data$pb
+    meta <- prep_data$meta
+    dge  <- prep_data$dge
+    design <- prep_data$design
+    contrast_levels <- prep_data$contrast_levels
+    group_col <- dot_args$group_col
+  } else {
+    stop("Seurat 객체(seurat_obj) 또는 준비된 pseudo-bulk 데이터 리스트(pb, meta, dge, design 포함)를 제공해야 합니다.")
+  }
+  
+  if (missing(contrast)) stop("'contrast' 인수는 필수입니다.")
+  
+  # --- 2. 분석 수준에 따른 DEG 수행 ---
+  results <- NULL
+  loop_over_these_clusters <- NULL # 반복할 클러스터 목록을 저장할 변수
+  
+  if (analysis_level == "overall") {
+    if (verbose) message("Performing 'overall' DEG analysis...")
+    # contrast 유효성 검사는 이전에 있었음 (필요시 여기에 더 명시적으로 추가 가능)
+    dge_overall <- estimateDisp(dge, design) # dge, design은 전체 데이터에 대한 것
+    fit_overall <- glmQLFit(dge_overall, design)
+    qlf_overall <- glmQLFTest(fit_overall, contrast = contrast)
+    results <- topTags(qlf_overall, n = Inf)$table %>%
+      rownames_to_column("gene") %>%
+      tibble()
+    if (verbose) message("  Overall analysis complete. Found ", nrow(results), " genes.")
+    
+  } else if (analysis_level == "per_cluster") {
+    # 'per_cluster'는 meta 데이터에 있는 모든 고유한 클러스터에 대해 수행
+    # target_cluster 인수는 이 경우 무시됨
+    all_meta_ctypes_cleaned <- trimws(as.character(meta$ctype)) # meta$ctype은 하이픈 사용 (AggregateExpression 결과)
+    loop_over_these_clusters <- unique(all_meta_ctypes_cleaned)
+    
+    if (verbose) {
+      message("Performing 'per_cluster' analysis. Iterating over clusters found in data: '",
+              paste(sort(loop_over_these_clusters), collapse="', '"), "'")
+    }
+    
+  } else if (analysis_level == "specific_cluster") {
+    # 'specific_cluster'는 제공된 단일 target_cluster에 대해서만 수행
+    if (is.null(target_cluster) || length(target_cluster) != 1 || !is.character(target_cluster)) {
+      stop("'specific_cluster' 분석 시 'target_cluster' 인수를 단일 클러스터 이름(문자열)으로 정확히 제공해야 합니다.")
+    }
+    
+    target_cluster_cleaned <- trimws(as.character(target_cluster))
+    # AggregateExpression 출력 형식(하이픈)에 맞추기 위해 밑줄(_)을 하이픈(-)으로 변경
+    target_cluster_normalized <- gsub("_", "-", target_cluster_cleaned)
+    
+    all_meta_ctypes_cleaned <- trimws(as.character(meta$ctype))
+    unique_meta_ctypes_cleaned <- unique(all_meta_ctypes_cleaned)
+    
+    if (verbose) {
+      message("Debug specific_cluster: Original target_cluster supplied (cleaned): '", target_cluster_cleaned, "'")
+      message("Debug specific_cluster: Normalized target_cluster for matching (hyphenated): '", target_cluster_normalized, "'")
+      message("Debug specific_cluster: Available unique ctype values in meta (cleaned): '", paste(sort(unique_meta_ctypes_cleaned), collapse="', '"), "'")
+    }
+    
+    if (!target_cluster_normalized %in% unique_meta_ctypes_cleaned) {
+      stop("지정된 'target_cluster' (정규화 후: '", target_cluster_normalized, 
+           "')가 메타데이터의 ctype 컬럼에 없습니다. 확인된 ctype 값 (정리 후): '", 
+           paste(sort(unique_meta_ctypes_cleaned), collapse="', '"), "'")
+    }
+    loop_over_these_clusters <- target_cluster_normalized # 단일 클러스터 이름
+    if (verbose) {
+      message("Performing 'specific_cluster' analysis for target cluster: '", loop_over_these_clusters, "'")
+    }
+  }
+  
+  # --- 3. "per_cluster" 또는 "specific_cluster" 경우 실제 루프 실행 ---
+  if (analysis_level == "per_cluster" || analysis_level == "specific_cluster") {
+    if (is.null(loop_over_these_clusters) || length(loop_over_these_clusters) == 0) {
+      warning("분석할 클러스터가 결정되지 않았거나 없습니다.")
+      return(tibble()) # 빈 tibble 반환
+    }
+    
+    res_list <- list()
+    for (cl_name in loop_over_these_clusters) { # 루프 변수 이름 변경 (예: cl_name)
+      if (verbose) message("  Processing cluster: ", cl_name)
+      
+      # meta$ctype은 이미 하이픈으로 정리된 형태, cl_name도 하이픈으로 정리된 형태임
+      ix <- meta$ctype == cl_name 
+      if (sum(ix) == 0) {
+        warning("클러스터 '", cl_name, "'에 해당하는 pseudo-bulk 샘플이 없습니다. 건너<0xEB>니다.")
+        next
+      }
+      pb_sub <- pb[, ix, drop = FALSE]
+      md_sub <- meta[ix, , drop = FALSE]
+      
+      sample_counts <- md_sub %>% count(!!sym(group_col))
+      if(any(sample_counts$n < min_samples_per_group_cluster)) {
+        warning("클러스터 '", cl_name, "'는 그룹별 최소 샘플 수(", min_samples_per_group_cluster, ")를 만족하지 못합니다: ",
+                paste(sample_counts[[group_col]], "=", sample_counts$n, collapse=", "), ". 건너<0xEB>니다.")
+        next
+      }
+      md_sub[[group_col]] <- factor(md_sub[[group_col]], levels = contrast_levels)
+      
+      dge_sub <- DGEList(counts = pb_sub, group = md_sub[[group_col]], samples = md_sub)
+      
+      # 클러스터 부분집합에 대한 디자인 매트릭스 생성
+      # group_col 인수가 올바르게 함수 범위 내에 있는지 확인 (함수 인수로 직접 받거나 dot_args에서 가져옴)
+      formula_sub_str <- paste("~", group_col) 
+      design_sub <- tryCatch({
+        model.matrix(as.formula(formula_sub_str), data = md_sub)
+      }, error = function(e) {
+        warning("클러스터 '", cl_name, "'에 대한 디자인 매트릭스 생성 실패: ", e$message, ". 건너<0xEB>니다.")
+        return(NULL) 
+      })
+      if(is.null(design_sub)) next
+      colnames(design_sub) <- make.names(colnames(design_sub))
+      
+      # 이 부분에서 min_count는 run_pseudobulk_deg 함수의 인수로 받은 min_count를 사용합니다.
+      keep_sub <- filterByExpr(dge_sub, design = design_sub, group = md_sub[[group_col]], min.count = min_count) 
+      if (verbose) message("    - Filtering for '", cl_name, "': Kept ", sum(keep_sub), " out of ", nrow(dge_sub), " genes.")
+      if(sum(keep_sub) == 0) {
+        warning("클러스터 '", cl_name, "'에서 filterByExpr 후 남은 유전자가 없습니다. 건너<0xEB>니다.")
+        next
+      }
+      dge_sub <- dge_sub[keep_sub, , keep.lib.sizes = FALSE]
+      dge_sub <- calcNormFactors(dge_sub)
+      
+      # contrast 유효성 검사 (클러스터 부분집합의 디자인 매트릭스에 대해)
+      expected_contrast_len_sub <- ncol(design_sub) - (!grepl("~ 0 +|~0+", deparse(attributes(design_sub)$terms)))
+      if (length(contrast) != expected_contrast_len_sub) {
+        warning("클러스터 '", cl_name, "' 분석에서 contrast 길이(", length(contrast), 
+                ")가 디자인 매트릭스 컬럼 수(", ncol(design_sub), 
+                ", 인터셉트 고려 시 ", expected_contrast_len_sub,")와 다를 수 있습니다. ",
+                "Design columns: ", paste(colnames(design_sub), collapse=", "))
+      }
+      
+      dge_sub_disp <- tryCatch({ estimateDisp(dge_sub, design_sub) }, 
+                               warning = function(w){
+                                 warning("Dispersion estimation 경고 (클러스터 ", cl_name,"): ", w$message); estimateDisp(dge_sub, design_sub, robust=TRUE) }, 
+                               error = function(e){ warning("Dispersion estimation 에러 (클러스터 ", cl_name,"): ", e$message, ". 건너<0xEB>니다."); return(NULL) })
+      if(is.null(dge_sub_disp)) next
+      
+      fit_sub <- tryCatch({ glmQLFit(dge_sub_disp, design_sub) }, 
+                          error = function(e){ warning("glmQLFit 에러 (클러스터 ", cl_name, "): ", e$message, ". 건너<0xEB>니다."); return(NULL) })
+      if(is.null(fit_sub)) next
+      
+      qlf_sub <- tryCatch({ glmQLFTest(fit_sub, contrast = contrast) }, 
+                          error = function(e){ warning("glmQLFTest 에러 (클러스터 ", cl_name, "): ", e$message, ". 건너<0xEB>니다."); return(NULL) })
+      if(is.null(qlf_sub)) next
+      
+      res_sub <- topTags(qlf_sub, n = Inf)$table %>%
+        rownames_to_column("gene") %>%
+        # mutate의 cluster 값에 현재 루프의 클러스터 이름(cl_name) 사용
+        mutate(cluster = cl_name, .before = 1) %>% 
+        tibble()
+      
+      res_list[[cl_name]] <- res_sub
+      if (verbose) message("    - Cluster '", cl_name, "' analysis complete. Found ", nrow(res_sub), " genes.")
+    } # end for loop
+    
+    if (length(res_list) > 0) {
+      results <- bind_rows(res_list)
+    } else {
+      warning("분석 수준 '", analysis_level, "'에 대한 결과를 생성하지 못했습니다 (처리된 클러스터 없음).")
+      results <- tibble() 
+    }
+  } # end if per_cluster or specific_cluster
+  
+  return(results)
+}
