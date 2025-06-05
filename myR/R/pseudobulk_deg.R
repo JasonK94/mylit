@@ -1718,3 +1718,1519 @@ cluster_pseudobulk_deg <- function(sobj,
   if (verbose) message("Analysis complete. Returning ", nrow(final_df), " marker genes.")
   return(final_df)
 }
+
+
+
+
+#' Perform Pseudobulk Differential Gene Expression Analysis
+#'
+#' This function takes a Seurat object, aggregates counts to create pseudobulks
+#' based on specified sample and bulk category keys, and then performs DEG analysis
+#' between groups defined by a comparison key. It supports edgeR, DESeq2,
+#' Wilcoxon rank-sum test, Student's t-test, and ROC analysis.
+#'
+#' @param sobj A Seurat object.
+#' @param sample_col Character string. The name of the metadata column identifying individual samples or patients.
+#' @param compare_col Character string. The name of the metadata column used for grouping samples for DEG comparison (e.g., prognosis factor, treatment group).
+#' @param bulk_col Character string. The name of the metadata column that defines the categories within which pseudobulking and DEG analysis will be performed (e.g., cell type). DEGs are found for each unique value in this column separately.
+#' @param idents.1 Character vector or NULL. Specifies the identity (or identities) in `compare_col` for the first group.
+#'                 If NULL (default), performs a "FindAllMarkers" style analysis, comparing each identity in `compare_col` against all others within each `bulk_col` category.
+#' @param idents.2 Character vector or NULL. Specifies the identity (or identities) in `compare_col` for the second group.
+#'                 If NULL (default) and `idents.1` is specified, `idents.1` is compared against all other identities.
+#'                 If `idents.1` is also NULL, this parameter is ignored.
+#' @param test.use Character string. The statistical test to use. Options are:
+#'                 "edgeR", "DESeq2", "wilcox" (default), "t.test", "roc".
+#' @param assay Character string or NULL. The Seurat assay to use for fetching counts. If NULL, defaults to `DefaultAssay(sobj)`.
+#' @param slot Character string. The slot from which to pull data for aggregation (e.g., "counts"). Defaults to "counts".
+#' @param min.cells.gene Numeric. For 'wilcox', 't.test', 'roc': minimum number of pseudobulk samples where a gene must be detected to be included in the analysis. This is applied per comparison (i.e., gene must be in `min.cells.gene` samples in group1 OR group2). Seurat's `FindMarkers` uses this for single cells.
+#' @param min.pct Numeric. For 'wilcox', 't.test', 'roc': only test genes that are detected in at least this fraction of pseudobulk samples in either of the two groups.
+#' @param logfc.threshold Numeric. For 'wilcox', 't.test', 'roc': limit testing to genes which show at least this an absolute (log2) fold change between the two groups of pseudobulk samples. For 'roc', this is applied to the AUC value.
+#' @param min.samples.group Numeric. Minimum number of pseudobulk samples required in each group for a comparison to proceed. Defaults to 2.
+#' @param edgeR.filterByExpr.min.count Numeric. Passed to `min.count` in `edgeR::filterByExpr`. Default is 5.
+#' @param edgeR.filterByExpr.min.total.count Numeric. Passed to `min.total.count` in `edgeR::filterByExpr`. Default is 10.
+#' @param DESeq2.useT Logical. For DESeq2, passed to `useT` in `DESeq` function if initial fit fails. Defaults to FALSE.
+#' @param DESeq2.fitType Character. For DESeq2, passed to `fitType` in `DESeq` function. Default is "parametric". If error, "local" may be tried.
+#' @param BPPARAM BiocParallel::BiocParallelParam instance, for parallel execution in DESeq2. Default is `BiocParallel::SerialParam()`.
+#' @param ... Additional arguments passed to the underlying statistical test functions (e.g., `exact` for `wilcox.test`).
+#'
+#' @return A data frame with DEG results, similar to Seurat's `FindMarkers` output. Columns include:
+#'         `gene`, `cluster` (the `idents.1` group or current group in `FindAllMarkers` mode),
+#'         `bulk_category` (from `bulk_col`), `avg_log2FC`, `p_val`, `p_val_adj`, `pct.1`, `pct.2`.
+#'         For `test.use = "roc"`, `avg_log2FC` column contains the AUC.
+#'
+#' @import Seurat
+#' @import dplyr
+#' @import tidyr
+#' @importFrom Matrix.utils aggregate.Matrix
+#' @importFrom stats p.adjust t.test wilcox.test model.matrix na.omit sd
+#' @importFrom BiocParallel SerialParam bplapply
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Assuming 'pbmc_small' is a Seurat object with relevant metadata
+#' # pbmc_small$sample <- rep(paste0("sample", 1:2), length.out = ncol(pbmc_small))
+#' # pbmc_small$cell_type <- pbmc_small$RNA_snn_res.0.8
+#' # pbmc_small$condition <- rep(c("A", "B"), length.out = ncol(pbmc_small))
+#' # Ensure 'condition' is consistent per 'sample'
+#' # sample_conditions <- pbmc_small@meta.data %>% distinct(sample, condition)
+#' # pbmc_small <- pbmc_small[, !(pbmc_small$sample %in% names(which(table(sample_conditions$sample) > 1)))]
+#' # temp_meta <- pbmc_small@meta.data
+#' # temp_meta <- temp_meta %>% group_by(sample) %>% mutate(condition = first(condition)) %>% ungroup()
+#' # rownames(temp_meta) <- colnames(pbmc_small)
+#' # pbmc_small@meta.data <- temp_meta
+#'
+#' # deg_results_wilcox <- pseudobulk_deg(
+#' #   sobj = pbmc_small,
+#' #   sample_col = "sample",
+#' #   compare_col = "condition", # e.g. Control vs Treatment
+#' #   bulk_col = "cell_type",    # e.g. B cells, T cells
+#' #   test.use = "wilcox"
+#' # )
+#'
+#' # To use edgeR or DESeq2, ensure they are installed
+#' # if (requireNamespace("edgeR", quietly = TRUE)) {
+#' #   deg_results_edgeR <- pseudobulk_deg(
+#' #     sobj = pbmc_small,
+#' #     sample_col = "sample",
+#' #     compare_col = "condition",
+#' #     bulk_col = "cell_type",
+#' #     test.use = "edgeR"
+#' #  )
+#' # }
+#' # if (requireNamespace("DESeq2", quietly = TRUE) &&
+#' #     requireNamespace("BiocParallel", quietly = TRUE)) {
+#' #   deg_results_DESeq2 <- pseudobulk_deg(
+#' #     sobj = pbmc_small,
+#' #     sample_col = "sample",
+#' #     compare_col = "condition",
+#' #     bulk_col = "cell_type",
+#' #     test.use = "DESeq2"
+#' #   )
+#' # }
+#' }
+pseudobulk_deg <- function(sobj,
+                           sample_col,
+                           compare_col,
+                           bulk_col,
+                           idents.1 = NULL,
+                           idents.2 = NULL,
+                           test.use = "wilcox",
+                           assay = NULL,
+                           slot = "counts",
+                           min.cells.gene = 3,
+                           min.pct = 0.1,
+                           logfc.threshold = 0.25,
+                           min.samples.group = 2,
+                           edgeR.filterByExpr.min.count = 5,
+                           edgeR.filterByExpr.min.total.count = 10,
+                           DESeq2.useT = FALSE,
+                           DESeq2.fitType = "parametric",
+                           BPPARAM = BiocParallel::SerialParam(),
+                           ...) {
+  
+  # --- 0. Load necessary libraries and Argument Checks ---
+  if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' needed for this function to work. Please install it.", call. = FALSE)
+  if (!requireNamespace("dplyr", quietly = TRUE)) stop("Package 'dplyr' needed for this function to work. Please install it.", call. = FALSE)
+  if (!requireNamespace("tidyr", quietly = TRUE)) stop("Package 'tidyr' needed for this function to work. Please install it.", call. = FALSE)
+  
+  
+  if (is.null(assay)) {
+    assay <- Seurat::DefaultAssay(sobj)
+  }
+  meta_cols <- c(sample_col, compare_col, bulk_col)
+  if (!all(meta_cols %in% colnames(sobj@meta.data))) {
+    missing_cols <- meta_cols[!meta_cols %in% colnames(sobj@meta.data)]
+    stop("Metadata column(s) not found: ", paste(missing_cols, collapse = ", "), call. = FALSE)
+  }
+  valid_tests <- c("wilcox", "t.test", "roc", "edgeR", "DESeq2")
+  if (!test.use %in% valid_tests) {
+    stop("Invalid test.use. Choose from: ", paste(valid_tests, collapse = ", "), call. = FALSE)
+  }
+  if (test.use == "edgeR" && !requireNamespace("edgeR", quietly = TRUE)) {
+    stop("Package 'edgeR' needed for test.use='edgeR'. Please install it.", call. = FALSE)
+  }
+  if (test.use == "DESeq2") {
+    if(!requireNamespace("DESeq2", quietly = TRUE)) stop("Package 'DESeq2' needed for test.use='DESeq2'. Please install it.", call. = FALSE)
+    if(!requireNamespace("BiocParallel", quietly = TRUE)) stop("Package 'BiocParallel' needed for DESeq2 parallel execution. Please install it.", call. = FALSE)
+  }
+  if (test.use == "roc" && !requireNamespace("pROC", quietly = TRUE)) {
+    stop("Package 'pROC' needed for test.use='roc'. Please install it.", call. = FALSE)
+  }
+  
+  all_results_list <- list()
+  unique_bulk_categories <- unique(as.character(sobj@meta.data[[bulk_col]]))
+  unique_bulk_categories <- sort(na.omit(unique_bulk_categories))
+  
+  
+  # --- 1. Loop over each bulk category (e.g., cell type) ---
+  for (current_bulk_id in unique_bulk_categories) {
+    message(paste0("\nProcessing bulk category: '", current_bulk_id, "'"))
+    
+    cells_in_bulk <- rownames(sobj@meta.data[which(sobj@meta.data[[bulk_col]] == current_bulk_id), ])
+    if (length(cells_in_bulk) == 0) {
+      message(paste0("  No cells found for bulk category: '", current_bulk_id, "'. Skipping."))
+      next
+    }
+    sobj_bulk_subset <- subset(sobj, cells = cells_in_bulk)
+    
+    if (length(unique(sobj_bulk_subset@meta.data[[sample_col]])) < min.samples.group) {
+      message(paste0("  Not enough unique samples (", length(unique(sobj_bulk_subset@meta.data[[sample_col]])),
+                     ") in bulk category: '", current_bulk_id, "' for comparison (min required: ", min.samples.group, "). Skipping."))
+      next
+    }
+    
+    # --- 2. Create pseudobulk counts for the current bulk category ---
+    current_pb_counts <- tryCatch({
+      Seurat::AggregateExpression(sobj_bulk_subset,
+                                  group.by = sample_col,
+                                  assays = assay,
+                                  slot = slot,
+                                  return.seurat = FALSE)[[assay]]
+    }, error = function(e) {
+      message(paste0("  Error during AggregateExpression for bulk category '", current_bulk_id, "': ", e$message))
+      return(NULL)
+    })
+    
+    if (is.null(current_pb_counts) || ncol(current_pb_counts) == 0) {
+      message(paste0("  Aggregation resulted in no pseudobulk samples for bulk category: '", current_bulk_id, "'. Skipping."))
+      next
+    }
+    # Ensure counts are integers for DESeq2/edgeR
+    if (test.use %in% c("edgeR", "DESeq2")) {
+      current_pb_counts <- round(current_pb_counts)
+    }
+    
+    
+    # Create metadata for pseudobulks
+    # Important: Ensure compare_col value is unique per sample_col. If not, this takes the first one.
+    # This assumes that compare_col is a sample-level attribute.
+    current_pb_meta <- sobj_bulk_subset@meta.data %>%
+      dplyr::distinct(!!dplyr::sym(sample_col), .keep_all = TRUE) %>%
+      dplyr::select(!!dplyr::sym(sample_col), !!dplyr::sym(compare_col)) %>%
+      dplyr::filter(!!dplyr::sym(sample_col) %in% colnames(current_pb_counts)) %>%
+      dplyr::mutate(!!dplyr::sym(compare_col) := as.character(!!dplyr::sym(compare_col))) # Ensure character for consistency
+    
+    
+    shared_samples <- intersect(colnames(current_pb_counts), current_pb_meta[[sample_col]])
+    if (length(shared_samples) < min.samples.group) {
+      message(paste0("  Not enough shared samples (",length(shared_samples),") after aligning counts and metadata for '", current_bulk_id, "'. Skipping."))
+      next
+    }
+    current_pb_counts <- current_pb_counts[, shared_samples, drop = FALSE]
+    current_pb_meta <- current_pb_meta %>% dplyr::filter(!!dplyr::sym(sample_col) %in% shared_samples)
+    rownames(current_pb_meta) <- current_pb_meta[[sample_col]]
+    
+    # --- 3. Define comparison groups ---
+    all_compare_values <- na.omit(unique(current_pb_meta[[compare_col]]))
+    all_compare_values <- sort(all_compare_values)
+    
+    comparisons_to_make <- list()
+    if (is.null(idents.1)) { # FindAllMarkers style
+      if (length(all_compare_values) < 2) {
+        message(paste0("  Not enough groups (", length(all_compare_values), ") to compare within '", current_bulk_id, "'. Skipping."))
+        next
+      }
+      for (id1_val_loop in all_compare_values) {
+        # Check if id1_val_loop has enough samples and if "others" group has enough samples
+        n_group1 = sum(current_pb_meta[[compare_col]] == id1_val_loop, na.rm = TRUE)
+        n_group_other = sum(current_pb_meta[[compare_col]] != id1_val_loop, na.rm = TRUE)
+        if (n_group1 >= min.samples.group && n_group_other >= min.samples.group) {
+          comparisons_to_make[[length(comparisons_to_make) + 1]] <- list(ident1 = id1_val_loop, ident2 = NULL, name = id1_val_loop)
+        } else {
+          message(paste0("    Skipping FindAllMarkers-style comparison for '", id1_val_loop, "' vs rest in '", current_bulk_id,
+                         "' due to insufficient samples in one or both groups (", n_group1, " vs ", n_group_other,"). Min per group: ", min.samples.group))
+        }
+      }
+    } else { # idents.1 is specified
+      ident1_val_input <- idents.1
+      n_group1 = sum(current_pb_meta[[compare_col]] %in% ident1_val_input, na.rm = TRUE)
+      
+      if (n_group1 < min.samples.group) {
+        message(paste0("  Ident1 group '", paste(ident1_val_input, collapse=", "), "' has insufficient samples (", n_group1,
+                       ") in '", current_bulk_id, "'. Min per group: ", min.samples.group, ". Skipping this comparison."))
+      } else {
+        if (is.null(idents.2)) { # One vs Rest
+          n_group_other = sum(!current_pb_meta[[compare_col]] %in% ident1_val_input, na.rm = TRUE)
+          if (n_group_other >= min.samples.group) {
+            comparisons_to_make[[1]] <- list(ident1 = ident1_val_input, ident2 = NULL, name = paste(ident1_val_input, collapse="_vs_"))
+          } else {
+            message(paste0("  'Rest' group for ident1 '", paste(ident1_val_input, collapse=", "), "' has insufficient samples (", n_group_other,
+                           ") in '", current_bulk_id, "'. Min per group: ", min.samples.group, ". Skipping comparison."))
+          }
+        } else { # One vs One
+          ident2_val_input <- idents.2
+          if(any(ident1_val_input %in% ident2_val_input)){
+            message(paste0("  Ident1 ('", paste(ident1_val_input, collapse=", "), "') and Ident2 ('", paste(ident2_val_input, collapse=", "),
+                           "') overlap. Skipping this comparison in '", current_bulk_id, "'."))
+          } else {
+            n_group2 = sum(current_pb_meta[[compare_col]] %in% ident2_val_input, na.rm = TRUE)
+            if (n_group2 >= min.samples.group) {
+              comparisons_to_make[[1]] <- list(ident1 = ident1_val_input, ident2 = ident2_val_input, name = paste(ident1_val_input, collapse="_vs_"))
+            } else {
+              message(paste0("  Ident2 group '", paste(ident2_val_input, collapse=", "), "' has insufficient samples (", n_group2,
+                             ") in '", current_bulk_id, "'. Min per group: ", min.samples.group, ". Skipping comparison."))
+            }
+          }
+        }
+      }
+    }
+    
+    if (length(comparisons_to_make) == 0) {
+      message(paste0("  No valid comparisons to make for bulk category: '", current_bulk_id, "' based on current parameters."))
+      next
+    }
+    
+    # --- 4. Loop for each comparison to be made ---
+    for (comp_idx in seq_along(comparisons_to_make)) {
+      comp_params <- comparisons_to_make[[comp_idx]]
+      id1_value <- comp_params$ident1
+      id2_value <- comp_params$ident2
+      cluster_name_for_output <- comp_params$name
+      
+      
+      message(paste0("    Running DEG for: cluster '", cluster_name_for_output, "' (", paste(id1_value, collapse=", "), " vs ",
+                     if(is.null(id2_value)) "all others" else paste(id2_value, collapse=", "), ")"))
+      
+      samples1_names <- current_pb_meta %>% dplyr::filter(!!dplyr::sym(compare_col) %in% id1_value) %>% dplyr::pull(!!dplyr::sym(sample_col))
+      if (is.null(id2_value)) {
+        samples2_names <- current_pb_meta %>% dplyr::filter(!(!!dplyr::sym(compare_col) %in% id1_value)) %>% dplyr::pull(!!dplyr::sym(sample_col))
+      } else {
+        samples2_names <- current_pb_meta %>% dplyr::filter(!!dplyr::sym(compare_col) %in% id2_value) %>% dplyr::pull(!!dplyr::sym(sample_col))
+      }
+      
+      # Already checked min.samples.group at comparison_to_make stage, but double check here after sample name extraction.
+      if (length(samples1_names) < min.samples.group || length(samples2_names) < min.samples.group) {
+        message(paste0("      Skipping comparison for '", cluster_name_for_output, "' due to insufficient samples in one group after final selection (",
+                       length(samples1_names), " vs ", length(samples2_names), "). Min per group: ", min.samples.group))
+        next
+      }
+      
+      comp_specific_pb_counts <- current_pb_counts[, c(samples1_names, samples2_names), drop = FALSE]
+      comp_specific_pb_meta <- current_pb_meta[c(samples1_names, samples2_names), , drop = FALSE]
+      comp_specific_pb_meta$de_group <- factor(ifelse(comp_specific_pb_meta[[sample_col]] %in% samples1_names, "group1", "group2"), levels = c("group2", "group1")) # group1 is case, group2 is control
+      
+      res_df <- NULL # Initialize results data frame for this comparison
+      
+      # --- 5. Perform DEG analysis based on test.use ---
+      if (test.use == "edgeR") {
+        if (!requireNamespace("edgeR", quietly = TRUE)) { message("edgeR not found, skipping."); next }
+        y <- edgeR::DGEList(counts = comp_specific_pb_counts, group = comp_specific_pb_meta$de_group)
+        keep <- edgeR::filterByExpr(y, group = comp_specific_pb_meta$de_group,
+                                    min.count = edgeR.filterByExpr.min.count,
+                                    min.total.count = edgeR.filterByExpr.min.total.count)
+        y <- y[keep, , keep.lib.sizes = FALSE]
+        
+        if (nrow(y$counts) == 0) { message("      No genes left after edgeR::filterByExpr. Skipping."); next; }
+        y <- edgeR::calcNormFactors(y)
+        design_edgeR <- stats::model.matrix(~ de_group, data = comp_specific_pb_meta)
+        
+        if (nrow(design_edgeR) < ncol(design_edgeR) || qr(design_edgeR)$rank < ncol(design_edgeR)) {
+          message("      Design matrix for edgeR is not full rank or has too few observations. Skipping.")
+          next
+        }
+        y <- edgeR::estimateDisp(y, design_edgeR, robust = TRUE)
+        fit <- edgeR::glmQLFit(y, design_edgeR, robust = TRUE)
+        qlf <- edgeR::glmQLFTest(fit, coef = ncol(design_edgeR)) # Compares de_groupgroup1 vs de_groupgroup2 (ref)
+        res_edgeR_table <- edgeR::topTags(qlf, n = Inf)$table
+        
+        if (nrow(res_edgeR_table) > 0) {
+          res_df <- data.frame(
+            gene = rownames(res_edgeR_table),
+            p_val = res_edgeR_table$PValue,
+            avg_log2FC = res_edgeR_table$logFC,
+            p_val_adj = res_edgeR_table$FDR,
+            stringsAsFactors = FALSE
+          )
+          # Calculate pct.1 and pct.2 based on original counts for these genes
+          pct_counts_subset <- comp_specific_pb_counts[res_df$gene, , drop = FALSE]
+          res_df$pct.1 <- rowMeans(pct_counts_subset[, samples1_names, drop = FALSE] > 0)
+          res_df$pct.2 <- rowMeans(pct_counts_subset[, samples2_names, drop = FALSE] > 0)
+        }
+        
+      } else if (test.use == "DESeq2") {
+        if (!requireNamespace("DESeq2", quietly = TRUE)) { message("DESeq2 not found, skipping."); next }
+        
+        dds <- DESeq2::DESeqDataSetFromMatrix(countData = comp_specific_pb_counts,
+                                              colData = comp_specific_pb_meta,
+                                              design = ~ de_group)
+        # Optional: Pre-filter low count genes, though DESeq2 does its own independent filtering.
+        # keep_dds <- rowSums(DESeq2::counts(dds) >= 5) >= min.samples.group
+        # dds <- dds[keep_dds,]
+        if (nrow(dds) == 0) { message("      No genes left after initial filtering for DESeq2. Skipping."); next; }
+        
+        dds_fit <- tryCatch({
+          DESeq2::DESeq(dds, test="Wald", fitType = DESeq2.fitType, quiet = TRUE, parallel = (inherits(BPPARAM, "SerialParam") == FALSE), BPPARAM = BPPARAM)
+        }, error = function(e_deseq) {
+          message(paste0("      DESeq2 standard fit failed: ", e_deseq$message))
+          if (grepl("every gene contains at least one zero|all samples have 0 counts|matrix contains parameters that are not estimable|model matrix not full rank", e_deseq$message)) {
+            if (DESeq2.fitType != "local") {
+              message("      Attempting DESeq2 with fitType='local'.")
+              return(tryCatch(DESeq2::DESeq(dds, test="Wald", fitType = "local", quiet = TRUE, parallel = (inherits(BPPARAM, "SerialParam") == FALSE), BPPARAM = BPPARAM), error=function(e_local) {message(paste0("        DESeq2 fitType='local' also failed: ", e_local$message)); NULL}))
+            }
+          }
+          return(NULL) # Return NULL if all attempts fail
+        })
+        
+        if (is.null(dds_fit) || !"results" %in% mcols(dds_fit)$type) {
+          message("      DESeq2 analysis failed to produce results. Skipping.")
+          next
+        }
+        # Contrast group1 vs group2 (group2 is reference)
+        res_deseq_table <- DESeq2::results(dds_fit, contrast = c("de_group", "group1", "group2"), parallel = (inherits(BPPARAM, "SerialParam") == FALSE), BPPARAM = BPPARAM)
+        
+        if (nrow(res_deseq_table) > 0) {
+          res_df <- data.frame(
+            gene = rownames(res_deseq_table),
+            p_val = res_deseq_table$pvalue,
+            avg_log2FC = res_deseq_table$log2FoldChange,
+            p_val_adj = res_deseq_table$padj,
+            stringsAsFactors = FALSE
+          )
+          res_df <- res_df[!is.na(res_df$p_val), ] # DESeq2 can produce NAs for p_val/padj
+          if (nrow(res_df)>0){
+            pct_counts_subset <- comp_specific_pb_counts[res_df$gene, , drop = FALSE]
+            res_df$pct.1 <- rowMeans(pct_counts_subset[, samples1_names, drop = FALSE] > 0)
+            res_df$pct.2 <- rowMeans(pct_counts_subset[, samples2_names, drop = FALSE] > 0)
+          }
+        }
+        
+      } else if (test.use %in% c("wilcox", "t.test", "roc")) {
+        # Normalize for these tests: log2(CPM+1) or similar
+        if (requireNamespace("edgeR", quietly = TRUE)) {
+          pb_norm <- edgeR::cpm(comp_specific_pb_counts, log = TRUE, prior.count = 1)
+        } else { # Fallback basic normalization if edgeR not available
+          pb_norm <- log2(sweep(comp_specific_pb_counts, 2, colSums(comp_specific_pb_counts)/1e6, FUN="*") + 1)
+        }
+        
+        # Filter genes based on min.cells.gene (applied to pseudobulks)
+        # Gene must be detected in min.cells.gene samples in EITHER group1 OR group2
+        genes_to_test_mask <- sapply(rownames(comp_specific_pb_counts), function(g_name) {
+          (sum(comp_specific_pb_counts[g_name, samples1_names] > 0) >= min.cells.gene ||
+             sum(comp_specific_pb_counts[g_name, samples2_names] > 0) >= min.cells.gene)
+        })
+        pb_norm_filtered <- pb_norm[genes_to_test_mask, , drop = FALSE]
+        counts_filtered_for_pct <- comp_specific_pb_counts[genes_to_test_mask, , drop = FALSE]
+        
+        if (nrow(pb_norm_filtered) == 0) { message("      No genes left after min.cells.gene filtering for wilcox/t.test/roc. Skipping."); next; }
+        
+        results_list_genes <- BiocParallel::bplapply(rownames(pb_norm_filtered), FUN = function(g) {
+          vec1 <- pb_norm_filtered[g, samples1_names]
+          vec2 <- pb_norm_filtered[g, samples2_names]
+          
+          p_val_gene <- NA
+          auc_val_gene <- NA
+          
+          # Initial check for t-test variance issues
+          if (test.use == "t.test" && (stats::sd(vec1) == 0 && stats::sd(vec2) == 0 && mean(vec1) == mean(vec2))) { # Both groups are identical constants
+            p_val_gene <- 1.0 # No difference
+          } else if (test.use == "t.test" && (stats::sd(vec1) == 0 || stats::sd(vec2) == 0)) { # One group constant, other varies (or also constant but different mean)
+            # t.test might still work or give an error; Wilcoxon is safer here.
+            # For now, let it try, but this is a known edge case.
+          }
+          
+          
+          if (test.use == "wilcox") {
+            p_val_gene <- tryCatch(stats::wilcox.test(vec1, vec2, ...)$p.value, error = function(e) NA)
+          } else if (test.use == "t.test") {
+            p_val_gene <- tryCatch(stats::t.test(vec1, vec2, ...)$p.value, error = function(e) NA)
+          } else if (test.use == "roc") {
+            if (!requireNamespace("pROC", quietly = TRUE)) { message("pROC not found for ROC test."); return(NULL) }
+            response_roc <- c(rep("group1", length(samples1_names)), rep("group2", length(samples2_names)))
+            predictor_roc <- c(vec1, vec2)
+            
+            if(any(!is.finite(predictor_roc))) {
+              auc_val_gene <- NA
+            } else {
+              # Ensure levels are correctly specified for pROC; group1 should be "case"
+              roc_obj <- tryCatch(pROC::roc(response = factor(response_roc, levels=c("group2", "group1")),
+                                            predictor = predictor_roc,
+                                            quiet = TRUE, direction = "<"), # "<": higher predictor means more likely group1
+                                  error = function(e) NULL)
+              if (!is.null(roc_obj)) auc_val_gene <- as.numeric(pROC::auc(roc_obj)) else auc_val_gene <- NA
+            }
+            # p-value for ROC: often use Wilcoxon as Seurat does
+            p_val_gene <- tryCatch(stats::wilcox.test(vec1, vec2)$p.value, error = function(e) NA)
+          }
+          
+          avg_lfc_gene <- if (test.use == "roc") auc_val_gene else (mean(vec1, na.rm=TRUE) - mean(vec2, na.rm=TRUE))
+          
+          # Use original counts for pct calculation (from counts_filtered_for_pct)
+          pct1_gene <- mean(counts_filtered_for_pct[g, samples1_names] > 0, na.rm=TRUE)
+          pct2_gene <- mean(counts_filtered_for_pct[g, samples2_names] > 0, na.rm=TRUE)
+          
+          # Apply min.pct and logfc.threshold filters
+          pass_min_pct_filter <- (pct1_gene >= min.pct || pct2_gene >= min.pct)
+          if (test.use == "roc") {
+            pass_logfc_filter <- (!is.na(avg_lfc_gene) && avg_lfc_gene >= logfc.threshold) # AUC should be > threshold
+          } else {
+            pass_logfc_filter <- (!is.na(avg_lfc_gene) && abs(avg_lfc_gene) >= logfc.threshold)
+          }
+          
+          if (pass_min_pct_filter && pass_logfc_filter) {
+            return(data.frame(
+              gene = g, p_val = p_val_gene, avg_log2FC = avg_lfc_gene,
+              pct.1 = pct1_gene, pct.2 = pct2_gene,
+              stringsAsFactors = FALSE
+            ))
+          } else {
+            return(NULL)
+          }
+        }, BPPARAM = BPPARAM) # End bplapply over genes
+        
+        res_df <- do.call(rbind, Filter(NROW, results_list_genes))
+        if (!is.null(res_df) && nrow(res_df) > 0) {
+          if(any(!is.na(res_df$p_val))){
+            res_df$p_val_adj <- stats::p.adjust(res_df$p_val, method = "BH")
+          } else {
+            res_df$p_val_adj <- NA
+          }
+        }
+      } # End if/else for test.use
+      
+      # --- 6. Store results for the current comparison ---
+      if (!is.null(res_df) && nrow(res_df) > 0) {
+        res_df$cluster <- cluster_name_for_output
+        res_df$bulk_category <- current_bulk_id
+        all_results_list[[length(all_results_list) + 1]] <- res_df
+      } else {
+        message(paste0("      No significant DEG results found for '", cluster_name_for_output, "' in '", current_bulk_id, "' with test '", test.use, "'."))
+      }
+    } # End loop for comparisons_to_make
+  } # End loop for unique_bulk_categories
+  
+  
+  # --- 7. Combine all results and format ---
+  if (length(all_results_list) == 0) {
+    message("\nNo DEG results generated from any comparison.")
+    return(data.frame(gene=character(), cluster=character(), bulk_category=character(),
+                      avg_log2FC=numeric(), p_val=numeric(), p_val_adj=numeric(),
+                      pct.1=numeric(), pct.2=numeric()))
+  }
+  
+  final_results_df <- do.call(rbind, all_results_list)
+  
+  # Ensure correct column order and sort
+  cols_ordered <- c("gene", "cluster", "bulk_category", "avg_log2FC", "pct.1", "pct.2", "p_val", "p_val_adj")
+  # Add any missing columns with NA if they weren't generated
+  for(col_name in cols_ordered){
+    if(!col_name %in% colnames(final_results_df)){
+      final_results_df[[col_name]] <- NA_real_ # Use type-appropriate NA
+      if(col_name %in% c("gene", "cluster", "bulk_category")) final_results_df[[col_name]] <- NA_character_
+    }
+  }
+  final_results_df <- final_results_df[, cols_ordered] %>%
+    dplyr::arrange(bulk_category, cluster, p_val_adj, p_val)
+  
+  message("\nDone with all comparisons.")
+  return(final_results_df)
+}
+
+
+
+
+#' Advanced Pseudobulk FindMarkers function with covariates
+#'
+#' @param seurat_obj Seurat object
+#' @param ident.1 Identity class to define markers for
+#' @param ident.2 Identity class(es) to compare against (default: all others)
+#' @param group.by Column name in metadata to use for identity classes
+#' @param sample.by Column name in metadata defining biological replicates/samples
+#' @param covariates Character vector of additional metadata columns to include in the model
+#' @param aggregate.by Additional column to create finer pseudobulk aggregations (e.g., subcluster)
+#' @param min.cells Minimum number of cells per pseudobulk sample
+#' @param method DE method to use: "DESeq2" or "edgeR"
+#' @param design.formula Custom design formula (overrides automatic formula generation)
+#' @param contrast.type Type of contrast: "simple" or "interaction"
+#' @param logfc.threshold Log fold change threshold
+#' @param min.pct Minimum percentage of samples expressing the gene
+#' @param assay Assay to use
+#' @param slot Slot to use (counts recommended for pseudobulk)
+#' @return Data frame with DE results
+FindMarkers_pseudobulk <- function(seurat_obj,
+                                   ident.1,
+                                   ident.2 = NULL,
+                                   group.by = "seurat_clusters",
+                                   sample.by,
+                                   covariates = NULL,
+                                   aggregate.by = NULL,
+                                   min.cells = 10,
+                                   method = "DESeq2",
+                                   design.formula = NULL,
+                                   contrast.type = "simple",
+                                   logfc.threshold = 0.25,
+                                   min.pct = 0.1,
+                                   assay = DefaultAssay(seurat_obj),
+                                   slot = "counts") {
+  
+  # Set identities
+  Idents(seurat_obj) <- group.by
+  
+  # Get cells for each group
+  cells.1 <- WhichCells(seurat_obj, idents = ident.1)
+  if (is.null(ident.2)) {
+    cells.2 <- WhichCells(seurat_obj, idents = setdiff(levels(Idents(seurat_obj)), ident.1))
+  } else {
+    cells.2 <- WhichCells(seurat_obj, idents = ident.2)
+  }
+  
+  # Subset object
+  cells.use <- c(cells.1, cells.2)
+  seurat_subset <- subset(seurat_obj, cells = cells.use)
+  
+  # Create pseudobulk matrix with advanced aggregation
+  pb_data <- create_pseudobulk_matrix_advanced(
+    seurat_obj = seurat_subset,
+    sample.by = sample.by,
+    group.by = group.by,
+    aggregate.by = aggregate.by,
+    covariates = covariates,
+    assay = assay,
+    slot = slot,
+    min.cells = min.cells
+  )
+  
+  pb_matrix <- pb_data$matrix
+  pb_metadata <- pb_data$metadata
+  
+  # Filter for minimum expression
+  keep_genes <- rowSums(pb_matrix > 0) >= (ncol(pb_matrix) * min.pct)
+  pb_matrix <- pb_matrix[keep_genes, ]
+  
+  # Run differential expression
+  if (method == "DESeq2") {
+    de_results <- run_DESeq2_pseudobulk_advanced(
+      pb_matrix = pb_matrix,
+      metadata = pb_metadata,
+      group.by = group.by,
+      ident.1 = ident.1,
+      ident.2 = ident.2,
+      covariates = covariates,
+      design.formula = design.formula,
+      logfc.threshold = logfc.threshold
+    )
+  } else if (method == "edgeR") {
+    de_results <- run_edgeR_pseudobulk_advanced(
+      pb_matrix = pb_matrix,
+      metadata = pb_metadata,
+      group.by = group.by,
+      ident.1 = ident.1,
+      ident.2 = ident.2,
+      covariates = covariates,
+      design.formula = design.formula,
+      contrast.type = contrast.type,
+      logfc.threshold = logfc.threshold
+    )
+  } else {
+    stop("Method must be either 'DESeq2' or 'edgeR'")
+  }
+  
+  return(de_results)
+}
+
+#' Create advanced pseudobulk expression matrix with flexible aggregation
+#'
+#' @param seurat_obj Seurat object
+#' @param sample.by Column name defining samples
+#' @param group.by Column name defining groups for comparison
+#' @param aggregate.by Additional column for finer aggregation
+#' @param covariates Additional metadata columns to include
+#' @param assay Assay to use
+#' @param slot Slot to use
+#' @param min.cells Minimum cells per pseudobulk sample
+#' @return List with pseudobulk matrix and metadata
+create_pseudobulk_matrix_advanced <- function(seurat_obj,
+                                              sample.by,
+                                              group.by,
+                                              aggregate.by = NULL,
+                                              covariates = NULL,
+                                              assay = DefaultAssay(seurat_obj),
+                                              slot = "counts",
+                                              min.cells = 10) {
+  
+  # Get expression matrix
+  expr_matrix <- GetAssayData(seurat_obj, assay = assay, slot = slot)
+  
+  # Prepare metadata columns
+  meta_cols <- c(sample.by, group.by)
+  if (!is.null(aggregate.by)) meta_cols <- c(meta_cols, aggregate.by)
+  if (!is.null(covariates)) meta_cols <- c(meta_cols, covariates)
+  
+  # Get metadata
+  metadata <- seurat_obj@meta.data[, meta_cols, drop = FALSE]
+  metadata$cell_id <- colnames(seurat_obj)
+  
+  # Create aggregation ID
+  if (!is.null(aggregate.by)) {
+    # Include aggregate.by in the pseudobulk sample ID
+    metadata$pb_sample_id <- paste(metadata[[sample.by]], 
+                                   metadata[[group.by]], 
+                                   metadata[[aggregate.by]], 
+                                   sep = "_")
+  } else {
+    metadata$pb_sample_id <- paste(metadata[[sample.by]], 
+                                   metadata[[group.by]], 
+                                   sep = "_")
+  }
+  
+  # Aggregate expression
+  pb_list <- list()
+  sample_metadata <- list()
+  
+  for (pb_id in unique(metadata$pb_sample_id)) {
+    cells <- metadata$cell_id[metadata$pb_sample_id == pb_id]
+    
+    if (length(cells) >= min.cells) {
+      # Sum expression across cells
+      if (length(cells) == 1) {
+        pb_expr <- expr_matrix[, cells, drop = FALSE]
+      } else {
+        pb_expr <- Matrix::rowSums(expr_matrix[, cells, drop = FALSE])
+      }
+      
+      pb_list[[pb_id]] <- pb_expr
+      
+      # Store metadata for this pseudobulk sample
+      sample_info <- metadata[metadata$pb_sample_id == pb_id, ][1, ]
+      sample_meta <- data.frame(
+        pb_sample_id = pb_id,
+        sample = sample_info[[sample.by]],
+        group = sample_info[[group.by]],
+        n_cells = length(cells),
+        stringsAsFactors = FALSE
+      )
+      
+      # Add aggregate.by if present
+      if (!is.null(aggregate.by)) {
+        sample_meta[[aggregate.by]] <- sample_info[[aggregate.by]]
+      }
+      
+      # Add covariates if present
+      if (!is.null(covariates)) {
+        for (cov in covariates) {
+          sample_meta[[cov]] <- sample_info[[cov]]
+        }
+      }
+      
+      sample_metadata[[pb_id]] <- sample_meta
+    }
+  }
+  
+  # Create pseudobulk matrix
+  pb_matrix <- do.call(cbind, pb_list)
+  pb_metadata <- do.call(rbind, sample_metadata)
+  rownames(pb_metadata) <- pb_metadata$pb_sample_id
+  
+  return(list(matrix = pb_matrix, metadata = pb_metadata))
+}
+
+#' Run advanced edgeR analysis on pseudobulk data
+run_edgeR_pseudobulk_advanced <- function(pb_matrix,
+                                          metadata,
+                                          group.by,
+                                          ident.1,
+                                          ident.2 = NULL,
+                                          covariates = NULL,
+                                          design.formula = NULL,
+                                          contrast.type = "simple",
+                                          logfc.threshold = 0.25) {
+  
+  # Prepare metadata
+  metadata$group <- factor(metadata$group)
+  
+  # Set conditions
+  if (is.null(ident.2)) {
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  } else {
+    # Only keep ident.1 and ident.2 samples
+    keep_samples <- metadata$group %in% c(ident.1, ident.2)
+    pb_matrix <- pb_matrix[, keep_samples]
+    metadata <- metadata[keep_samples, ]
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  }
+  
+  metadata$condition <- factor(metadata$condition, levels = c("reference", "target"))
+  
+  # Create DGEList
+  y <- DGEList(counts = round(pb_matrix))
+  
+  # Filter low expression genes
+  keep <- filterByExpr(y)
+  y <- y[keep, , keep.lib.sizes = FALSE]
+  
+  # Normalize
+  y <- calcNormFactors(y)
+  
+  # Create design matrix
+  if (!is.null(design.formula)) {
+    # Use custom formula
+    design <- model.matrix(design.formula, data = metadata)
+  } else if (!is.null(covariates)) {
+    # Build formula with covariates
+    formula_str <- paste("~ 0 + condition", paste(covariates, collapse = " + "), sep = " + ")
+    design <- model.matrix(as.formula(formula_str), data = metadata)
+  } else {
+    # Simple design
+    design <- model.matrix(~ 0 + condition, data = metadata)
+  }
+  
+  # Ensure we have condition columns in the design matrix
+  if (!any(grepl("condition", colnames(design)))) {
+    stop("Design matrix must include condition factor")
+  }
+  
+  # Estimate dispersion
+  y <- estimateDisp(y, design)
+  
+  # Fit model
+  fit <- glmQLFit(y, design)
+  
+  # Make contrast based on contrast type
+  if (contrast.type == "simple") {
+    # Find the columns for conditions
+    target_col <- grep("conditiontarget", colnames(design))
+    ref_col <- grep("conditionreference", colnames(design))
+    
+    if (length(target_col) == 0 || length(ref_col) == 0) {
+      # Try alternative naming
+      contrast <- makeContrasts(
+        conditiontarget - conditionreference, 
+        levels = design
+      )
+    } else {
+      contrast_vector <- numeric(ncol(design))
+      contrast_vector[target_col] <- 1
+      contrast_vector[ref_col] <- -1
+      contrast <- contrast_vector
+    }
+  } else if (contrast.type == "interaction") {
+    # For interaction terms, user should provide custom contrast
+    stop("For interaction contrasts, please provide a custom design formula")
+  }
+  
+  # Perform test
+  qlf <- glmQLFTest(fit, contrast = contrast)
+  
+  # Get results
+  de_results <- topTags(qlf, n = Inf)$table
+  
+  # Format results
+  de_results$avg_log2FC <- de_results$logFC
+  de_results$p_val <- de_results$PValue
+  de_results$p_val_adj <- de_results$FDR
+  de_results$avg_expr <- de_results$logCPM
+  
+  # Filter by log fold change
+  de_results <- de_results[abs(de_results$avg_log2FC) > logfc.threshold, ]
+  
+  # Select columns
+  de_results <- de_results[, c("avg_log2FC", "p_val", "p_val_adj", "avg_expr")]
+  
+  # Sort by adjusted p-value
+  de_results <- de_results[order(de_results$p_val_adj), ]
+  
+  return(de_results)
+}
+
+#' Run advanced DESeq2 analysis on pseudobulk data
+run_DESeq2_pseudobulk_advanced <- function(pb_matrix,
+                                           metadata,
+                                           group.by,
+                                           ident.1,
+                                           ident.2 = NULL,
+                                           covariates = NULL,
+                                           design.formula = NULL,
+                                           logfc.threshold = 0.25) {
+  
+  # Prepare metadata
+  metadata$group <- factor(metadata$group)
+  
+  # Set conditions
+  if (is.null(ident.2)) {
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  } else {
+    keep_samples <- metadata$group %in% c(ident.1, ident.2)
+    pb_matrix <- pb_matrix[, keep_samples]
+    metadata <- metadata[keep_samples, ]
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  }
+  
+  metadata$condition <- factor(metadata$condition, levels = c("reference", "target"))
+  
+  # Create design
+  if (!is.null(design.formula)) {
+    design <- design.formula
+  } else if (!is.null(covariates)) {
+    formula_str <- paste("~ condition", paste(covariates, collapse = " + "), sep = " + ")
+    design <- as.formula(formula_str)
+  } else {
+    design <- ~ condition
+  }
+  
+  # Create DESeq2 dataset
+  dds <- DESeqDataSetFromMatrix(
+    countData = round(pb_matrix),
+    colData = metadata,
+    design = design
+  )
+  
+  # Filter low counts
+  keep <- rowSums(counts(dds)) >= 10
+  dds <- dds[keep, ]
+  
+  # Run DESeq2
+  dds <- DESeq(dds)
+  
+  # Get results
+  res <- results(dds, contrast = c("condition", "target", "reference"))
+  
+  # Format results
+  de_results <- as.data.frame(res)
+  de_results$avg_log2FC <- de_results$log2FoldChange
+  de_results$p_val <- de_results$pvalue
+  de_results$p_val_adj <- de_results$padj
+  
+  # Filter
+  de_results <- de_results[!is.na(de_results$p_val_adj), ]
+  de_results <- de_results[abs(de_results$avg_log2FC) > logfc.threshold, ]
+  
+  # Select columns
+  de_results <- de_results[, c("avg_log2FC", "p_val", "p_val_adj", "baseMean")]
+  names(de_results)[4] <- "avg_expr"
+  
+  # Sort
+  de_results <- de_results[order(de_results$p_val_adj), ]
+  
+  return(de_results)
+}
+
+#' Pseudobulk FindAllMarkers function
+#'
+#' @param seurat_obj Seurat object
+#' @param group.by Column name in metadata to use for identity classes
+#' @param sample.by Column name in metadata defining biological replicates/samples
+#' @param covariates Character vector of additional metadata columns to include in the model
+#' @param aggregate.by Additional column to create finer pseudobulk aggregations
+#' @param min.cells Minimum number of cells per sample to include
+#' @param method DE method to use: "DESeq2" or "edgeR"
+#' @param design.formula Custom design formula
+#' @param logfc.threshold Log fold change threshold
+#' @param min.pct Minimum percentage of samples expressing the gene
+#' @param only.pos Only return positive markers
+#' @param assay Assay to use
+#' @param slot Slot to use (counts recommended for pseudobulk)
+#' @return Data frame with DE results for all clusters
+FindAllMarkers_pseudobulk <- function(seurat_obj,
+                                      group.by = "seurat_clusters",
+                                      sample.by,
+                                      covariates = NULL,
+                                      aggregate.by = NULL,
+                                      min.cells = 10,
+                                      method = "DESeq2",
+                                      design.formula = NULL,
+                                      logfc.threshold = 0.25,
+                                      min.pct = 0.1,
+                                      only.pos = FALSE,
+                                      assay = DefaultAssay(seurat_obj),
+                                      slot = "counts") {
+  
+  # Get all unique identities
+  Idents(seurat_obj) <- group.by
+  all_idents <- levels(Idents(seurat_obj))
+  
+  # Run FindMarkers for each identity
+  all_markers <- list()
+  
+  for (ident in all_idents) {
+    message(paste0("Finding markers for ", group.by, " ", ident))
+    
+    tryCatch({
+      markers <- FindMarkers_pseudobulk(
+        seurat_obj = seurat_obj,
+        ident.1 = ident,
+        ident.2 = NULL,
+        group.by = group.by,
+        sample.by = sample.by,
+        covariates = covariates,
+        aggregate.by = aggregate.by,
+        min.cells = min.cells,
+        method = method,
+        design.formula = design.formula,
+        logfc.threshold = logfc.threshold,
+        min.pct = min.pct,
+        assay = assay,
+        slot = slot
+      )
+      
+      if (nrow(markers) > 0) {
+        markers$gene <- rownames(markers)
+        markers$cluster <- ident
+        all_markers[[as.character(ident)]] <- markers
+      }
+    }, error = function(e) {
+      warning(paste0("Failed to find markers for ", group.by, " ", ident, ": ", e$message))
+    })
+  }
+  
+  # Combine all results
+  all_markers_df <- do.call(rbind, all_markers)
+  rownames(all_markers_df) <- NULL
+  
+  # Filter for only positive markers if requested
+  if (only.pos) {
+    all_markers_df <- all_markers_df[all_markers_df$avg_log2FC > 0, ]
+  }
+  
+  # Sort by cluster and p-value
+  all_markers_df <- all_markers_df[order(all_markers_df$cluster, all_markers_df$p_val_adj), ]
+  
+  return(all_markers_df)
+}
+
+# Example usage:
+# 1. Simple comparison with sample aggregation
+# markers_cluster1 <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "1",
+#   sample.by = "patient_id",
+#   group.by = "seurat_clusters",
+#   method = "edgeR"
+# )
+#
+# 2. Comparison with finer aggregation by subclusters
+# markers_with_subcluster <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "NK_cells",
+#   ident.2 = "T_cells",
+#   sample.by = "patient_id",
+#   group.by = "cell_type",
+#   aggregate.by = "subcluster",  # Creates separate pseudobulk for each patient-celltype-subcluster
+#   method = "edgeR"
+# )
+#
+# 3. Including batch effect as covariate
+# markers_batch_corrected <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "1",
+#   sample.by = "patient_id",
+#   group.by = "seurat_clusters",
+#   covariates = c("batch", "sex"),  # Include batch and sex in the model
+#   method = "edgeR"
+# )
+#
+# 4. Custom design formula for complex comparisons
+# markers_interaction <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "treated",
+#   ident.2 = "control",
+#   sample.by = "patient_id",
+#   group.by = "treatment",
+#   covariates = c("timepoint"),
+#   design.formula = ~ condition + timepoint + condition:timepoint,
+#   method = "edgeR"
+# )
+
+
+
+
+#' Advanced Pseudobulk FindMarkers function with covariates
+#'
+#' @param seurat_obj Seurat object
+#' @param ident.1 Identity class to define markers for
+#' @param ident.2 Identity class(es) to compare against (default: all others)
+#' @param group.by Column name in metadata to use for identity classes
+#' @param sample.by Column name in metadata defining biological replicates/samples
+#' @param covariates Character vector of additional metadata columns to include in the model
+#' @param aggregate.by Additional column to create finer pseudobulk aggregations (e.g., subcluster)
+#' @param min.cells Minimum number of cells per pseudobulk sample
+#' @param method DE method to use: "DESeq2" or "edgeR"
+#' @param design.formula Custom design formula (overrides automatic formula generation)
+#' @param contrast.type Type of contrast: "simple" or "interaction"
+#' @param logfc.threshold Log fold change threshold
+#' @param min.pct Minimum percentage of samples expressing the gene
+#' @param assay Assay to use
+#' @param slot Slot to use (counts recommended for pseudobulk)
+#' @return Data frame with DE results
+FindMarkers_pseudobulk <- function(seurat_obj,
+                                   ident.1,
+                                   ident.2 = NULL,
+                                   group.by = "seurat_clusters",
+                                   sample.by,
+                                   covariates = NULL,
+                                   aggregate.by = NULL,
+                                   min.cells = 10,
+                                   method = "DESeq2",
+                                   design.formula = NULL,
+                                   contrast.type = "simple",
+                                   logfc.threshold = 0.25,
+                                   min.pct = 0.1,
+                                   assay = DefaultAssay(seurat_obj),
+                                   slot = "counts") {
+  
+  # Set identities
+  Idents(seurat_obj) <- group.by
+  
+  # Get cells for each group
+  cells.1 <- WhichCells(seurat_obj, idents = ident.1)
+  if (is.null(ident.2)) {
+    cells.2 <- WhichCells(seurat_obj, idents = setdiff(levels(Idents(seurat_obj)), ident.1))
+  } else {
+    cells.2 <- WhichCells(seurat_obj, idents = ident.2)
+  }
+  
+  # Subset object
+  cells.use <- c(cells.1, cells.2)
+  seurat_subset <- subset(seurat_obj, cells = cells.use)
+  
+  # Create pseudobulk matrix with advanced aggregation
+  pb_data <- create_pseudobulk_matrix_advanced(
+    seurat_obj = seurat_subset,
+    sample.by = sample.by,
+    group.by = group.by,
+    aggregate.by = aggregate.by,
+    covariates = covariates,
+    assay = assay,
+    slot = slot,
+    min.cells = min.cells
+  )
+  
+  pb_matrix <- pb_data$matrix
+  pb_metadata <- pb_data$metadata
+  
+  # Filter for minimum expression
+  keep_genes <- rowSums(pb_matrix > 0) >= (ncol(pb_matrix) * min.pct)
+  pb_matrix <- pb_matrix[keep_genes, ]
+  
+  # Run differential expression
+  if (method == "DESeq2") {
+    de_results <- run_DESeq2_pseudobulk_advanced(
+      pb_matrix = pb_matrix,
+      metadata = pb_metadata,
+      group.by = group.by,
+      ident.1 = ident.1,
+      ident.2 = ident.2,
+      covariates = covariates,
+      design.formula = design.formula,
+      logfc.threshold = logfc.threshold
+    )
+  } else if (method == "edgeR") {
+    de_results <- run_edgeR_pseudobulk_advanced(
+      pb_matrix = pb_matrix,
+      metadata = pb_metadata,
+      group.by = group.by,
+      ident.1 = ident.1,
+      ident.2 = ident.2,
+      covariates = covariates,
+      design.formula = design.formula,
+      contrast.type = contrast.type,
+      logfc.threshold = logfc.threshold
+    )
+  } else {
+    stop("Method must be either 'DESeq2' or 'edgeR'")
+  }
+  
+  return(de_results)
+}
+
+#' Create advanced pseudobulk expression matrix with flexible aggregation
+#'
+#' @param seurat_obj Seurat object
+#' @param sample.by Column name defining samples
+#' @param group.by Column name defining groups for comparison
+#' @param aggregate.by Additional column for finer aggregation
+#' @param covariates Additional metadata columns to include
+#' @param assay Assay to use
+#' @param slot Slot to use
+#' @param min.cells Minimum cells per pseudobulk sample
+#' @return List with pseudobulk matrix and metadata
+create_pseudobulk_matrix_advanced <- function(seurat_obj,
+                                              sample.by,
+                                              group.by,
+                                              aggregate.by = NULL,
+                                              covariates = NULL,
+                                              assay = DefaultAssay(seurat_obj),
+                                              slot = "counts",
+                                              min.cells = 10) {
+  
+  # Get expression matrix
+  expr_matrix <- GetAssayData(seurat_obj, assay = assay, slot = slot)
+  
+  # Prepare metadata columns
+  meta_cols <- c(sample.by, group.by)
+  if (!is.null(aggregate.by)) meta_cols <- c(meta_cols, aggregate.by)
+  if (!is.null(covariates)) meta_cols <- c(meta_cols, covariates)
+  
+  # Get metadata
+  metadata <- seurat_obj@meta.data[, meta_cols, drop = FALSE]
+  metadata$cell_id <- colnames(seurat_obj)
+  
+  # Create aggregation ID
+  if (!is.null(aggregate.by)) {
+    # Include aggregate.by in the pseudobulk sample ID
+    metadata$pb_sample_id <- paste(metadata[[sample.by]], 
+                                   metadata[[group.by]], 
+                                   metadata[[aggregate.by]], 
+                                   sep = "_")
+  } else {
+    metadata$pb_sample_id <- paste(metadata[[sample.by]], 
+                                   metadata[[group.by]], 
+                                   sep = "_")
+  }
+  
+  # Aggregate expression
+  pb_list <- list()
+  sample_metadata <- list()
+  
+  for (pb_id in unique(metadata$pb_sample_id)) {
+    cells <- metadata$cell_id[metadata$pb_sample_id == pb_id]
+    
+    if (length(cells) >= min.cells) {
+      # Sum expression across cells
+      if (length(cells) == 1) {
+        pb_expr <- expr_matrix[, cells, drop = FALSE]
+      } else {
+        pb_expr <- Matrix::rowSums(expr_matrix[, cells, drop = FALSE])
+      }
+      
+      pb_list[[pb_id]] <- pb_expr
+      
+      # Store metadata for this pseudobulk sample
+      sample_info <- metadata[metadata$pb_sample_id == pb_id, ][1, ]
+      sample_meta <- data.frame(
+        pb_sample_id = pb_id,
+        sample = sample_info[[sample.by]],
+        group = sample_info[[group.by]],
+        n_cells = length(cells),
+        stringsAsFactors = FALSE
+      )
+      
+      # Add aggregate.by if present
+      if (!is.null(aggregate.by)) {
+        sample_meta[[aggregate.by]] <- sample_info[[aggregate.by]]
+      }
+      
+      # Add covariates if present
+      if (!is.null(covariates)) {
+        for (cov in covariates) {
+          sample_meta[[cov]] <- sample_info[[cov]]
+        }
+      }
+      
+      sample_metadata[[pb_id]] <- sample_meta
+    }
+  }
+  
+  # Create pseudobulk matrix
+  pb_matrix <- do.call(cbind, pb_list)
+  pb_metadata <- do.call(rbind, sample_metadata)
+  rownames(pb_metadata) <- pb_metadata$pb_sample_id
+  
+  return(list(matrix = pb_matrix, metadata = pb_metadata))
+}
+
+#' Run advanced edgeR analysis on pseudobulk data
+run_edgeR_pseudobulk_advanced <- function(pb_matrix,
+                                          metadata,
+                                          group.by,
+                                          ident.1,
+                                          ident.2 = NULL,
+                                          covariates = NULL,
+                                          design.formula = NULL,
+                                          contrast.type = "simple",
+                                          logfc.threshold = 0.25) {
+  
+  # Prepare metadata
+  metadata$group <- factor(metadata$group)
+  
+  # Set conditions
+  if (is.null(ident.2)) {
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  } else {
+    # Only keep ident.1 and ident.2 samples
+    keep_samples <- metadata$group %in% c(ident.1, ident.2)
+    pb_matrix <- pb_matrix[, keep_samples]
+    metadata <- metadata[keep_samples, ]
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  }
+  
+  metadata$condition <- factor(metadata$condition, levels = c("reference", "target"))
+  
+  # Create DGEList
+  y <- DGEList(counts = round(pb_matrix))
+  
+  # Filter low expression genes
+  keep <- filterByExpr(y)
+  y <- y[keep, , keep.lib.sizes = FALSE]
+  
+  # Normalize
+  y <- calcNormFactors(y)
+  
+  # Create design matrix
+  if (!is.null(design.formula)) {
+    # Use custom formula
+    design <- model.matrix(design.formula, data = metadata)
+  } else if (!is.null(covariates)) {
+    # Build formula with covariates
+    formula_str <- paste("~ 0 + condition", paste(covariates, collapse = " + "), sep = " + ")
+    design <- model.matrix(as.formula(formula_str), data = metadata)
+  } else {
+    # Simple design
+    design <- model.matrix(~ 0 + condition, data = metadata)
+  }
+  
+  # Ensure we have condition columns in the design matrix
+  if (!any(grepl("condition", colnames(design)))) {
+    stop("Design matrix must include condition factor")
+  }
+  
+  # Estimate dispersion
+  y <- estimateDisp(y, design)
+  
+  # Fit model
+  fit <- glmQLFit(y, design)
+  
+  # Make contrast based on contrast type
+  if (contrast.type == "simple") {
+    # Find the columns for conditions
+    target_col <- grep("conditiontarget", colnames(design))
+    ref_col <- grep("conditionreference", colnames(design))
+    
+    if (length(target_col) == 0 || length(ref_col) == 0) {
+      # Try alternative naming
+      contrast <- makeContrasts(
+        conditiontarget - conditionreference, 
+        levels = design
+      )
+    } else {
+      contrast_vector <- numeric(ncol(design))
+      contrast_vector[target_col] <- 1
+      contrast_vector[ref_col] <- -1
+      contrast <- contrast_vector
+    }
+  } else if (contrast.type == "interaction") {
+    # For interaction terms, user should provide custom contrast
+    stop("For interaction contrasts, please provide a custom design formula")
+  }
+  
+  # Perform test
+  qlf <- glmQLFTest(fit, contrast = contrast)
+  
+  # Get results
+  de_results <- topTags(qlf, n = Inf)$table
+  
+  # Format results
+  de_results$avg_log2FC <- de_results$logFC
+  de_results$p_val <- de_results$PValue
+  de_results$p_val_adj <- de_results$FDR
+  de_results$avg_expr <- de_results$logCPM
+  
+  # Filter by log fold change
+  de_results <- de_results[abs(de_results$avg_log2FC) > logfc.threshold, ]
+  
+  # Select columns
+  de_results <- de_results[, c("avg_log2FC", "p_val", "p_val_adj", "avg_expr")]
+  
+  # Sort by adjusted p-value
+  de_results <- de_results[order(de_results$p_val_adj), ]
+  
+  return(de_results)
+}
+
+#' Run advanced DESeq2 analysis on pseudobulk data
+run_DESeq2_pseudobulk_advanced <- function(pb_matrix,
+                                           metadata,
+                                           group.by,
+                                           ident.1,
+                                           ident.2 = NULL,
+                                           covariates = NULL,
+                                           design.formula = NULL,
+                                           logfc.threshold = 0.25) {
+  
+  # Prepare metadata
+  metadata$group <- factor(metadata$group)
+  
+  # Set conditions
+  if (is.null(ident.2)) {
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  } else {
+    keep_samples <- metadata$group %in% c(ident.1, ident.2)
+    pb_matrix <- pb_matrix[, keep_samples]
+    metadata <- metadata[keep_samples, ]
+    metadata$condition <- ifelse(metadata$group == ident.1, "target", "reference")
+  }
+  
+  metadata$condition <- factor(metadata$condition, levels = c("reference", "target"))
+  
+  # Create design
+  if (!is.null(design.formula)) {
+    design <- design.formula
+  } else if (!is.null(covariates)) {
+    formula_str <- paste("~ condition", paste(covariates, collapse = " + "), sep = " + ")
+    design <- as.formula(formula_str)
+  } else {
+    design <- ~ condition
+  }
+  
+  # Create DESeq2 dataset
+  dds <- DESeqDataSetFromMatrix(
+    countData = round(pb_matrix),
+    colData = metadata,
+    design = design
+  )
+  
+  # Filter low counts
+  keep <- rowSums(counts(dds)) >= 10
+  dds <- dds[keep, ]
+  
+  # Run DESeq2
+  dds <- DESeq(dds)
+  
+  # Get results
+  res <- results(dds, contrast = c("condition", "target", "reference"))
+  
+  # Format results
+  de_results <- as.data.frame(res)
+  de_results$avg_log2FC <- de_results$log2FoldChange
+  de_results$p_val <- de_results$pvalue
+  de_results$p_val_adj <- de_results$padj
+  
+  # Filter
+  de_results <- de_results[!is.na(de_results$p_val_adj), ]
+  de_results <- de_results[abs(de_results$avg_log2FC) > logfc.threshold, ]
+  
+  # Select columns
+  de_results <- de_results[, c("avg_log2FC", "p_val", "p_val_adj", "baseMean")]
+  names(de_results)[4] <- "avg_expr"
+  
+  # Sort
+  de_results <- de_results[order(de_results$p_val_adj), ]
+  
+  return(de_results)
+}
+
+#' Pseudobulk FindAllMarkers function
+#'
+#' @param seurat_obj Seurat object
+#' @param group.by Column name in metadata to use for identity classes
+#' @param sample.by Column name in metadata defining biological replicates/samples
+#' @param covariates Character vector of additional metadata columns to include in the model
+#' @param aggregate.by Additional column to create finer pseudobulk aggregations
+#' @param min.cells Minimum number of cells per sample to include
+#' @param method DE method to use: "DESeq2" or "edgeR"
+#' @param design.formula Custom design formula
+#' @param logfc.threshold Log fold change threshold
+#' @param min.pct Minimum percentage of samples expressing the gene
+#' @param only.pos Only return positive markers
+#' @param assay Assay to use
+#' @param slot Slot to use (counts recommended for pseudobulk)
+#' @return Data frame with DE results for all clusters
+FindAllMarkers_pseudobulk <- function(seurat_obj,
+                                      group.by = "seurat_clusters",
+                                      sample.by,
+                                      covariates = NULL,
+                                      aggregate.by = NULL,
+                                      min.cells = 10,
+                                      method = "DESeq2",
+                                      design.formula = NULL,
+                                      logfc.threshold = 0.25,
+                                      min.pct = 0.1,
+                                      only.pos = FALSE,
+                                      assay = DefaultAssay(seurat_obj),
+                                      slot = "counts") {
+  
+  # Get all unique identities
+  Idents(seurat_obj) <- group.by
+  all_idents <- levels(Idents(seurat_obj))
+  
+  # Run FindMarkers for each identity
+  all_markers <- list()
+  
+  for (ident in all_idents) {
+    message(paste0("Finding markers for ", group.by, " ", ident))
+    
+    tryCatch({
+      markers <- FindMarkers_pseudobulk(
+        seurat_obj = seurat_obj,
+        ident.1 = ident,
+        ident.2 = NULL,
+        group.by = group.by,
+        sample.by = sample.by,
+        covariates = covariates,
+        aggregate.by = aggregate.by,
+        min.cells = min.cells,
+        method = method,
+        design.formula = design.formula,
+        logfc.threshold = logfc.threshold,
+        min.pct = min.pct,
+        assay = assay,
+        slot = slot
+      )
+      
+      if (nrow(markers) > 0) {
+        markers$gene <- rownames(markers)
+        markers$cluster <- ident
+        all_markers[[as.character(ident)]] <- markers
+      }
+    }, error = function(e) {
+      warning(paste0("Failed to find markers for ", group.by, " ", ident, ": ", e$message))
+    })
+  }
+  
+  # Combine all results
+  all_markers_df <- do.call(rbind, all_markers)
+  rownames(all_markers_df) <- NULL
+  
+  # Filter for only positive markers if requested
+  if (only.pos) {
+    all_markers_df <- all_markers_df[all_markers_df$avg_log2FC > 0, ]
+  }
+  
+  # Sort by cluster and p-value
+  all_markers_df <- all_markers_df[order(all_markers_df$cluster, all_markers_df$p_val_adj), ]
+  
+  return(all_markers_df)
+}
+
+# Example usage:
+# 1. Simple comparison with sample aggregation
+# markers_cluster1 <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "1",
+#   sample.by = "patient_id",
+#   group.by = "seurat_clusters",
+#   method = "edgeR"
+# )
+#
+# 2. Comparison with finer aggregation by subclusters
+# markers_with_subcluster <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "NK_cells",
+#   ident.2 = "T_cells",
+#   sample.by = "patient_id",
+#   group.by = "cell_type",
+#   aggregate.by = "subcluster",  # Creates separate pseudobulk for each patient-celltype-subcluster
+#   method = "edgeR"
+# )
+#
+# 3. Including batch effect as covariate
+# markers_batch_corrected <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "1",
+#   sample.by = "patient_id",
+#   group.by = "seurat_clusters",
+#   covariates = c("batch", "sex"),  # Include batch and sex in the model
+#   method = "edgeR"
+# )
+#
+# 4. Custom design formula for complex comparisons
+# markers_interaction <- FindMarkers_pseudobulk(
+#   seurat_obj = pbmc,
+#   ident.1 = "treated",
+#   ident.2 = "control",
+#   sample.by = "patient_id",
+#   group.by = "treatment",
+#   covariates = c("timepoint"),
+#   design.formula = ~ condition + timepoint + condition:timepoint,
+#   method = "edgeR"
+# )
