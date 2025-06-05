@@ -166,12 +166,12 @@ marker_print=function(markers, n=100, cluster_to_print=NULL){
   if(class(markers)=="list"){
     for(i in names(markers)){
       print(i)
-      print(paste(marker_list[[i]][marker_list[[i]]$avg_log2FC>0,][1:number_to_print,]$gene,collapse = ", "))
+      print(paste(markers[[i]][markers[[i]]$avg_log2FC>0,][1:number_to_print,]$gene,collapse = ", "))
     }
   }else{
     for(i in unique(markers$cluster)){
       print(i)
-      print(paste(marker_list[[i]][marker_list[[i]]$avg_log2FC>0,][1:number_to_print,]$gene,collapse = ", "))
+      print(paste(markers[markers$cluster==i,][markers$avg_log2FC>0,][1:number_to_print,]$gene,collapse = ", "))
     }
   }
 }
