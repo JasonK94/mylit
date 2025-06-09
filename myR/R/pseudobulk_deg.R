@@ -2957,10 +2957,12 @@ run_edgeR_pseudobulk_advanced <- function(pb_matrix,
   metadata$condition <- factor(metadata$condition, levels = c("reference", "target"))
   
   # Create DGEList
-  y <- DGEList(counts = round(pb_matrix))
+  y <- DGEList(counts = round(pb_matrix),
+               samples = metadata,
+               group   = metadata$condition)
   
-  # Filter low expression genes
-  keep <- filterByExpr(y)
+  # ② filterByExpr 호출 시 design 전달
+  keep <- filterByExpr(y, design = model.matrix(~0 + condition, data = metadata))
   y <- y[keep, , keep.lib.sizes = FALSE]
   
   # Normalize

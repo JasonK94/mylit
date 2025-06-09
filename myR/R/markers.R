@@ -154,7 +154,7 @@ all_markers_to_list=function(markers){
 #' marker_print(markers, n = 20, cluster_to_print = c("0", "1"))
 #' }
 #' @export
-marker_print=function(markers, n=100, cluster_to_print=NULL){
+marker_print_all=function(markers, n=100, cluster_to_print=NULL){
   number_to_print=n
   if(is.null(cluster_to_print)){}else{
     if(class(markers)=="list"){
@@ -173,5 +173,14 @@ marker_print=function(markers, n=100, cluster_to_print=NULL){
       print(i)
       print(paste(markers[markers$cluster==i,][markers$avg_log2FC>0,][1:number_to_print,]$gene,collapse = ", "))
     }
+  }
+}
+
+#' @export
+marker_print=function(marker, n=100, sign="+"){
+  if(sign=="+"){
+    print(paste(marker[marker$avg_log2FC>0,][1:n,]$gene,collapse = ", "))
+  }else{
+    print(paste(marker[marker$avg_log2FC<0,][1:n,]$gene,collapse = ", "))
   }
 }

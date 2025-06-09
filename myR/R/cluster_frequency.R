@@ -369,3 +369,585 @@ seurat_posthoc_analysis <- function(data, results, alpha = 0.05) {
   # Return post-hoc results
   return(posthoc_results)
 }
+
+
+
+
+
+
+
+# Claude style
+
+# Seurat Cluster Fraction Analysis Functions
+# 필요한 라이브러리
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggpubr)
+library(rstatix)
+
+#' Extract sample-level metadata from cell-level metadata
+#' 
+#' @param cell_metadata Cell-level metadata (Seurat object or data.frame)
+#' @param sample_key Column name for sample identification
+#' @param target_key Column name for the target variable (e.g., cluster)
+#' @param group_key Column name for grouping variable (e.g., prognosis)
+#' @param fun Aggregation function (default: proportion calculation)
+#' @return Data frame with sample-level aggregated data
+extract_sample_metadata <- function(cell_metadata, 
+                                    sample_key, 
+                                    target_key, 
+                                    group_key = NULL,
+                                    fun = NULL) {
+  
+  # Seurat 객체인 경우 메타데이터 추출
+  if ("Seurat" %in% class(cell_metadata)) {
+    metadata <- cell_metadata@meta.data
+  } else {
+    metadata <- cell_metadata
+  }
+  
+  # 필수 컬럼 확인
+  required_cols <- c(sample_key, target_key)
+  if (!is.null(group_key)) required_cols <- c(required_cols, group_key)
+  
+  if (!all(required_cols %in% colnames(metadata))) {
+    stop("Required columns not found in metadata")
+  }
+  
+  # 기본 함수: 각 카테고리의 비율 계산
+  if (is.null(fun)) {
+    # 각 샘플별로 타겟 변수의 분율 계산
+    sample_data <- metadata %>%
+      group_by(.data[[sample_key]], .data[[target_key]]) %>%
+      summarise(n = n(), .groups = "drop") %>%
+      group_by(.data[[sample_key]]) %>%
+      mutate(fraction = n / sum(n)) %>%
+      select(-n) %>%
+      pivot_wider(names_from = all_of(target_key), 
+                  values_from = fraction, 
+                  values_fill = 0)
+    
+    # group_key 정보 추가
+    if (!is.null(group_key)) {
+      group_info <- metadata %>%
+        select(all_of(c(sample_key, group_key))) %>%
+        distinct()
+      
+      sample_data <- sample_data %>%
+        left_join(group_info, by = sample_key)
+    }
+    
+  } else {
+    # 사용자 정의 함수 적용
+    sample_data <- metadata %>%
+      group_by(!!sym(sample_key)) %>%
+      summarise(value = fun(.data), .groups = "drop")
+  }
+  
+  return(as.data.frame(sample_data))
+}
+
+#' Perform prior tests for statistical assumptions
+#' 
+#' @param data Data frame with sample-level data
+#' @param value_col Column name for the values to test
+#' @param group_col Column name for grouping variable
+#' @return List with test results
+perform_prior_tests <- function(data, value_col, group_col) {
+  
+  results <- list()
+  
+  # 정규성 검정 (Shapiro-Wilk test)
+  groups <- unique(data[[group_col]])
+  normality_results <- list()
+  
+  for (g in groups) {
+    subset_data <- data[data[[group_col]] == g, value_col]
+    if (length(subset_data) >= 3) {
+      test_result <- shapiro.test(subset_data)
+      normality_results[[g]] <- list(
+        statistic = test_result$statistic,
+        p.value = test_result$p.value,
+        normal = test_result$p.value > 0.05
+      )
+    } else {
+      normality_results[[g]] <- list(
+        statistic = NA,
+        p.value = NA,
+        normal = NA,
+        note = "Sample size too small for test"
+      )
+    }
+  }
+  results$normality <- normality_results
+  
+  # 등분산성 검정 (Levene's test)
+  if (length(groups) == 2) {
+    levene_result <- car::leveneTest(
+      as.formula(paste(value_col, "~", group_col)), 
+      data = data
+    )
+    results$homogeneity <- list(
+      statistic = levene_result$`F value`[1],
+      p.value = levene_result$`Pr(>F)`[1],
+      equal_variance = levene_result$`Pr(>F)`[1] > 0.05
+    )
+  }
+  
+  # 추천 검정 방법
+  all_normal <- all(sapply(normality_results, function(x) 
+    isTRUE(x$normal) || is.na(x$normal)))
+  
+  if (length(groups) == 2) {
+    if (all_normal && results$homogeneity$equal_variance) {
+      results$recommendation <- "t-test"
+    } else {
+      results$recommendation <- "wilcox"
+    }
+  } else {
+    if (all_normal) {
+      results$recommendation <- "anova"
+    } else {
+      results$recommendation <- "kruskal"
+    }
+  }
+  
+  return(results)
+}
+
+#' Main function to create boxplot with statistical comparisons
+#' 
+#' @param sobj_metadata Seurat object or metadata data.frame
+#' @param sample_key Column name for sample identification
+#' @param cluster_key Column name for clusters
+#' @param group_key Column name for grouping (e.g., prognosis)
+#' @param clusters_to_plot Vector of clusters to include (NULL for all)
+#' @param groups_to_plot Vector of groups to include (NULL for all)
+#' @param method Statistical test method
+#' @param prior_test Whether to perform prior tests
+#' @param palette Color palette for groups
+#' @param show_brackets Whether to show brackets for comparisons
+#' @param p_label_size Size of p-value labels
+#' @param ... Additional arguments for ggplot
+plot_cluster_fractions <- function(sobj_metadata,
+                                   sample_key,
+                                   cluster_key,
+                                   group_key,
+                                   clusters_to_plot = NULL,
+                                   groups_to_plot = NULL,
+                                   method = c("wilcox", "t.test", "anova", "kruskal"),
+                                   prior_test = FALSE,
+                                   palette = NULL,
+                                   show_brackets = TRUE,
+                                   p_label_size = 3.5,
+                                   simple_pvalues = FALSE,  # 이 줄이 추가되어야 합니다
+                                   ...) {
+  
+  method <- match.arg(method)
+  
+  # Extract sample-level data
+  sample_data <- extract_sample_metadata(
+    sobj_metadata, 
+    sample_key, 
+    cluster_key, 
+    group_key
+  )
+  
+  # Convert to long format for plotting
+  cluster_cols <- setdiff(colnames(sample_data), c(sample_key, group_key))
+  
+  plot_data <- sample_data %>%
+    pivot_longer(cols = all_of(cluster_cols), 
+                 names_to = "cluster", 
+                 values_to = "fraction")
+  
+  # Filter clusters and groups if specified
+  if (!is.null(clusters_to_plot)) {
+    plot_data <- plot_data %>%
+      filter(cluster %in% clusters_to_plot)
+  }
+  
+  if (!is.null(groups_to_plot)) {
+    plot_data <- plot_data %>%
+      filter(.data[[group_key]] %in% groups_to_plot)
+  }
+  
+  # Create combined factor for x-axis
+  plot_data <- plot_data %>%
+    mutate(x_label = paste0(cluster, "_", .data[[group_key]]))
+  
+  # Perform prior tests if requested
+  if (prior_test) {
+    cat("\nPerforming prior tests for each cluster:\n")
+    cat(strrep("=", 50), "\n")
+    
+    for (clust in unique(plot_data$cluster)) {
+      cat("\nCluster:", clust, "\n")
+      clust_data <- plot_data %>% filter(cluster == clust)
+      
+      prior_results <- perform_prior_tests(
+        as.data.frame(clust_data), 
+        "fraction", 
+        group_key
+      )
+      
+      # Print results
+      cat("Normality tests:\n")
+      for (g in names(prior_results$normality)) {
+        res <- prior_results$normality[[g]]
+        cat(sprintf("  %s: W = %.4f, p = %.4f %s\n", 
+                    g, 
+                    res$statistic, 
+                    res$p.value,
+                    ifelse(res$normal, "(normal)", "(not normal)")))
+      }
+      
+      if (!is.null(prior_results$homogeneity)) {
+        cat(sprintf("Levene's test: F = %.4f, p = %.4f %s\n",
+                    prior_results$homogeneity$statistic,
+                    prior_results$homogeneity$p.value,
+                    ifelse(prior_results$homogeneity$equal_variance, 
+                           "(equal variance)", "(unequal variance)")))
+      }
+      
+      cat("Recommended test:", prior_results$recommendation, "\n")
+    }
+    cat(strrep("=", 50), "\n\n")
+  }
+  
+  # Ensure group_key is treated as factor for discrete colors
+  plot_data[[group_key]] <- factor(plot_data[[group_key]])
+  
+  # Create boxplot
+  p <- ggplot(plot_data, aes(x = x_label, y = fraction, fill = .data[[group_key]])) +
+    geom_boxplot(alpha = 0.8) +
+    geom_point(position = position_jitterdodge(jitter.width = 0.2), 
+               alpha = 0.6, size = 2) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "top") +
+    labs(x = "Cluster_Group", 
+         y = "Fraction", 
+         title = "Cluster Fraction Comparison by Group",
+         fill = group_key) +
+    scale_y_continuous(labels = scales::percent)
+  
+  # Add custom palette if provided
+  if (!is.null(palette)) {
+    p <- p + scale_fill_manual(values = palette)
+  } else {
+    # Use discrete color scale
+    p <- p + scale_fill_brewer(palette = "Set1")
+  }
+  
+  # Statistical comparisons
+  stat_results <- list()
+  unique_clusters <- unique(plot_data$cluster)
+  
+  for (clust in unique_clusters) {
+    clust_data <- plot_data %>% filter(cluster == clust)
+    groups <- unique(clust_data[[group_key]])
+    
+    if (length(groups) == 2) {
+      # Two-group comparison
+      if (method %in% c("wilcox", "t.test")) {
+        formula_str <- paste("fraction ~", group_key)
+        
+        if (method == "wilcox") {
+          stat_test <- clust_data %>%
+            rstatix::wilcox_test(as.formula(formula_str)) %>%
+            mutate(cluster = clust)
+        } else {
+          stat_test <- clust_data %>%
+            rstatix::t_test(as.formula(formula_str)) %>%
+            mutate(cluster = clust)
+        }
+      }
+    } else {
+      # Multi-group comparison
+      formula_str <- paste("fraction ~", group_key)
+      
+      if (method == "kruskal") {
+        stat_test <- clust_data %>%
+          rstatix::kruskal_test(as.formula(formula_str)) %>%
+          mutate(cluster = clust)
+      } else if (method == "anova") {
+        stat_test <- clust_data %>%
+          rstatix::anova_test(as.formula(formula_str)) %>%
+          mutate(cluster = clust)
+      }
+    }
+    
+    stat_results[[clust]] <- stat_test
+  }
+  
+  # Combine statistical results
+  all_stats <- bind_rows(stat_results)
+  
+  # Add p-values to plot
+  if (simple_pvalues) {
+    # Use simple p-value display (like first image)
+    p <- add_simple_pvalues(p, all_stats, plot_data, p_label_size)
+  } else {
+    # Use bracket style p-values
+    y_max <- max(plot_data$fraction)
+    y_position_start <- y_max * 1.1  # Starting position
+    
+    # Get unique x_labels for proper ordering
+    x_label_order <- levels(factor(plot_data$x_label))
+    
+    # Process each cluster
+    for (i in 1:nrow(all_stats)) {
+      clust <- all_stats$cluster[i]
+      p_val <- all_stats$p[i]
+      
+      # Format p-value - always show something
+      if (is.na(p_val)) {
+        p_label <- "NA"
+      } else if (p_val < 0.001) {
+        p_label <- "***"
+      } else if (p_val < 0.01) {
+        p_label <- "**"  
+      } else if (p_val < 0.05) {
+        p_label <- "*"
+      } else if (p_val < 0.1) {
+        p_label <- sprintf("p=%.2f", p_val)
+      } else {
+        p_label <- "ns"
+      }
+      
+      # Find x positions for this cluster
+      cluster_labels <- grep(paste0("^", clust, "_"), x_label_order, value = TRUE)
+      
+      if (length(cluster_labels) >= 2) {
+        # Get numeric positions
+        x_positions <- match(cluster_labels, x_label_order)
+        x_min <- min(x_positions)
+        x_max <- max(x_positions)
+        x_center <- mean(c(x_min, x_max))
+        
+        # Calculate y position for this comparison
+        y_position <- y_position_start + (i - 1) * y_max * 0.08
+        
+        if (show_brackets) {
+          # Add bracket
+          bracket_y <- y_position - y_max * 0.02
+          
+          # Left vertical line
+          p <- p + annotate("segment",
+                            x = x_min - 0.3, xend = x_min - 0.3,
+                            y = bracket_y - y_max * 0.02, yend = bracket_y,
+                            size = 0.5)
+          
+          # Right vertical line  
+          p <- p + annotate("segment",
+                            x = x_max + 0.3, xend = x_max + 0.3,
+                            y = bracket_y - y_max * 0.02, yend = bracket_y,
+                            size = 0.5)
+          
+          # Horizontal line
+          p <- p + annotate("segment",
+                            x = x_min - 0.3, xend = x_max + 0.3,
+                            y = bracket_y, yend = bracket_y,
+                            size = 0.5)
+        }
+        
+        # Add p-value text (always)
+        p <- p + annotate("text",
+                          x = x_center,
+                          y = y_position + y_max * 0.02,
+                          label = p_label,
+                          size = p_label_size,
+                          vjust = 0)
+      }
+    }
+    
+    # Adjust y-axis limits to accommodate all annotations
+    y_limit <- y_position_start + nrow(all_stats) * y_max * 0.08 + y_max * 0.05
+    p <- p + coord_cartesian(ylim = c(0, y_limit))
+  }
+  
+  # Return plot and statistics
+  return(list(plot = p, statistics = all_stats))
+}
+
+# Example usage function
+example_usage <- function() {
+  # 예시 데이터 생성
+  set.seed(123)
+  n_cells <- 10000
+  n_samples <- 20
+  
+  # 가상의 메타데이터 생성
+  metadata <- data.frame(
+    sample = rep(paste0("S", 1:n_samples), each = n_cells/n_samples),
+    cluster = sample(paste0("C", 1:5), n_cells, replace = TRUE),
+    prognosis = rep(c("Good", "Bad"), each = n_cells/2),
+    stringsAsFactors = FALSE
+  )
+  
+  # Bad prognosis에서 C1, C2 클러스터 비율 증가
+  bad_idx <- metadata$prognosis == "Bad"
+  metadata$cluster[bad_idx] <- sample(
+    paste0("C", 1:5), 
+    sum(bad_idx), 
+    replace = TRUE, 
+    prob = c(0.3, 0.3, 0.15, 0.15, 0.1)
+  )
+  
+  # 함수 실행
+  result <- plot_cluster_fractions(
+    metadata,
+    sample_key = "sample",
+    cluster_key = "cluster",
+    group_key = "prognosis",
+    method = "wilcox",
+    prior_test = TRUE,
+    palette = c("Good" = "#3498db", "Bad" = "#e74c3c")
+  )
+  
+  # 결과 출력
+  print(result$plot)
+  print(result$statistics)
+}
+
+# Additional utility functions
+
+#' Calculate custom signatures at sample level
+#' 
+#' @param seurat_obj Seurat object
+#' @param gene_sets Named list of gene sets
+#' @param sample_key Column name for sample identification
+#' @param method Scoring method (mean, ssgsea, etc.)
+#' @return Data frame with sample-level signatures
+calculate_sample_signatures <- function(seurat_obj, 
+                                        gene_sets, 
+                                        sample_key,
+                                        method = "mean") {
+  
+  # Calculate module scores for each gene set
+  for (set_name in names(gene_sets)) {
+    genes <- gene_sets[[set_name]]
+    genes <- genes[genes %in% rownames(seurat_obj)]
+    
+    if (length(genes) > 0) {
+      seurat_obj <- AddModuleScore(
+        seurat_obj,
+        features = list(genes),
+        name = paste0(set_name, "_score")
+      )
+    }
+  }
+  
+  # Extract scores and aggregate by sample
+  score_cols <- paste0(names(gene_sets), "_score1")
+  metadata <- seurat_obj@meta.data
+  
+  sample_scores <- metadata %>%
+    group_by(.data[[sample_key]]) %>%
+    summarise(across(all_of(score_cols), mean, na.rm = TRUE))
+  
+  return(sample_scores)
+}
+
+#' Adjust for confounding variables
+#' 
+#' @param data Data frame with sample-level data
+#' @param target_col Column name for target variable
+#' @param group_col Column name for grouping variable
+#' @param adjust_cols Vector of columns to adjust for
+#' @param method Adjustment method (residuals, stratification)
+#' @return Adjusted data frame
+adjust_confounders <- function(data, 
+                               target_col, 
+                               group_col, 
+                               adjust_cols,
+                               method = "residuals") {
+  
+  if (method == "residuals") {
+    # Linear model to get residuals
+    formula_str <- paste(target_col, "~", paste(adjust_cols, collapse = " + "))
+    lm_fit <- lm(as.formula(formula_str), data = data)
+    
+    # Add residuals as adjusted values
+    data$adjusted_value <- residuals(lm_fit) + mean(data[[target_col]])
+    
+  } else if (method == "stratification") {
+    # Create strata based on confounders
+    data$strata <- interaction(data[adjust_cols])
+    
+    # Perform analysis within strata
+    # This would be handled in the main plotting function
+  }
+  
+  return(data)
+}
+
+# Alternative simple p-value display function
+#' Add p-values without brackets (similar to first image style)
+#' 
+#' @param plot_obj ggplot object
+#' @param stats_df Statistics dataframe
+#' @param plot_data Plot data with x_labels
+#' @param p_label_size Size of p-value text
+#' @return Modified ggplot object
+add_simple_pvalues <- function(plot_obj, stats_df, plot_data, p_label_size = 3) {
+  
+  y_max <- max(plot_data$fraction)
+  y_position <- y_max * 1.05
+  
+  # Get x_label order
+  x_label_order <- levels(factor(plot_data$x_label))
+  
+  # Create a dataframe for p-value positions
+  pval_positions <- data.frame()
+  
+  for (i in 1:nrow(stats_df)) {
+    clust <- stats_df$cluster[i]
+    p_val <- stats_df$p[i]
+    
+    # Format p-value
+    if (is.na(p_val)) {
+      p_label <- "NA"
+    } else if (p_val < 0.001) {
+      p_label <- "p<0.001"
+    } else if (p_val < 0.01) {
+      p_label <- sprintf("p=%.3f", p_val)
+    } else if (p_val < 0.05) {
+      p_label <- sprintf("p=%.3f", p_val)
+    } else {
+      p_label <- sprintf("p=%.2f", p_val)
+    }
+    
+    # Find center position for this cluster
+    cluster_labels <- grep(paste0("^", clust, "_"), x_label_order, value = TRUE)
+    
+    if (length(cluster_labels) >= 2) {
+      x_positions <- match(cluster_labels, x_label_order)
+      x_center <- mean(x_positions)
+      
+      pval_positions <- rbind(pval_positions, 
+                              data.frame(x = x_center, 
+                                         y = y_position,
+                                         label = p_label))
+    }
+  }
+  
+  # Add all p-values at once
+  if (nrow(pval_positions) > 0) {
+    plot_obj <- plot_obj + 
+      annotate("text", 
+               x = pval_positions$x, 
+               y = pval_positions$y,
+               label = pval_positions$label,
+               size = p_label_size,
+               vjust = 0)
+  }
+  
+  # Adjust y-axis
+  plot_obj <- plot_obj + 
+    coord_cartesian(ylim = c(0, y_max * 1.15))
+  
+  return(plot_obj)
+}
