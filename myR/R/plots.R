@@ -85,6 +85,7 @@ mydensity=function(data, column, adjust = 1, x_unit = NULL, y_unit = NULL) {
 #' #       split.by = "condition",
 #' #       pt.size = 1)
 #' }
+#' @export
 mybox <- function(sobj, features, sample_col, group.by, split.by,
                   idents = NULL, assay = NULL, layer = NULL,
                   ncol = 3, pt.size = 0, violin = FALSE) {
@@ -449,7 +450,7 @@ upset_gene_lists <- function(gene_lists,
   return(p)
 }
 
-vln_p=function(sobj, feature, group.by, split.by, pt.size=0, ...){
+vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
   plist <- VlnPlot(
     object    = sobj,
     features  = feature,
@@ -475,7 +476,7 @@ vln_p=function(sobj, feature, group.by, split.by, pt.size=0, ...){
       theme(legend.position = "none")
   })
   
-  return(patchwork::wrap_plots(plist2, ncol = 2))
+  return(patchwork::wrap_plots(plist2, ncol = ncol))
 }
 
 
