@@ -701,7 +701,6 @@ myhm_genesets2 <- function(
   }
   
   # 만약 gene_sets가 리스트가 아니라 벡터만 들어왔다면 리스트로 변환
-  # 예: c("CD3D","CD3E") -> list(GeneSet1 = c("CD3D","CD3E"))
   if(!is.list(gene_sets)){
     gene_sets <- list(GeneSet1 = gene_sets)
   }
@@ -720,20 +719,28 @@ myhm_genesets2 <- function(
   #-------------------------------
   Idents(sobj) <- group
   
+  
+  
   #-------------------------------
   # (C) 평균 발현량(또는 합계 등) 계산
   #-------------------------------
   if(value == "average"){
-    # group.by = group 로 명시
     cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   } else {
     cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   }
   
+  # If it's a vector (one group), convert to matrix
+  if(is.null(dim(cluster_avg)) || length(dim(cluster_avg)) < 2){
+    cluster_avg <- as.matrix(cluster_avg)
+    if(ncol(cluster_avg) == 1 && is.null(colnames(cluster_avg))){
+      colnames(cluster_avg) <- unique(Idents(sobj))[1]
+    }
+  }
+  
   #-------------------------------
   # (D) Gene Set 별 발현량 계산
   #-------------------------------
-  # cluster_avg의 컬럼은 cluster 이름이 된다.
   cluster_names <- colnames(cluster_avg)
   
   # 결과를 담을 data.frame 생성
@@ -746,26 +753,31 @@ myhm_genesets2 <- function(
     
     if(length(genes_present) == 0){
       warning(paste("No genes from", gset_name, "found in the dataset."))
-      # 데이터프레임에 NA 열을 넣고 다음으로 넘어감
       gene_set_expression[[gset_name]] <- NA
       next
     }
     
-    # colMeans를 이용해, 해당 유전자들의 평균 발현량 계산
-    gene_set_expression[[gset_name]] <- colMeans(cluster_avg[genes_present, , drop = FALSE])
+    # Calculate means
+    subset_data <- cluster_avg[genes_present, , drop = FALSE]
+    if(nrow(subset_data) == 1){
+      # If only one gene, the result is already the mean
+      gene_set_expression[[gset_name]] <- as.numeric(subset_data)
+    } else {
+      gene_set_expression[[gset_name]] <- colMeans(subset_data)
+    }
   }
   
   #-------------------------------
   # (E) Z-score 정규화
   #-------------------------------
-  # 첫 번째 열(Cluster)을 제외한 나머지를 scale()
   gene_set_expression_normalized <- gene_set_expression
   gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
   
-  # 각 Cluster에서 가장 높은 값을 가지는 gene set을 배정해보자(부가 기능)
+  # 각 Cluster에서 가장 높은 값을 가지는 gene set을 배정
   gene_set_expression_normalized$Assigned_CellType <- apply(
     gene_set_expression_normalized[,-1], 1, 
     function(x){
+      if(all(is.na(x))) return(NA)
       names(x)[which.max(x)]
     }
   )
@@ -773,34 +785,24 @@ myhm_genesets2 <- function(
   #-------------------------------
   # (F) 클러스터 순서 정렬
   #-------------------------------
-  # 사용자가 만든 cluster 이름이 꼭 숫자일 필요는 없으므로,
-  # 1) 전부 숫자로 바꿀 수 있다면 numeric 정렬
-  # 2) 아니면 문자 알파벳 순 정렬
-  
-  # 임시로 numeric 변환
   numeric_test <- suppressWarnings(as.numeric(gene_set_expression_normalized$Cluster))
   
   if(!all(is.na(numeric_test))){
-    # NA가 아닌 값이 있다 => 전부 숫자로 파싱되는 경우
-    # 실제로 모두 정상 변환인지 다시 확인 (NA가 하나라도 있으면 문자)
     if(sum(is.na(numeric_test)) == 0){
-      # 전부 숫자면 해당 순서로 factor 설정
-      sorted_levels <- (unique(numeric_test))
+      sorted_levels <- sort(unique(numeric_test))
       gene_set_expression_normalized$Cluster <- factor(
         gene_set_expression_normalized$Cluster,
         levels = as.character(sorted_levels)
       )
     } else {
-      # 일부만 숫자인 경우 => 그냥 문자 정렬
-      sorted_levels <- (unique(gene_set_expression_normalized$Cluster))
+      sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
       gene_set_expression_normalized$Cluster <- factor(
         gene_set_expression_normalized$Cluster,
         levels = sorted_levels
       )
     }
   } else {
-    # 전부 NA => 아예 숫자로 파싱 불가 -> 문자 정렬
-    sorted_levels <- (unique(gene_set_expression_normalized$Cluster))
+    sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
     gene_set_expression_normalized$Cluster <- factor(
       gene_set_expression_normalized$Cluster,
       levels = sorted_levels
@@ -829,18 +831,17 @@ myhm_genesets2 <- function(
       x = x_label,
       y = y_label
     ) +
-    theme(axis.text.x = element_text(hjust=0.5,size=16),
-          axis.text.y = element_text(hjust=1,size=16),
-          axis.title.x = element_text(hjust=0.5,face="bold",size=16),
-          axis.title.y = element_text(hjust=0.5,face="bold",size=16),
-          plot.title=element_text(size=16,face="bold",hjust=0.5))
+    theme(axis.text.x = element_text(angle=45, hjust=1, size=12),
+          axis.text.y = element_text(hjust=1, size=12),
+          axis.title.x = element_text(face="bold", size=14),
+          axis.title.y = element_text(face="bold", size=14),
+          plot.title = element_text(size=16, face="bold", hjust=0.5))
   
   print(p)
   
   #-------------------------------
   # (I) 결과 반환
   #-------------------------------
-  # Assigned_CellType 까지 붙어있는 최종 테이블 반환
   return(gene_set_expression_normalized)
 }
 
@@ -898,30 +899,30 @@ myhm_genes2 <- function(
   library(reshape2)
   library(ggplot2)
   
-  #-------------------------------
+
   # (A) 유효성 체크
-  #-------------------------------
+
   if(is.null(genes)){
     stop("genes를 지정해 주세요. (예: genes=c('CD3D','CD3E','MS4A1'))")
   }
   
-  #-------------------------------
+
   # (B) Seurat 객체에 grouping 적용
-  #-------------------------------
+
   Idents(sobj) <- group
   
-  #-------------------------------
+
   # (C) 평균 발현량(또는 합계 등) 계산
-  #-------------------------------
+
   if(value == "average"){
     cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   } else {
     cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   }
   
-  #-------------------------------
+
   # (D) 원하는 유전자만 필터
-  #-------------------------------
+
   genes_present <- genes[genes %in% rownames(cluster_avg)]
   if(length(genes_present) == 0){
     stop("지정하신 유전자 중 데이터셋에 존재하는 유전자가 없습니다.")
@@ -942,9 +943,9 @@ myhm_genes2 <- function(
   gene_expression <- as.data.frame(gene_expression)
   gene_expression$Cluster <- rownames(gene_expression)
   
-  #-------------------------------
+
   # (E) 클러스터 순서 정렬
-  #-------------------------------
+
   numeric_test <- suppressWarnings(as.numeric(gene_expression$Cluster))
   
   if(!all(is.na(numeric_test))){
@@ -972,9 +973,9 @@ myhm_genes2 <- function(
     )
   }
   
-  #-------------------------------
+
   # (F) long format으로 melt
-  #-------------------------------
+
   melted_data <- melt(
     gene_expression,
     id.vars = "Cluster",
@@ -982,9 +983,9 @@ myhm_genes2 <- function(
     value.name = "Zscore"
   )
   
-  #-------------------------------
+
   # (G) Heatmap 그리기
-  #-------------------------------
+
   p <- ggplot(melted_data, aes(x = Cluster, y = Gene, fill = Zscore)) +
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
@@ -999,9 +1000,9 @@ myhm_genes2 <- function(
   
   print(p)
   
-  #-------------------------------
+
   # (H) 결과 반환
-  #-------------------------------
+
   # 정규화된 수치를 담고 있는 wide-format data.frame 반환
   return(gene_expression)
 }
@@ -1042,17 +1043,17 @@ cml <- function(sobj,
   sort.by <- match.arg(sort.by)
   stopifnot("Seurat" %in% class(sobj))
   
-  # ---------------------------------------------------------------------
+
   # 1. Tabulate counts & proportions
-  # ---------------------------------------------------------------------
+
   data_tbl <- sobj@meta.data %>%
     dplyr::select(cluster = !!cluster_col, group = !!group.by) %>%
     dplyr::group_by(group, cluster) %>%
     dplyr::summarise(count = dplyr::n(), .groups = "drop")
   
-  # ---------------------------------------------------------------------
+
   # 2. Determine cluster order
-  # ---------------------------------------------------------------------
+
   cluster_levels <- if (sort.by == "frequency") {
     data_tbl %>%
       dplyr::group_by(cluster) %>%
@@ -1064,9 +1065,9 @@ cml <- function(sobj,
   }
   data_tbl$cluster <- factor(data_tbl$cluster, levels = cluster_levels)
   
-  # ---------------------------------------------------------------------
+
   # 3. Compute within‑group proportions and cumulative sums
-  # ---------------------------------------------------------------------
+
   cum_tbl <- data_tbl %>%
     dplyr::group_by(group) %>%
     dplyr::mutate(prop = count / sum(count)) %>%
@@ -1074,9 +1075,9 @@ cml <- function(sobj,
     dplyr::mutate(cum_prop = cumsum(prop)) %>%
     dplyr::ungroup()
   
-  # ---------------------------------------------------------------------
+
   # 4. Styling helpers
-  # ---------------------------------------------------------------------
+
   if (is.null(color_palette)) {
     n_col <- length(unique(cum_tbl$group))
     color_palette <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(n_col)
@@ -1093,9 +1094,9 @@ cml <- function(sobj,
   )
   cum_tbl <- dplyr::left_join(cum_tbl, style_df, by = "group")
   
-  # ---------------------------------------------------------------------
+
   # 5. Plot
-  # ---------------------------------------------------------------------
+
   p <- ggplot2::ggplot(cum_tbl, ggplot2::aes(x = cluster, y = cum_prop,
                                              colour = group, linetype = group,
                                              shape = group, group  = group)) +
@@ -1400,9 +1401,9 @@ cdf_multi <- function(
 
 
 
-# -------------------------------------------------------------------------
+
 #  Scatter‑smooth with colour & line options
-# -------------------------------------------------------------------------
+
 
 #' Averaged Expression vs Numeric Covariate (with optional colour)
 #'
@@ -1445,9 +1446,9 @@ scatter_smooth_colored <- function(object,
   fitted_line <- match.arg(fitted_line)
   stopifnot(is.character(feature), length(feature) == 1)
   
-  # -------------------------------------------------------------------
+
   # 1. Build per‑cell tibble ------------------------------------------------
-  # -------------------------------------------------------------------
+
   if (inherits(object, "Seurat")) {
     expr_vec <- Seurat::FetchData(object, vars = feature)[, 1]
     meta_df  <- tibble::as_tibble(object@meta.data)
@@ -1463,9 +1464,9 @@ scatter_smooth_colored <- function(object,
       stop("Column '", col, "' not found in data.")
   }
   
-  # -------------------------------------------------------------------
+
   # 2. Aggregate by group ---------------------------------------------------
-  # -------------------------------------------------------------------
+
   agg_df <- cell_df %>%
     dplyr::group_by(.data[[group.by]]) %>%
     dplyr::summarise(avg_expr = mean(.data[[feature]], na.rm = TRUE),
@@ -1476,9 +1477,9 @@ scatter_smooth_colored <- function(object,
   
   # reorder transparency variable if categorical? We'll detect later
   
-  # -------------------------------------------------------------------
+
   # 3. Aesthetics -----------------------------------------------------------
-  # -------------------------------------------------------------------
+
   x_col <- if (transpose) "avg_expr" else "x_val"
   y_col <- if (transpose) "x_val"   else "avg_expr"
   
@@ -1508,9 +1509,9 @@ scatter_smooth_colored <- function(object,
     p <- p + ggplot2::geom_point(size = 3)
   }
   
-  # -------------------------------------------------------------------
+
   # 4. Smoothing line -------------------------------------------------------
-  # -------------------------------------------------------------------
+
   if (!is.null(fitted_line)) {
     if (fitted_line == "linear") {
       p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE, colour = "black")
@@ -1540,9 +1541,9 @@ scatter_smooth_colored <- function(object,
     }
   }
   
-  # -------------------------------------------------------------------
+
   # 5. Labels & theme -------------------------------------------------------
-  # -------------------------------------------------------------------
+
   p <- p + ggplot2::theme_bw() +
     ggplot2::labs(x = if (transpose) paste("Average", feature, "expression") else x_var,
                   y = if (transpose) x_var else paste("Average", feature, "expression"),
@@ -1552,7 +1553,7 @@ scatter_smooth_colored <- function(object,
   return(p)
 }
 
-# -------------------------------------------------------------------------
+
 #  Utility: infix fn for NULL‑coalescing (tiny helper)
-# -------------------------------------------------------------------------
+
 `%||%` <- function(a, b) if (is.null(a)) b else a

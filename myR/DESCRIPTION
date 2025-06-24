@@ -41,7 +41,8 @@ Imports:
     viridisLite,
     S4Vectors,
     magrittr,
-    here
+    here,
+    reshape2
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Config/testthat/edition: 3

@@ -1357,7 +1357,7 @@ run_pseudobulk_deg_legacy2 <- function(analysis_level = c("overall", "per_cluste
     }
   }
   
-  # --- 3. "per_cluster" 또는 "specific_cluster" 경우 실제 루프 실행 ---
+  # 3. "per_cluster" 또는 "specific_cluster" 경우 실제 루프 실행
   if (analysis_level == "per_cluster" || analysis_level == "specific_cluster") {
     if (is.null(loop_over_these_clusters) || length(loop_over_these_clusters) == 0) {
       warning("분석할 클러스터가 결정되지 않았거나 없습니다.")
@@ -1451,4 +1451,157 @@ run_pseudobulk_deg_legacy2 <- function(analysis_level = c("overall", "per_cluste
   } # end if per_cluster or specific_cluster
   
   return(results)
+}
+
+
+
+# ---- myhm_genesets2_legacy ----
+
+myhm_genesets2_legacy <- function(
+    sobj,
+    group = "seurat_clusters",
+    value = "average",
+    assay = "SCT",
+    gene_sets = NULL,
+    title="Normalized Gene Set Expression per Cluster",
+    x_label="Cluster",
+    y_label="Gene Set"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  # (A) 유효성 체크
+  if(is.null(gene_sets)){
+    stop("gene_sets를 지정해 주세요. (ex: list(Immune=c('CD3D','CD3E'), Bcell=c('MS4A1','CD79A'))) ")
+  }
+  
+  # 만약 gene_sets가 리스트가 아니라 벡터만 들어왔다면 리스트로 변환
+  # 예: c("CD3D","CD3E") -> list(GeneSet1 = c("CD3D","CD3E"))
+  if(!is.list(gene_sets)){
+    gene_sets <- list(GeneSet1 = gene_sets)
+  }
+  
+  # 이름이 없는 리스트 원소가 있다면 자동으로 이름 부여
+  if(is.null(names(gene_sets)) || any(names(gene_sets) == "")){
+    for(i in seq_along(gene_sets)){
+      if(is.null(names(gene_sets)[i]) || names(gene_sets)[i] == ""){
+        names(gene_sets)[i] <- paste0("GeneSet", i)
+      }
+    }
+  }
+  
+  # (B) Seurat 객체에 grouping 적용
+  Idents(sobj) <- group
+  
+  # (C) 평균 발현량(또는 합계 등) 계산
+  if(value == "average"){
+    # group.by = group 로 명시
+    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  # (D) Gene Set 별 발현량 계산
+  # cluster_avg의 컬럼은 cluster 이름이 된다.
+  cluster_names <- colnames(cluster_avg)
+  
+  # 결과를 담을 data.frame 생성
+  gene_set_expression <- data.frame(Cluster = cluster_names, stringsAsFactors = FALSE)
+  
+  # gene_sets 각각에 대해 평균 발현량을 구함
+  for(gset_name in names(gene_sets)){
+    genes <- gene_sets[[gset_name]]
+    genes_present <- genes[genes %in% rownames(cluster_avg)]
+    
+    if(length(genes_present) == 0){
+      warning(paste("No genes from", gset_name, "found in the dataset."))
+      # 데이터프레임에 NA 열을 넣고 다음으로 넘어감
+      gene_set_expression[[gset_name]] <- NA
+      next
+    }
+    
+    # colMeans를 이용해, 해당 유전자들의 평균 발현량 계산
+    gene_set_expression[[gset_name]] <- colMeans(cluster_avg[genes_present, , drop = FALSE])
+  }
+  
+
+  # (E) Z-score 정규화
+  # 첫 번째 열(Cluster)을 제외한 나머지를 scale()
+  gene_set_expression_normalized <- gene_set_expression
+  gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
+  
+  # 각 Cluster에서 가장 높은 값을 가지는 gene set을 배정해보자(부가 기능)
+  gene_set_expression_normalized$Assigned_CellType <- apply(
+    gene_set_expression_normalized[,-1], 1, 
+    function(x){
+      names(x)[which.max(x)]
+    }
+  )
+  
+  # (F) 클러스터 순서 정렬
+  # 사용자가 만든 cluster 이름이 꼭 숫자일 필요는 없으므로,
+  # 1) 전부 숫자로 바꿀 수 있다면 numeric 정렬
+  # 2) 아니면 문자 알파벳 순 정렬
+  
+  # 임시로 numeric 변환
+  numeric_test <- suppressWarnings(as.numeric(gene_set_expression_normalized$Cluster))
+  
+  if(!all(is.na(numeric_test))){
+    # NA가 아닌 값이 있다 => 전부 숫자로 파싱되는 경우
+    # 실제로 모두 정상 변환인지 다시 확인 (NA가 하나라도 있으면 문자)
+    if(sum(is.na(numeric_test)) == 0){
+      # 전부 숫자면 해당 순서로 factor 설정
+      sorted_levels <- (unique(numeric_test))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      # 일부만 숫자인 경우 => 그냥 문자 정렬
+      sorted_levels <- (unique(gene_set_expression_normalized$Cluster))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    # 전부 NA => 아예 숫자로 파싱 불가 -> 문자 정렬
+    sorted_levels <- (unique(gene_set_expression_normalized$Cluster))
+    gene_set_expression_normalized$Cluster <- factor(
+      gene_set_expression_normalized$Cluster,
+      levels = sorted_levels
+    )
+  }
+  
+  # (G) Heatmap용 long format 만들기
+  melted_data <- melt(
+    gene_set_expression_normalized,
+    id.vars = c("Cluster","Assigned_CellType"),
+    variable.name = "GeneSet",
+    value.name = "Zscore"
+  )
+  
+  # (H) Heatmap 그리기
+  p <- ggplot(melted_data, aes(x = Cluster, y = GeneSet, fill = Zscore)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme(axis.text.x = element_text(hjust=0.5,size=16),
+          axis.text.y = element_text(hjust=1,size=16),
+          axis.title.x = element_text(hjust=0.5,face="bold",size=16),
+          axis.title.y = element_text(hjust=0.5,face="bold",size=16),
+          plot.title=element_text(size=16,face="bold",hjust=0.5))
+  
+  print(p)
+  
+  # (I) 결과 반환
+  # Assigned_CellType 까지 붙어있는 최종 테이블 반환
+  return(gene_set_expression_normalized)
 }
