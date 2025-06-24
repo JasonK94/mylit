@@ -1761,7 +1761,6 @@ cluster_pseudobulk_deg <- function(sobj,
 #' @import Seurat
 #' @import dplyr
 #' @import tidyr
-#' @importFrom Matrix.utils aggregate.Matrix
 #' @importFrom stats p.adjust t.test wilcox.test model.matrix na.omit sd
 #' @importFrom BiocParallel SerialParam bplapply
 #'

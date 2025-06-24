@@ -1,11 +1,16 @@
+# Azimuth ----
 #' Azimuth (AZI) reference gene lists
 #'
 #' Azimuth 분석에 사용되는 여러 유전자 세트의 목록을 담은 named list.
 #' https://azimuth.hubmapconsortium.org/references/human_pbmc/
 #'
+#' @docType data
 #' @format Named list of character vectors.  
 #'   각 요소는 분석별 gene symbol 벡터입니다.
+#' @source <https://azimuth.hubmapconsortium.org/references/human_pbmc/>
+#' @keywords datasets
 #' @name genes_azi
+#' @export
 genes_azi=list(
   azi_bi=c('MS4A1','TNFRSF13B','IGHM','IGHD','AIM2','CD79A','LINC01857','RALGPS2','BANK1','CD79B'),
   azi_bm=c('MS4A1','COCH','AIM2','BANK1','SSPN','CD79A','TEX9','RALGPS2','TNFRSF13C','LINC01781'),
@@ -86,6 +91,7 @@ genes_azi=list(
   
 )
 
+# New pbmc markers ----
 #' -------------------- 1.2  fresh 2022‑25 marker additions ---------------
 #' @rdname gene_lists
 genes_pbmc_new <- list(
@@ -111,6 +117,7 @@ genes_pbmc_new <- list(
   Treg_core  = c("FOXP3","IL2RA","CTLA4","TNFRSF18","IKZF2","ENTPD1","CCR8")       # :contentReference[oaicite:9]{index=9}
 )
 
+# Skin genes ----
 #' @rdname gene_lists
 genes_skin = list(
   # Keratinocytes
@@ -168,6 +175,7 @@ genes_skin = list(
   g_skin_SMCm <- c("ACTA2", "CNN1", "MYH11", "TAGLN", "DES", "SMTN", "CALD1", "VIM", "MYLK", "HSPB1", "LMOD1", "PDGFRB", "CAV1")
 )
 
+# RCC genes ----
 #' @rdname gene_lists
 geomx_rcc <- list(
   ccRCC_VHL_related_pathways = c("VEGFA", "CA9", "EGLN3", "HIF1A", "EPAS1"),
@@ -193,6 +201,7 @@ geomx_rcc <- list(
   stromal_MSCs = c("ENG", "THY1", "NT5E")
 )
 
+# RCC 2 ----
 #' @rdname gene_lists
 geomx_rcc2 <- list(
   # Clear Cell Renal Cell Carcinoma (ccRCC) Tumor Cells
@@ -250,6 +259,57 @@ geomx_rcc2 <- list(
   immune_dendritic_cells = c("CD1C", "CLEC9A", "BATF3", "XCR1"),
   immune_MDSCs = c("ARG1", "S100A8", "S100A9", "IL1B")
 )
+
+# gut tissue markers ----
+#' @rdname gene_lists
+genes_gut = list(
+  # Epithelial Cells
+  Epithelial_General = c("EPCAM", "CDH1", "KRT8", "KRT18"),
+  Intestinal_Stem_Cells = c("LGR5", "SOX9", "OLFM4", "ASCL2", "SMOC2", "BMI1", "HOPX"),
+  Enterocytes_Absorptive = c("VIL1", "FABP1", "APOA1", "APOA4", "RBP2", "SLC2A2"),
+  Goblet_Cells = c("MUC2", "TFF3", "SPDEF", "FCGBP", "KLF4"),
+  Paneth_Cells = c("LYZ", "DEFA5", "DEFA6", "MMP7", "SOX9", "DLL4"),
+  Enteroendocrine_Cells = c("CHGA", "CHGB", "GCG", "PYY", "SST", "NEUROG3", "NEUROD1"),
+  Tuft_Cells = c("DCLK1", "TRPM5", "POU2F3", "IL25"),
+  
+  # Immune Cells - Lamina Propria
+  T_Cells_General = c("CD3D", "CD3E", "CD3G", "TRAC", "TRBC1", "TRBC2"),
+  CD4_T_Helpers = c("CD4", "IL7R", "CD40LG"),
+  Th1 = c("IFNG", "TBX21", "STAT4"),
+  Th2 = c("IL4", "IL13", "GATA3", "STAT6"),
+  Th17 = c("IL17A", "IL17F", "RORC", "STAT3", "IL23R"),
+  T_Regulatory_Cells = c("FOXP3", "IL2RA", "CTLA4", "IKZF2"),
+  CD8_T_Cytotoxic = c("CD8A", "CD8B", "GZMA", "GZMB", "PRF1"),
+  B_Cells = c("CD19", "MS4A1", "CD79A", "CD79B"),
+  Plasma_Cells = c("SDC1", "IGHG1", "IGHA1", "JCHAIN", "XBP1", "PRDM1"),
+  Macrophages = c("CD68", "CD163", "CSF1R", "CD14", "ADGRE1"), # ADGRE1 is F4/80
+  Monocytes = c("CD14", "FCGR3A", "LYZ", "S100A8", "S100A9"),
+  Dendritic_Cells_General = c("ITGAX", "CD83", "CD86", "HLA-DRA"), # ITGAX is CD11c
+  cDC1 = c("CLEC9A", "XCR1", "BATF3", "IRF8"),
+  cDC2 = c("CD1C", "SIRPA", "CLEC10A", "IRF4"),
+  Plasmacytoid_DC = c("CLEC4C", "NRP1", "TCF4", "IRF7"),
+  Mast_Cells = c("KIT", "TPSAB1", "CPA3", "FCER1A"),
+  Innate_Lymphoid_Cells_General = c("ID2", "IL7R"),
+  ILC1 = c("IFNG", "TBX21", "NCR1"), # NCR1 is NKp46
+  ILC2 = c("GATA3", "RORA", "IL13", "IL5"),
+  ILC3 = c("RORC", "AHR", "IL22", "IL17A", "KIT"),
+  
+  # Immune Cells - Intraepithelial
+  Intraepithelial_Lymphocytes = c("CD3D", "CD8A", "ITGAE", "ENTPD1"), # ITGAE is CD103
+  IEL_T_CD8aa = c("CD8A", "ITGAE", "CD244", "ZNF683"), # ZNF683 is HOBIT
+  IEL_T_gd = c("TRDC", "TRGC1", "TRGC2", "RORA"),
+  
+  # Stromal and Other Cells
+  Fibroblasts = c("COL1A1", "COL1A2", "COL3A1", "DCN", "PDGFRA", "FAP"),
+  Villus_Fibroblasts = c("BMP4", "BMP5", "WNT5A"),
+  Crypt_Fibroblasts = c("WNT2B", "DKK3", "RSPO3"),
+  Endothelial_Cells_Blood = c("PECAM1", "CDH5", "VWF", "CLDN5", "ENG"),
+  Endothelial_Cells_Lymphatic = c("LYVE1", "PROX1", "PDPN"),
+  Smooth_Muscle_Cells = c("ACTA2", "MYH11", "TAGLN", "DES", "CNN1"),
+  Enteric_Neurons = c("ELAVL4", "TUBB3", "CHAT", "NOS1", "VIP"), # ELAVL4 is HuD
+  Enteric_Glia = c("S100B", "GFAP", "SOX10", "PLP1")
+)
+
 
 save(genes_azi, genes_pbmc_new, genes_skin,geomx_rcc,geomx_rcc2,
      file=here::here("gene_lists.rda"),
