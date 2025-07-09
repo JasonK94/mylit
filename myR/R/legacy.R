@@ -1605,3 +1605,163 @@ myhm_genesets2_legacy <- function(
   # Assigned_CellType 까지 붙어있는 최종 테이블 반환
   return(gene_set_expression_normalized)
 }
+
+#' Create a Heatmap of Individual Gene Expression per Cluster
+#'
+#' This function creates a heatmap showing the normalized expression of individual genes
+#' across clusters. The expression values are z-score normalized for better visualization.
+#'
+#' @param sobj A Seurat object
+#' @param group Character string specifying the identity to use for clustering.
+#'             Default is "seurat_clusters"
+#' @param value Character string specifying how to aggregate expression values.
+#'             Options: "average" (default) or "sum"
+#' @param assay Character string specifying which assay to use.
+#'             Default is "SCT"
+#' @param genes Character vector containing gene names to plot
+#' @param title Character string for the plot title.
+#'             Default is "Normalized Gene Expression per Cluster"
+#' @param x_label Character string for the x-axis label.
+#'               Default is "Cluster"
+#' @param y_label Character string for the y-axis label.
+#'               Default is "Genes"
+#'
+#' @return A data frame containing the normalized expression values for each gene
+#'         across clusters
+#'
+#' @examples
+#' \dontrun{
+#' # Create heatmap for a set of genes
+#' genes <- c("CD3D", "CD3E", "CD4", "CD8A", "MS4A1", "CD19")
+#' result <- myhm_genes2(sobj, genes = genes)
+#' 
+#' # Create heatmap with custom title and labels
+#' result <- myhm_genes2(sobj, 
+#'                      genes = genes,
+#'                      title = "T and B Cell Markers",
+#'                      x_label = "Cell Clusters",
+#'                      y_label = "Marker Genes")
+#' }
+#' @export
+myhm_genes2_legacy <- function(
+    sobj,
+    group = "seurat_clusters",
+    value = "average",
+    assay = "SCT",
+    genes = NULL,
+    title = "Normalized Gene Expression per Cluster",
+    x_label = "Cluster",
+    y_label = "Genes"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  
+  # (A) 유효성 체크
+  
+  if(is.null(genes)){
+    stop("genes를 지정해 주세요. (예: genes=c('CD3D','CD3E','MS4A1'))")
+  }
+  
+  
+  # (B) Seurat 객체에 grouping 적용
+  
+  Idents(sobj) <- group
+  
+  
+  # (C) 평균 발현량(또는 합계 등) 계산
+  
+  if(value == "average"){
+    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  
+  # (D) 원하는 유전자만 필터
+  
+  genes_present <- genes[genes %in% rownames(cluster_avg)]
+  if(length(genes_present) == 0){
+    stop("지정하신 유전자 중 데이터셋에 존재하는 유전자가 없습니다.")
+  }
+  
+  # Subset 후에 (행=유전자, 열=클러스터)
+  # 행렬을 (열=클러스터, 행=유전자) 형태로 보고 싶으면 Transpose
+  # Heatmap을 그릴 때는 보통 row=유전자, col=클러스터가 익숙하므로, 아래처럼 melt를 하려면
+  # 먼저 t() 한 뒤 scale() 적용한 다음, 다시 melt 시 row는 cluster로, column은 gene이 되도록 했습니다.
+  gene_expression <- cluster_avg[genes_present, , drop=FALSE]
+  # gene_expression: rows=genes, cols=clusters
+  
+  # Z-score 정규화를 위해 t() (rows=clusters, cols=genes)
+  gene_expression <- t(gene_expression)
+  gene_expression <- scale(gene_expression)
+  
+  # data.frame으로 변환
+  gene_expression <- as.data.frame(gene_expression)
+  gene_expression$Cluster <- rownames(gene_expression)
+  
+  
+  # (E) 클러스터 순서 정렬
+  
+  numeric_test <- suppressWarnings(as.numeric(gene_expression$Cluster))
+  
+  if(!all(is.na(numeric_test))){
+    # 전부 숫자로 파싱되는 경우
+    if(sum(is.na(numeric_test)) == 0){
+      sorted_levels <- sort(unique(numeric_test))
+      gene_expression$Cluster <- factor(
+        gene_expression$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      # 일부만 숫자인 경우 => 문자 정렬
+      sorted_levels <- sort(unique(gene_expression$Cluster))
+      gene_expression$Cluster <- factor(
+        gene_expression$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    # 전부 NA => 문자 정렬
+    sorted_levels <- sort(unique(gene_expression$Cluster))
+    gene_expression$Cluster <- factor(
+      gene_expression$Cluster,
+      levels = sorted_levels
+    )
+  }
+  
+  
+  # (F) long format으로 melt
+  
+  melted_data <- melt(
+    gene_expression,
+    id.vars = "Cluster",
+    variable.name = "Gene",
+    value.name = "Zscore"
+  )
+  
+  
+  # (G) Heatmap 그리기
+  
+  p <- ggplot(melted_data, aes(x = Cluster, y = Gene, fill = Zscore)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme(axis.text.x = element_text(angle=45, hjust=1),
+          plot.title=element_text(size=14,face="bold",hjust=0.5))
+  
+  print(p)
+  
+  
+  # (H) 결과 반환
+  
+  # 정규화된 수치를 담고 있는 wide-format data.frame 반환
+  return(gene_expression)
+}

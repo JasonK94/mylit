@@ -845,8 +845,6 @@ myhm_genesets2 <- function(
   return(gene_set_expression_normalized)
 }
 
-
-
 #' Create a Heatmap of Individual Gene Expression per Cluster
 #'
 #' This function creates a heatmap showing the normalized expression of individual genes
@@ -894,118 +892,141 @@ myhm_genes2 <- function(
     x_label = "Cluster",
     y_label = "Genes"
 ){
-  library(Seurat)
-  library(dplyr)
-  library(reshape2)
-  library(ggplot2)
-  
-
+  #-------------------------------
   # (A) 유효성 체크
-
+  #-------------------------------
   if(is.null(genes)){
     stop("genes를 지정해 주세요. (예: genes=c('CD3D','CD3E','MS4A1'))")
   }
   
-
+  #-------------------------------
   # (B) Seurat 객체에 grouping 적용
-
-  Idents(sobj) <- group
+  #-------------------------------
+  Seurat::Idents(sobj) <- group
   
-
+  #-------------------------------
   # (C) 평균 발현량(또는 합계 등) 계산
-
+  #-------------------------------
   if(value == "average"){
-    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+    cluster_avg <- Seurat::AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   } else {
-    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+    cluster_avg <- Seurat::AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   }
   
-
+  # IMPORTANT FIX: Handle case when cluster_avg is a vector (single group)
+  if(is.null(dim(cluster_avg)) || length(dim(cluster_avg)) < 2){
+    cluster_avg <- as.matrix(cluster_avg)
+    if(ncol(cluster_avg) == 1 && is.null(colnames(cluster_avg))){
+      colnames(cluster_avg) <- unique(Seurat::Idents(sobj))[1]
+    }
+  }
+  
+  #-------------------------------
   # (D) 원하는 유전자만 필터
-
+  #-------------------------------
   genes_present <- genes[genes %in% rownames(cluster_avg)]
   if(length(genes_present) == 0){
     stop("지정하신 유전자 중 데이터셋에 존재하는 유전자가 없습니다.")
   }
   
-  # Subset 후에 (행=유전자, 열=클러스터)
-  # 행렬을 (열=클러스터, 행=유전자) 형태로 보고 싶으면 Transpose
-  # Heatmap을 그릴 때는 보통 row=유전자, col=클러스터가 익숙하므로, 아래처럼 melt를 하려면
-  # 먼저 t() 한 뒤 scale() 적용한 다음, 다시 melt 시 row는 cluster로, column은 gene이 되도록 했습니다.
+  if(length(genes_present) < length(genes)){
+    missing_genes <- genes[!genes %in% rownames(cluster_avg)]
+    warning(paste("다음 유전자들이 데이터셋에 없습니다:", paste(missing_genes, collapse=", ")))
+  }
+  
+  # Subset 
   gene_expression <- cluster_avg[genes_present, , drop=FALSE]
-  # gene_expression: rows=genes, cols=clusters
   
-  # Z-score 정규화를 위해 t() (rows=clusters, cols=genes)
-  gene_expression <- t(gene_expression)
-  gene_expression <- scale(gene_expression)
+  # IMPORTANT FIX: Handle case when only one cluster exists
+  if(ncol(gene_expression) == 1){
+    # For single cluster, scale doesn't work properly
+    # Create a data frame directly
+    gene_expression_df <- as.data.frame(gene_expression)
+    colnames(gene_expression_df) <- colnames(gene_expression)
+    gene_expression_df$Cluster <- colnames(gene_expression)
+    rownames(gene_expression_df) <- genes_present
+    
+    # Z-score는 단일 클러스터에서는 의미가 없으므로 0으로 설정
+    gene_expression_scaled <- matrix(0, 
+                                     nrow = length(genes_present), 
+                                     ncol = 1,
+                                     dimnames = list(genes_present, colnames(gene_expression)))
+  } else {
+    # Multiple clusters - proceed with normal scaling
+    # Transpose for scaling (rows=clusters, cols=genes)
+    gene_expression_t <- t(gene_expression)
+    gene_expression_scaled <- scale(gene_expression_t)
+    gene_expression_scaled <- t(gene_expression_scaled)  # Transpose back
+  }
   
-  # data.frame으로 변환
-  gene_expression <- as.data.frame(gene_expression)
-  gene_expression$Cluster <- rownames(gene_expression)
+  # Convert to data.frame
+  gene_expression_df <- as.data.frame(t(gene_expression_scaled))
+  gene_expression_df$Cluster <- rownames(gene_expression_df)
   
-
+  #-------------------------------
   # (E) 클러스터 순서 정렬
-
-  numeric_test <- suppressWarnings(as.numeric(gene_expression$Cluster))
+  #-------------------------------
+  numeric_test <- suppressWarnings(as.numeric(gene_expression_df$Cluster))
   
   if(!all(is.na(numeric_test))){
-    # 전부 숫자로 파싱되는 경우
     if(sum(is.na(numeric_test)) == 0){
       sorted_levels <- sort(unique(numeric_test))
-      gene_expression$Cluster <- factor(
-        gene_expression$Cluster,
+      gene_expression_df$Cluster <- factor(
+        gene_expression_df$Cluster,
         levels = as.character(sorted_levels)
       )
     } else {
-      # 일부만 숫자인 경우 => 문자 정렬
-      sorted_levels <- sort(unique(gene_expression$Cluster))
-      gene_expression$Cluster <- factor(
-        gene_expression$Cluster,
+      sorted_levels <- sort(unique(gene_expression_df$Cluster))
+      gene_expression_df$Cluster <- factor(
+        gene_expression_df$Cluster,
         levels = sorted_levels
       )
     }
   } else {
-    # 전부 NA => 문자 정렬
-    sorted_levels <- sort(unique(gene_expression$Cluster))
-    gene_expression$Cluster <- factor(
-      gene_expression$Cluster,
+    sorted_levels <- sort(unique(gene_expression_df$Cluster))
+    gene_expression_df$Cluster <- factor(
+      gene_expression_df$Cluster,
       levels = sorted_levels
     )
   }
   
-
+  #-------------------------------
   # (F) long format으로 melt
-
-  melted_data <- melt(
-    gene_expression,
+  #-------------------------------
+  melted_data <- reshape2::melt(
+    gene_expression_df,
     id.vars = "Cluster",
     variable.name = "Gene",
     value.name = "Zscore"
   )
   
-
+  # 유전자 순서를 입력 순서대로 유지
+  melted_data$Gene <- factor(melted_data$Gene, levels = genes_present)
+  
+  #-------------------------------
   # (G) Heatmap 그리기
-
-  p <- ggplot(melted_data, aes(x = Cluster, y = Gene, fill = Zscore)) +
-    geom_tile() +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-    theme_minimal() +
-    labs(
+  #-------------------------------
+  p <- ggplot2::ggplot(melted_data, ggplot2::aes(x = Cluster, y = Gene, fill = Zscore)) +
+    ggplot2::geom_tile() +
+    ggplot2::scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    ggplot2::theme_minimal() +
+    ggplot2::labs(
       title = title,
       x = x_label,
       y = y_label
     ) +
-    theme(axis.text.x = element_text(angle=45, hjust=1),
-          plot.title=element_text(size=14,face="bold",hjust=0.5))
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle=45, hjust=1),
+                   plot.title = ggplot2::element_text(size=14, face="bold", hjust=0.5))
   
   print(p)
   
-
+  #-------------------------------
   # (H) 결과 반환
-
-  # 정규화된 수치를 담고 있는 wide-format data.frame 반환
-  return(gene_expression)
+  #-------------------------------
+  return(gene_expression_df)
 }
+
+
 
 
 #' Cumulative Line Graph of Cluster Proportions

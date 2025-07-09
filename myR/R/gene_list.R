@@ -1,15 +1,13 @@
-# Azimuth ----
 #' Azimuth (AZI) reference gene lists
 #'
-#' Azimuth 분석에 사용되는 여러 유전자 세트의 목록을 담은 named list.
+#' A named list containing gene sets used in Azimuth analysis.
 #' https://azimuth.hubmapconsortium.org/references/human_pbmc/
 #'
 #' @docType data
-#' @format Named list of character vectors.  
-#'   각 요소는 분석별 gene symbol 벡터입니다.
+#' @format A named list of character vectors where each element is a vector of gene symbols.
 #' @source <https://azimuth.hubmapconsortium.org/references/human_pbmc/>
 #' @keywords datasets
-#' @name genes_azi
+#' @rdname gene_lists
 #' @export
 genes_azi=list(
   azi_bi=c('MS4A1','TNFRSF13B','IGHM','IGHD','AIM2','CD79A','LINC01857','RALGPS2','BANK1','CD79B'),
@@ -94,6 +92,7 @@ genes_azi=list(
 # New pbmc markers ----
 #' -------------------- 1.2  fresh 2022‑25 marker additions ---------------
 #' @rdname gene_lists
+#' @export
 genes_pbmc_new <- list(
   ## memory / atypical B cells (FCRL5, TBX21) – Su2023; Hao2024
   memB_FCRL5 = c("FCRL5","T‑BET","ITGAX","ZEB2","CXCR3","CD11C"),                 # :contentReference[oaicite:0]{index=0}
@@ -119,6 +118,7 @@ genes_pbmc_new <- list(
 
 # Skin genes ----
 #' @rdname gene_lists
+#' @export
 genes_skin = list(
   # Keratinocytes
   Basal_Keratinocytes = c("KRT5", "KRT14", "TP63"),
@@ -177,6 +177,7 @@ genes_skin = list(
 
 # RCC genes ----
 #' @rdname gene_lists
+#' @export
 geomx_rcc <- list(
   ccRCC_VHL_related_pathways = c("VEGFA", "CA9", "EGLN3", "HIF1A", "EPAS1"),
   ccRCC_lipid_metabolism = c("PLIN2", "FABP7", "HMGCS1"),
@@ -203,6 +204,7 @@ geomx_rcc <- list(
 
 # RCC 2 ----
 #' @rdname gene_lists
+#' @export
 geomx_rcc2 <- list(
   # Clear Cell Renal Cell Carcinoma (ccRCC) Tumor Cells
   ccRCC_markers = c("CA9", "CD10", "PAX8", "VHL", "NDUFA4L2"),
@@ -262,6 +264,7 @@ geomx_rcc2 <- list(
 
 # gut tissue markers ----
 #' @rdname gene_lists
+#' @export
 genes_gut = list(
   # Epithelial Cells
   Epithelial_General = c("EPCAM", "CDH1", "KRT8", "KRT18"),
@@ -309,8 +312,3 @@ genes_gut = list(
   Enteric_Neurons = c("ELAVL4", "TUBB3", "CHAT", "NOS1", "VIP"), # ELAVL4 is HuD
   Enteric_Glia = c("S100B", "GFAP", "SOX10", "PLP1")
 )
-
-
-save(genes_azi, genes_pbmc_new, genes_skin,geomx_rcc,geomx_rcc2,
-     file=here::here("gene_lists.rda"),
-     compress="xz")
