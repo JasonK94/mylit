@@ -170,7 +170,7 @@ prepare_pseudobulk_edgeR <- function(seurat_obj,
   meta_pb <- meta_pb %>%
     left_join(sample_group_map, by = join_key_map)
   
-  # ---- 디버깅을 위한 추가 출력 (기존과 동일하거나 유사하게 유지) ----
+  #  디버깅을 위한 추가 출력 (기존과 동일하거나 유사하게 유지) 
   if (sum(is.na(meta_pb[[group_col]]))) {
     message("Debug: WARNING - Group mapping failed for some samples AFTER 'g' prefix adjustment.")
     failed_patients <- meta_pb %>% filter(is.na(!!sym(group_col))) %>% pull(patient) %>% unique()
@@ -284,7 +284,7 @@ prepare_pseudobulk_edgeR <- function(seurat_obj,
   meta_pb <- tryCatch({
     tibble(pb_sample_id = colnames(pb)) %>%
       tidyr::separate(pb_sample_id, into = c("patient", "ctype"), sep = sep, extra = "merge", remove = FALSE)
-  }, error = function(e) {
+  },error = function(e) {
     stop("Pseudo-bulk 컬럼 이름 ('", col_example, "')을 'patient'", sep, "'ctype' 형태로 분리할 수 없습니다. ",
          "AggregateExpression의 group.by 순서나 컬럼 내용을 확인하세요. 에러: ", e$message)
   })
@@ -344,7 +344,7 @@ prepare_pseudobulk_edgeR <- function(seurat_obj,
   
   meta_pb <- meta_pb_joined # Replace original meta_pb
   
-  # ---- 디버깅을 위한 추가 출력 (기존과 동일하거나 유사하게 유지) ----
+  # ---- 디버깅을 위한 추가 출력 (기존과 동일하거나 유사하게 유지) ---
   if (sum(is.na(meta_pb[[group_col]]))) {
     message("Debug: WARNING - Group mapping resulted in NAs for some pseudo-bulk samples AFTER join modifications.")
     failed_patients <- meta_pb %>% dplyr::filter(is.na(!!rlang::sym(group_col))) %>% dplyr::pull(patient) %>% unique()
@@ -923,7 +923,6 @@ pseudobulk_linear_fit <- function(sobj,
   # --- 4. 내부 함수: 단일 그룹 (또는 전체)에 대한 분석 수행 ---
   .run_lm_on_merged_data <- function(current_df_merged, current_genes, current_numeric_predictor, current_sample_col_name, min_samples_thresh, min_preds_thresh) {
     if (nrow(current_df_merged) == 0) return(NULL)
-    
     results_list <- lapply(current_genes, function(gene) {
       formula_str <- paste0("`", gene, "` ~ `", current_numeric_predictor, "`")
       model_data <- current_df_merged[, c(gene, current_numeric_predictor, current_sample_col_name), drop = FALSE] # sample_col도 포함하여 고유 샘플 수 확인

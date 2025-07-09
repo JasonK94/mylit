@@ -611,6 +611,9 @@ plot_cluster_fractions <- function(sobj_metadata,
   unique_clusters <- unique(plot_data$cluster)
   
   for (clust in unique_clusters) {
+    # Initialize stat_test to NULL at the start of each iteration
+    stat_test <- NULL
+    
     clust_data <- plot_data %>% filter(cluster == clust)
     groups <- unique(clust_data[[group_key]])
     
@@ -632,70 +635,73 @@ plot_cluster_fractions <- function(sobj_metadata,
         stat_test <- clust_data %>% rstatix::anova_test(as.formula(formula_str)) %>% mutate(cluster = clust)
       }
     }
-    stat_results[[clust]] <- stat_test
+    # Only add the result to the list if a test was actually performed
+    if (!is.null(stat_test)) {
+      stat_results[[clust]] <- stat_test
+    }
   }
   
   # Combine statistical results
   all_stats <- bind_rows(stat_results)
   
   # Add p-values to plot
-  if (simple_pvalues) {
-    # Use simple p-value display
-    p <- add_simple_pvalues(p, all_stats, plot_data, p_label_size)
-  } else {
-    # --- MODIFICATION START ---
-    # The following block was modified to remove the "stairway" effect.
-    
-    y_max <- max(plot_data$fraction, na.rm = TRUE)
-    
-    # Define a single, consistent y-position for all brackets.
-    # This prevents the vertical position from increasing with each new bracket.
-    y_position_base <- y_max * 1.1 
-    annotation_spacing <- y_max * 0.05 # Defines the height of the bracket and space for the label
-    
-    x_label_order <- levels(factor(plot_data$x_label))
-    
-    # Process each cluster to add its annotation
-    for (i in 1:nrow(all_stats)) {
-      clust <- all_stats$cluster[i]
-      p_val <- all_stats$p[i]
+  # Only attempt to add annotations if there are statistical results to show
+  if (nrow(all_stats) > 0) {
+    if (simple_pvalues) {
+      # Use simple p-value display
+      p <- add_simple_pvalues(p, all_stats, plot_data, p_label_size)
+    } else {
+      # The following block was modified to remove the "stairway" effect.
       
-      # Format p-value
-      p_label <- if (is.na(p_val)) "NA" else if (p_val < 0.001) "***" else if (p_val < 0.01) "**" else if (p_val < 0.05) "*" else "ns"
+      y_max <- max(plot_data$fraction, na.rm = TRUE)
       
-      # Find x positions for this cluster
-      cluster_labels <- grep(paste0("^", clust, "_"), x_label_order, value = TRUE)
+      # Define a single, consistent y-position for all brackets.
+      y_position_base <- y_max * 1.1 
+      annotation_spacing <- y_max * 0.05
       
-      if (length(cluster_labels) >= 2) {
-        x_positions <- match(cluster_labels, x_label_order)
-        x_min <- min(x_positions)
-        x_max <- max(x_positions)
-        x_center <- mean(c(x_min, x_max))
+      x_label_order <- levels(factor(plot_data$x_label))
+      
+      # Process each cluster to add its annotation
+      for (i in 1:nrow(all_stats)) {
+        clust <- all_stats$cluster[i]
+        p_val <- all_stats$p[i]
         
-        # Use the consistent base y-position for all brackets
-        bracket_y <- y_position_base
-        label_y <- bracket_y + (annotation_spacing * 0.1)
+        # Format p-value
+        p_label <- if (is.na(p_val)) "NA" else if (p_val < 0.001) "***" else if (p_val < 0.01) "**" else if (p_val < 0.05) "*" else "ns"
         
-        if (show_brackets) {
-          # Horizontal line
-          p <- p + annotate("segment", x = x_min - 0.3, xend = x_max + 0.3, y = bracket_y, yend = bracket_y, size = 0.5)
-          # Left vertical tick
-          p <- p + annotate("segment", x = x_min - 0.3, xend = x_min - 0.3, y = bracket_y - (annotation_spacing * 0.2), yend = bracket_y, size = 0.5)
-          # Right vertical tick
-          p <- p + annotate("segment", x = x_max + 0.3, xend = x_max + 0.3, y = bracket_y - (annotation_spacing * 0.2), yend = bracket_y, size = 0.5)
+        # Find x positions for this cluster
+        cluster_labels <- grep(paste0("^", clust, "_"), x_label_order, value = TRUE)
+        
+        if (length(cluster_labels) >= 2) {
+          x_positions <- match(cluster_labels, x_label_order)
+          x_min <- min(x_positions)
+          x_max <- max(x_positions)
+          x_center <- mean(c(x_min, x_max))
+          
+          # Use the consistent base y-position for all brackets
+          bracket_y <- y_position_base
+          label_y <- bracket_y + (annotation_spacing * 0.1)
+          
+          if (show_brackets) {
+            # Horizontal line
+            p <- p + annotate("segment", x = x_min - 0.3, xend = x_max + 0.3, y = bracket_y, yend = bracket_y, size = 0.5)
+            # Left vertical tick
+            p <- p + annotate("segment", x = x_min - 0.3, xend = x_min - 0.3, y = bracket_y - (annotation_spacing * 0.2), yend = bracket_y, size = 0.5)
+            # Right vertical tick
+            p <- p + annotate("segment", x = x_max + 0.3, xend = x_max + 0.3, y = bracket_y - (annotation_spacing * 0.2), yend = bracket_y, size = 0.5)
+          }
+          
+          # Add p-value text
+          p <- p + annotate("text", x = x_center, y = label_y, label = p_label, size = p_label_size, vjust = 0)
         }
-        
-        # Add p-value text
-        p <- p + annotate("text", x = x_center, y = label_y, label = p_label, size = p_label_size, vjust = 0)
       }
+      
+      # Adjust y-axis limits to accommodate the single layer of annotations
+      y_limit <- y_position_base + annotation_spacing
+      p <- p + coord_cartesian(ylim = c(0, y_limit), clip = "off") +
+        theme(plot.margin = unit(c(1, 1, 1, 1), "lines"))
+      
     }
-    
-    # Adjust y-axis limits to accommodate the single layer of annotations
-    y_limit <- y_position_base + annotation_spacing
-    p <- p + coord_cartesian(ylim = c(0, y_limit), clip = "off") +
-      theme(plot.margin = unit(c(1, 1, 1, 1), "lines"))
-    
-    # --- MODIFICATION END ---
   }
   
   # Return plot and statistics

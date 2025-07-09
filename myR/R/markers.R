@@ -184,3 +184,103 @@ marker_print=function(marker, n=100, sign="+"){
     print(paste(marker[marker$avg_log2FC<0,][1:n,]$gene,collapse = ", "))
   }
 }
+
+#' 여러 FindMarkers 결과를 종합하여 메타분석 수행
+#'
+#' @param marker_list FindMarkers 결과 데이터프레임의 리스트.
+#'        각 데이터프레임은 'gene', 'p_val', 'avg_log2FC', 'p_val_adj' 컬럼을 포함해야 함.
+#' @return 메타분석 결과 데이터프레임.
+synthesize_markers <- function(marker_list, p_sig="p_val_adj") {
+  
+  # 모든 마커 결과를 하나의 데이터프레임으로 통합
+  all_genes_df <- marker_list %>%
+    # 리스트의 각 데이터프레임에 그룹 이름을 부여
+    imap(~ .x %>% mutate(group = .y)) %>%
+    # 리스트를 하나의 데이터프레임으로 결합
+    bind_rows() %>%
+    # gene 컬럼이 없는 경우 rownames를 gene 컬럼으로 변환
+    rownames_to_column(var = "gene_fallback") %>%
+    mutate(gene = if("gene" %in% names(.)) gene else gene_fallback) %>%
+    select(-gene_fallback)
+  
+  # 유전자별로 메타분석 수행
+  meta_results <- all_genes_df %>%
+    group_by(gene) %>%
+    summarise(
+      # P-value synthesis (Fisher's method)
+      # P-value가 0인 경우 작은 값으로 대체하여 log 변환 오류 방지
+      meta_p = {
+        p_values <- p_val[p_val > 0]
+        if (length(p_values) == 0) {
+          NA_real_
+        } else {
+          chisq_stat <- -2 * sum(log(p_values))
+          pchisq(chisq_stat, df = 2 * length(p_values), lower.tail = FALSE)
+        }
+      },
+      
+      # Meta-analysis for Log2FC (Averaging)
+      meta_log2FC = mean(avg_log2FC, na.rm = TRUE),
+      
+      # Standard deviation as a measure of variability
+      sd_p = sd(p_val, na.rm = TRUE),
+      sd_adj_p = sd(p_val_adj, na.rm = TRUE),
+      sd_meta_log2FC = sd(avg_log2FC, na.rm = TRUE),
+      
+      # 몇 개의 그룹에서 유의했는지 카운트
+      n_groups_significant = sum(!!sym(p_sig) < 0.05, na.rm = TRUE),
+      n_groups_total = n(),
+      .groups = "drop"
+    ) %>%
+    
+    # Meta p-value에 대한 FDR 계산
+    mutate(meta_adj_p = p.adjust(meta_p, method = "BH")) %>%
+    
+    # 컬럼 순서 정리
+    select(
+      gene, meta_p, meta_adj_p, meta_log2FC,
+      sd_p, sd_adj_p, sd_meta_log2FC,
+      n_groups_significant, n_groups_total
+    ) %>%
+    arrange(meta_adj_p, meta_p)
+  
+  return(meta_results)
+}
+
+#' 여러 FindMarkers 결과의 순위를 종합
+#'
+#' @param marker_list FindMarkers 결과 데이터프레임의 리스트.
+#' @param rank_by 어떤 컬럼을 기준으로 순위를 매길지 지정. ('p_val' 또는 'avg_log2FC')
+#' @return 유전자별 종합 순위 정보 데이터프레임.
+synthesize_ranks <- function(marker_list, rank_by = "p_val") {
+  
+  # 순위 계산 함수 정의
+  calculate_ranks <- function(df, col) {
+    # p-value는 오름차순, log2FC는 절대값 기준 내림차순으로 순위 부여
+    if (col == "p_val") {
+      df %>% mutate(rank = rank(!!sym(col), ties.method = "min"))
+    } else { # avg_log2FC
+      df %>% mutate(rank = rank(-abs(!!sym(col)), ties.method = "min"))
+    }
+  }
+  
+  # 각 그룹별로 순위 계산
+  ranked_list <- marker_list %>%
+    map(~ calculate_ranks(.x, rank_by))
+  
+  # 순위를 종합하여 기하 평균 계산
+  rank_synthesis <- ranked_list %>%
+    map(~ .x %>% select(gene, rank)) %>%
+    reduce(function(df1, df2) full_join(df1, df2, by = "gene", suffix = c(".1", ".2"))) %>%
+    rowwise() %>%
+    mutate(
+      ranks = list(c_across(starts_with("rank"))),
+      # 기하 평균 계산 (NA는 제외)
+      geometric_mean_rank = exp(mean(log(na.omit(ranks)), na.rm = TRUE))
+    ) %>%
+    ungroup() %>%
+    select(gene, geometric_mean_rank) %>%
+    arrange(geometric_mean_rank)
+  
+  return(rank_synthesis)
+}
