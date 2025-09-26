@@ -680,8 +680,18 @@ meta_clinical3=meta_clinical1 %>%
   left_join(meta_clinical2_prepped,by="hos_no") %>% #EMR ID로 join하겠다!
   mutate(join_key_samp=ifelse(multi_method=="SNP",exp_sample_no,sample_no))
 
+meta_mri=read.csv("/data/kjc1/projects/#130.stroke/pre_post_lesions_mri.csv") %>%
+  .[,!duplicated(names(.))]
+
+meta_reclassify=readxl::read_excel("/data/kjc1/projects/#130.stroke/reclassify_g.xlsx", .name_repair = "minimal") %>%
+  .[,!duplicated(names(.))]
+
+meta_clinical4=meta_clinical3 %>%
+  left_join(meta_reclassify, by="hos_no") %>%
+  left_join(meta_mri, by="hos_no")
+
 ####################### extraction
-meta_seurat=s@meta.data
+meta_seurat=is@meta.data
 
 overlap_cols=intersect(names(meta_seurat),names(meta_clinical3))
 cols_to_remove=setdiff(overlap_cols,"hos_no")
@@ -697,6 +707,10 @@ meta_seurat=meta_seurat%>%
 meta_joined=right_join(meta_seurat, meta_clinical3, by=c("join_key"="join_key_samp")) %>%
   .[rownames(.)[!is.na(.$orig.ident)],]
 meta_whole=left_join(meta_seurat, meta_clinical3, by=c("join_key"="join_key_samp"))
+
+meta_joined2=right_join(meta_seurat, meta_clinical4, by=c("join_key"="join_key_samp")) %>%
+  .[rownames(.)[!is.na(.$orig.ident)],]
+meta_whole2=left_join(meta_seurat, meta_clinical4, by=c("join_key"="join_key_samp"))
 
 saveRDS(meta_joined,"/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_meta_IS_25-05-11-12-03.rds")
 saveRDS(meta_whole,"/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_meta_whole_25-05-11-12-03.rds")
@@ -727,13 +741,13 @@ is$onset_to_sample <- (is$blood_sample_time_pos - is$sx_onset_pos)/3600
 # time3=format(Sys.time(),"%y-%m-%d-%H-%M")
 # saveRDS(is,file=paste0("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_group3_clustering_",time3,".rds"))
 
-is_all=readRDS("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_group3_clustering_25-05-12-16-03.rds")
+is=readRDS("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_25-05-12-16-15.rds")
 res=1.1
 cluster_name=paste0("integrated_",res)
-is_all <- FindClusters(is_all,graph.name = "integrated_snn",cluster.name=cluster_name, resolution = res,random.seed = 1234)
-DefaultAssay(is_all)="SCT"
-is_all = PrepSCTFindMarkers(is_all)
-is=subset(is_all, day==1)
+is <- FindClusters(is,graph.name = "integrated_snn",cluster.name=cluster_name, resolution = res,random.seed = 1234)
+DefaultAssay(is)="SCT"
+is = PrepSCTFindMarkers(is)
+is=subset(is, day==1)
 is=PercentageFeatureSet(is, "^MT-", col.name="percent.mt")
 is=PercentageFeatureSet(is, "^RPS|^RPL", col.name="percent.ribo")
 time3=format(Sys.time(),"%y-%m-%d-%H-%M")

@@ -708,6 +708,7 @@ plot_cluster_fractions <- function(sobj_metadata,
   return(list(plot = p, statistics = all_stats))
 }
 
+
 # Example usage function
 example_usage <- function() {
   # 예시 데이터 생성

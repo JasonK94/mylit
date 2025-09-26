@@ -232,6 +232,9 @@ prepare_pseudobulk_edgeR <- function(seurat_obj,
     contrast_levels = contrast_levels
   ))
 }
+# --- Func END ----
+
+
 
 prepare_pseudobulk_edgeR <- function(seurat_obj,
                                      assay = "SCT",
@@ -435,6 +438,8 @@ prepare_pseudobulk_edgeR <- function(seurat_obj,
     contrast_levels = contrast_levels
   ))
 }
+# --- Func END ----
+
 
 #' Pseudo-bulk Differential Gene Expression Analysis
 #'
@@ -781,9 +786,7 @@ run_pseudobulk_deg <- function(analysis_level = c("overall", "per_cluster", "spe
   
   return(results)
 }
-
-
-
+# --- Func END ----
 
 
 #' @title 유전자 발현 데이터에 대한 그룹별 또는 전체 선형 회귀 분석 수행 (최적화됨)
@@ -1030,7 +1033,7 @@ pseudobulk_linear_fit <- function(sobj,
   
   return(final_results_df)
 }
-
+# --- Func END ----
 
 
 
@@ -1185,7 +1188,7 @@ post_hoc_slope_comparison <- function(results_df,
   
   return(final_adjusted_results)
 }
-
+# --- Func END ----
 
 #' Identify Cluster Markers using Pseudo-bulk DEG
 #'
@@ -1717,8 +1720,7 @@ cluster_pseudobulk_deg <- function(sobj,
   if (verbose) message("Analysis complete. Returning ", nrow(final_df), " marker genes.")
   return(final_df)
 }
-
-
+# --- Func END ----
 
 
 #' Perform Pseudobulk Differential Gene Expression Analysis
@@ -2224,7 +2226,7 @@ pseudobulk_deg <- function(sobj,
   message("\nDone with all comparisons.")
   return(final_results_df)
 }
-
+# --- Func END ----
 
 
 
@@ -2326,6 +2328,7 @@ FindMarkers_pseudobulk <- function(seurat_obj,
   
   return(de_results)
 }
+# --- Func END ----
 
 #' Create advanced pseudobulk expression matrix with flexible aggregation
 #'
@@ -2422,6 +2425,7 @@ create_pseudobulk_matrix_advanced <- function(seurat_obj,
   
   return(list(matrix = pb_matrix, metadata = pb_metadata))
 }
+# --- Func END ----
 
 #' Run advanced edgeR analysis on pseudobulk data
 run_edgeR_pseudobulk_advanced <- function(pb_matrix,
@@ -2530,6 +2534,7 @@ run_edgeR_pseudobulk_advanced <- function(pb_matrix,
   
   return(de_results)
 }
+# --- Func END ----
 
 #' Run advanced DESeq2 analysis on pseudobulk data
 run_DESeq2_pseudobulk_advanced <- function(pb_matrix,
@@ -2602,6 +2607,7 @@ run_DESeq2_pseudobulk_advanced <- function(pb_matrix,
   
   return(de_results)
 }
+# --- Func END ----
 
 #' Pseudobulk FindAllMarkers function
 #'
@@ -2728,7 +2734,7 @@ FindAllMarkers_pseudobulk <- function(seurat_obj,
 #   design.formula = ~ condition + timepoint + condition:timepoint,
 #   method = "edgeR"
 # )
-
+# --- Func END ----
 
 
 
@@ -2830,6 +2836,7 @@ FindMarkers_pseudobulk <- function(seurat_obj,
   
   return(de_results)
 }
+# --- Func END ----
 
 #' Create advanced pseudobulk expression matrix with flexible aggregation
 #'
@@ -2926,6 +2933,7 @@ create_pseudobulk_matrix_advanced <- function(seurat_obj,
   
   return(list(matrix = pb_matrix, metadata = pb_metadata))
 }
+# --- Func END ----
 
 #' Run advanced edgeR analysis on pseudobulk data
 run_edgeR_pseudobulk_advanced <- function(pb_matrix,
@@ -3036,6 +3044,7 @@ run_edgeR_pseudobulk_advanced <- function(pb_matrix,
   
   return(de_results)
 }
+# --- Func END ----
 
 #' Run advanced DESeq2 analysis on pseudobulk data
 run_DESeq2_pseudobulk_advanced <- function(pb_matrix,
@@ -3108,6 +3117,7 @@ run_DESeq2_pseudobulk_advanced <- function(pb_matrix,
   
   return(de_results)
 }
+# --- Func END ----
 
 #' Pseudobulk FindAllMarkers function
 #'

@@ -114,3 +114,819 @@ AddMultipleModuleScores <- function(seurat_object,
   
   invisible(seurat_object)
 }
+
+
+
+#' Visualize Module Scores as Heatmap with Statistical Testing
+#'
+#' This function uses AddModuleScore results to create a heatmap visualization
+#' with z-score normalization and statistical significance indicators
+#'
+#' @param sobj Seurat object
+#' @param gene_sets Named list of gene sets
+#' @param group Grouping variable (default: "seurat_clusters")
+#' @param assay Assay to use (default: "SCT")
+#' @param test_method Statistical test method ("wilcox" or "t")
+#' @param p_adjust Method for p-value adjustment (default: "bonferroni")
+#' @param show_pval Whether to show p-values on the heatmap
+#' @param scale_method How to scale the data: "feature" (scale each feature across groups) or "group" (scale within each group)
+#' @param color_limits Manual color scale limits (e.g., c(-2, 2)). If NULL, uses symmetric limits based on data
+#' @param ... Additional arguments passed to AddModuleScore
+#'
+#' @return A list containing the heatmap plot and statistical results
+#'
+PlotModuleScoreHeatmap <- function(
+    sobj,
+    gene_sets,
+    group = "seurat_clusters",
+    assay = "SCT",
+    test_method = "wilcox",
+    p_adjust = "bonferroni",
+    show_pval = TRUE,
+    scale_method = "feature",
+    color_limits = NULL,
+    title = "Module Score Expression per Cluster",
+    x_label = "Cluster",
+    y_label = "Gene Set",
+    ...
+) {
+  library(Seurat)
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  library(patchwork)
+  
+  # Validate inputs
+  if(is.null(gene_sets) || length(gene_sets) == 0) {
+    stop("gene_sets must be provided")
+  }
+  
+  # Ensure gene_sets is a named list
+  if(!is.list(gene_sets)) {
+    gene_sets <- list(GeneSet1 = gene_sets)
+  }
+  
+  if(is.null(names(gene_sets)) || any(names(gene_sets) == "")) {
+    for(i in seq_along(gene_sets)) {
+      if(is.null(names(gene_sets)[i]) || names(gene_sets)[i] == "") {
+        names(gene_sets)[i] <- paste0("GeneSet", i)
+      }
+    }
+  }
+  
+  # Add module scores for each gene set
+  module_names <- character()
+  for(i in seq_along(gene_sets)) {
+    set_name <- names(gene_sets)[i]
+    
+    # Check if genes exist in the dataset
+    genes_present <- gene_sets[[i]][gene_sets[[i]] %in% rownames(sobj[[assay]])]
+    if(length(genes_present) == 0) {
+      warning(paste("No genes from", set_name, "found in the dataset."))
+      next
+    }
+    
+    # AddModuleScore adds a number suffix, we'll track it
+    before_cols <- colnames(sobj@meta.data)
+    sobj <- AddModuleScore(
+      object = sobj,
+      features = list(genes_present),
+      name = set_name,
+      assay = assay,
+      ...
+    )
+    after_cols <- colnames(sobj@meta.data)
+    new_col <- setdiff(after_cols, before_cols)
+    
+    # Remove the "1" suffix if desired
+    if(length(new_col) > 0) {
+      clean_name <- sub("1$", "", new_col[1])
+      colnames(sobj@meta.data)[colnames(sobj@meta.data) == new_col[1]] <- clean_name
+      module_names <- c(module_names, clean_name)
+    }
+  }
+  
+  if(length(module_names) == 0) {
+    stop("No valid module scores could be calculated")
+  }
+  
+  # Calculate average module scores per group
+  Idents(sobj) <- group
+  group_levels <- levels(Idents(sobj))
+  if(is.null(group_levels)) {
+    group_levels <- unique(Idents(sobj))
+  }
+  
+  # Extract module score data
+  module_data <- sobj@meta.data[, c(group, module_names), drop = FALSE]
+  
+  # Calculate mean scores per group
+  mean_scores <- module_data %>%
+    group_by(!!sym(group)) %>%
+    summarise(across(all_of(module_names), mean, na.rm = TRUE)) %>%
+    as.data.frame()
+  
+  # Z-score normalization based on scale_method
+  z_scores <- mean_scores
+  
+  if(scale_method == "feature") {
+    # Scale each module across all clusters (recommended)
+    # 각 module에 대해 모든 cluster의 평균과 표준편차로 정규화
+    for(module in module_names) {
+      z_scores[[module]] <- scale(mean_scores[[module]])[, 1]
+    }
+  } else if(scale_method == "group") {
+    # Scale all modules within each cluster (original behavior)
+    # 각 cluster 내에서 모든 module을 정규화
+    z_scores[, module_names] <- t(scale(t(mean_scores[, module_names])))
+  } else {
+    stop("scale_method must be either 'feature' or 'group'")
+  }
+  
+  # Statistical testing between clusters
+  p_values <- matrix(NA, nrow = length(module_names), ncol = length(group_levels),
+                     dimnames = list(module_names, group_levels))
+  
+  for(module in module_names) {
+    for(cluster in group_levels) {
+      cluster_scores <- module_data[module_data[[group]] == cluster, module]
+      other_scores <- module_data[module_data[[group]] != cluster, module]
+      
+      if(length(cluster_scores) > 2 && length(other_scores) > 2) {
+        if(test_method == "wilcox") {
+          test_result <- wilcox.test(cluster_scores, other_scores)
+        } else if(test_method == "t") {
+          test_result <- t.test(cluster_scores, other_scores)
+        }
+        p_values[module, as.character(cluster)] <- test_result$p.value
+      }
+    }
+  }
+  
+  # Adjust p-values
+  p_adj <- matrix(p.adjust(as.vector(p_values), method = p_adjust),
+                  nrow = nrow(p_values), ncol = ncol(p_values),
+                  dimnames = dimnames(p_values))
+  
+  # Prepare data for plotting
+  plot_data <- z_scores %>%
+    pivot_longer(cols = all_of(module_names),
+                 names_to = "Module",
+                 values_to = "ZScore")
+  
+  # Add significance indicators
+  sig_data <- as.data.frame(p_adj) %>%
+    mutate(Module = rownames(.)) %>%
+    pivot_longer(cols = -Module,
+                 names_to = group,
+                 values_to = "p_adj")
+  
+  plot_data <- plot_data %>%
+    left_join(sig_data, by = c("Module", group))
+  
+  # Add significance symbols
+  plot_data <- plot_data %>%
+    mutate(sig_symbol = case_when(
+      p_adj < 0.001 ~ "***",
+      p_adj < 0.01 ~ "**",
+      p_adj < 0.05 ~ "*",
+      TRUE ~ ""
+    ))
+  
+  # Sort clusters numerically if possible
+  numeric_test <- suppressWarnings(as.numeric(as.character(plot_data[[group]])))
+  if(!all(is.na(numeric_test))) {
+    plot_data[[group]] <- factor(plot_data[[group]],
+                                 levels = as.character(sort(unique(numeric_test))))
+  }
+  
+  # Create heatmap with adjusted color scale
+  if(is.null(color_limits)) {
+    # Use symmetric limits based on max absolute value
+    max_abs <- max(abs(plot_data$ZScore), na.rm = TRUE)
+    color_limits <- c(-max_abs, max_abs)
+  }
+  
+  p <- ggplot(plot_data, aes_string(x = group, y = "Module", fill = "ZScore")) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                         midpoint = 0, limits = color_limits, name = "Z-Score") +
+    theme_minimal() +
+    labs(title = title, x = x_label, y = y_label) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+      axis.text.y = element_text(size = 12),
+      axis.title = element_text(size = 14, face = "bold"),
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  
+  # Add significance indicators if requested
+  if(show_pval) {
+    p <- p + geom_text(aes(label = sig_symbol), 
+                       color = "black", size = 4, vjust = 0.5)
+  }
+  
+  # Create a summary plot showing raw module scores
+  summary_data <- module_data %>%
+    pivot_longer(cols = all_of(module_names),
+                 names_to = "Module",
+                 values_to = "Score")
+  
+  p_violin <- ggplot(summary_data, aes_string(x = group, y = "Score", fill = group)) +
+    geom_violin(trim = FALSE, alpha = 0.8) +
+    geom_boxplot(width = 0.1, outlier.size = 0.5) +
+    facet_wrap(~ Module, scales = "free_y", ncol = 2) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "none"
+    ) +
+    labs(title = "Raw Module Score Distribution",
+         x = x_label, y = "Module Score")
+  
+  # Combine plots
+  combined_plot <- p / p_violin + plot_layout(heights = c(1, 2))
+  
+  print(combined_plot)
+  
+  # Return results
+  return(list(
+    plot = combined_plot,
+    z_scores = z_scores,
+    p_values = p_adj,
+    raw_means = mean_scores,
+    module_names = module_names
+  ))
+}
+
+#' Compare Module Scoring Methods
+#'
+#' This function compares the simple averaging method with AddModuleScore
+#'
+#' @export
+CompareModuleScoringMethods <- function(
+    sobj,
+    gene_sets,
+    group = "seurat_clusters",
+    assay = "SCT"
+) {
+  library(ggplot2)
+  library(patchwork)
+  
+  # Method 1: Simple averaging (original method)
+  simple_results <- myhm_genesets4(sobj, group, "average", assay, gene_sets,
+                                   title = "Simple Averaging Method")
+  
+  # Method 2: AddModuleScore-based
+  module_results <- PlotModuleScoreHeatmap(sobj, gene_sets, group, assay,
+                                           title = "AddModuleScore Method")
+  
+  # Create comparison plot
+  comparison_data <- data.frame(
+    Cluster = simple_results$Cluster,
+    Method = "Simple"
+  )
+  
+  for(gset in names(gene_sets)) {
+    if(gset %in% colnames(simple_results)) {
+      comparison_data[[gset]] <- simple_results[[gset]]
+    }
+  }
+  
+  module_z <- module_results$z_scores
+  module_comparison <- data.frame(
+    Cluster = module_z[[group]],
+    Method = "AddModuleScore"
+  )
+  
+  for(module in module_results$module_names) {
+    if(module %in% colnames(module_z)) {
+      module_comparison[[module]] <- module_z[[module]]
+    }
+  }
+  
+  # Combine data
+  all_data <- bind_rows(comparison_data, module_comparison)
+  
+  # Create faceted comparison plot
+  all_data_long <- all_data %>%
+    pivot_longer(cols = -c(Cluster, Method),
+                 names_to = "GeneSet",
+                 values_to = "ZScore")
+  
+  p_compare <- ggplot(all_data_long, aes(x = Cluster, y = ZScore, fill = Method)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~ GeneSet, scales = "free_y") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Comparison of Scoring Methods",
+         x = "Cluster", y = "Z-Score")
+  
+  print(p_compare)
+  
+  return(list(
+    simple = simple_results,
+    module = module_results,
+    comparison_plot = p_compare
+  ))
+}
+
+# Example usage:
+# gene_sets <- list(
+#   Tcell = c("CD3D", "CD3E", "CD3G"),
+#   Bcell = c("MS4A1", "CD79A", "CD79B"),
+#   Monocyte = c("CD14", "LYZ", "S100A8", "S100A9")
+# )
+# 
+# results <- PlotModuleScoreHeatmap(pbmc, gene_sets, show_pval = TRUE)
+# comparison <- CompareModuleScoringMethods(pbmc, gene_sets)
+
+library(Seurat)
+library(dplyr)
+library(broom)
+library(lme4)  # for mixed effects models
+
+linear_seurat <- function(sobj, 
+                          layer = c("counts", "data", "scale.data"), 
+                          features = "all", 
+                          regressor = "val1", 
+                          regressor.type = c("continuous", "categorical", "ordinal"),
+                          reference.level = NULL,
+                          ordinal.method = c("linear", "polynomial", "spline"),
+                          link.function = "linear",
+                          effect = c("fixed", "random"), 
+                          covariates = NULL,
+                          min.cells = 10,
+                          return.full = FALSE,
+                          ...) {
+  
+  # Input validation
+  if (!inherits(sobj, "Seurat")) {
+    stop("Input must be a Seurat object")
+  }
+  
+  layer <- match.arg(layer)
+  effect <- match.arg(effect)
+  regressor.type <- match.arg(regressor.type)
+  ordinal.method <- match.arg(ordinal.method)
+  
+  # Check if regressor exists in metadata
+  if (!regressor %in% colnames(sobj@meta.data)) {
+    stop(paste("Regressor", regressor, "not found in metadata"))
+  }
+  
+  # Get expression data based on layer
+  if (layer == "counts") {
+    expr_data <- GetAssayData(sobj, slot = "counts")
+  } else if (layer == "data") {
+    expr_data <- GetAssayData(sobj, slot = "data")
+  } else if (layer == "scale.data") {
+    expr_data <- GetAssayData(sobj, slot = "scale.data")
+  }
+  
+  # Select features
+  if (features[1] == "all") {
+    features <- rownames(expr_data)
+  } else {
+    # Check if all features exist
+    missing_features <- setdiff(features, rownames(expr_data))
+    if (length(missing_features) > 0) {
+      warning(paste("Features not found:", paste(missing_features, collapse = ", ")))
+      features <- intersect(features, rownames(expr_data))
+    }
+  }
+  
+  # Filter features by minimum cell expression
+  if (min.cells > 0) {
+    feature_counts <- Matrix::rowSums(expr_data[features, ] > 0)
+    features <- features[feature_counts >= min.cells]
+  }
+  
+  if (length(features) == 0) {
+    stop("No features passed filtering criteria")
+  }
+  
+  # Prepare metadata
+  meta_data <- sobj@meta.data
+  regressor_values <- meta_data[[regressor]]
+  
+  # Process regressor based on type
+  if (regressor.type == "categorical") {
+    regressor_values <- as.factor(regressor_values)
+    
+    # Set reference level if specified
+    if (!is.null(reference.level)) {
+      if (!reference.level %in% levels(regressor_values)) {
+        stop(paste("Reference level", reference.level, "not found in regressor levels"))
+      }
+      regressor_values <- relevel(regressor_values, ref = reference.level)
+    }
+    
+    cat("Categorical regressor with levels:", paste(levels(regressor_values), collapse = ", "), "\n")
+    cat("Reference level:", levels(regressor_values)[1], "\n")
+    
+  } else if (regressor.type == "ordinal") {
+    # Check if it's already ordered
+    if (!is.ordered(regressor_values)) {
+      if (is.factor(regressor_values)) {
+        regressor_values <- ordered(regressor_values)
+      } else {
+        # Try to convert to ordered factor
+        unique_vals <- sort(unique(regressor_values[!is.na(regressor_values)]))
+        regressor_values <- ordered(regressor_values, levels = unique_vals)
+      }
+    }
+    
+    cat("Ordinal regressor with levels:", paste(levels(regressor_values), collapse = " < "), "\n")
+    cat("Ordinal method:", ordinal.method, "\n")
+    
+  } else if (regressor.type == "continuous") {
+    regressor_values <- as.numeric(regressor_values)
+    if (all(is.na(regressor_values))) {
+      stop("Regressor cannot be converted to numeric for continuous analysis")
+    }
+  }
+  
+  # Check for missing values in regressor
+  if (any(is.na(regressor_values))) {
+    warning("Missing values found in regressor variable")
+    valid_cells <- !is.na(regressor_values)
+    expr_data <- expr_data[, valid_cells]
+    meta_data <- meta_data[valid_cells, ]
+    regressor_values <- regressor_values[valid_cells]
+  }
+  
+  # Prepare covariate formula
+  covariate_formula <- ""
+  if (!is.null(covariates)) {
+    # Check if covariates exist in metadata
+    missing_covariates <- setdiff(covariates, colnames(meta_data))
+    if (length(missing_covariates) > 0) {
+      warning(paste("Covariates not found:", paste(missing_covariates, collapse = ", ")))
+      covariates <- intersect(covariates, colnames(meta_data))
+    }
+    if (length(covariates) > 0) {
+      covariate_formula <- paste("+", paste(covariates, collapse = " + "))
+    }
+  }
+  
+  # Function to fit model for each gene
+  fit_gene_model <- function(gene) {
+    expression <- as.numeric(expr_data[gene, ])
+    
+    # Create data frame for modeling
+    model_data <- data.frame(
+      expression = expression,
+      regressor = regressor_values
+    )
+    
+    # Add covariates if specified
+    if (!is.null(covariates) && length(covariates) > 0) {
+      for (cov in covariates) {
+        model_data[[cov]] <- meta_data[[cov]]
+      }
+    }
+    
+    # Remove rows with missing values
+    model_data <- model_data[complete.cases(model_data), ]
+    
+    if (nrow(model_data) < 10) {
+      return(data.frame(
+        gene = gene,
+        estimate = NA,
+        std.error = NA,
+        statistic = NA,
+        p.value = NA,
+        n_cells = nrow(model_data),
+        regressor_type = regressor.type
+      ))
+    }
+    
+    # Prepare formula based on regressor type
+    if (regressor.type == "continuous") {
+      regressor_formula <- "regressor"
+    } else if (regressor.type == "categorical") {
+      regressor_formula <- "regressor"  # R automatically handles factor contrasts
+    } else if (regressor.type == "ordinal") {
+      if (ordinal.method == "linear") {
+        # Convert to numeric for linear trend
+        model_data$regressor_numeric <- as.numeric(model_data$regressor)
+        regressor_formula <- "regressor_numeric"
+      } else if (ordinal.method == "polynomial") {
+        # Use polynomial contrasts
+        regressor_formula <- "poly(as.numeric(regressor), degree = min(3, length(levels(regressor))-1))"
+      } else if (ordinal.method == "spline") {
+        # Use natural splines (requires splines package)
+        if (requireNamespace("splines", quietly = TRUE)) {
+          regressor_formula <- "splines::ns(as.numeric(regressor), df = min(3, length(levels(regressor))-1))"
+        } else {
+          warning("splines package not available, using linear method")
+          model_data$regressor_numeric <- as.numeric(model_data$regressor)
+          regressor_formula <- "regressor_numeric"
+        }
+      }
+    }
+    
+    # Fit model based on effect type
+    tryCatch({
+      if (effect == "fixed") {
+        formula_str <- paste("expression ~", regressor_formula, covariate_formula)
+        
+        if (link.function == "linear") {
+          model <- lm(as.formula(formula_str), data = model_data, ...)
+        } else if (link.function == "poisson") {
+          model <- glm(as.formula(formula_str), data = model_data, family = poisson(), ...)
+        } else if (link.function == "negative.binomial") {
+          model <- MASS::glm.nb(as.formula(formula_str), data = model_data, ...)
+        }
+        
+        # Extract results - handle different regressor types
+        model_summary <- tidy(model)
+        
+        if (regressor.type == "categorical") {
+          # For categorical variables, extract all factor levels
+          regressor_rows <- model_summary[grepl("^regressor", model_summary$term), ]
+          
+          if (nrow(regressor_rows) == 0) {
+            # Single level case
+            regressor_rows <- model_summary[model_summary$term == "regressor", ]
+          }
+          
+          # Calculate overall F-test p-value for categorical variables
+          if (nrow(regressor_rows) > 1) {
+            model_anova <- anova(model)
+            # More robust way to get p-value from anova table
+            pval_col <- which(grepl("Pr\\(>F\\)", colnames(model_anova)))
+            if (length(pval_col) > 0) {
+              overall_p <- model_anova[1, pval_col]
+            } else {
+              overall_p <- regressor_rows$p.value[1]
+            }
+          } else {
+            overall_p <- regressor_rows$p.value[1]
+          }
+          
+          # Return summary statistics
+          result <- data.frame(
+            gene = gene,
+            estimate = ifelse(nrow(regressor_rows) > 0, regressor_rows$estimate[1], NA),
+            std.error = ifelse(nrow(regressor_rows) > 0, regressor_rows$std.error[1], NA),
+            statistic = ifelse(nrow(regressor_rows) > 0, regressor_rows$statistic[1], NA),
+            p.value = overall_p,
+            n_cells = nrow(model_data),
+            model_type = paste(effect, link.function, regressor.type, sep = "_"),
+            n_levels = length(levels(model_data$regressor))
+          )
+          
+        } else {
+          # For continuous and ordinal (treated as continuous)
+          if (regressor.type == "ordinal" && ordinal.method == "linear") {
+            regressor_rows <- model_summary[model_summary$term == "regressor_numeric", ]
+            overall_p <- regressor_rows$p.value[1]
+          } else if (regressor.type == "ordinal" && ordinal.method %in% c("polynomial", "spline")) {
+            regressor_rows <- model_summary[grepl("poly|ns", model_summary$term), ]
+            # For polynomial/spline, use F-test
+            if (nrow(regressor_rows) > 1) {
+              model_anova <- anova(model)
+              # Find the row corresponding to polynomial/spline term
+              poly_spline_rows <- grepl("poly|ns", rownames(model_anova))
+              pval_col <- which(grepl("Pr\\(>F\\)", colnames(model_anova)))
+              
+              if (any(poly_spline_rows) && length(pval_col) > 0) {
+                overall_p <- model_anova[which(poly_spline_rows)[1], pval_col]
+              } else {
+                overall_p <- regressor_rows$p.value[1]
+              }
+            } else {
+              overall_p <- regressor_rows$p.value[1]
+            }
+          } else {
+            regressor_rows <- model_summary[model_summary$term == "regressor", ]
+            overall_p <- regressor_rows$p.value[1]
+          }
+          
+          result <- data.frame(
+            gene = gene,
+            estimate = ifelse(nrow(regressor_rows) > 0, regressor_rows$estimate[1], NA),
+            std.error = ifelse(nrow(regressor_rows) > 0, regressor_rows$std.error[1], NA),
+            statistic = ifelse(nrow(regressor_rows) > 0, regressor_rows$statistic[1], NA),
+            p.value = overall_p,
+            n_cells = nrow(model_data),
+            model_type = paste(effect, link.function, regressor.type, sep = "_")
+          )
+        }
+        
+      } else if (effect == "random") {
+        # Random effects implementation
+        if (is.null(covariates) || length(covariates) == 0) {
+          stop("Random effects models require at least one grouping variable in covariates")
+        }
+        
+        group_var <- covariates[1]
+        formula_str <- paste("expression ~", regressor_formula, "+ (1|", group_var, ")")
+        if (length(covariates) > 1) {
+          formula_str <- paste(formula_str, "+", paste(covariates[-1], collapse = " + "))
+        }
+        
+        model <- lmer(as.formula(formula_str), data = model_data, ...)
+        model_summary <- tidy(model, effects = "fixed")
+        
+        if (regressor.type == "ordinal" && ordinal.method == "linear") {
+          regressor_rows <- model_summary[model_summary$term == "regressor_numeric", ]
+        } else {
+          regressor_rows <- model_summary[grepl("regressor", model_summary$term), ]
+        }
+        
+        result <- data.frame(
+          gene = gene,
+          estimate = ifelse(nrow(regressor_rows) > 0, regressor_rows$estimate[1], NA),
+          std.error = ifelse(nrow(regressor_rows) > 0, regressor_rows$std.error[1], NA),
+          statistic = ifelse(nrow(regressor_rows) > 0, regressor_rows$statistic[1], NA),
+          p.value = ifelse(nrow(regressor_rows) > 0, regressor_rows$p.value[1], NA),
+          n_cells = nrow(model_data),
+          model_type = paste(effect, link.function, regressor.type, sep = "_")
+        )
+      }
+      
+      return(result)
+      
+    }, error = function(e) {
+      data.frame(
+        gene = gene,
+        estimate = NA,
+        std.error = NA,
+        statistic = NA,
+        p.value = NA,
+        n_cells = nrow(model_data),
+        model_type = paste(effect, link.function, regressor.type, sep = "_"),
+        error = as.character(e)
+      )
+    })
+  }
+  
+  # Apply function to all features
+  cat("Fitting models for", length(features), "features...\n")
+  
+  # Use parallel processing if available
+  if (requireNamespace("parallel", quietly = TRUE) && length(features) > 100) {
+    results <- parallel::mclapply(features, fit_gene_model, mc.cores = parallel::detectCores() - 1)
+  } else {
+    results <- lapply(features, fit_gene_model)
+  }
+  
+  # Combine results
+  results_df <- do.call(rbind, results)
+  
+  # Multiple testing correction
+  valid_pvals <- !is.na(results_df$p.value)
+  results_df$adj.p.value <- NA
+  if (sum(valid_pvals) > 0) {
+    results_df$adj.p.value[valid_pvals] <- p.adjust(results_df$p.value[valid_pvals], method = "BH")
+  }
+  
+  # Sort by p-value
+  results_df <- results_df[order(results_df$p.value, na.last = TRUE), ]
+  
+  # Add metadata about the analysis
+  attr(results_df, "analysis_info") <- list(
+    regressor = regressor,
+    regressor.type = regressor.type,
+    layer = layer,
+    effect = effect,
+    link.function = link.function,
+    covariates = covariates,
+    n_features_tested = length(features),
+    n_cells = ncol(expr_data),
+    reference.level = ifelse(regressor.type == "categorical", levels(regressor_values)[1], NA),
+    ordinal.method = ifelse(regressor.type == "ordinal", ordinal.method, NA)
+  )
+  
+  if (return.full) {
+    return(list(
+      results = results_df,
+      seurat_object = sobj,
+      features_tested = features
+    ))
+  } else {
+    return(results_df)
+  }
+}
+
+# Helper function to visualize top results
+plot_top_genes <- function(results, sobj, layer = "data", top_n = 6) {
+  library(ggplot2)
+  library(gridExtra)
+  
+  # Get analysis info
+  analysis_info <- attr(results, "analysis_info")
+  regressor <- analysis_info$regressor
+  regressor.type <- analysis_info$regressor.type
+  
+  # Get top significant genes
+  top_genes <- head(results[!is.na(results$p.value), ], top_n)$gene
+  
+  # Get expression data
+  if (layer == "counts") {
+    expr_data <- GetAssayData(sobj, slot = "counts")
+  } else if (layer == "data") {
+    expr_data <- GetAssayData(sobj, slot = "data")
+  } else if (layer == "scale.data") {
+    expr_data <- GetAssayData(sobj, slot = "scale.data")
+  }
+  
+  # Prepare regressor data
+  regressor_data <- sobj@meta.data[[regressor]]
+  if (regressor.type == "categorical") {
+    regressor_data <- as.factor(regressor_data)
+  } else if (regressor.type == "ordinal") {
+    if (!is.ordered(regressor_data)) {
+      if (is.factor(regressor_data)) {
+        regressor_data <- ordered(regressor_data)
+      } else {
+        unique_vals <- sort(unique(regressor_data[!is.na(regressor_data)]))
+        regressor_data <- ordered(regressor_data, levels = unique_vals)
+      }
+    }
+  } else {
+    regressor_data <- as.numeric(regressor_data)
+  }
+  
+  # Create plots
+  plots <- list()
+  for (i in seq_along(top_genes)) {
+    gene <- top_genes[i]
+    gene_result <- results[results$gene == gene, ]
+    
+    plot_data <- data.frame(
+      expression = as.numeric(expr_data[gene, ]),
+      regressor = regressor_data
+    )
+    
+    # Remove missing values
+    plot_data <- plot_data[complete.cases(plot_data), ]
+    
+    if (regressor.type == "categorical") {
+      p <- ggplot(plot_data, aes(x = regressor, y = expression)) +
+        geom_boxplot(aes(fill = regressor), alpha = 0.7) +
+        geom_jitter(width = 0.2, alpha = 0.5) +
+        labs(
+          title = paste0(gene, " (p=", format(gene_result$p.value, digits = 3), ")"),
+          x = regressor,
+          y = paste("Expression (", layer, ")", sep = "")
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        guides(fill = "none")
+      
+    } else if (regressor.type == "ordinal") {
+      p <- ggplot(plot_data, aes(x = regressor, y = expression)) +
+        geom_boxplot(aes(group = regressor, fill = regressor), alpha = 0.7) +
+        geom_jitter(width = 0.2, alpha = 0.5) +
+        geom_smooth(aes(group = 1), method = "lm", se = TRUE, color = "red") +
+        labs(
+          title = paste0(gene, " (p=", format(gene_result$p.value, digits = 3), ")"),
+          x = regressor,
+          y = paste("Expression (", layer, ")", sep = "")
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        guides(fill = "none")
+      
+    } else {  # continuous
+      p <- ggplot(plot_data, aes(x = regressor, y = expression)) +
+        geom_point(alpha = 0.6) +
+        geom_smooth(method = "lm", se = TRUE, color = "red") +
+        labs(
+          title = paste0(gene, " (p=", format(gene_result$p.value, digits = 3), ")"),
+          x = regressor,
+          y = paste("Expression (", layer, ")", sep = "")
+        ) +
+        theme_minimal()
+    }
+    
+    plots[[i]] <- p
+  }
+  
+  # Arrange plots
+  do.call(grid.arrange, c(plots, ncol = 2))
+}
+
+# Example usage function
+example_usage <- function() {
+  # === CATEGORICAL VARIABLES ===
+  # results_cat <- linear_seurat(sobj, 
+  #                             regressor = "cell_type",
+  #                             regressor.type = "categorical",
+  #                             reference.level = "Control")
+  
+  # === ORDINAL VARIABLES ===
+  # results_ord <- linear_seurat(sobj,
+  #                             regressor = "disease_stage",
+  #                             regressor.type = "ordinal",
+  #                             ordinal.method = "linear")
+  
+  # === CONTINUOUS VARIABLES ===
+  # results_cont <- linear_seurat(sobj,
+  #                              regressor = "age",
+  #                              regressor.type = "continuous")
+}

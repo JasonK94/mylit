@@ -680,8 +680,18 @@ meta_clinical3=meta_clinical1 %>%
   left_join(meta_clinical2_prepped,by="hos_no") %>% #EMR ID로 join하겠다!
   mutate(join_key_samp=ifelse(multi_method=="SNP",exp_sample_no,sample_no))
 
+meta_mri=read.csv("/data/kjc1/projects/#130.stroke/pre_post_lesions_mri.csv") %>%
+  .[,!duplicated(names(.))]
+
+meta_reclassify=readxl::read_excel("/data/kjc1/projects/#130.stroke/reclassify_g.xlsx", .name_repair = "minimal") %>%
+  .[,!duplicated(names(.))]
+
+meta_clinical4=meta_clinical3 %>%
+  left_join(meta_reclassify, by="hos_no") %>%
+  left_join(meta_mri, by="hos_no")
+
 ####################### extraction
-meta_seurat=s@meta.data
+meta_seurat=is@meta.data
 
 overlap_cols=intersect(names(meta_seurat),names(meta_clinical3))
 cols_to_remove=setdiff(overlap_cols,"hos_no")
@@ -698,9 +708,20 @@ meta_joined=right_join(meta_seurat, meta_clinical3, by=c("join_key"="join_key_sa
   .[rownames(.)[!is.na(.$orig.ident)],]
 meta_whole=left_join(meta_seurat, meta_clinical3, by=c("join_key"="join_key_samp"))
 
+meta_joined2=right_join(meta_seurat, meta_clinical4, by=c("join_key"="join_key_samp")) %>%
+  .[rownames(.)[!is.na(.$orig.ident)],]
+meta_whole2=left_join(meta_seurat, meta_clinical4, by=c("join_key"="join_key_samp"))
+
 saveRDS(meta_joined,"/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_meta_IS_25-05-11-12-03.rds")
 saveRDS(meta_whole,"/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_meta_whole_25-05-11-12-03.rds")
 ```
+### metadata input
+
+```{r}
+is=AddMetaData(is, meta_whole2)
+is=subset(is, type=="IS")
+```
+
 
 ## time transform
 ```{r}
@@ -727,17 +748,26 @@ is$onset_to_sample <- (is$blood_sample_time_pos - is$sx_onset_pos)/3600
 # time3=format(Sys.time(),"%y-%m-%d-%H-%M")
 # saveRDS(is,file=paste0("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_group3_clustering_",time3,".rds"))
 
-is_all=readRDS("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_group3_clustering_25-05-12-16-03.rds")
+is=readRDS("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_25-05-12-16-15.rds")
 res=1.1
 cluster_name=paste0("integrated_",res)
-is_all <- FindClusters(is_all,graph.name = "integrated_snn",cluster.name=cluster_name, resolution = res,random.seed = 1234)
-DefaultAssay(is_all)="SCT"
-is_all = PrepSCTFindMarkers(is_all)
-is=subset(is_all, day==1)
+is <- FindClusters(is,graph.name = "integrated_snn",cluster.name=cluster_name, resolution = res,random.seed = 1234)
+DefaultAssay(is)="SCT"
+is = PrepSCTFindMarkers(is)
 is=PercentageFeatureSet(is, "^MT-", col.name="percent.mt")
 is=PercentageFeatureSet(is, "^RPS|^RPL", col.name="percent.ribo")
+# 1. AddMetaData
+# 2. time transform
+# 3. annotation
+# 4. subclustering
+# 5. annotation
+
+
 time3=format(Sys.time(),"%y-%m-%d-%H-%M")
 saveRDS(is,file=paste0("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_group3_day1_subclustering_",time3,".rds"))
+
+#250703: res1.1 clustering, percent.ribo, annotation, subclustering, annotation
+is=readRDS("/data/kjc1/projects/#130.stroke/sobj/stroke_karo_SCT_integrated_QC_group3_day1_subclustering_25-07-03-09-32.rds")
 ```
 
 # MARKER - for annotation
@@ -1039,8 +1069,8 @@ plot_cluster_fractions(is, "exp_sample_no", "annotation3", "group3")
 ```
 
 # DEG analysis after first annotation
-
-## by default
+## prognosis marker per cluster
+### by default
 ```{r}
 all_markers_anno=FindAllMarkers(is, group.by="annotation2_big")%>%marker_filter
 markers_CD4=FindMarkers(tc4,ident.1 = "2", group.by="group3")%>%marker_filter
@@ -1053,7 +1083,7 @@ markers_dc=FindMarkers(dc,ident.1 = "2", group.by="group3")%>%marker_filter
 markers_tcd=FindMarkers(tcd,ident.1 = "2", group.by="group3")%>%marker_filter
 ```
 
-## by AUC
+### by AUC
 ```{r}
 is10=downsample_sobj(is,ratio=10)
 all_markers_auc=FindAllMarkers(is10,test.use = "roc")
@@ -1068,7 +1098,7 @@ markers_auc_dc=FindMarkers(dc, test.use="roc")%>%marker_filter
 markers_auc_tcd=FindMarkers(tcd, test.use="roc")%>%marker_filter
 ```
 
-## DEG function by Claude
+### DEG function by Claude
 ```{r}
 pb_tc4=FindMarkers_pseudobulk(tc4, ident.1="2", group.by="group3", sample.by="exp_sample_no")%>%marker_filter
 pb_tc42=FindMarkers_pseudobulk(tc4, ident.1="2", group.by="group3", sample.by="exp_sample_no", method = "edgeR")%>%marker_filter
@@ -1131,7 +1161,7 @@ plot_cluster_avg_expression(is, feature=markers_tile_bc, group_by="annotation2_b
 plot_cluster_avg_expression(is, feature=c("CD19","CD79B","CD37","CD1C","CLEC10A","FCER1A","CDA","FCAR","FOLR3","STAB1","S100A8","CXCL2","TLR2","GZMB","GNLY","KIR3DL1","EPHB1","CDRT4","WNT10B","CCR10","FOXP3","CTLA4","GZMK","CD8A","TRGV2","CCR7","TCEA3","ADTRP","TRAV23DV6"), group_by="annotation2_big",assay="SCT")
 ```
 
-## use function with gemini
+### use function with gemini
 ```{r}
 
 # 클러스터의 DEG
@@ -1171,6 +1201,137 @@ pb_tc4_overall <- run_pseudobulk_deg(analysis_level = "overall",target_cluster =
 
 ### DESeq2
 
+## g1~g10
+```{r}
+gs=list("g1","g2","g3","g4","g5","g6","g7","g8","g9","g10")
+sub_list=list(tc4=tc4, tc8=tc8, mo=mo, treg=treg, bc=bc, nk=nk, dc=dc)
+
+all.m=list(
+tc4=list(),
+tc8=list(),
+mo=list(),
+treg=list(),
+bc=list(),
+nk=list(),
+dc=list()
+)
+all.m2=list(
+tc4=list(),
+tc8=list(),
+mo=list(),
+treg=list(),
+bc=list(),
+nk=list(),
+dc=list()
+)
+all.m3=list(
+tc4=list(),
+tc8=list(),
+mo=list(),
+treg=list(),
+bc=list(),
+nk=list(),
+dc=list()
+)
+
+
+for(sub in names(sub_list)){
+  for(g in gs){
+    marker=FindMarkers_pseudobulk(sub_list[[sub]], ident.1="2", group.by=g, sample.by="exp_sample_no")%>%marker_filter
+    all.m[[sub]][[g]]=marker
+  }
+}
+for(sub in names(sub_list)){
+  for(g in gs){
+    marker=FindMarkers(sub_list[[sub]], ident.1="2", group.by=g)%>%marker_filter
+    all.m2[[sub]][[g]]=marker
+  }
+}
+for(sub in names(sub_list)){
+  for(g in gs){
+    marker=FindMarkers_pseudobulk(sub_list[[sub]], ident.1="2", group.by=g, sample.by="exp_sample_no",                                    method = "edgeR",)%>%marker_filter
+    all.m3[[sub]][[g]]=marker
+  }
+}
+
+load_all()
+syn.list=list()
+rank.list=list()
+rank.list.fc=list()
+syn.list2=list()
+rank.list2=list()
+rank.list.fc2=list()
+syn.list3=list()
+rank.list3=list()
+rank.list.fc3=list()
+
+for(sub in names(sub_list)){
+  syn.list[[sub]]=synthesize_markers(all.m[[sub]])
+  rank.list.fc[[sub]]=synthesize_ranks(all.m[[sub]], rank_by="avg_log2FC")
+  rank.list[[sub]]=synthesize_ranks(all.m[[sub]])
+}
+
+for(sub in names(sub_list)){
+  syn.list2[[sub]]=synthesize_markers(all.m2[[sub]])
+  rank.list.fc2[[sub]]=synthesize_ranks(all.m2[[sub]], rank_by="avg_log2FC")
+  rank.list2[[sub]]=synthesize_ranks(all.m2[[sub]])
+}
+
+for(sub in names(sub_list)){
+  syn.list3[[sub]]=synthesize_markers(all.m3[[sub]])
+  rank.list.fc3[[sub]]=synthesize_ranks(all.m3[[sub]], rank_by="avg_log2FC")
+  rank.list3[[sub]]=synthesize_ranks(all.m3[[sub]])
+}
+
+for(name in names(syn.list)){
+  print(paste(syn.list[[name]]$gene[1:200], collapse=", "))
+}
+#pb_tc4=FindMarkers_pseudobulk(tc4, ident.1="2", group.by="group3", sample.by="exp_sample_no")%>%marker_filter
+
+# DotPlot(is2, c("TNF","IL1R2","IL1RN","IL1B","IL1A","CXCL8","CXCL10","CCL3","IFIT1","IFIT2","IFIT3", "IFITM2", "ISG15"), group.by="annotation2_big",split.by="g1")+
+#     scale_colour_gradientn(
+#     colours = viridis::magma(100),   # 100단계로 뽑은 magma
+#     # limits  = c(0, max(seu@assays$SCT@data)),  # 필요시 min/max 고정
+#     # name    = "Expression"
+#   )
+
+
+idents_to_show=c("B_Cell_Lineage","CD4_T_Cell","CD8_T_Cell", "Dendritic_Cell", "Monocyte_Macrophage","NK_Cell","Treg")
+f.major=c("TNF","IL1RN","IL1R2","IL1A","IL1B","CXCL8","CXCL10","CCL3","IFIT1","IFIT2","IFIT3","IFITM2","ISG15", 
+          "GBP1","GBP2","GBP3","GBP4","GBP5")
+f.inn=c("S100A8", "S100A9","ELANE","ITGAM","PYCARD","MERTK","CYBB","TYROBP")
+f.adp=c("IGHA1","IGHA2","IGHV","IGKV","IGLV","TRBV","TRDV","TRGV","TRBC2","TRDC")
+f.adp2=c("HLA-DRA","HLA-DQA1","HLA-DPA1","HLA-DRB1","TAP1","TAP2","PSM2","CD247","CD3D","CD3E")
+f.sig=c("STAT1","STAT2","STAT3","IRF1","IRF5","JUND","FOS","NFKBIA")
+f.hyp=c("HMOX1","SOD2","TXNIP","HSPA1A","HSPA1B","SERPINA1")
+f.apo=c("DDIT3","DDIT4","PMAIP1","CASP7","VMP1","ATG4B")
+f.met=c("PDK4","PFKFB3", "FBP1", "HIGD1A", "SNAI1", "TIMP1", "CIRBP")
+
+f.all=c(f.major, f.inn, f.adp, f.adp2, f.sig, f.hyp, f.apo, f.met)
+
+f.cd4=c("CD4", "CD3E", "IL2RA", "TBX21", "GATA3", "RORC", "FOXP3", "IFNG", "IL4", "IL17A", "PDCD1")
+f.cd8=c("CD8A", "CD3E", "GZMB", "PRF1", "IFNG", "EOMES", "TCF7", "PDCD1", "LAG3", "TOX")
+f.treg=c("CD4", "FOXP3", "IL2RA", "CTLA4", "IKZF2", "IL10", "TGFB1", "ENTPD1")
+f.bc=c("MS4A1", "CD19", "CD79A", "CD79B", "AICDA", "BCL6", "PRDM1", "CD27")
+f.nk=c("NCAM1", "FCGR3A", "KLRK1", "KLRC1", "GZMB", "IFNG", "NCR1")
+f.dc=c("ITGAX", "HLA-DRA", "CD80", "CD86", "CCR7", "CD83", "CLEC9A", "CD1C", "CLEC4C")
+f.mo=c("CD68", "CD14", "ITGAM", "MRC1", "ARG1", "NOS2", "TNF", "IL1B", "IL10")
+
+f.all2=c(f.cd4,f.cd8,f.treg,f.bc,f.nk,f.dc,f.mo)
+
+VlnPlot(object= is2,features =f.major,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+VlnPlot(object= is2,features =f.inn,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+VlnPlot(object= is2,features =f.adp,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+VlnPlot(object= is2,features =f.adp2,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+VlnPlot(object= is2,features =f.sig,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+VlnPlot(object= is2,features =f.hyp,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+VlnPlot(object= is2,features =f.apo,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+VlnPlot(object= is2,features =f.met,group.by = "annotation2_big",split.by = "g1", ncol=6, idents = idents_to_show)
+
+syn.list[[1]][syn.list[[1]]$gene%in%f.all,]
+
+syn.list[[1]][syn.list[[1]]$gene%in%f.cd4,]
+```
 
 ## specificity score
 ### Tau
@@ -3502,4 +3663,301 @@ method_gene_list <- list(
 # build the combination matrix and draw
 comb_mat_methods <- make_comb_mat(method_gene_list)
 UpSet(comb_mat_methods)
+```
+
+# patient UMAP
+##
+```{r}
+result <- run_sample_level_analysis(
+  sobj = is,
+  signature_cols = c("s1", "s2"),
+  method = "UMAP",
+  color_by_signature = "s1_mean"
+)
+
+```
+
+## functions
+```{r}
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(uwot)  # for UMAP
+
+# 1. 샘플별 cell type composition 계산
+get_cell_type_composition <- function(sobj) {
+  # cell type과 sample 정보 추출
+  meta_data <- sobj@meta.data
+  
+  # 샘플별 cell type composition 계산
+  composition <- meta_data %>%
+    dplyr::group_by(sample, cell_type) %>%  # cell_type은 annotation 컬럼명에 맞게 수정
+    dplyr::summarise(count = n(), .groups = 'drop') %>%
+    dplyr::group_by(sample) %>%
+    dplyr::mutate(proportion = count / sum(count)) %>%
+    dplyr::select(sample, cell_type, proportion) %>%
+    tidyr::pivot_wider(names_from = cell_type, 
+                       values_from = proportion, 
+                       values_fill = 0,
+                       names_prefix = "celltype_")
+  
+  return(composition)
+}
+
+# 2. 샘플별 signature score 집계
+get_sample_signatures <- function(sobj, signature_cols = c("s1", "s2")) {
+  meta_data <- sobj@meta.data
+  
+  # 샘플별 signature score 평균 계산
+  signature_summary <- meta_data %>%
+    dplyr::group_by(sample) %>%
+    dplyr::summarise(across(all_of(signature_cols), 
+                     list(mean = mean, median = median, sd = sd), 
+                     na.rm = TRUE),
+              .groups = 'drop')
+  
+  return(signature_summary)
+}
+
+# 3. 추가 메타데이터 집계 (예: QC metrics)
+get_sample_qc_metrics <- function(sobj) {
+  meta_data <- sobj@meta.data
+  
+  qc_metrics <- meta_data %>%
+    dplyr::group_by(sample) %>%
+    dplyr::summarise(
+      n_cells = n(),
+      mean_nFeature_RNA = mean(nFeature_RNA, na.rm = TRUE),
+      mean_nCount_RNA = mean(nCount_RNA, na.rm = TRUE),
+      mean_percent_mt = mean(percent.mt, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  return(qc_metrics)
+}
+
+# 4. 모든 feature들을 결합하여 샘플별 feature matrix 생성
+create_sample_feature_matrix <- function(sobj, signature_cols = c("s1", "s2")) {
+  # Cell type composition
+  composition <- get_cell_type_composition(sobj)
+  
+  # Signature scores
+  signatures <- get_sample_signatures(sobj, signature_cols)
+  
+  # QC metrics
+  qc_metrics <- get_sample_qc_metrics(sobj)
+  
+  # 모든 데이터 결합
+  sample_features <- composition %>%
+    left_join(signatures, by = "sample") %>%
+    left_join(qc_metrics, by = "sample")
+  
+  # tibble을 data.frame으로 변환하고 sample 컬럼을 rownames로 설정
+  sample_features <- as.data.frame(sample_features)
+  rownames(sample_features) <- sample_features$sample
+  sample_features <- sample_features[, !names(sample_features) %in% "sample", drop = FALSE]
+  
+  # 모든 컬럼이 numeric인지 확인하고 변환
+  for(col in names(sample_features)) {
+    if(!is.numeric(sample_features[[col]])) {
+      cat("Warning: Converting non-numeric column", col, "to numeric\n")
+      sample_features[[col]] <- as.numeric(as.character(sample_features[[col]]))
+    }
+  }
+  
+  # NA 값이 있는지 확인
+  na_counts <- colSums(is.na(sample_features))
+  if(any(na_counts > 0)) {
+    cat("Warning: Found NA values in columns:", names(na_counts)[na_counts > 0], "\n")
+    cat("Replacing NAs with 0\n")
+    sample_features[is.na(sample_features)] <- 0
+  }
+  
+  cat("Final sample_features dimensions:", dim(sample_features), "\n")
+  cat("Sample names:", rownames(sample_features)[1:min(5, nrow(sample_features))], "...\n")
+  
+  return(sample_features)
+}
+
+# 5. PCA 수행
+perform_sample_PCA <- function(sample_features, n_components = 10) {
+  # numeric 컬럼만 선택
+  numeric_features <- sample_features[, sapply(sample_features, is.numeric), drop = FALSE]
+  
+  cat("Using", ncol(numeric_features), "numeric features for PCA\n")
+  cat("Features:", colnames(numeric_features), "\n")
+  
+  # 데이터 스케일링
+  scaled_features <- scale(numeric_features)
+  
+  # PCA 수행
+  pca_result <- prcomp(scaled_features, center = FALSE, scale. = FALSE)
+  
+  return(pca_result)
+}
+
+# 6. UMAP 수행
+perform_sample_UMAP <- function(sample_features, n_neighbors = 5, min_dist = 0.1) {
+  # numeric 컬럼만 선택
+  numeric_features <- sample_features[, sapply(sample_features, is.numeric), drop = FALSE]
+  
+  cat("Using", ncol(numeric_features), "numeric features for UMAP\n")
+  cat("Features:", colnames(numeric_features), "\n")
+  
+  # 데이터 스케일링
+  scaled_features <- scale(numeric_features)
+  
+  # 샘플 수가 적을 경우 n_neighbors 조정
+  n_samples <- nrow(scaled_features)
+  n_neighbors <- min(n_neighbors, n_samples - 1)
+  
+  # UMAP 수행
+  umap_result <- umap(scaled_features, 
+                      n_neighbors = n_neighbors,
+                      min_dist = min_dist,
+                      n_components = 2)
+  
+  return(umap_result)
+}
+
+# 7. 시각화 함수
+plot_sample_reduction <- function(reduction_coords, sample_names, 
+                                 color_by = NULL, title = "Sample-level reduction") {
+  # 데이터프레임 생성
+  plot_data <- data.frame(
+    sample = sample_names,
+    Dim1 = reduction_coords[, 1],
+    Dim2 = reduction_coords[, 2],
+    stringsAsFactors = FALSE
+  )
+  
+  # 색상 변수가 지정된 경우 추가
+  if (!is.null(color_by)) {
+    plot_data$color_var <- as.numeric(color_by)  # 명시적으로 numeric 변환
+    
+    p <- ggplot(plot_data, aes(x = Dim1, y = Dim2, color = color_var)) +
+      geom_point(size = 3) +
+      geom_text(aes(label = sample), vjust = -0.8, hjust = 0.5, size = 3, color = "black") +
+      scale_color_viridis_c(name = "Value") +
+      theme_minimal() +
+      labs(title = title,
+           x = "Dimension 1",
+           y = "Dimension 2") +
+      theme(plot.title = element_text(hjust = 0.5))
+      
+  } else {
+    p <- ggplot(plot_data, aes(x = Dim1, y = Dim2)) +
+      geom_point(size = 3, color = "steelblue") +
+      geom_text(aes(label = sample), vjust = -0.8, hjust = 0.5, size = 3) +
+      theme_minimal() +
+      labs(title = title,
+           x = "Dimension 1",
+           y = "Dimension 2") +
+      theme(plot.title = element_text(hjust = 0.5))
+  }
+  
+  return(p)
+}
+
+# 8. 메인 함수: 전체 파이프라인 실행
+run_sample_level_analysis <- function(sobj, signature_cols = c("s1", "s2"), 
+                                    method = "UMAP", color_by_signature = NULL) {
+  
+  cat("Creating sample feature matrix...\n")
+  sample_features <- create_sample_feature_matrix(sobj, signature_cols)
+  
+  cat("Sample features matrix dimensions:", dim(sample_features), "\n")
+  cat("Features included:", colnames(sample_features), "\n")
+  
+  if (method == "PCA") {
+    cat("Performing PCA...\n")
+    pca_result <- perform_sample_PCA(sample_features)
+    coords <- pca_result$x[, 1:2]
+    title <- "Sample-level PCA"
+    
+  } else if (method == "UMAP") {
+    cat("Performing UMAP...\n")
+    coords <- perform_sample_UMAP(sample_features)
+    title <- "Sample-level UMAP"
+  }
+  
+  # 색상 변수 설정
+  color_var <- NULL
+  if (!is.null(color_by_signature) && color_by_signature %in% colnames(sample_features)) {
+    color_var <- sample_features[, color_by_signature]
+  }
+  
+  # 시각화
+  cat("Creating plot...\n")
+  p <- plot_sample_reduction(coords, rownames(sample_features), 
+                           color_by = color_var, title = title)
+  
+  # 결과 반환
+  result <- list(
+    sample_features = sample_features,
+    coordinates = coords,
+    plot = p
+  )
+  
+  if (method == "PCA") {
+    result$pca_result = pca_result
+    cat("PCA variance explained (first 5 PCs):", 
+        round(pca_result$sdev[1:5]^2 / sum(pca_result$sdev^2) * 100, 2), "%\n")
+  }
+  
+  return(result)
+}
+
+# 9. 사용 예시
+# sobj는 이미 clustering과 annotation이 완료된 Seurat 객체
+# 
+# # UMAP으로 샘플별 분석
+# result_umap <- run_sample_level_analysis(
+#   sobj = sobj,
+#   signature_cols = c("s1", "s2"),  # 사용할 signature score 컬럼들
+#   method = "UMAP",
+#   color_by_signature = "s1_mean"   # s1 signature 평균값으로 색상 구분
+# )
+# 
+# # PCA로 샘플별 분석  
+# result_pca <- run_sample_level_analysis(
+#   sobj = sobj,
+#   signature_cols = c("s1", "s2"),
+#   method = "PCA",
+#   color_by_signature = "celltype_macrophage"  # macrophage 비율로 색상 구분
+# )
+# 
+# # 결과 확인
+# print(result_umap$plot)
+# head(result_umap$sample_features)
+
+# 10. 고급 시각화: 여러 변수를 동시에 표시
+create_multi_feature_plot <- function(result, features_to_plot = c("s1_mean", "celltype_macrophage")) {
+  coords_df <- data.frame(
+    sample = rownames(result$sample_features),
+    Dim1 = result$coordinates[, 1],
+    Dim2 = result$coordinates[, 2],
+    result$sample_features[, features_to_plot, drop = FALSE]
+  )
+  
+  # 긴 형태로 변환
+  coords_long <- coords_df %>%
+    tidyr::pivot_longer(cols = all_of(features_to_plot),
+                       names_to = "feature", 
+                       values_to = "value")
+  
+  # 패널별 플롯
+  p <- ggplot(coords_long, aes(x = Dim1, y = Dim2, color = value)) +
+    geom_point(size = 3) +
+    geom_text(aes(label = sample), vjust = -0.5, size = 2, color = "black") +
+    scale_color_viridis_c() +
+    facet_wrap(~feature, scales = "free") +
+    theme_minimal() +
+    labs(x = "Dimension 1", y = "Dimension 2") +
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  return(p)
+}
+
+
 ```
