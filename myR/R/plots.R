@@ -1,34 +1,261 @@
 #' @export
-mybar=function(data, column, bins = NULL, x_unit = NULL, y_unit = NULL) {
-  col_quo <- enquo(column)
-  col_name <- as_label(col_quo)
+mybar <- function(data, column = NULL, bins = NULL, x_unit = NULL, y_unit = NULL, 
+                  xlab = NULL, main = NULL) {
+  
+  # vector인 경우 처리
+  if(is.numeric(data) || is.vector(data)) {
+    df <- data.frame(value = data)
+    column <- sym("value")
+    col_name <- deparse(substitute(data))  # 변수명 추출
+  } else {
+    # dataframe인 경우
+    col_quo <- enquo(column)
+    col_name <- as_label(col_quo)
+    df <- data
+    column <- col_quo
+  }
   
   # x, y 레이블에 단위 추가
-  x_lab <- if (!is.null(x_unit)) sprintf("%s (%s)", col_name, x_unit) else col_name
-  y_lab <- if (!is.null(y_unit)) sprintf("Frequency (%s)", y_unit) else "Frequency"
+  if(is.null(xlab)) {
+    x_lab <- if(!is.null(x_unit)) sprintf("%s (%s)", col_name, x_unit) else col_name
+  } else {
+    x_lab <- xlab
+  }
   
-  p <- ggplot(data, aes(x = !!col_quo)) +
+  y_lab <- if(!is.null(y_unit)) sprintf("Frequency (%s)", y_unit) else "Frequency"
+  
+  # 제목 설정
+  if(is.null(main)) {
+    main <- paste("Histogram of", col_name)
+  }
+  
+  p <- ggplot(df, aes(x = !!column)) +
     # bins 인자에 따라 히스토그램 그리기
-    { if (!is.null(bins)) geom_histogram(bins = bins, color = "black", fill = "skyblue") 
-      else            geom_histogram(color = "black", fill = "skyblue") } +
-    labs(x = x_lab, y = y_lab) +
+    { if(!is.null(bins)) geom_histogram(bins = bins, color = "black", fill = "skyblue") 
+      else geom_histogram(color = "black", fill = "skyblue") } +
+    labs(x = x_lab, y = y_lab, title = main) +
     theme_minimal()
   
   print(p)
 }
 
+#' 단일 벡터 line plot with cutoff intersection
 #' @export
-mydensity=function(data, column, adjust = 1, x_unit = NULL, y_unit = NULL) {
-  col_quo <- enquo(column)
-  col_name <- as_label(col_quo)
+myline <- function(vector, main = "Sorted Values", ylab = "Value", 
+                   cutoff = NULL, cutoff_col = "red", show_intersection = TRUE, ...) {
+  sorted_vec <- sort(vector, decreasing = TRUE)
+  x_vals <- 1:length(sorted_vec)
+  
+  plot(x_vals, sorted_vec, type = "l", 
+       main = main, xlab = "Rank", ylab = ylab, ...)
+  
+  if(!is.null(cutoff)) {
+    abline(h = cutoff, col = cutoff_col, lty = 2, lwd = 2)
+    
+    # cutoff 교점 찾기 및 표시
+    if(show_intersection) {
+      # 교점 찾기 (선형 보간)
+      idx_above <- which(sorted_vec >= cutoff)
+      idx_below <- which(sorted_vec < cutoff)
+      
+      if(length(idx_above) > 0 && length(idx_below) > 0) {
+        idx_cross <- max(idx_above)
+        if(idx_cross < length(sorted_vec)) {
+          # 선형 보간으로 정확한 x 위치 계산
+          y1 <- sorted_vec[idx_cross]
+          y2 <- sorted_vec[idx_cross + 1]
+          x_intersect <- idx_cross + (cutoff - y1) / (y2 - y1)
+          
+          # 교점 표시
+          points(x_intersect, cutoff, col = cutoff_col, pch = 19, cex = 1.5)
+          text(x_intersect, cutoff, labels = sprintf("x=%.1f", x_intersect), 
+               pos = 3, col = cutoff_col, cex = 0.8)
+        }
+      }
+    }
+  }
+}
+
+#' 다중 벡터 line plot with dual y-axis support
+#' @export
+mylines <- function(..., vectors_right = NULL, 
+                    main = "Sorted Values Comparison", 
+                    ylab = "Value", ylab_right = NULL,
+                    cutoff = NULL, cutoff_right = NULL,
+                    cutoff_col = "red", cutoff_col_right = "blue",
+                    legend_pos = "topright", show_intersection = TRUE) {
+  
+  # 왼쪽 y축 벡터들
+  vectors_left <- list(...)
+  n_left <- length(vectors_left)
+  
+  # 오른쪽 y축 벡터들 처리
+  if(!is.null(vectors_right)) {
+    if(!is.list(vectors_right)) {
+      vectors_right <- list(vectors_right)
+    }
+  }
+  n_right <- length(vectors_right)
+  
+  # 모든 벡터 정렬
+  sorted_left <- lapply(vectors_left, function(x) sort(x, decreasing = TRUE))
+  sorted_right <- if(!is.null(vectors_right)) {
+    lapply(vectors_right, function(x) sort(x, decreasing = TRUE))
+  } else NULL
+  
+  # x축 스케일 조정
+  all_vectors <- c(sorted_left, sorted_right)
+  max_len <- max(sapply(all_vectors, length))
+  
+  x_coords <- lapply(all_vectors, function(vec) {
+    len <- length(vec)
+    seq(1, max_len, length.out = len)
+  })
+  
+  # 왼쪽 y축 설정 및 플롯
+  par(mar = c(5, 4, 4, 4))  # 오른쪽 여백 확보
+  
+  y_range_left <- range(unlist(sorted_left), na.rm = TRUE)
+  
+  # 첫 번째 플롯 (왼쪽 y축)
+  plot(x_coords[[1]], sorted_left[[1]], type = "l", 
+       xlim = c(1, max_len), ylim = y_range_left,
+       main = main, xlab = "Normalized Rank", ylab = ylab, 
+       col = 1, lwd = 2)
+  
+  # 추가 왼쪽 y축 라인들
+  if(n_left > 1) {
+    for(i in 2:n_left) {
+      lines(x_coords[[i]], sorted_left[[i]], col = i, lwd = 2)
+    }
+  }
+  
+  # 왼쪽 y축 cutoff
+  if(!is.null(cutoff)) {
+    abline(h = cutoff, col = cutoff_col, lty = 2, lwd = 2)
+    
+    # 교점 찾기 및 표시
+    if(show_intersection) {
+      for(i in 1:n_left) {
+        find_and_mark_intersection(x_coords[[i]], sorted_left[[i]], 
+                                   cutoff, cutoff_col, paste0("L", i))
+      }
+    }
+  }
+  
+  # 오른쪽 y축 플롯
+  if(!is.null(vectors_right)) {
+    par(new = TRUE)
+    
+    y_range_right <- range(unlist(sorted_right), na.rm = TRUE)
+    
+    # 오른쪽 y축 색상은 n_left + 1부터 시작
+    plot(x_coords[[n_left + 1]], sorted_right[[1]], type = "l",
+         xlim = c(1, max_len), ylim = y_range_right,
+         axes = FALSE, xlab = "", ylab = "",
+         col = n_left + 1, lwd = 2, lty = 2)  # 점선으로 구분
+    
+    # 추가 오른쪽 y축 라인들
+    if(n_right > 1) {
+      for(i in 2:n_right) {
+        lines(x_coords[[n_left + i]], sorted_right[[i]], 
+              col = n_left + i, lwd = 2, lty = 2)
+      }
+    }
+    
+    # 오른쪽 y축 그리기
+    axis(4)
+    if(!is.null(ylab_right)) {
+      mtext(ylab_right, side = 4, line = 2.5)
+    }
+    
+    # 오른쪽 y축 cutoff
+    if(!is.null(cutoff_right)) {
+      abline(h = cutoff_right, col = cutoff_col_right, lty = 3, lwd = 2)
+      
+      if(show_intersection) {
+        for(i in 1:n_right) {
+          find_and_mark_intersection(x_coords[[n_left + i]], sorted_right[[i]], 
+                                     cutoff_right, cutoff_col_right, paste0("R", i))
+        }
+      }
+    }
+  }
+  
+  # 범례
+  all_labels <- c(paste("Left", 1:n_left))
+  all_cols <- 1:n_left
+  all_lty <- rep(1, n_left)
+  
+  if(!is.null(vectors_right)) {
+    all_labels <- c(all_labels, paste("Right", 1:n_right))
+    all_cols <- c(all_cols, (n_left + 1):(n_left + n_right))
+    all_lty <- c(all_lty, rep(2, n_right))
+  }
+  
+  legend(legend_pos, legend = all_labels, 
+         col = all_cols, lty = all_lty, lwd = 2)
+}
+
+# 교점 찾기 및 표시 헬퍼 함수
+find_and_mark_intersection <- function(x_vals, y_vals, cutoff, col, label_prefix) {
+  idx_above <- which(y_vals >= cutoff)
+  idx_below <- which(y_vals < cutoff)
+  
+  if(length(idx_above) > 0 && length(idx_below) > 0) {
+    # 마지막으로 cutoff 위에 있는 인덱스
+    idx_last_above <- max(which(y_vals >= cutoff))
+    
+    if(idx_last_above < length(y_vals)) {
+      # 선형 보간
+      x1 <- x_vals[idx_last_above]
+      x2 <- x_vals[idx_last_above + 1]
+      y1 <- y_vals[idx_last_above]
+      y2 <- y_vals[idx_last_above + 1]
+      
+      x_intersect <- x1 + (x2 - x1) * (cutoff - y1) / (y2 - y1)
+      
+      points(x_intersect, cutoff, col = col, pch = 19, cex = 1.2)
+      text(x_intersect, cutoff, labels = sprintf("%s:%.1f", label_prefix, x_intersect), 
+           pos = 1, col = col, cex = 0.7)
+    }
+  }
+}
+
+#' @export
+mydensity <- function(data, column = NULL, adjust = 1, x_unit = NULL, y_unit = NULL,
+                      xlab = NULL, main = NULL) {
+  
+  # vector인 경우 처리
+  if(is.numeric(data) || is.vector(data)) {
+    df <- data.frame(value = data)
+    column <- sym("value")
+    col_name <- deparse(substitute(data))  # 변수명 추출
+  } else {
+    # dataframe인 경우
+    col_quo <- enquo(column)
+    col_name <- as_label(col_quo)
+    df <- data
+    column <- col_quo
+  }
   
   # x, y 레이블
-  x_lab <- if (!is.null(x_unit)) sprintf("%s (%s)", col_name, x_unit) else col_name
-  y_lab <- if (!is.null(y_unit)) sprintf("Density (%s)", y_unit) else "Density"
+  if(is.null(xlab)) {
+    x_lab <- if(!is.null(x_unit)) sprintf("%s (%s)", col_name, x_unit) else col_name
+  } else {
+    x_lab <- xlab
+  }
   
-  p <- ggplot(data, aes(x = !!col_quo)) +
-    geom_density(adjust = adjust, color = "white", fill = "tomato") +
-    labs(x = x_lab, y = y_lab) +
+  y_lab <- if(!is.null(y_unit)) sprintf("Density (%s)", y_unit) else "Density"
+  
+  # 제목 설정
+  if(is.null(main)) {
+    main <- paste("Density Plot of", col_name)
+  }
+  
+  p <- ggplot(df, aes(x = !!column)) +
+    geom_density(adjust = adjust, color = "white", fill = "tomato", alpha = 0.7) +
+    labs(x = x_lab, y = y_lab, title = main) +
     theme_minimal()
   
   print(p)
@@ -693,9 +920,9 @@ myhm_genesets2 <- function(
   library(reshape2)
   library(ggplot2)
   
-  #-------------------------------
+  #-------------------------------'
   # (A) 유효성 체크
-  #-------------------------------
+  #-------------------------------'
   if(is.null(gene_sets)){
     stop("gene_sets를 지정해 주세요. (ex: list(Immune=c('CD3D','CD3E'), Bcell=c('MS4A1','CD79A'))) ")
   }
@@ -714,16 +941,16 @@ myhm_genesets2 <- function(
     }
   }
   
-  #-------------------------------
+  #-------------------------------'
   # (B) Seurat 객체에 grouping 적용
-  #-------------------------------
+  #-------------------------------'
   Idents(sobj) <- group
   
   
   
-  #-------------------------------
+  #-------------------------------'
   # (C) 평균 발현량(또는 합계 등) 계산
-  #-------------------------------
+  #-------------------------------'
   if(value == "average"){
     cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   } else {
@@ -738,9 +965,9 @@ myhm_genesets2 <- function(
     }
   }
   
-  #-------------------------------
+  #-------------------------------'
   # (D) Gene Set 별 발현량 계산
-  #-------------------------------
+  #-------------------------------'
   cluster_names <- colnames(cluster_avg)
   
   # 결과를 담을 data.frame 생성
@@ -767,9 +994,9 @@ myhm_genesets2 <- function(
     }
   }
   
-  #-------------------------------
+  #-------------------------------'
   # (E) Z-score 정규화
-  #-------------------------------
+  #-------------------------------'
   gene_set_expression_normalized <- gene_set_expression
   gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
   
@@ -782,9 +1009,9 @@ myhm_genesets2 <- function(
     }
   )
   
-  #-------------------------------
+  #-------------------------------'
   # (F) 클러스터 순서 정렬
-  #-------------------------------
+  #-------------------------------'
   numeric_test <- suppressWarnings(as.numeric(gene_set_expression_normalized$Cluster))
   
   if(!all(is.na(numeric_test))){
@@ -809,9 +1036,9 @@ myhm_genesets2 <- function(
     )
   }
   
-  #-------------------------------
+  #-------------------------------'
   # (G) Heatmap용 long format 만들기
-  #-------------------------------
+  #-------------------------------'
   melted_data <- melt(
     gene_set_expression_normalized,
     id.vars = c("Cluster","Assigned_CellType"),
@@ -819,9 +1046,9 @@ myhm_genesets2 <- function(
     value.name = "Zscore"
   )
   
-  #-------------------------------
+  #-------------------------------'
   # (H) Heatmap 그리기
-  #-------------------------------
+  #-------------------------------'
   p <- ggplot(melted_data, aes(x = Cluster, y = GeneSet, fill = Zscore)) +
     geom_tile() +
     scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
@@ -839,9 +1066,9 @@ myhm_genesets2 <- function(
   
   print(p)
   
-  #-------------------------------
+  #-------------------------------'
   # (I) 결과 반환
-  #-------------------------------
+  #-------------------------------'
   return(gene_set_expression_normalized)
 }
 
@@ -892,21 +1119,21 @@ myhm_genes2 <- function(
     x_label = "Cluster",
     y_label = "Genes"
 ){
-  #-------------------------------
+  #-------------------------------'
   # (A) 유효성 체크
-  #-------------------------------
+  #-------------------------------'
   if(is.null(genes)){
     stop("genes를 지정해 주세요. (예: genes=c('CD3D','CD3E','MS4A1'))")
   }
   
-  #-------------------------------
+  #-------------------------------'
   # (B) Seurat 객체에 grouping 적용
-  #-------------------------------
+  #-------------------------------'
   Seurat::Idents(sobj) <- group
   
-  #-------------------------------
+  #-------------------------------'
   # (C) 평균 발현량(또는 합계 등) 계산
-  #-------------------------------
+  #-------------------------------'
   if(value == "average"){
     cluster_avg <- Seurat::AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
   } else {
@@ -921,9 +1148,9 @@ myhm_genes2 <- function(
     }
   }
   
-  #-------------------------------
+  #-------------------------------'
   # (D) 원하는 유전자만 필터
-  #-------------------------------
+  #-------------------------------'
   genes_present <- genes[genes %in% rownames(cluster_avg)]
   if(length(genes_present) == 0){
     stop("지정하신 유전자 중 데이터셋에 존재하는 유전자가 없습니다.")
@@ -963,9 +1190,9 @@ myhm_genes2 <- function(
   gene_expression_df <- as.data.frame(t(gene_expression_scaled))
   gene_expression_df$Cluster <- rownames(gene_expression_df)
   
-  #-------------------------------
+  #-------------------------------'
   # (E) 클러스터 순서 정렬
-  #-------------------------------
+  #-------------------------------'
   numeric_test <- suppressWarnings(as.numeric(gene_expression_df$Cluster))
   
   if(!all(is.na(numeric_test))){
@@ -990,9 +1217,9 @@ myhm_genes2 <- function(
     )
   }
   
-  #-------------------------------
+  #-------------------------------'
   # (F) long format으로 melt
-  #-------------------------------
+  #-------------------------------'
   melted_data <- reshape2::melt(
     gene_expression_df,
     id.vars = "Cluster",
@@ -1003,9 +1230,9 @@ myhm_genes2 <- function(
   # 유전자 순서를 입력 순서대로 유지
   melted_data$Gene <- factor(melted_data$Gene, levels = genes_present)
   
-  #-------------------------------
+  #-------------------------------'
   # (G) Heatmap 그리기
-  #-------------------------------
+  #-------------------------------'
   p <- ggplot2::ggplot(melted_data, ggplot2::aes(x = Cluster, y = Gene, fill = Zscore)) +
     ggplot2::geom_tile() +
     ggplot2::scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
@@ -1020,9 +1247,9 @@ myhm_genes2 <- function(
   
   print(p)
   
-  #-------------------------------
+  #-------------------------------'
   # (H) 결과 반환
-  #-------------------------------
+  #-------------------------------'
   return(gene_expression_df)
 }
 
@@ -1070,7 +1297,8 @@ cml <- function(sobj,
   data_tbl <- sobj@meta.data %>%
     dplyr::select(cluster = !!cluster_col, group = !!group.by) %>%
     dplyr::group_by(group, cluster) %>%
-    dplyr::summarise(count = dplyr::n(), .groups = "drop")
+    dplyr::summarise(count = dplyr::n(), .groups = "drop") %>%
+    mutate(group=as.factor(group))
   
 
   # 2. Determine cluster order
@@ -1572,6 +1800,680 @@ scatter_smooth_colored <- function(object,
   
   p
   return(p)
+}
+
+mybox_geomx <- function(
+    data_norm,
+    metadata,
+    features,
+    group.by,
+    split.by = NULL,
+    test_method = "wilcox.test",
+    p_adjust_method = "holm",
+    hide_ns = FALSE,
+    show_points = TRUE,
+    comparisons = "all"  # "all" 또는 특정 비교 리스트
+) {
+  
+  # 1. 라이브러리 로드
+  library(ggplot2)
+  library(dplyr)
+  library(tidyr)
+  library(ggpubr)
+  library(rstatix)
+  
+  # 2. 입력 데이터 유효성 검사
+  if (!group.by %in% colnames(metadata)) {
+    stop(paste("Error: `group.by` 변수인 '", group.by, "'가 metadata에 존재하지 않습니다.", sep=""))
+  }
+  if (!is.null(split.by) && !split.by %in% colnames(metadata)) {
+    stop(paste("Error: `split.by` 변수인 '", split.by, "'가 metadata에 존재하지 않습니다.", sep=""))
+  }
+  if (!test_method %in% c("t.test", "wilcox.test")) {
+    stop("Error: `test_method`는 't.test' 또는 'wilcox.test' 중 하나여야 합니다.")
+  }
+  
+  # 3. 데이터 준비
+  common_aois <- intersect(colnames(data_norm), metadata$SegmentDisplayName)
+  if(length(common_aois) == 0){
+    stop("Error: 'data_norm'의 컬럼명과 'metadata'의 SegmentDisplayName이 일치하는 AOI가 없습니다.")
+  }
+  
+  metadata_sub <- metadata %>% filter(SegmentDisplayName %in% common_aois)
+  data_norm_sub <- data_norm[features, common_aois, drop = FALSE]
+  
+  plot_data <- data_norm_sub %>%
+    t() %>%
+    as.data.frame() %>%
+    mutate(SegmentDisplayName = rownames(.)) %>%
+    pivot_longer(
+      cols = all_of(features),
+      names_to = "feature",
+      values_to = "expression"
+    ) %>%
+    left_join(metadata_sub, by = "SegmentDisplayName")
+  
+  # 결과 저장용 리스트
+  stat_results <- list()
+  
+  # 4. 각 Feature에 대해 Boxplot 생성
+  for (feat in features) {
+    
+    feature_data <- plot_data %>% filter(feature == feat)
+    
+    # Factor 변환
+    if(!is.factor(feature_data[[group.by]])) {
+      feature_data[[group.by]] <- as.factor(feature_data[[group.by]])
+    }
+    if(!is.null(split.by) && !is.factor(feature_data[[split.by]])) {
+      feature_data[[split.by]] <- as.factor(feature_data[[split.by]])
+    }
+    
+    # 기본 플롯 설정
+    p <- ggplot(feature_data, aes(x = .data[[group.by]], y = expression))
+    
+    # Case 1: split.by가 지정된 경우
+    if (!is.null(split.by)) {
+      dodge_width <- 0.85
+      
+      p <- p +
+        geom_boxplot(
+          aes(fill = .data[[split.by]]), 
+          position = position_dodge(width = dodge_width), 
+          outlier.shape = NA, 
+          alpha = 0.8
+        ) +
+        {if(show_points) geom_jitter(
+          aes(color = .data[[split.by]]), 
+          position = position_jitterdodge(dodge.width = dodge_width, jitter.width = 0.2), 
+          size = 1, 
+          alpha = 0.5
+        )} +
+        scale_color_discrete(name = split.by) +
+        labs(fill = split.by)
+      
+      # 각 group.by 수준 내에서 split.by 수준들 간 비교
+      stat_formula <- as.formula(paste("expression ~", paste0("`", split.by, "`")))
+      
+      base_stat_test <- if (test_method == "t.test") {
+        feature_data %>% 
+          group_by(.data[[group.by]]) %>% 
+          t_test(stat_formula)
+      } else {
+        feature_data %>% 
+          group_by(.data[[group.by]]) %>% 
+          wilcox_test(stat_formula)
+      }
+      
+      if (nrow(base_stat_test) > 0) {
+        # p-value 조정 및 위치 계산
+        stat_test <- base_stat_test %>%
+          adjust_pvalue(method = p_adjust_method) %>%
+          add_xy_position(x = group.by, dodge = dodge_width, fun = "max", scales = "free_y")
+        
+        # 통계 결과 저장
+        stat_results[[feat]] <- stat_test
+        
+        # 플롯에 p-value 추가
+        p <- p + stat_pvalue_manual(
+          stat_test, 
+          label = "p.adj", 
+          hide.ns = hide_ns, 
+          tip.length = 0.01
+        )
+      }
+      
+      # Case 2: split.by가 없는 경우
+    } else {
+      p <- p +
+        geom_boxplot(
+          aes(fill = .data[[group.by]]), 
+          outlier.shape = NA, 
+          alpha = 0.8
+        ) +
+        {if(show_points) geom_jitter(width = 0.2, size = 1, alpha = 0.6)} +
+        theme(legend.position = "none")
+      
+      # group.by의 수준이 2개 이상일 때만 통계 검정 수행
+      n_groups <- length(unique(feature_data[[group.by]]))
+      
+      if (n_groups >= 2) {
+        stat_formula <- as.formula(paste("expression ~", paste0("`", group.by, "`")))
+        
+        # 그룹이 2개면 단순 비교, 3개 이상이면 pairwise
+        if (n_groups == 2) {
+          base_stat_test <- if (test_method == "t.test") {
+            feature_data %>% t_test(stat_formula)
+          } else {
+            feature_data %>% wilcox_test(stat_formula)
+          }
+        } else {
+          # 3개 이상 그룹: pairwise comparison
+          if (comparisons == "all") {
+            base_stat_test <- if (test_method == "t.test") {
+              feature_data %>% 
+                t_test(stat_formula, p.adjust.method = "none")
+            } else {
+              feature_data %>% 
+                wilcox_test(stat_formula, p.adjust.method = "none")
+            }
+          } else if (is.list(comparisons)) {
+            base_stat_test <- if (test_method == "t.test") {
+              feature_data %>% 
+                t_test(stat_formula, comparisons = comparisons, p.adjust.method = "none")
+            } else {
+              feature_data %>% 
+                wilcox_test(stat_formula, comparisons = comparisons, p.adjust.method = "none")
+            }
+          }
+        }
+        
+        if (exists("base_stat_test") && nrow(base_stat_test) > 0) {
+          # p-value 조정 및 위치 계산
+          stat_test <- base_stat_test %>%
+            adjust_pvalue(method = p_adjust_method) %>%
+            add_y_position(scales = "free_y", step.increase = 0.1)
+          
+          # 통계 결과 저장
+          stat_results[[feat]] <- stat_test
+          
+          # 플롯에 p-value 추가
+          p <- p + stat_pvalue_manual(
+            stat_test, 
+            label = "p.adj", 
+            hide.ns = hide_ns, 
+            tip.length = 0.01
+          )
+        }
+      }
+    }
+    
+    # 공통 테마 및 레이블 적용
+    p <- p +
+      theme_classic() +
+      labs(
+        title = paste("Expression of", feat),
+        x = group.by,
+        y = "Normalized Expression"
+      ) +
+      theme(
+        plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 11)
+      )
+    
+    # 플롯 출력
+    print(p)
+  }
+  
+  # 통계 결과 반환 (invisible로 콘솔에 자동 출력되지 않도록)
+  invisible(stat_results)
+}
+
+
+
+
+#' Create a Heatmap of Gene Set Expression per Cluster
+#'
+#' This function creates a heatmap showing the normalized expression of gene sets across clusters.
+#' The expression values are z-score normalized for better visualization.
+#'
+#' @param sobj A Seurat object
+#' @param group Character string specifying the identity to use for clustering.
+#'             Default is "seurat_clusters"
+#' @param value Character string specifying how to aggregate expression values.
+#'             Options: "average" (default) or "sum"
+#' @param assay Character string specifying which assay to use.
+#'             Default is "SCT"
+#' @param gene_sets A list of character vectors, where each vector contains gene names.
+#'                 The list can be named, and names will be used as gene set labels.
+#'                 If a single vector is provided, it will be converted to a list.
+#' @param title Character string for the plot title.
+#'             Default is "Normalized Gene Set Expression per Cluster"
+#' @param x_label Character string for the x-axis label.
+#'               Default is "Cluster"
+#' @param y_label Character string for the y-axis label.
+#'               Default is "Gene Set"
+#'
+#' @return A data frame containing the normalized expression values for each gene set
+#'         across clusters, with an additional column indicating the assigned cell type
+#'         based on highest expression
+#'
+#' @examples
+#' \dontrun{
+#' # Create heatmap with named gene sets
+#' gene_sets <- list(
+#'   T_cells = c("CD3D", "CD3E", "CD4", "CD8A"),
+#'   B_cells = c("MS4A1", "CD19", "CD79A"),
+#'   Myeloid = c("CD14", "FCGR3A", "LYZ")
+#' )
+#' result <- myhm_genesets2(sobj, gene_sets = gene_sets)
+#' 
+#' # Create heatmap with a single gene set
+#' result <- myhm_genesets2(sobj, gene_sets = c("CD3D", "CD3E", "CD4"))
+#' }
+#' @export
+myhm_genesets4 <- function(
+    sobj,
+    group = "seurat_clusters",
+    value = "average",
+    assay = "SCT",
+    gene_sets = NULL,
+    title="Normalized Gene Set Expression per Cluster",
+    x_label="Cluster",
+    y_label="Gene Set"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  #-------------------------------'
+  # (A) 유효성 체크
+  #-------------------------------'
+  if(is.null(gene_sets)){
+    stop("gene_sets를 지정해 주세요. (ex: list(Immune=c('CD3D','CD3E'), Bcell=c('MS4A1','CD79A'))) ")
+  }
+  
+  # 만약 gene_sets가 리스트가 아니라 벡터만 들어왔다면 리스트로 변환
+  if(!is.list(gene_sets)){
+    gene_sets <- list(GeneSet1 = gene_sets)
+  }
+  
+  # 이름이 없는 리스트 원소가 있다면 자동으로 이름 부여
+  if(is.null(names(gene_sets)) || any(names(gene_sets) == "")){
+    for(i in seq_along(gene_sets)){
+      if(is.null(names(gene_sets)[i]) || names(gene_sets)[i] == ""){
+        names(gene_sets)[i] <- paste0("GeneSet", i)
+      }
+    }
+  }
+  
+  #-------------------------------'
+  # (B) Seurat 객체에 grouping 적용
+  #-------------------------------'
+  Idents(sobj) <- group
+  
+  #-------------------------------'
+  # (C) 평균 발현량(또는 합계 등) 계산
+  #-------------------------------'
+  if(value == "average"){
+    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  # Handle case when result is a vector (single group)
+  if(is.null(dim(cluster_avg)) || length(dim(cluster_avg)) == 1){
+    # Convert vector to single-column matrix
+    cluster_avg <- as.matrix(cluster_avg)
+    if(ncol(cluster_avg) == 1 && is.null(colnames(cluster_avg))){
+      # Get the unique group value
+      unique_groups <- unique(as.character(Idents(sobj)))
+      if(length(unique_groups) == 1){
+        colnames(cluster_avg) <- unique_groups[1]
+      } else {
+        colnames(cluster_avg) <- "Group1"
+      }
+    }
+  }
+  
+  #-------------------------------'
+  # (D) Gene Set 별 발현량 계산
+  #-------------------------------'
+  cluster_names <- colnames(cluster_avg)
+  
+  # 결과를 담을 data.frame 생성
+  gene_set_expression <- data.frame(Cluster = cluster_names, stringsAsFactors = FALSE)
+  
+  # gene_sets 각각에 대해 평균 발현량을 구함
+  for(gset_name in names(gene_sets)){
+    genes <- gene_sets[[gset_name]]
+    genes_present <- genes[genes %in% rownames(cluster_avg)]
+    
+    if(length(genes_present) == 0){
+      warning(paste("No genes from", gset_name, "found in the dataset."))
+      gene_set_expression[[gset_name]] <- NA
+      next
+    }
+    
+    # Calculate means
+    subset_data <- cluster_avg[genes_present, , drop = FALSE]
+    
+    # Ensure subset_data is a matrix
+    if(!is.matrix(subset_data)){
+      subset_data <- as.matrix(subset_data)
+    }
+    
+    # Calculate column means
+    if(nrow(subset_data) == 1){
+      # If only one gene, the values are already the means
+      gene_set_expression[[gset_name]] <- as.numeric(subset_data[1,])
+    } else if(ncol(subset_data) == 1){
+      # If only one cluster/group
+      gene_set_expression[[gset_name]] <- mean(subset_data[,1])
+    } else {
+      # Multiple genes and multiple clusters
+      gene_set_expression[[gset_name]] <- colMeans(subset_data)
+    }
+  }
+  
+  #-------------------------------'
+  # (E) Z-score 정규화
+  #-------------------------------'
+  gene_set_expression_normalized <- gene_set_expression
+  
+  # Check if we have more than one cluster
+  if(nrow(gene_set_expression_normalized) > 1){
+    gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
+  } else {
+    # For single cluster, z-score normalization doesn't make sense
+    # Set all values to 0 (neutral)
+    gene_set_expression_normalized[,-1] <- 0
+  }
+  
+  # 각 Cluster에서 가장 높은 값을 가지는 gene set을 배정
+  gene_set_expression_normalized$Assigned_CellType <- apply(
+    gene_set_expression_normalized[,-c(1, ncol(gene_set_expression_normalized))], 1, 
+    function(x){
+      if(all(is.na(x))) return(NA)
+      names(x)[which.max(x)]
+    }
+  )
+  
+  #-------------------------------'
+  # (F) 클러스터 순서 정렬
+  #-------------------------------'
+  numeric_test <- suppressWarnings(as.numeric(gene_set_expression_normalized$Cluster))
+  
+  if(!all(is.na(numeric_test))){
+    if(sum(is.na(numeric_test)) == 0){
+      sorted_levels <- sort(unique(numeric_test))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
+    gene_set_expression_normalized$Cluster <- factor(
+      gene_set_expression_normalized$Cluster,
+      levels = sorted_levels
+    )
+  }
+  
+  #-------------------------------'
+  # (G) Heatmap용 long format 만들기
+  #-------------------------------'
+  melted_data <- melt(
+    gene_set_expression_normalized,
+    id.vars = c("Cluster","Assigned_CellType"),
+    variable.name = "GeneSet",
+    value.name = "Zscore"
+  )
+  
+  #-------------------------------'
+  # (H) Heatmap 그리기
+  #-------------------------------'
+  p <- ggplot(melted_data, aes(x = Cluster, y = GeneSet, fill = Zscore)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme(axis.text.x = element_text(angle=45, hjust=1, size=12),
+          axis.text.y = element_text(hjust=1, size=12),
+          axis.title.x = element_text(face="bold", size=14),
+          axis.title.y = element_text(face="bold", size=14),
+          plot.title = element_text(size=16, face="bold", hjust=0.5))
+  
+  print(p)
+  
+  #-------------------------------'
+  # (I) 결과 반환
+  #-------------------------------'
+  return(gene_set_expression_normalized)
+}
+
+#' Create a Heatmap of Individual Gene Expression per Cluster
+#'
+#' This function creates a heatmap showing the normalized expression of individual genes
+#' across clusters. The expression values are z-score normalized for better visualization.
+#'
+#' @param sobj A Seurat object
+#' @param group Character string specifying the identity to use for clustering.
+#'             Default is "seurat_clusters"
+#' @param value Character string specifying how to aggregate expression values.
+#'             Options: "average" (default) or "sum"
+#' @param assay Character string specifying which assay to use.
+#'             Default is "SCT"
+#' @param genes Character vector containing gene names to plot
+#' @param title Character string for the plot title.
+#'             Default is "Normalized Gene Expression per Cluster"
+#' @param x_label Character string for the x-axis label.
+#'               Default is "Cluster"
+#' @param y_label Character string for the y-axis label.
+#'               Default is "Genes"
+#'
+#' @return A data frame containing the normalized expression values for each gene
+#'         across clusters
+#'
+#' @examples
+#' \dontrun{
+#' # Create heatmap for a set of genes
+#' genes <- c("CD3D", "CD3E", "CD4", "CD8A", "MS4A1", "CD19")
+#' result <- myhm_genes2(sobj, genes = genes)
+#' 
+#' # Create heatmap with custom title and labels
+#' result <- myhm_genes2(sobj, 
+#'                      genes = genes,
+#'                      title = "T and B Cell Markers",
+#'                      x_label = "Cell Clusters",
+#'                      y_label = "Marker Genes")
+#' }
+#' @export
+myhm_genes4 <- function(
+    sobj,
+    group = "seurat_clusters",
+    value = "average",
+    assay = "SCT",
+    genes = NULL,
+    title = "Normalized Gene Expression per Cluster",
+    x_label = "Cluster",
+    y_label = "Genes"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  #-------------------------------'
+  # (A) 유효성 체크
+  #-------------------------------'
+  if(is.null(genes)){
+    stop("genes를 지정해 주세요. (예: genes=c('CD3D','CD3E','MS4A1'))")
+  }
+  
+  #-------------------------------'
+  # (B) Seurat 객체에 grouping 적용
+  #-------------------------------'
+  Seurat::Idents(sobj) <- group
+  
+  #-------------------------------'
+  # (C) 평균 발현량(또는 합계 등) 계산
+  #-------------------------------'
+  if(value == "average"){
+    cluster_avg <- Seurat::AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- Seurat::AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  # Handle case when cluster_avg is a vector (single group)
+  if(is.null(dim(cluster_avg)) || length(dim(cluster_avg)) == 1){
+    cluster_avg <- as.matrix(cluster_avg)
+    if(ncol(cluster_avg) == 1 && is.null(colnames(cluster_avg))){
+      # Get the unique group value
+      unique_groups <- unique(as.character(Seurat::Idents(sobj)))
+      if(length(unique_groups) == 1){
+        colnames(cluster_avg) <- unique_groups[1]
+      } else {
+        colnames(cluster_avg) <- "Group1"
+      }
+    }
+  }
+  
+  #-------------------------------'
+  # (D) 원하는 유전자만 필터
+  #-------------------------------'
+  genes_present <- genes[genes %in% rownames(cluster_avg)]
+  if(length(genes_present) == 0){
+    stop("지정하신 유전자 중 데이터셋에 존재하는 유전자가 없습니다.")
+  }
+  
+  if(length(genes_present) < length(genes)){
+    missing_genes <- genes[!genes %in% rownames(cluster_avg)]
+    warning(paste("다음 유전자들이 데이터셋에 없습니다:", paste(missing_genes, collapse=", ")))
+  }
+  
+  # Subset 
+  gene_expression <- cluster_avg[genes_present, , drop=FALSE]
+  
+  # Ensure it's a matrix
+  if(!is.matrix(gene_expression)){
+    gene_expression <- as.matrix(gene_expression)
+  }
+  
+  #-------------------------------'
+  # (E) Z-score 정규화
+  #-------------------------------'
+  # Check number of clusters
+  n_clusters <- ncol(gene_expression)
+  
+  if(n_clusters == 1){
+    # For single cluster, z-score normalization across genes doesn't make sense
+    # We can normalize across genes instead or set to 0
+    gene_expression_scaled <- matrix(0, 
+                                     nrow = length(genes_present), 
+                                     ncol = 1,
+                                     dimnames = list(genes_present, colnames(gene_expression)))
+    
+    # Alternative: scale across genes for the single cluster
+    # This shows relative expression levels among genes
+    if(length(genes_present) > 1){
+      scaled_values <- scale(gene_expression[,1])
+      gene_expression_scaled[,1] <- scaled_values
+    }
+  } else {
+    # Multiple clusters - scale across clusters for each gene
+    # This is the original behavior
+    gene_expression_scaled <- t(scale(t(gene_expression)))
+  }
+  
+  # Convert to data.frame
+  gene_expression_df <- as.data.frame(t(gene_expression_scaled))
+  gene_expression_df$Cluster <- rownames(gene_expression_df)
+  
+  #-------------------------------'
+  # (F) 클러스터 순서 정렬
+  #-------------------------------'
+  numeric_test <- suppressWarnings(as.numeric(gene_expression_df$Cluster))
+  
+  if(!all(is.na(numeric_test))){
+    if(sum(is.na(numeric_test)) == 0){
+      sorted_levels <- sort(unique(numeric_test))
+      gene_expression_df$Cluster <- factor(
+        gene_expression_df$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      sorted_levels <- sort(unique(gene_expression_df$Cluster))
+      gene_expression_df$Cluster <- factor(
+        gene_expression_df$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    sorted_levels <- sort(unique(gene_expression_df$Cluster))
+    gene_expression_df$Cluster <- factor(
+      gene_expression_df$Cluster,
+      levels = sorted_levels
+    )
+  }
+  
+  #-------------------------------'
+  # (G) long format으로 melt
+  #-------------------------------'
+  melted_data <- reshape2::melt(
+    gene_expression_df,
+    id.vars = "Cluster",
+    variable.name = "Gene",
+    value.name = "Zscore"
+  )
+  
+  # 유전자 순서를 입력 순서대로 유지
+  melted_data$Gene <- factor(melted_data$Gene, levels = genes_present)
+  
+  #-------------------------------'
+  # (H) Heatmap 그리기
+  #-------------------------------'
+  # Adjust plot for single cluster case
+  if(n_clusters == 1){
+    # For single cluster, make the heatmap narrower
+    p <- ggplot2::ggplot(melted_data, ggplot2::aes(x = Cluster, y = Gene, fill = Zscore)) +
+      ggplot2::geom_tile() +
+      ggplot2::scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+      ggplot2::theme_minimal() +
+      ggplot2::labs(
+        title = title,
+        x = x_label,
+        y = y_label
+      ) +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_text(angle=45, hjust=1, size=12),
+        axis.text.y = ggplot2::element_text(size=12),
+        axis.title.x = ggplot2::element_text(face="bold", size=14),
+        axis.title.y = ggplot2::element_text(face="bold", size=14),
+        plot.title = ggplot2::element_text(size=16, face="bold", hjust=0.5),
+        aspect.ratio = length(genes_present)/2  # Make plot taller for single cluster
+      )
+  } else {
+    # Regular plot for multiple clusters
+    p <- ggplot2::ggplot(melted_data, ggplot2::aes(x = Cluster, y = Gene, fill = Zscore)) +
+      ggplot2::geom_tile() +
+      ggplot2::scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+      ggplot2::theme_minimal() +
+      ggplot2::labs(
+        title = title,
+        x = x_label,
+        y = y_label
+      ) +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_text(angle=45, hjust=1, size=12),
+        axis.text.y = ggplot2::element_text(size=12),
+        axis.title.x = ggplot2::element_text(face="bold", size=14),
+        axis.title.y = ggplot2::element_text(face="bold", size=14),
+        plot.title = ggplot2::element_text(size=16, face="bold", hjust=0.5)
+      )
+  }
+  
+  print(p)
+  
+  #-------------------------------'
+  # (I) 결과 반환
+  #-------------------------------'
+  return(gene_expression_df)
 }
 
 

@@ -312,3 +312,105 @@ genes_gut = list(
   Enteric_Neurons = c("ELAVL4", "TUBB3", "CHAT", "NOS1", "VIP"), # ELAVL4 is HuD
   Enteric_Glia = c("S100B", "GFAP", "SOX10", "PLP1")
 )
+
+genes_gut_ibd_init = list(
+  # Epithelial Cells
+  Paneth_Cells = c("LYZ", "DEFA5", "DEFA6", "MMP7", "SOX9", "DLL4"),
+  # Immune Cells - Lamina Propria
+  Th1 = c("IFNG", "TBX21", "STAT4"),
+  Th2 = c("IL4", "IL13", "GATA3", "STAT6"),
+  Th17 = c("IL17A", "IL17F", "RORC", "STAT3", "IL23R"),
+  Plasma_Cells = c("SDC1", "IGHG1", "IGHA1", "JCHAIN", "XBP1", "PRDM1"),
+  Plasmacytoid_DC = c("CLEC4C", "NRP1", "TCF4", "IRF7"),
+  ILC1 = c("IFNG", "TBX21", "NCR1"), # NCR1 is NKp46
+  ILC2 = c("GATA3", "RORA", "IL13", "IL5"),
+  ILC3 = c("RORC", "AHR", "IL22", "IL17A", "KIT")
+)
+
+genes_gut_epi = list(
+  "SDC1",
+  "STAT3",
+  "STAT6",
+  "SOX9",
+  "MMP7",
+  "LYZ"
+)
+
+#' @export
+gut_immune_markers <- list(
+  
+  # --- T Cell Lineage ---
+  CD4_T_cell    = "CD4",      # Helper T cells
+  CD8_T_cell    = "CD8A",     # Cytotoxic T cells
+  Treg          = "FOXP3",    # Regulatory T cells, 핵심 전사 인자
+  
+  # --- B Cell Lineage ---
+  B_cell        = "MS4A1",    # CD20, 성숙 B 세포 마커
+  Plasma_cell   = "SDC1",     # CD138, 항체 분비 형질 세포
+  
+  # --- Myeloid Lineage ---
+  Macrophage    = "C1QA",     # 조직 상주 대식세포의 강력하고 특이적인 마커
+  cDC1          = "CLEC9A",   # Conventional Dendritic Cell type 1
+  Neutrophil    = "S100A8",   # 호중구의 가장 강력한 RNA 마커 중 하나
+  Mast_cell     = "CPA3",     # Mast cell protease, 매우 특이적인 마커
+  
+  # --- Innate Lymphoid Lineage ---
+  ILC3          = "RORC"      # Innate Lymphoid Cell type 3, 장 면역의 핵심 세포
+)
+
+neutrophil_markers <- list(
+  
+  # ===================================================================.
+  # 1. Stable Markers (호중구 고유 마커)
+  # - 세포의 활성 상태와 관계없이 호중구를 식별하는 데 사용되는 유전자들입니다.
+  # ===================================================================.
+  stable = c(
+    "CEACAM8", # CD66b, 가장 널리 알려진 호중구 표면 마커
+    "FCGR3B",  # CD16b, 호중구 특이적 Fc 감마 수용체
+    "MPO",     # Myeloperoxidase, 과립(granule)의 핵심 효소
+    "ELANE",   # Neutrophil elastase, 과립 단백질
+    "PRTN3",   # Proteinase 3, 과립 단백질
+    "S100A8",  # Calgranulin A
+    "S100A9",  # Calgranulin B, S100A8과 함께 Calprotectin 형성
+    "S100A12", # Calgranulin C
+    "CSF3R",   # G-CSF 수용체
+    "SELL"     # L-selectin (CD62L), 순환하는 미성숙/비활성 호중구 마커
+  ),
+  
+  # ===================================================================.
+  # 2. Variable Markers (상태 의존적 마커)
+  # - 세포의 활성화, NETosis 등 특정 기능적 상태를 반영하는 유전자들입니다.
+  # ===================================================================.
+
+    
+    # -----------------------------------------------------------------.
+    # General Activation (일반적인 활성화 상태)
+    # - LPS, 사이토카인(TNF, IL1B) 등의 자극에 의해 발현이 증가합니다.
+    # -----------------------------------------------------------------.
+    activation = c(
+      "IL1B",    # Pro-inflammatory cytokine
+      "TNF",     # Pro-inflammatory cytokine
+      "CXCL8",   # IL-8, 강력한 호중구 유인 화학물질
+      "CXCL1",   # Chemokine
+      "CXCL2",   # Chemokine
+      "ICAM1",   # Adhesion molecule
+      "FOS",     # Immediate early gene
+      "JUN"      # Immediate early gene
+    ),
+    
+    # -----------------------------------------------------------------.
+    # NETosis (NET 형성 관련)
+    # - 호중구가 세포 밖으로 DNA 트랩을 방출하는 과정에서 중요한 역할을 합니다.
+    # -----------------------------------------------------------------.
+    netosis = c(
+      "PADI4",   # NET 형성의 핵심 효소, 히스톤을 시트룰린화하여 염색질을 응축 해제
+      "CIT",     # Citron Rho-Interacting Serine/Threonine Kinase, NET 형성에 관여
+      "H3-3A",   # 또는 "H3F3A", 히스톤 H3.3A, NETs의 주요 구성 요소
+      "MPO",     # Stable 마커이기도 하지만, NETs의 주요 단백질 구성 요소
+      "ELANE"    # Stable 마커이기도 하지만, NETs의 주요 단백질 구성 요소
+    )
+
+)
+
+# 리스트 구조 확인
+# str(neutrophil_markers)
