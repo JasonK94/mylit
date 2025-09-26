@@ -1,6 +1,9 @@
+# .gitignore에서는 line 중간에 있는 주석을 주석으로 생각하지 않는다. 주의할것.
 # R 패키지 빌드 아티팩트
-myR.Rcheck/          # R CMD check 출력
-myR_*.tar.gz        # devtools::build() 결과물
+# R CMD check 출력
+myR.Rcheck/   
+# devtools::build() 결과물
+myR_*.tar.gz
 myR/data/NicheNetData
 
 # RStudio
@@ -14,3 +17,6 @@ __pycache__/
 
 # 기타
 *.log
+ipynb/output/
+ipynb/temporary/
+
