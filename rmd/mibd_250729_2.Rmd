@@ -491,7 +491,7 @@ rm(data_selected, numeric_cols, meta_cols, aoi_cols, aoi_sum, q1, q3, iqr_val, l
 
 ```
 
-# make seurat and AddMetaData
+# Seurat, Metadata
 deep > endo > histologic > mucosal
 ```{r}
 
@@ -540,6 +540,16 @@ data_seurat$ck_=case_when(data_seurat@meta.data$ck==T ~ "ck",
                                            !data_seurat@meta.data$ck ~ "str",
                                            TRUE ~ "what")
 data_seurat$`Endo remission`=as.character(data_seurat$`Endo remission`)
+data_seurat <- AddMetaData(
+  data_seurat,
+  metadata = data_seurat@meta.data$`Endo remission`,
+  col.name = "Endo_remission"
+)
+
+data_seurat$H1=ifelse(data_seurat$`mucosal healing`==1,"R","NR")
+data_seurat$H2=ifelse(data_seurat$`histologic Endoscopic improvement`==1,"R","NR")
+data_seurat$H3=ifelse(data_seurat$`Endo remission`==1,"R","NR")
+data_seurat$H4=ifelse(data_seurat$`Deep mucosal healing`==1,"R","NR")
 
 data_seurat@meta.data$r_t=paste(data_seurat@meta.data$response, "_", data_seurat$treatment)
 data_seurat@meta.data$heal_t=paste(data_seurat@meta.data$heal, "_", data_seurat$treatment)
@@ -550,14 +560,21 @@ data_seurat@meta.data$drug_r_t=paste(data_seurat@meta.data$drug_r,"_", data_seur
 
 data_seurat@meta.data$ck_r=paste(data_seurat$ck_,"_", data_seurat@meta.data$`Endo remission`)
 data_seurat@meta.data$ck_t=paste(data_seurat$ck_,"_", data_seurat@meta.data$treatment)
+data_seurat@meta.data$index=1:length(data_seurat$orig.ident)
+data_seurat@meta.data$ck_index=paste0(data_seurat@meta.data$ck_,"_",data_seurat@meta.data$index)
+data_seurat@meta.data$pp_index=paste0(data_seurat@meta.data$treatment,"_",data_seurat@meta.data$index)
+data_seurat@meta.data$rpp=paste0(data_seurat@meta.data$H3,"_",data_seurat@meta.data$treatment)
+data_seurat@meta.data$rpp_index=paste0(data_seurat@meta.data$rpp,"_",data_seurat@meta.data$index)
 
+rm(t_data, SP, raw_data, merged_df, md, expr_matrix, expr_df, data_norm, bg_corrected)
 ```
 
 ## (optional) subset - pre&post match
 pre&post가 있는 것만..
 ```{r}
-valid_emrids <- data_seurat@meta.data %>%
-  mutate(unique_id= paste0(emrid, ck)) %>%
+
+valid_emrids1 <- data_seurat@meta.data %>%
+  mutate(unique_id= paste0(emrid, drug,ck)) %>%
   group_by(unique_id) %>%
   filter(all(c("pre", "post") %in% treatment))# %>%
   # dplyr::select(c("unique_id", "emrid", "ck", "treatment")) #%>% # 조건을 만족하는 emrid만 벡터 형태로 추출
@@ -565,20 +582,33 @@ valid_emrids <- data_seurat@meta.data %>%
 
 
 
-valid_emrids2 <- data_seurat@meta.data %>%
-  mutate(unique_id= paste0(emrid, ck)) %>%
-  group_by(emrid) %>%
-  filter(all(c("pre", "post") %in% treatment)) %>%
-  filter(all(c("TRUE","FALSE")%in% ck)) %>%
-  dplyr::select(c("unique_id", "emrid", "ck", "treatment")) #%>% # 조건을 만족하는 emrid만 벡터 형태로 추출
-  # unique()       # 중복 제거
+# res <- diagnosis_parity_detailed (
+#     sobj = data_seurat,
+#     patient = "emrid", treatment = "drug", timepoint = "treatment", tissue = "ck_",
+#     check_key = "treatment",            # 검증할 열 이름(문자열)
+#     check_values = c("pre","post")      # 페어로 맞춰야 할 값들
+# )
+# pre - post match
+valid_emrid=diagnosis_parity_detailed(data_seurat, "emrid","drug","treatment","ck_","treatment",c("pre","post"))
+# AOI match
+valid_emrid2=diagnosis_parity_detailed(data_seurat, "emrid","drug","treatment",check_key="SegmentLabel",check_values=c("Segment 1","Segment 2"))
 
-data_seurat_original=data_seurat
-data_seurat=subset(data_seurat, SegmentDisplayName %in% valid_emrids$SegmentDisplayName)
+data_seurat_total=data_seurat
+# R-NR match
 
+# pre-post match
+data_seurat=subset(data_seurat, SegmentDisplayName %in% valid_emrid$paired_ids)
+data.ck=subset(data_seurat, ck==TRUE)
+data.str=subset(data_seurat, ck==FALSE)
+data.pre=subset(data_seurat, treatment=="pre")
+data.post=subset(data_seurat, treatment=="post")
+data.r=subset(data_seurat, Endo_remission==1)
+data.nr=subset(data_seurat, Endo_remission==0)
+
+rm(valid_emrids,valid_emrids2)
 ```
 
-## overview
+## frequency overview
 ```{r}
 
 # NR vs R
@@ -667,37 +697,40 @@ data_seurat=RunUMAP(data_seurat, dims = 1:30)
 # data_seurat= harmony::RunHarmony(data_seurat, group.by.vars = "SlideName")
 # data_seurat=RunUMAP(data_seurat, dims=1:30, reduction="harmony" ,reduction.name = "umap_harmony")
 
-data_ck=subset(data_seurat, ck==TRUE)
-data_str=subset(data_seurat, ck==FALSE)
+data.ck=subset(data_seurat, ck==TRUE)
+data.str=subset(data_seurat, ck==FALSE)
+data.pre=subset(data_seurat, treatment=="pre")
+data.post=subset(data_seurat, treatment=="post")
+data.r=subset(data_seurat, Endo_remission==1)
+data.nr=subset(data_seurat, Endo_remission==0)
 
-data_ck_pre=subset(data_ck, treatment=="pre")
-data_ck_post=subset(data_ck, treatment=="post")
-data_str_pre=subset(data_str, treatment=="pre")
-data_str_post=subset(data_str, treatment=="post")
+data.ck.inf=subset(data.ck, drug=="Infliximab")
+data.ck.ust=subset(data.ck, drug=="Ustekinumab")
+data.ck.ved=subset(data.ck, drug=="Vedolizumab")
+data.str.inf=subset(data.str, drug=="Infliximab")
+data.str.ust=subset(data.str, drug=="Ustekinumab")
+data.str.ved=subset(data.str, drug=="Vedolizumab")
 
-data_inf=subset(data_seurat, drug=="Infliximab")
-data_ust=subset(data_seurat, drug=="Ustekinumab")
-data_ved=subset(data_seurat, drug=="Vedolizumab")
+data.ck.pre=subset(data.ck, treatment=="pre")
+data.ck.post=subset(data.ck, treatment=="post")
+data.str.pre=subset(data.str, treatment=="pre")
+data.str.post=subset(data.str, treatment=="post")
 
-data_ck_inf=subset(data_ck, drug=="Infliximab")
-data_ck_ust=subset(data_ck, drug=="Ustekinumab")
-data_ck_ved=subset(data_ck, drug=="Vedolizumab")
-data_str_inf=subset(data_str, drug=="Infliximab")
-data_str_ust=subset(data_str, drug=="Ustekinumab")
-data_str_ved=subset(data_str, drug=="Vedolizumab")
+data.pre.ck=subset(data.pre, ck==TRUE)
+data.pre.str=subset(data.pre, ck==FALSE)
+data.pre.ck.inf=subset(data.pre.ck, drug=="Infliximab")
+data.pre.ck.ust=subset(data.pre.ck, drug=="Ustekinumab")
+data.pre.ck.ved=subset(data.pre.ck, drug=="Vedolizumab")
+data.pre.str.inf=subset(data.pre.str, drug=="Infliximab")
+data.pre.str.ust=subset(data.pre.str, drug=="Ustekinumab")
+data.pre.str.ved=subset(data.pre.str, drug=="Vedolizumab")
 
-data_ck_pre_inf=subset(data_ck_pre, drug=="Infliximab")
-data_ck_pre_ust=subset(data_ck_pre, drug=="Ustekinumab")
-data_ck_pre_ved=subset(data_ck_pre, drug=="Vedolizumab")
-data_ck_post_inf=subset(data_ck_post, drug=="Infliximab")
-data_ck_post_ust=subset(data_ck_post, drug=="Ustekinumab")
-data_ck_post_ved=subset(data_ck_post, drug=="Vedolizumab")
-data_str_pre_inf=subset(data_str_pre, drug=="Infliximab")
-data_str_pre_ust=subset(data_str_pre, drug=="Ustekinumab")
-data_str_pre_ved=subset(data_str_pre, drug=="Vedolizumab")
-data_str_post_inf=subset(data_str_post, drug=="Infliximab")
-data_str_post_ust=subset(data_str_post, drug=="Ustekinumab")
-data_str_post_ved=subset(data_str_post, drug=="Vedolizumab")
+
+data.inf=subset(data_seurat, drug=="Infliximab")
+data.ust=subset(data_seurat, drug=="Ustekinumab")
+data.ved=subset(data_seurat, drug=="Vedolizumab")
+
+
 
 
 # DimPlot(data_seurat, group.by="ck")
@@ -706,40 +739,58 @@ data_str_post_ved=subset(data_str_post, drug=="Vedolizumab")
 # DimPlot(data_seurat, group.by="heal")
 # DimPlot(data_seurat, group.by="treatment")
 # 
-# DimPlot(data_ck, group.by="treatment")
-# DimPlot(data_ck, group.by="heal")
+# DimPlot(data.ck, group.by="treatment")
+# DimPlot(data.ck, group.by="heal")
 # 
-# DimPlot(data_ck)
-# DimPlot(data_str)
+# DimPlot(data.ck)
+# DimPlot(data.str)
 ```
-
-## subset - rnr
+## subset - in rnr
 ```{r}
-data_seurat <- AddMetaData(
-  data_seurat,
-  metadata = data_seurat@meta.data$`Endo remission`,
-  col.name = "Endo_remission"
-)
-data.nr <- subset(data_seurat, subset = Endo_remission == 0)
-data.r <- subset(data_seurat, subset = Endo_remission == 1)
 
-data.nr.ck=subset(data.nr, ck==TRUE)
-data.nr.str=subset(data.nr, ck==FALSE)
-data.nr.ck_inf=subset(data.nr.ck, drug=="Infliximab")
-data.nr.ck_ust=subset(data.nr.ck, drug=="Ustekinumab")
-data.nr.ck_ved=subset(data.nr.ck, drug=="Vedolizumab")
-data.nr.str_inf=subset(data.nr.str, drug=="Infliximab")
-data.nr.str_ust=subset(data.nr.str, drug=="Ustekinumab")
-data.nr.str_ved=subset(data.nr.str, drug=="Vedolizumab")
 
 data.r.ck=subset(data.r, ck==TRUE)
 data.r.str=subset(data.r, ck==FALSE)
-data.r.ck_inf=subset(data.r.ck, drug=="Infliximab")
-data.r.ck_ust=subset(data.r.ck, drug=="Ustekinumab")
-data.r.ck_ved=subset(data.r.ck, drug=="Vedolizumab")
-data.r.str_inf=subset(data.r.str, drug=="Infliximab")
-data.r.str_ust=subset(data.r.str, drug=="Ustekinumab")
-data.r.str_ved=subset(data.r.str, drug=="Vedolizumab")
+data.r.ck.inf=subset(data.r.ck, drug=="Infliximab")
+data.r.ck.ust=subset(data.r.ck, drug=="Ustekinumab")
+data.r.ck.ved=subset(data.r.ck, drug=="Vedolizumab")
+data.r.str.inf=subset(data.r.str, drug=="Infliximab")
+data.r.str.ust=subset(data.r.str, drug=="Ustekinumab")
+data.r.str.ved=subset(data.r.str, drug=="Vedolizumab")
+
+data.nr.ck=subset(data.nr, ck==TRUE)
+data.nr.str=subset(data.nr, ck==FALSE)
+data.nr.ck.inf=subset(data.nr.ck, drug=="Infliximab")
+data.nr.ck.ust=subset(data.nr.ck, drug=="Ustekinumab")
+data.nr.ck.ved=subset(data.nr.ck, drug=="Vedolizumab")
+data.nr.str.inf=subset(data.nr.str, drug=="Infliximab")
+data.nr.str.ust=subset(data.nr.str, drug=="Ustekinumab")
+data.nr.str.ved=subset(data.nr.str, drug=="Vedolizumab")
+```
+
+## subset - rnr in pre
+```{r}
+
+data.pre.nr <- subset(data.pre, subset = Endo_remission == 0)
+data.pre.r <- subset(data.pre, subset = Endo_remission == 1)
+
+data.pre.nr.ck=subset(data.pre.nr, ck==TRUE)
+data.pre.nr.str=subset(data.pre.nr, ck==FALSE)
+data.pre.nr.ck_inf=subset(data.pre.nr.ck, drug=="Infliximab")
+data.pre.nr.ck_ust=subset(data.pre.nr.ck, drug=="Ustekinumab")
+data.pre.nr.ck_ved=subset(data.pre.nr.ck, drug=="Vedolizumab")
+data.pre.nr.str_inf=subset(data.pre.nr.str, drug=="Infliximab")
+data.pre.nr.str_ust=subset(data.pre.nr.str, drug=="Ustekinumab")
+data.pre.nr.str_ved=subset(data.pre.nr.str, drug=="Vedolizumab")
+
+data.pre.r.ck=subset(data.pre.r, ck==TRUE)
+data.pre.r.str=subset(data.pre.r, ck==FALSE)
+data.pre.r.ck_inf=subset(data.pre.r.ck, drug=="Infliximab")
+data.pre.r.ck_ust=subset(data.pre.r.ck, drug=="Ustekinumab")
+data.pre.r.ck_ved=subset(data.pre.r.ck, drug=="Vedolizumab")
+data.pre.r.str_inf=subset(data.pre.r.str, drug=="Infliximab")
+data.pre.r.str_ust=subset(data.pre.r.str, drug=="Ustekinumab")
+data.pre.r.str_ved=subset(data.pre.r.str, drug=="Vedolizumab")
 
 ```
 
@@ -810,6 +861,90 @@ p +
     color = "black"
   )
 ```
+
+# Overview
+## preprocessing
+```{r}
+data_seurat_for_heatmap=SetAssayData(data_seurat,
+                         layer="counts",
+                         new.data=GetAssayData(data_seurat, assay="RNA",layer="data"),
+                         assay="RNA")
+data_seurat_for_heatmap=NormalizeData(data_seurat_for_heatmap)
+data_seurat_for_heatmap=ScaleData(data_seurat_for_heatmap, clip.max=3)
+
+dsfh_ck=subset(data_seurat_for_heatmap,ck==TRUE)
+dsfh_str=subset(data_seurat_for_heatmap,ck==FALSE)
+
+dsfh_post=subset(data_seurat_for_heatmap, treatment=="post")
+dsfh_post_ck=subset(dsfh_post, ck==TRUE)
+dsfh_post_str=subset(dsfh_post, ck==FALSE)
+
+dsfh_pre=subset(data_seurat_for_heatmap, treatment=="pre")
+dsfh_pre_ck=subset(dsfh_pre, ck==TRUE)
+dsfh_pre_str=subset(dsfh_pre, ck==FALSE)
+
+
+# poc 중.
+dsfh_post_ck$heal_re=case_when(
+  dsfh_post_ck$heal %in% c(0,1) ~ "g0",
+  dsfh_post_ck$heal %in% c(2) ~ "g1",
+  dsfh_post_ck$heal %in% c(3,4) ~ "g2"
+)
+```
+## target cell profiling
+```{r}
+
+baseline=FindMarkers(data.pre.ck, group.by="drug", ident.1="Infliximab", test.use="t")
+baseline2=FindMarkers(data.pre.ck, group.by="H3", ident.1="R", test.use="t")
+baseline3=FindMarkers(data.pre.str, group.by="drug", ident.1="Infliximab", test.use="t")
+# TCP
+myhm_genes4(data_seurat_for_heatmap, group="ck_index", assay="RNA", genes = c("KRT8", "EPCAM","CDH1","MUC2","MUC13","CLDN3","VIM","COL1A1", "ACTA2", "PTPRC", "PECAM1"))
+
+```
+
+## inflammation
+"mucosal healing"
+"histologic Endoscopic improvement"
+"Endo remission"
+"Deep mucosal healing"
+```{r}
+markers_heatmap_ck <- c(
+  "CXCL1", "CXCL8", #neutrophil recruitment
+  "IL1B", "TNF", #epithelium inducible
+  "MUC1", "MUC2", "MUC13", #goblet
+  "CLDN2", "REG1A", "REG3A", #tight junction, anti-microbial, regeneration marker
+  "S100A8", "S100A9", #epihelium inducible
+  "CASP1", "NLRP3", "HSPA1A", "HSPA1B" #inflammasome, stress response
+)
+
+markers_heatmap_str <- c(
+  # Immune lineage
+  "PTPRC", "CD3E", "CD8A", "CD4",
+  "MS4A1", "NCAM1", "GNLY", "GZMB",
+  "CD68", "CD163", "ITGAX", "FCGR3A",
+  # Fibroblast / mesenchymal
+  "VIM", "COL1A1", "COL3A1", "ACTA2", "FAP",
+  # Cytokines / chemokines
+  "IL6", "IL1B", "TNF", "CXCL9", "CXCL10", "CXCL11",
+  # Angiogenesis / endothelial
+  "PECAM1", "VWF", "VEGFA"
+)
+
+
+# pre vs post
+myhm_genes4(dsfh_ck, group="rpp", assay="RNA", genes = markers_heatmap_ck)
+myhm_genes4(dsfh_ck, group="rpp_index", assay="RNA", genes = markers_heatmap_ck)
+# in post, by heal
+myhm_genes4(dsfh_post_ck, group="heal", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_ck, group="heal_re", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_ck, group="drug_r", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_str, group="heal", assay="RNA", genes=markers_heatmap_str)
+myhm_genes4(dsfh_post_ck, group="heal", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_ck, group="heal", assay="RNA", genes=markers_heatmap_ck)
+
+```
+
+
 
 # FindMarkers
 
@@ -981,22 +1116,107 @@ paste(intersect(m.pp.str.ved_$gene, m.pp.str.ust_$gene), collapse=", ")
 
 ```
 
+### pre vs post - paired
+```{r}
 
-## Response vs NR
+```
+
+### pre vs post in responder
+```{r}
+
+data.r.ck_inf=subset(data.r.ck, drug=="Infliximab")
+data.r.ck_ust=subset(data.r.ck, drug=="Ustekinumab")
+data.r.ck_ved=subset(data.r.ck, drug=="Vedolizumab")
+data.r.str_inf=subset(data.r.str, drug=="Infliximab")
+data.r.str_ust=subset(data.r.str, drug=="Ustekinumab")
+data.r.str_ved=subset(data.r.str, drug=="Vedolizumab")
+
+# m.r.pp=FindMarkers(data_seurat,group.by="treatment",ident.1="post")
+# m.r.pp.ck=FindMarkers(data_ck,group.by="treatment",ident.1="post")
+# m.r.pp.str=FindMarkers(data_str,group.by="treatment",ident.1="post")
+m.r.pp.ck.inf=FindMarkers(data.r.ck_inf,group.by="treatment",ident.1="post")
+# m.r.pp.ck.ust=FindMarkers(data.r.ck_ust,group.by="treatment",ident.1="post")
+m.r.pp.ck.ved=FindMarkers(data.r.ck_ved,group.by="treatment",ident.1="post")
+m.r.pp.str.inf=FindMarkers(data.r.str_inf,group.by="treatment",ident.1="post")
+# m.r.pp.str.ust=FindMarkers(data.r.str_ust,group.by="treatment",ident.1="post")
+m.r.pp.str.ved=FindMarkers(data.r.str_ved,group.by="treatment",ident.1="post")
+
+# post upregulated
+
+# m.r.pp_=m.r.pp%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck_=m.r.pp.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str_=m.r.pp.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.inf_=m.r.pp.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck.ust_=m.r.pp.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.ved_=m.r.pp.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.inf_=m.r.pp.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str.ust_=m.r.pp.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.ved_=m.r.pp.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+
+# pre upregulated
+
+# m.r.pp__=m.r.pp%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck__=m.r.pp.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str__=m.r.pp.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.inf__=m.r.pp.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck.ust__=m.r.pp.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.ved__=m.r.pp.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.inf__=m.r.pp.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str.ust__=m.r.pp.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.ved__=m.r.pp.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+```
+### pre vs post in NR
+```{r}
+
+m.nr.pp.ck.inf=FindMarkers(data.nr.ck.inf,group.by="treatment",ident.1="post")
+m.nr.pp.ck.ust=FindMarkers(data.nr.ck.ust,group.by="treatment",ident.1="post")
+m.nr.pp.ck.ved=FindMarkers(data.nr.ck.ved,group.by="treatment",ident.1="post")
+m.nr.pp.str.inf=FindMarkers(data.nr.str.inf,group.by="treatment",ident.1="post")
+m.nr.pp.str.ust=FindMarkers(data.nr.str.ust,group.by="treatment",ident.1="post")
+m.nr.pp.str.ved=FindMarkers(data.nr.str.ved,group.by="treatment",ident.1="post")
+
+# post upregulated
+
+# m.nr.pp_=m.nr.pp%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.ck_=m.nr.pp.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.str_=m.nr.pp.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.inf_=m.nr.pp.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ust_=m.nr.pp.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ved_=m.nr.pp.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.inf_=m.nr.pp.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ust_=m.nr.pp.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ved_=m.nr.pp.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+
+# pre upregulated
+
+# m.nr.pp__=m.nr.pp%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.ck__=m.nr.pp.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.str__=m.nr.pp.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.inf__=m.nr.pp.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ust__=m.nr.pp.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ved__=m.nr.pp.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.inf__=m.nr.pp.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ust__=m.nr.pp.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ved__=m.nr.pp.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+```
+
+## Response vs NR in pre
 ```{r}
 
 
 
 # Response
-m.r=FindMarkers(data_seurat,group.by="Endo remission",ident.1="1")
-m.r.ck=FindMarkers(data_ck,group.by="Endo remission",ident.1="1")
-m.r.str=FindMarkers(data_str,group.by="Endo remission",ident.1="1")
-m.r.ck.inf=FindMarkers(data_ck_inf,group.by="Endo remission",ident.1="1")
-m.r.ck.ust=FindMarkers(data_ck_ust,group.by="Endo remission",ident.1="1")
-m.r.ck.ved=FindMarkers(data_ck_ved,group.by="Endo remission",ident.1="1")
-m.r.str.inf=FindMarkers(data_str_inf,group.by="Endo remission",ident.1="1")
-m.r.str.ust=FindMarkers(data_str_ust,group.by="Endo remission",ident.1="1")
-m.r.str.ved=FindMarkers(data_str_ved,group.by="Endo remission",ident.1="1")
+m.r=FindMarkers(data.pre,group.by="Endo remission",ident.1="1")
+m.r.ck=FindMarkers(data.pre.ck,group.by="Endo remission",ident.1="1")
+m.r.str=FindMarkers(data.pre.str,group.by="Endo remission",ident.1="1")
+m.r.ck.inf=FindMarkers(data.pre.ck.inf,group.by="Endo remission",ident.1="1")
+m.r.ck.ust=FindMarkers(data.pre.ck.ust,group.by="Endo remission",ident.1="1")
+m.r.ck.ved=FindMarkers(data.pre.ck.ved,group.by="Endo remission",ident.1="1")
+m.r.str.inf=FindMarkers(data.pre.str.inf,group.by="Endo remission",ident.1="1")
+m.r.str.ust=FindMarkers(data.pre.str.ust,group.by="Endo remission",ident.1="1")
+m.r.str.ved=FindMarkers(data.pre.str.ved,group.by="Endo remission",ident.1="1")
 
 # responder favor
 m.r_=m.r%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
@@ -1090,95 +1310,7 @@ paste(intersect(m.r.str.ved_$gene, m.r.str.ust_$gene), collapse=", ")
 
 ```
 
-### pre vs post in responder
-```{r}
 
-data.r.ck_inf=subset(data.r.ck, drug=="Infliximab")
-data.r.ck_ust=subset(data.r.ck, drug=="Ustekinumab")
-data.r.ck_ved=subset(data.r.ck, drug=="Vedolizumab")
-data.r.str_inf=subset(data.r.str, drug=="Infliximab")
-data.r.str_ust=subset(data.r.str, drug=="Ustekinumab")
-data.r.str_ved=subset(data.r.str, drug=="Vedolizumab")
-
-# m.r.pp=FindMarkers(data_seurat,group.by="treatment",ident.1="post")
-# m.r.pp.ck=FindMarkers(data_ck,group.by="treatment",ident.1="post")
-# m.r.pp.str=FindMarkers(data_str,group.by="treatment",ident.1="post")
-m.r.pp.ck.inf=FindMarkers(data.r.ck_inf,group.by="treatment",ident.1="post")
-m.r.pp.ck.ust=FindMarkers(data.r.ck_ust,group.by="treatment",ident.1="post")
-m.r.pp.ck.ved=FindMarkers(data.r.ck_ved,group.by="treatment",ident.1="post")
-m.r.pp.str.inf=FindMarkers(data.r.str_inf,group.by="treatment",ident.1="post")
-m.r.pp.str.ust=FindMarkers(data.r.str_ust,group.by="treatment",ident.1="post")
-m.r.pp.str.ved=FindMarkers(data.r.str_ved,group.by="treatment",ident.1="post")
-
-# post upregulated
-
-m.r.pp_=m.r.pp%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck_=m.r.pp.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str_=m.r.pp.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck.inf_=m.r.pp.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck.ust_=m.r.pp.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck.ved_=m.r.pp.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str.inf_=m.r.pp.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str.ust_=m.r.pp.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str.ved_=m.r.pp.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-
-
-# pre upregulated
-
-m.r.pp__=m.r.pp%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck__=m.r.pp.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str__=m.r.pp.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck.inf__=m.r.pp.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck.ust__=m.r.pp.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.ck.ved__=m.r.pp.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str.inf__=m.r.pp.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str.ust__=m.r.pp.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.r.pp.str.ved__=m.r.pp.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-```
-### pre vs post in NR
-```{r}
-data.nr.ck_inf=subset(data.nr.ck, drug=="Infliximab")
-data.nr.ck_ust=subset(data.nr.ck, drug=="Ustekinumab")
-data.nr.ck_ved=subset(data.nr.ck, drug=="Vedolizumab")
-data.nr.str_inf=subset(data.nr.str, drug=="Infliximab")
-data.nr.str_ust=subset(data.nr.str, drug=="Ustekinumab")
-data.nr.str_ved=subset(data.nr.str, drug=="Vedolizumab")
-
-# m.nr.pp=FindMarkers(data_seurat,group.by="treatment",ident.1="post")
-# m.nr.pp.ck=FindMarkers(data_ck,group.by="treatment",ident.1="post")
-# m.nr.pp.str=FindMarkers(data_str,group.by="treatment",ident.1="post")
-m.nr.pp.ck.inf=FindMarkers(data.nr.ck_inf,group.by="treatment",ident.1="post")
-m.nr.pp.ck.ust=FindMarkers(data.nr.ck_ust,group.by="treatment",ident.1="post")
-m.nr.pp.ck.ved=FindMarkers(data.nr.ck_ved,group.by="treatment",ident.1="post")
-m.nr.pp.str.inf=FindMarkers(data.nr.str_inf,group.by="treatment",ident.1="post")
-m.nr.pp.str.ust=FindMarkers(data.nr.str_ust,group.by="treatment",ident.1="post")
-m.nr.pp.str.ved=FindMarkers(data.nr.str_ved,group.by="treatment",ident.1="post")
-
-# post upregulated
-
-m.nr.pp_=m.nr.pp%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck_=m.nr.pp.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str_=m.nr.pp.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck.inf_=m.nr.pp.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck.ust_=m.nr.pp.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck.ved_=m.nr.pp.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str.inf_=m.nr.pp.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str.ust_=m.nr.pp.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str.ved_=m.nr.pp.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-
-
-# pre upregulated
-
-m.nr.pp__=m.nr.pp%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck__=m.nr.pp.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str__=m.nr.pp.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck.inf__=m.nr.pp.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck.ust__=m.nr.pp.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.ck.ved__=m.nr.pp.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str.inf__=m.nr.pp.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str.ust__=m.nr.pp.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-m.nr.pp.str.ved__=m.nr.pp.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
-```
 ## pathways - myGO, myGSEA
 ```{r}
 # prepost, pre favor, ck
@@ -1716,6 +1848,15 @@ results8 <- analyze_set_overlap(
 )
 ```
 
+# LMER
+```{r}
+lmm1=
+data.ck
+data.ck.inf
+data.ck.ust
+data.ck.ved
+
+```
 
 # DESeq
 ## simplist

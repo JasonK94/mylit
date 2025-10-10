@@ -99,6 +99,14 @@ marker_filter=function(markers, filter=c("rb","mt","hb","AC","ENSG","LINC")){
   return(markers)
 }
 
+#' filterout (Intercept) terms
+#' @export
+lrf=function(lmm_result){
+  lmm_result$summary=lmm_result$summary[lmm_result$summary$term!="(Intercept)",]
+  return(lmm_result)
+}
+
+
 #' Convert FindAllMarkers results to a list organized by cluster
 #'
 #' This function takes the results from Seurat's FindAllMarkers and organizes them
