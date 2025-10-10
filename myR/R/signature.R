@@ -441,6 +441,90 @@ CompareModuleScoringMethods <- function(
 # results <- PlotModuleScoreHeatmap(pbmc, gene_sets, show_pval = TRUE)
 # comparison <- CompareModuleScoringMethods(pbmc, gene_sets)
 
+#' @title Add Gene Signature Score using enrichIt (Improved Version)
+#' @description Calculates a gene signature score using escape::enrichIt and adds it to the Seurat object's metadata.
+#' This version flexibly accepts different gene ID types (e.g., ENSEMBL, SYMBOL, ENTREZID).
+#'
+#' @param seurat_obj A Seurat object.
+#' @param gene_source A character string specifying the path to a file OR an R object (data.frame, vector) containing gene IDs.
+#' @param signature_name A character string for the name of the new metadata column.
+#' @param input_keytype The type of the input gene IDs. Must be a valid keytype for org.Hs.eg.db. 
+#'                      Common values are "ENSEMBL", "SYMBOL", "ENTREZID". Defaults to "ENSEMBL".
+#' @param gene_col If `gene_source` is a file path or a data.frame, specify the column index or name. Defaults to 1.
+#' @param sheet_name If `gene_source` is an xlsx file, specify the sheet name or index. Defaults to 1.
+#' @param assay The assay to use from the Seurat object. Defaults to "RNA".
+#' @param layer The layer (slot) to use from the assay. Defaults to "data".
+#' @param ... Additional arguments to be passed to `escape::enrichIt`.
+#'
+#' @return A Seurat object with the new signature score added to its metadata.
+#' @export
+add_signature_enrichit <- function(seurat_obj,
+                                      gene_source,
+                                      signature_name,
+                                      input_keytype = "ENSEMBL", # <--- 이 파라미터 추가!
+                                      gene_col = 1,
+                                      sheet_name = 1,
+                                      assay = "RNA",
+                                      layer = "data",
+                                      ...) {
+  # ... (이전 버전과 동일한 유전자 목록 로드 부분) ...
+  if (is.character(gene_source) && file.exists(gene_source)) {
+    ext <- tools::file_ext(gene_source)
+    gene_list_raw <- switch(ext,
+                            xlsx = read_xlsx(gene_source, sheet = sheet_name)[[gene_col]],
+                            csv = read.csv(gene_source, stringsAsFactors = FALSE)[[gene_col]],
+                            txt = read.table(gene_source, stringsAsFactors = FALSE)[[gene_col]],
+                            stop("Unsupported file type.")
+    )
+  } else if (is.data.frame(gene_source)) {
+    gene_list_raw <- gene_source[[gene_col]]
+  } else if (is.vector(gene_source)) {
+    gene_list_raw <- gene_source
+  } else {
+    stop("`gene_source` must be a valid file path, data.frame, or vector.")
+  }
+  
+  # 입력된 keytype을 사용하여 항상 SYMBOL로 변환
+  # 자동 감지는 권하지 않는다. 왜냐면 오류의 원인이 되기 쉽다. 데이터 정제는 따로 수행하는 것이 좋다.
+  
+  message(paste("Input keytype is", input_keytype, ". Converting to Gene Symbols..."))
+  gene_symbols <- mapIds(
+    org.Hs.eg.db,
+    keys = unique(na.omit(as.character(gene_list_raw))),
+    keytype = input_keytype, # 사용자가 지정한 ID 타입을 사용
+    column = "SYMBOL",       # 최종 목표는 항상 SYMBOL
+    multiVals = "first"
+  )
+  gene_symbols <- na.omit(gene_symbols)
+  # ---
+  
+  if (length(gene_symbols) == 0) {
+    stop(paste("No valid gene symbols could be mapped using keytype:", input_keytype))
+  }
+  message(paste(length(gene_symbols), "gene symbols were successfully mapped."))
+  
+  gene_set <- GeneSet(gene_symbols, setName = signature_name)
+  gene_sets_collection <- GeneSetCollection(gene_set)
+  
+  message("Running enrichIt...")
+  expr_matrix <- GetAssayData(seurat_obj, assay = assay, layer = layer)
+  enrichment_scores <- enrichIt(
+    obj = expr_matrix,
+    gene.sets = gene_sets_collection,
+    ...
+  )
+  
+  message("Adding scores to Seurat metadata...")
+  seurat_obj <- AddMetaData(
+    object = seurat_obj,
+    metadata = as.data.frame(enrichment_scores)
+  )
+  
+  return(seurat_obj)
+}
+
+
+
 library(Seurat)
 library(dplyr)
 library(broom)
