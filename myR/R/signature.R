@@ -576,10 +576,7 @@ add_progeny_scores <- function(seurat_obj, organism = "Human", topn = 100, ...) 
   return(seurat_obj)
 }
 
-library(Seurat)
-library(dplyr)
-library(broom)
-library(lme4)  # for mixed effects models
+# NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
 
 linear_seurat <- function(sobj, 
                           layer = c("counts", "data", "scale.data"), 

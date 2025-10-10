@@ -379,12 +379,7 @@ seurat_posthoc_analysis <- function(data, results, alpha = 0.05) {
 # Claude style
 
 # Seurat Cluster Fraction Analysis Functions
-# 필요한 라이브러리
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(ggpubr)
-library(rstatix)
+# NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
 
 #' Extract sample-level metadata from cell-level metadata
 #' 

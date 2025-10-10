@@ -2,15 +2,8 @@
 # Author: Analysis Pipeline
 # Purpose: Modular functions for pathway enrichment analysis
 
-# Required libraries
-library(clusterProfiler)
-library(org.Hs.eg.db)
-library(DOSE)
-library(enrichplot)
-library(msigdbr)
-library(fgsea)
-library(dplyr)
-library(tibble)
+# NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
+# Required: clusterProfiler, org.Hs.eg.db, DOSE, enrichplot, msigdbr, fgsea, dplyr, tibble
 
 #' Convert Gene IDs Between Different Formats
 #'

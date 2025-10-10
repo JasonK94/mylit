@@ -1,16 +1,9 @@
 # GeoMx Data Analysis Workflow in R
 # Standard methods for normalization and differential expression analysis
 
-# Load required libraries
-library(NanoStringNCTools)
-library(GeomxTools)
-library(GeoMxWorkflows)
-library(dplyr)
-library(ggplot2)
-library(pheatmap)
-library(limma)
-library(edgeR)
-library(tidyr)
+# NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
+# Required packages: NanoStringNCTools, GeomxTools, GeoMxWorkflows, dplyr, ggplot2, 
+#                    pheatmap, limma, edgeR, tidyr
 
 # 1. Data Preparation
 # Assuming you have raw_data and SP (metadata) as described
