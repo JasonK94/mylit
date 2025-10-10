@@ -546,7 +546,7 @@ run_lmm_multiple_genes <- function(seurat_obj,
   # if/else 문을 단순화했습니다. run_fun 내부 로직은 formula_str이 NULL이든 아니든 동일합니다.
   if (n_cores > 1) {
     cl <- makeCluster(n_cores)
-    clusterEvalQ(cl, { library(lme4); library(lmerTest) })
+    clusterEvalQ(cl, { library(lme4); library(lmerTest); library(dplyr) })
     
     # <<-- ⭐️ FIX 1: 여기에 "formula_str"를 추가합니다. -->>
     clusterExport(cl, c("fit_lmm_single_gene", "config", "metadata", "expr_matrix",
