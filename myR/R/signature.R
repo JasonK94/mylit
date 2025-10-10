@@ -523,7 +523,58 @@ add_signature_enrichit <- function(seurat_obj,
   return(seurat_obj)
 }
 
-
+#' @title Add Pathway Activity Scores using progeny
+#' @description Infers pathway activities using progeny and adds them to the Seurat object's metadata.
+#'
+#' @param seurat_obj A Seurat object.
+#' @param organism A character string specifying the organism. Can be "Human" or "Mouse". Defaults to "Human".
+#' @param topn An integer specifying the number of top genes to use for each pathway. Defaults to 100.
+#' @param ... Additional arguments to be passed to `progeny::progeny`.
+#'
+#' @return A Seurat object with pathway activity scores added to its metadata.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # 예시 데이터 생성
+#' pbmc_small <- SeuratObject::pbmc_small
+#' pbmc_with_progeny <- add_progeny_scores(pbmc_small, organism = "Human")
+#'
+#' # 추가된 메타데이터 확인 (14개 경로)
+#' head(pbmc_with_progeny@meta.data)
+#'
+#' # DimPlot으로 특정 경로 활성도 시각화
+#' DimPlot(pbmc_with_progeny, reduction = "umap", group.by = "seurat_clusters", label = TRUE)
+#' FeaturePlot(pbmc_with_progeny, features = "NFkB")
+#' }
+add_progeny_scores <- function(seurat_obj, organism = "Human", topn = 100, ...) {
+  
+  # 1. Progeny를 실행하여 새로운 assay 추가
+  message("Running progeny...")
+  seurat_obj <- progeny(
+    seurat_obj,
+    scale = FALSE, # Scaling은 ScaleData에서 별도 수행
+    organism = organism,
+    topn = topn,
+    return_assay = TRUE,
+    ...
+  )
+  
+  # 2. Progeny assay를 스케일링
+  message("Scaling progeny assay...")
+  seurat_obj <- ScaleData(seurat_obj, assay = "progeny")
+  
+  # 3. 스케일링된 데이터를 메타데이터로 변환하여 추가
+  message("Adding scores to Seurat metadata...")
+  progeny_scores <- as.data.frame(t(GetAssayData(seurat_obj, assay = "progeny", slot = "scale.data")))
+  
+  seurat_obj <- AddMetaData(
+    object = seurat_obj,
+    metadata = progeny_scores
+  )
+  
+  return(seurat_obj)
+}
 
 library(Seurat)
 library(dplyr)
