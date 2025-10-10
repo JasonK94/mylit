@@ -634,6 +634,7 @@ mybox_df <- function(df, features, sample_col, group.by, split.by,
 #' p <- upset_gene_lists(L)
 #' print(p)
 #' }
+#' @export
 upset_gene_lists <- function(gene_lists,
                              sets       = NULL,
                              min_size   = 1,
