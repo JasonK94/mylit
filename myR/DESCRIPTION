@@ -67,12 +67,19 @@ Imports:
 Suggests:
     anndata,
     broom.mixed,
+    ComplexUpset,
+    DESeq2,
+    DiagrammeR,
     emmeans,
     escape,
     fgsea,
+    GeomxTools,
+    GeoMxWorkflows,
     glmnet,
     GSEABase,
+    knitr,
     msigdbr,
+    NanoStringNCTools,
     NMF,
     numpy,
     openxlsx,
@@ -83,8 +90,10 @@ Suggests:
     pROC,
     randomForest,
     readxl,
+    rmarkdown,
     testthat (>= 3.0.0),
     UpSetR,
+    userfriendlyscience,
     viridis
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
