@@ -1647,7 +1647,12 @@ score_signature <- function(expr_data, signature, normalize=TRUE) {
 }
 
 
-# Print method
+#' Print Method for Gene Signature Objects
+#'
+#' @param x A gene_signature object
+#' @param ... Additional arguments (not used)
+#'
+#' @export
 print.gene_signature <- function(x, ...) {
   cat("Gene Signature Object\n")
   cat("====================\n")
