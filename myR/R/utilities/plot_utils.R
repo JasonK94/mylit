@@ -245,3 +245,4 @@ get_color_palette <- function(name = "default", n = NULL) {
   return(palette)
 }
 
+
