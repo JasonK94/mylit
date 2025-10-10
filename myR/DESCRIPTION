@@ -14,6 +14,7 @@ Encoding: UTF-8
 LazyData: true
 Imports:
     AnnotationDbi,
+    BiocParallel,
     broom,
     car,
     circlize,
@@ -39,6 +40,7 @@ Imports:
     monocle3,
     nichenetr,
     org.Hs.eg.db,
+    patchwork,
     pheatmap,
     purrr,
     RColorBrewer,
