@@ -61,12 +61,41 @@ results <- linear_seurat(
 ```
 
 ### 3. Linear Mixed Models (LMM)
-(To be added from test.R)
-Best for handling random effects like patient ID or batch effects.
+Best for handling random effects like patient ID or batch effects with complex experimental designs.
 
 ```r
-# Coming soon:
-# results <- run_lmm_deg(...)
+# Create configuration for your experimental design
+config <- create_analysis_config(
+  patient = "PatientID",
+  drug = "Treatment",
+  timepoint = "Time",
+  response = "Responder"
+)
+
+# Run LMM on selected genes
+results <- run_lmm_multiple_genes(
+  seurat_obj,
+  genes = candidate_genes,
+  config = config,
+  n_cores = 4
+)
+
+# View summary
+head(results$summary)
+
+# Find genes with differential response to treatment
+response_genes <- find_response_differential_genes(
+  results$summary,
+  config,
+  top_n = 50
+)
+
+# Find drug-specific genes
+drug_genes <- find_drug_specific_genes(
+  results$summary,
+  config,
+  top_n = 50
+)
 ```
 
 ## Method Comparison
@@ -75,7 +104,7 @@ Best for handling random effects like patient ID or batch effects.
 |--------|----------|------|------|
 | **Pseudobulk (edgeR)** | Group comparisons with replicates | Gold standard for bulk-like DE, handles overdispersion well | Requires sample-level replicates |
 | **Linear Regression** | Continuous/ordinal predictors, multi-factor designs | Flexible, handles various predictor types | Doesn't account for overdispersion |
-| **LMM** | Repeated measures, hierarchical data | Handles random effects, paired/matched designs | Computationally intensive |
+| **LMM** | Repeated measures, hierarchical data, complex designs | Handles random effects, paired/matched designs, drug×response interactions | Computationally intensive, requires careful model specification |
 
 ## When to Use Which Method
 
@@ -93,9 +122,13 @@ Best for handling random effects like patient ID or batch effects.
 
 ### Use LMM when:
 - You have repeated measures (same patient at multiple timepoints)
-- You have hierarchical/nested data structure
+- You have hierarchical/nested data structure (cells nested within patients)
 - You need to account for random effects (patient-to-patient variation)
 - You have paired or matched samples
+- You have complex experimental designs with multiple factors and interactions
+  - Example: drug × timepoint × response interactions
+  - Modeling treatment response differences across drugs
+  - Pre/post treatment comparisons with multiple drugs
 
 ## File Organization
 
@@ -149,4 +182,5 @@ When adding new DE methods:
 - **Marker Analysis**: `analysis/markers/` - for FindMarkers-based analysis
 - **Pathway Analysis**: `analysis/pathway/` - for functional enrichment of DE results
 - **GeoMx DE**: `analysis/spatial/geomx_analysis.R` - for spatial transcriptomics DE
+
 

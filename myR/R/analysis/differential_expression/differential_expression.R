@@ -613,6 +613,334 @@ linear_seurat <- function(sobj,
   }
 }
 
-# NOTE: Linear Mixed Model (LMM) functions from test.R should be added here
-# fit_lmm_single_gene() and run_lmm_multiple_genes() will be integrated in the next iteration
+# =============================================================================
+# LINEAR MIXED MODELS (LMM)
+# =============================================================================
+
+#' Create Analysis Configuration for LMM
+#'
+#' Creates a configuration object to manage metadata column names consistently
+#' throughout complex experimental designs (e.g., GeoMx with patient, drug, timepoint).
+#'
+#' @param patient Column name for patient ID
+#' @param drug Column name for drug/treatment
+#' @param timepoint Column name for timepoint (e.g., pre/post)
+#' @param ck Column name for stratification variable (e.g., CK status)
+#' @param response Column name for treatment response
+#' @param aoi Column name for AOI (Area of Interest) ID
+#'
+#' @return Named list containing column names
+#'
+#' @export
+create_analysis_config <- function(
+    patient = "patient_id",
+    drug = "drug",
+    timepoint = "timepoint",
+    ck = "ck_status",
+    response = "response",
+    aoi = "aoi_id"
+) {
+  list(
+    patient = patient,
+    drug = drug,
+    timepoint = timepoint,
+    ck = ck,
+    response = response,
+    aoi = aoi
+  )
+}
+
+#' Fit Linear Mixed Model for Single Gene
+#'
+#' Internal helper to fit an lmer model for one gene with complex experimental design.
+#'
+#' @param gene_expr Numeric vector of expression values
+#' @param metadata Metadata data frame
+#' @param config Analysis configuration from create_analysis_config()
+#' @param formula_str Optional custom formula string
+#' @param formula_components List with fixed, interactions, and random components
+#' @param use_config_names Whether to map generic names to config names
+#'
+#' @return List with model, effects, anova, convergence status
+#'
+#' @keywords internal
+fit_lmm_single_gene <- function(gene_expr,
+                                metadata,
+                                config = create_analysis_config(),
+                                formula_str = NULL,
+                                formula_components = NULL,
+                                use_config_names = TRUE) {
+  
+  df <- cbind(data.frame(Expression = gene_expr), metadata)
+  
+  # Generate model formula
+  if (is.null(formula_str)) {
+    if (is.null(formula_components)) {
+      # Default formula with all interactions
+      formula_str <- glue::glue(
+        "Expression ~ {config$drug}*{config$timepoint}*{config$response} + (1|{config$patient})"
+      )
+    } else {
+      # Custom formula from components
+      fixed_effects <- formula_components$fixed
+      interactions <- formula_components$interactions
+      random_effects <- formula_components$random
+      
+      if (use_config_names) {
+        for (name in names(config)) {
+          fixed_effects <- gsub(paste0("\\b", name, "\\b"), config[[name]], fixed_effects)
+          interactions <- gsub(paste0("\\b", name, "\\b"), config[[name]], interactions)
+          random_effects <- gsub(paste0("\\b", name, "\\b"), config[[name]], random_effects)
+        }
+      }
+      formula_str <- paste(
+        "Expression ~",
+        paste(c(fixed_effects, interactions), collapse = " + "),
+        "+", random_effects
+      )
+    }
+  }
+  
+  tryCatch({
+    # Set reference levels for factors
+    for (col in c(config$drug, config$response, config$timepoint)) {
+      if (col %in% names(df) && is.factor(df[[col]])) {
+        df[[col]] <- relevel(df[[col]], ref = levels(df[[col]])[1])
+      } else if (col %in% names(df)) {
+        df[[col]] <- factor(df[[col]])
+        df[[col]] <- relevel(df[[col]], ref = levels(df[[col]])[1])
+      }
+    }
+    
+    model <- lme4::lmer(as.formula(formula_str), data = df, REML = FALSE)
+    coef_summary <- summary(model)$coefficients
+    effects <- as.data.frame(coef_summary) %>%
+      tibble::rownames_to_column("term") %>%
+      dplyr::rename(
+        estimate = Estimate, std_error = `Std. Error`,
+        t_value = `t value`, p_value = `Pr(>|t|)`
+      )
+    
+    return(list(
+      model = model,
+      effects = effects,
+      anova = anova(model),
+      converged = TRUE,
+      formula = formula_str
+    ))
+  }, error = function(e) {
+    return(list(
+      converged = FALSE,
+      error = e$message,
+      formula = formula_str
+    ))
+  })
+}
+
+#' Summarize LMM Results
+#'
+#' Internal helper to combine results from multiple LMMs and calculate adjusted p-values.
+#'
+#' @param lmm_results List of results from fit_lmm_single_gene
+#' @param config Analysis configuration
+#'
+#' @return Tidy data frame summarizing all model effects
+#'
+#' @keywords internal
+summarize_lmm_results <- function(lmm_results, config) {
+  converged <- lmm_results[sapply(lmm_results, `[[`, "converged")]
+  if (length(converged) == 0) {
+    warning("No models converged!")
+    return(NULL)
+  }
+  
+  all_effects <- purrr::map_dfr(converged, "effects", .id = "gene")
+  
+  # Adjust p-values for each term across all genes
+  all_effects <- all_effects %>%
+    dplyr::group_by(term) %>%
+    dplyr::mutate(
+      p_adj = p.adjust(p_value, method = "BH"),
+      significant = p_adj < 0.05
+    ) %>%
+    dplyr::ungroup()
+  
+  return(all_effects)
+}
+
+#' Run Linear Mixed Models for Multiple Genes
+#'
+#' Applies LMM to multiple genes in parallel. Main workhorse for LMM analysis
+#' with complex experimental designs (e.g., patient, drug, timepoint, response).
+#'
+#' @param seurat_obj Seurat object
+#' @param genes Character vector of gene names to analyze
+#' @param config Analysis configuration from create_analysis_config()
+#' @param formula_str Optional custom formula string
+#' @param formula_components List specifying model formula components
+#' @param use_config_names Whether to use config names in formula
+#' @param n_cores Number of CPU cores for parallel processing
+#' @param verbose Whether to print progress messages
+#'
+#' @return List containing:
+#'   \item{raw_results}{Complete results for each gene}
+#'   \item{summary}{Tidy data frame of all effects}
+#'   \item{converged_genes}{Number of successful fits}
+#'   \item{total_genes}{Total genes attempted}
+#'
+#' @examples
+#' \dontrun{
+#' # Create config for your experimental design
+#' config <- create_analysis_config(
+#'   patient = "PatientID",
+#'   drug = "Treatment",
+#'   timepoint = "Time",
+#'   response = "Responder"
+#' )
+#' 
+#' # Run LMM analysis
+#' results <- run_lmm_multiple_genes(
+#'   seurat_obj,
+#'   genes = top_genes,
+#'   config = config,
+#'   n_cores = 4
+#' )
+#' 
+#' # View summary
+#' head(results$summary)
+#' }
+#'
+#' @export
+run_lmm_multiple_genes <- function(seurat_obj,
+                                   genes = NULL,
+                                   config = create_analysis_config(),
+                                   formula_str = NULL,
+                                   formula_components = NULL,
+                                   use_config_names = TRUE,
+                                   n_cores = parallel::detectCores() - 1,
+                                   verbose = TRUE) {
+  
+  if (is.null(genes)) {
+    genes <- rownames(seurat_obj)[1:100]
+    warning("No genes specified. Using first 100 genes as test.")
+  }
+  
+  expr_matrix <- Seurat::GetAssayData(seurat_obj, slot = "data")
+  metadata <- seurat_obj@meta.data
+  
+  if (verbose) {
+    message(sprintf("Running LMM for %d genes using %d cores...", length(genes), n_cores))
+  }
+  
+  run_fun <- function(gene) {
+    if (gene %in% rownames(expr_matrix)) {
+      return(fit_lmm_single_gene(
+        gene_expr = as.numeric(expr_matrix[gene, ]),
+        metadata = metadata,
+        config = config,
+        formula_str = formula_str,
+        formula_components = formula_components,
+        use_config_names = use_config_names
+      ))
+    } else {
+      return(list(gene = gene, converged = FALSE, error = "Gene not found"))
+    }
+  }
+  
+  if (n_cores > 1) {
+    cl <- parallel::makeCluster(n_cores)
+    parallel::clusterEvalQ(cl, { library(lme4); library(lmerTest); library(dplyr) })
+    
+    parallel::clusterExport(cl, c("fit_lmm_single_gene", "config", "metadata", "expr_matrix",
+                        "formula_components", "use_config_names", "formula_str"), 
+                  envir = environment())
+    
+    results <- parallel::parLapply(cl, genes, run_fun)
+    parallel::stopCluster(cl)
+  } else {
+    results <- lapply(genes, run_fun)
+  }
+  
+  names(results) <- genes
+  summary_df <- summarize_lmm_results(results, config)
+  
+  return(list(
+    raw_results = results,
+    summary = summary_df,
+    converged_genes = sum(sapply(results, `[[`, "converged")),
+    total_genes = length(genes)
+  ))
+}
+
+#' Find Genes with Differential Response to Treatment
+#'
+#' Identifies genes where treatment response differs by drug from LMM results.
+#'
+#' @param lmm_summary Summary data frame from run_lmm_multiple_genes
+#' @param config Analysis configuration
+#' @param drug_name Optional specific drug name to focus on
+#' @param top_n Number of top genes to return
+#'
+#' @return Data frame of top genes ranked by effect size
+#'
+#' @export
+find_response_differential_genes <- function(lmm_summary,
+                                             config,
+                                             drug_name = NULL,
+                                             top_n = 50) {
+  
+  interaction_pattern <- paste0(config$drug, ".*:", ".*", config$response)
+  if (!is.null(drug_name)) {
+    interaction_pattern <- paste0("(", interaction_pattern, ").*", drug_name)
+  }
+  
+  drug_terms <- lmm_summary %>%
+    dplyr::filter(grepl(interaction_pattern, term, perl = TRUE))
+  
+  top_genes <- drug_terms %>%
+    dplyr::group_by(gene) %>%
+    dplyr::summarize(
+      max_effect = max(abs(estimate)),
+      min_p_adj = min(p_adj),
+      .groups = "drop"
+    ) %>%
+    dplyr::arrange(dplyr::desc(max_effect)) %>%
+    head(top_n)
+  
+  return(top_genes)
+}
+
+#' Find Drug-Specific Genes
+#'
+#' Identifies genes most strongly associated with specific drugs.
+#'
+#' @param lmm_summary Summary data frame from run_lmm_multiple_genes
+#' @param config Analysis configuration
+#' @param top_n Number of top genes to return
+#'
+#' @return Data frame of top genes ranked by effect size
+#'
+#' @export
+find_drug_specific_genes <- function(lmm_summary,
+                                     config,
+                                     top_n = 50) {
+  
+  drug_pattern <- paste0("^", config$drug)
+  
+  drug_terms <- lmm_summary %>%
+    dplyr::filter(grepl(drug_pattern, term))
+  
+  top_genes <- drug_terms %>%
+    dplyr::group_by(gene) %>%
+    dplyr::summarize(
+      max_effect = max(abs(estimate)),
+      min_p_adj = min(p_adj),
+      .groups = "drop"
+    ) %>%
+    dplyr::arrange(dplyr::desc(max_effect)) %>%
+    head(top_n)
+  
+  return(top_genes)
+}
+
 

@@ -1127,9 +1127,9 @@ find_gene_signature <- function(data,
   set.seed(seed)
   method <- match.arg(method)
   
-  # ============================================================================
+  # ===
   # 1. Input validation and data extraction
-  # ============================================================================
+  # ===
   
   # Check if Seurat object
   is_seurat <- inherits(data, "Seurat")
@@ -1173,9 +1173,9 @@ find_gene_signature <- function(data,
   expr_mat <- expr_mat[, common_cells]
   meta.data <- meta.data[common_cells, ]
   
-  # ============================================================================
+  # ===
   # 2. Process target variable
-  # ============================================================================
+  # ===
   
   target_values <- meta.data[[target_var]]
   target_type <- class(target_values)[1]
@@ -1225,9 +1225,9 @@ find_gene_signature <- function(data,
   
   n_groups <- length(unique(target_binary))
   
-  # ============================================================================
+  # ===
   # 3. Filter and preprocess genes
-  # ============================================================================
+  # ===
   
   # Filter low-expressed genes
   n_cells_expr <- rowSums(expr_mat > 0)
@@ -1255,15 +1255,15 @@ find_gene_signature <- function(data,
     }
   }
   
-  # ============================================================================
+  # ===
   # 4. Method-specific signature discovery
-  # ============================================================================
+  # ===
   
   result <- switch(method,
                    
-                   # ------------------------------------------------------------------------
+                   # ---
                    # Random Forest / Tree-based methods
-                   # ------------------------------------------------------------------------
+                   # ---
                    tree_based = {
                      if (!requireNamespace("randomForest", quietly = TRUE)) {
                        stop("randomForest package required. Install with: install.packages('randomForest')")
@@ -1326,9 +1326,9 @@ find_gene_signature <- function(data,
                           performance = perf, model = if(return_model) rf_model else NULL)
                    },
                    
-                   # ------------------------------------------------------------------------
+                   # ---
                    # LASSO regression
-                   # ------------------------------------------------------------------------
+                   # ---
                    lasso = {
                      if (!requireNamespace("glmnet", quietly = TRUE)) {
                        stop("glmnet package required. Install with: install.packages('glmnet')")
@@ -1393,9 +1393,9 @@ find_gene_signature <- function(data,
                           performance = perf, model = if(return_model) cv_fit else NULL)
                    },
                    
-                   # ------------------------------------------------------------------------
+                   # ---
                    # Differential Expression (limma/wilcoxon)
-                   # ------------------------------------------------------------------------
+                   # ---
                    limma = {
                      if (!requireNamespace("limma", quietly = TRUE)) {
                        stop("limma package required. Install with: BiocManager::install('limma')")
@@ -1485,9 +1485,9 @@ find_gene_signature <- function(data,
                           performance = perf, model = NULL)
                    },
                    
-                   # ------------------------------------------------------------------------
+                   # ---
                    # NMF
-                   # ------------------------------------------------------------------------
+                   # ---
                    nmf = {
                      if (!requireNamespace("NMF", quietly = TRUE)) {
                        stop("NMF package required. Install with: install.packages('NMF')")
@@ -1530,9 +1530,9 @@ find_gene_signature <- function(data,
                           performance = perf, model = if(return_model) nmf_res else NULL)
                    },
                    
-                   # ------------------------------------------------------------------------
+                   # ---
                    # GAM (Generalized Additive Model)
-                   # ------------------------------------------------------------------------
+                   # ---
                    gam = {
                      if (!requireNamespace("mgcv", quietly = TRUE)) {
                        stop("mgcv package required. Install with: install.packages('mgcv')")
@@ -1566,9 +1566,9 @@ find_gene_signature <- function(data,
                           performance = perf, model = NULL)
                    },
                    
-                   # ------------------------------------------------------------------------
+                   # ---
                    # PCA loadings
-                   # ------------------------------------------------------------------------
+                   # ---
                    pca_loadings = {
                      # Run PCA
                      pca_res <- prcomp(t(expr_mat), center=FALSE, scale.=FALSE)
@@ -1599,9 +1599,9 @@ find_gene_signature <- function(data,
                    }
   )
   
-  # ============================================================================
+  # ===
   # 5. Return results
-  # ============================================================================
+  # ===
   
   result$method <- method
   result$target_var <- target_var

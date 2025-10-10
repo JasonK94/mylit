@@ -471,3 +471,4 @@ draw_nichenet_circos_plot <- function(circos_data,
   circlize::circos.clear()
 }
 
+
