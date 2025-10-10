@@ -6242,6 +6242,21 @@ lmm_full$summary %>%
 ```{r}
 my_config <- create_analysis_config(patient = "emrid",drug = "drug",timepoint = "treatment",ck = "ck",response = "H3",aoi = "SegmentDisplayName")
 
+forms=list(
+  pp_simple_each=list(fixed=c("drug", "timepoint", "response"),random="(1|patient)"),
+  pp_complex_each=list(fixed = c("drug", "timepoint", "response"),interactions = c("drug:timepoint", "drug:response", "response:timepoint"),random = "(1|patient)")
+)
+
+forms_str=list(
+  pp_simple_all="Expression ~ ck+drug+treatment+response+(1|emrid)",
+  pp_simple_each="Expression ~ drug+treatment+response+(1|emrid)",
+  pp_complex_all="Expression ~ ck*drug*treatment*response+(1|emrid)",
+  pp_complex_each="Expression ~ drug*treatment*response+(1|emrid)"
+)
+
+
+
+
 complex_formula_all=list(fixed = c("drug", "timepoint", "response"),interactions = c("drug:timepoint", "drug:response", "response:timepoint"),random = "(1|patient)")
 complex_formula1 <- list(fixed = c("drug", "timepoint", "response"),interactions = c("drug:timepoint", "drug:response"),random = "(1|patient)")
 complex_formula2 <- list(fixed = c("timepoint", "response"),interactions = c("timepoint:response"),random = "(1|patient)")
@@ -6262,6 +6277,30 @@ qs_str=quick_screen_genes(data.str,config = my_config,comparison_type = "pre_pos
 )
 ```
 ## lmms
+### major, simple
+```{r}
+# usethis::edit_r_environ() #NCONNECTIONS=500 입력 -> Session 완전 종료 후 다시시작하면, 500개 연결한도 갖고 시작.
+# library(future)
+# # 기존의 multisession 대신 multicore를 사용하도록 설정 -> Rstudio에서는 안 된다.
+# plan(multicore, workers = 32)
+
+lmm_list=list(
+  lmm_simple_all=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_components = forms[[1]]),
+  lmm_simple_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_components = forms[[2]]),
+  lmm_simple_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_components = forms[[2]]),
+  lmm_complex_all=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_components = forms[[4]]),
+)
+
+formstr1=forms_str[[1]]
+lmm_list=list(
+  lmm_simple_all=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[1]], n_cores=8),
+  lmm_simple_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
+  lmm_simple_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
+  lmm_complex_all=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[3]], n_cores=8),
+  lmm_complex=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8)
+)
+```
+### sub
 ```{r}
 lmm_all=run_lmm_multiple_genes(data_seurat,genes = qs_all$top_genes,config = my_config,formula_components = complex_formula1)%>%lrf()
 lmm=run_lmm_multiple_genes(data.ck,genes = qs_ck$top_genes,config = my_config,formula_components = complex_formula1)%>%lrf()
@@ -6280,6 +6319,7 @@ lmm6=run_lmm_multiple_genes(data.str.ved,genes = qs_str_ved$top_genes,config = m
 lmm_INF_pos=fit_lmm_single_gene(data_seurat$INF_pos, data_seurat@meta.data, config=my_config, formula_components=complex_formula_all, use_config_names=TRUE)
 lmm_INF_pos=fit_lmm_single_gene(data_seurat$INF_pos, data_seurat@meta.data, config=my_config, formula_str="Expression ~ ck*drug*treatment*response+(1|emrid)")
 View(lmm_INF_pos$effects)
+lmm_INF_pos2=fit_lmm_single_gene(data_seurat$INF_pos, data_seurat@meta.data, config=my_config, formula_str=forms_str[[1]])
 
 # IS score
 lmm_Inf=fit_lmm_single_gene(data_seurat$InflammatoryScore, data_seurat@meta.data, config=my_config, formula_str="Expression ~ ck*drug*treatment*response+(1|emrid)")

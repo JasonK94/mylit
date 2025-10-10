@@ -1,6 +1,11 @@
 # .gitignore에서는 line 중간에 있는 주석을 주석으로 생각하지 않는다. 주의할것.
 # 이미 추적 중인 걸 무시하려면, git rm (-r = recursive) --cached(파일이 아니라 git 추적을 삭제한다는 의미) (folder/file)를 하면 된다. 
 
+# 파일변경 + 스테이징 + 커밋 취소: git reset --hard HEAD~ (HEAD~=HEAD~1; 마지막 1개 커밋까지. HEAD~2: 마지막 두개 커밋.)
+# 스테이징 + 커밋 취소: git reset HEAD~ (=git reset --mixed HEAD~)
+# 커밋 취소: git reset --soft HEAD~
+
+
 
 
 # R 패키지 빌드 아티팩트

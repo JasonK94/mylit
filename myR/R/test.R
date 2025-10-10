@@ -509,6 +509,7 @@ summarize_lmm_results <- function(lmm_results, config) {
 run_lmm_multiple_genes <- function(seurat_obj,
                                    genes = NULL,
                                    config = create_analysis_config(),
+                                   formula_str = NULL,
                                    formula_components = NULL,
                                    use_config_names = TRUE,
                                    n_cores = parallel::detectCores() - 1,
@@ -526,12 +527,14 @@ run_lmm_multiple_genes <- function(seurat_obj,
     message(sprintf("Running LMM for %d genes using %d cores...", length(genes), n_cores))
   }
   
+  # run_fun은 부모 함수의 formula_str을 그대로 사용하면 됩니다.
   run_fun <- function(gene) {
     if (gene %in% rownames(expr_matrix)) {
       return(fit_lmm_single_gene(
         gene_expr = as.numeric(expr_matrix[gene, ]),
         metadata = metadata,
         config = config,
+        formula_str = formula_str, # as.formula 제거하고 그냥 전달
         formula_components = formula_components,
         use_config_names = use_config_names
       ))
@@ -540,11 +543,16 @@ run_lmm_multiple_genes <- function(seurat_obj,
     }
   }
   
+  # if/else 문을 단순화했습니다. run_fun 내부 로직은 formula_str이 NULL이든 아니든 동일합니다.
   if (n_cores > 1) {
     cl <- makeCluster(n_cores)
     clusterEvalQ(cl, { library(lme4); library(lmerTest) })
+    
+    # <<-- ⭐️ FIX 1: 여기에 "formula_str"를 추가합니다. -->>
     clusterExport(cl, c("fit_lmm_single_gene", "config", "metadata", "expr_matrix",
-                        "formula_components", "use_config_names"), envir = environment())
+                        "formula_components", "use_config_names", "formula_str"), 
+                  envir = environment())
+    
     results <- parLapply(cl, genes, run_fun)
     stopCluster(cl)
   } else {
