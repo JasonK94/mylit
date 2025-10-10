@@ -6291,13 +6291,12 @@ lmm_list=list(
   lmm_complex_all=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_components = forms[[4]]),
 )
 
-formstr1=forms_str[[1]]
+
 lmm_list=list(
-  lmm_simple_all=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[1]], n_cores=8),
   lmm_simple_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
   lmm_simple_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
-  lmm_complex_all=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[3]], n_cores=8),
-  lmm_complex=run_lmm_multiple_genes(data_seurat, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8)
+  lmm_complex_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8),
+  lmm_complex_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8)
 )
 ```
 ### sub
