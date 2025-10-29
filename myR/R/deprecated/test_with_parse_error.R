@@ -4,24 +4,7 @@
 # date: "2025-10-10"
 # ---
 
-# Pacakge Dependencies
-library(dplyr)
-library(tidyr)
-library(glue)
-library(Seurat)
-library(lme4)
-library(lmerTest)
-library(emmeans)
-library(parallel)
-library(broom.mixed)
-library(ggpubr)
-library(pheatmap)
-library(viridis)
-library(purrr)
-library(ggplot2)
-library(tibble)
-library(openxlsx)
-
+# NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
 
 #
 # SECTION 1: DATA PREPARATION & VALIDATION
@@ -546,7 +529,7 @@ run_lmm_multiple_genes <- function(seurat_obj,
   # if/else 문을 단순화했습니다. run_fun 내부 로직은 formula_str이 NULL이든 아니든 동일합니다.
   if (n_cores > 1) {
     cl <- makeCluster(n_cores)
-    clusterEvalQ(cl, { library(lme4); library(lmerTest) })
+    clusterEvalQ(cl, { library(lme4); library(lmerTest); library(dplyr) })
     
     # <<-- ⭐️ FIX 1: 여기에 "formula_str"를 추가합니다. -->>
     clusterExport(cl, c("fit_lmm_single_gene", "config", "metadata", "expr_matrix",
