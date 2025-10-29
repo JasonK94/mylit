@@ -64,6 +64,16 @@ counts = merge_count_matrices('path/to/xlsx/files', output_file='merged.csv')
 metadata = merge_metadata('path/to/xlsx/files', output_folder='metadata_output')
 ```
 
+## 🔧 Package Functions
+
+### Core Functions
+
+| Function Name | Input | Output | Function |
+|---|---|---|---|
+| `merge_count_matrices` | input_folder (path to xlsx files), output_file (optional), verbose (bool) | DataFrame with merged counts | Merges count matrices from multiple GeoMx XLSX files into a single matrix |
+| `merge_metadata` | input_folder (path to xlsx files), output_folder (optional), verbose (bool) | Merged metadata DataFrame | Extracts and merges metadata from SegmentProperties across multiple files |
+| `detect_data_type` | df (DataFrame) | String ('probe' or 'target') | Detects whether data contains probe-based or target-based counts |
+
 ### As Command Line Tools
 
 After installation, you get CLI commands:
