@@ -11,23 +11,7 @@
 #   - drug: "Infliximab", "Ustekinumab", "Vedolizumab"
 # 
 
-# Package Dependencies ---
-library(dplyr)
-library(tidyr)
-library(glue)
-library(Seurat)
-library(lme4)
-library(lmerTest)
-library(emmeans)
-library(parallel)
-library(broom.mixed)
-library(ggpubr)
-library(pheatmap)
-library(viridis)
-library(purrr)
-library(ggplot2)
-library(tibble)
-library(openxlsx)
+# NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
 
 
 # ===

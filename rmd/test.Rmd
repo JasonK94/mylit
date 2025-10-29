@@ -6236,7 +6236,12 @@ lmm_full$summary %>%
   theme_bw() +
   labs(title = "Distribution of Significant Effect Sizes")
 ```
-# original workflow (251010)
+# IS, PROGENy workflow
+```{r}
+
+```
+
+# original workflow for LMM (251010)
 
 ## configs
 ```{r}
@@ -6296,7 +6301,13 @@ lmm_list=list(
   lmm_simple_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
   lmm_simple_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
   lmm_complex_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8),
-  lmm_complex_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8)
+  lmm_complex_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8),
+  full_str="lmm_simple_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
+  lmm_simple_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[2]], n_cores=8),
+  lmm_complex_ck=run_lmm_multiple_genes(data.ck, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8),
+  lmm_complex_str=run_lmm_multiple_genes(data.str, genes=rownames(data_seurat@assays$RNA$counts),config=my_config,formula_str = forms_str[[4]], n_cores=8)",
+  my_config=my_config,
+  forms_str=forms_str
 )
 ```
 ### sub
@@ -6339,40 +6350,168 @@ View(lmm_Inf_ck_drug$effects)
 View(lmm_Inf_str_rnr$effects)
 View(lmm_Inf_str_drug$effects)
 ```
-#d 
+## signatures
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
 ```{r}
 
 ```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
+# ddd
+```{r}
+
+```
+
