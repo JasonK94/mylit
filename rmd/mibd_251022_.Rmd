@@ -1,0 +1,4993 @@
+250624
+heal 로직 바꿈 (endo>histo)
+pacl 만들 때 EMRID에 의해 join되도록.
+250827
+1. gene 겹치는 거 리스트 metascape랑 비교
+2. metascape style로 처리했을 때 동일한 결과 나오는지 확인
+3. 
+
+# 퇴장
+```{r}
+set.seed(1234)
+while (TRUE) {
+  # result <- 1 + 1
+  # print(result)
+  print(format(Sys.time(),"%y-%m-%d-%H-%M"))
+  Sys.sleep(100)  # 100초 대기
+}
+```
+
+```{r}
+#library(myR)
+library(devtools)
+setwd("/data/kjc1/mylit/myR") #dir 변경은 chunk 끝나면 초기화됨.
+load_all()
+
+#데이터 다루기, 통계
+library(readxl)
+library(dplyr) #%>%
+library(tidyr)
+library(rstatix)   # Grubbs 테스트 등
+library(EnvStats)  # Grubbs 테스트 등 (필요 시)
+library(broom)  # tidy(), glance() 등을 통해 모델 결과를 data.frame으로 쉽게 추출
+library(car) # leveneTest(y ~ group)
+library(stringr)
+
+library(Seurat) # SCT normalzation, clustering
+
+#그림그리기
+library(ggplot2)
+library(ggvenn)
+library(ggrepel) #geom_text_repel
+library(pheatmap) #pheatmap
+library(grid) #grid.text로 범례 추가
+library(Hmisc) #rcorr
+library(ComplexHeatmap) #Heatmap, Legend, draw
+library(circlize) #colorRamp라는 요소
+
+library(caret)        # 머신러닝 도구
+library(pROC)         # AUROC 계산
+library(purrr)
+```
+
+# load & metadata joining
+```{r}
+mibd=read_xlsx("/data/kjc1/projects/#124. mIBD/Initial Dataset_merged_250729.xlsx",sheet="BioProbeCountMatrix")%>%as.data.frame()
+mibd_meta_raw=read_xlsx("/data/kjc1/projects/#124. mIBD/Initial Dataset_merged_250729.xlsx",sheet="SegmentProperties")%>%
+  .[!names(.)%in%c("drug")] %>%
+  as.data.frame()
+mibd_meta_clinical=read_xlsx("/data/kjc1/projects/#124. mIBD/1. biologics naive 이름_병록번호 제외_merged2_250728.xlsx")%>%
+  .[!names(.)%in%c("treatment", "slide","TMA 순번")] %>%
+  as.data.frame()
+
+mibd_meta_clinical_long=mibd_meta_clinical %>% 
+  pivot_longer(
+    cols      = c(key_pre, key_post),
+    names_to  = "which_key",
+    values_to = "key_tma"
+  ) %>% 
+  dplyr::select(-which_key)
+
+mibd_meta=mibd_meta_raw%>%
+  mutate(ROILabel=as.numeric(ROILabel))%>%
+  left_join(mibd_meta_clinical_long, by=c("key_tma"))
+
+mibd_meta_final=drop_na(mibd_meta, patho_id, `Endo remission`) %>% mutate(response=`Endo remission`)
+
+raw_data=mibd
+rownames(raw_data)=raw_data$ProbeDisplayName
+SP=mibd_meta_final
+rownames(SP)=SP$SegmentDisplayName
+
+rm(mibd_meta_clinical, mibd_meta_clinical_long, mibd_meta, mibd_meta_final, mibd, mibd_meta_raw)
+```
+
+# 임시블록: 카운트 정리.
+```{r}
+# 1) 환자×drug로 반응 단일화 (AOI/ck 무시)
+pd <- mibd_meta_final %>%
+  filter(!is.na(response)) %>%
+  mutate(response = as.integer(response)) %>%      # 0/1로 통일
+  dplyr::group_by(emrid, drug) %>%
+  dplyr::summarise(
+    vals = unique(response),
+    patient_response = if (length(vals) == 1) vals else NA_integer_,  # 모순(여러 값) → NA로 표기
+    .groups = "drop"
+  ) %>%
+  dplyr::select(emrid, drug, patient_response)
+
+# (선택) 모순 케이스 확인
+conflicts <- pd %>% filter(is.na(patient_response))
+# View(conflicts)  # 원하면 확인
+
+# 2A) 모순 제외하고 drug별 0/1 카운트
+counts <- pd %>%
+  filter(!is.na(patient_response)) %>%
+  count(drug, patient_response, name = "n_patients") %>%
+  # patient_response가 0/1이라면, 그대로 wide 펼치기
+  mutate(patient_response = as.character(patient_response)) %>%
+  pivot_wider(
+    names_from = patient_response, values_from = n_patients, values_fill = 0
+  ) %>%
+  # 편의상 컬럼 이름 정리: '1' = Responder, '0' = NonResponder
+  rename(Responder = `1`, NonResponder = `0`) %>%
+  mutate(
+    Total = Responder + NonResponder,
+    RespRate = ifelse(Total > 0, Responder / Total, NA_real_)
+  ) %>%
+  arrange(drug)
+
+counts
+```
+
+# automation
+data는 gene counts와 metadata가 합쳐진 것
+aoi는 gene counts만을 의미
+1. data_filtered_aoi는 AOI 전체 발현량 기준 cutoff된 것
+2. neg는 negative probe만을 사용한것
+3. bio는 neg를 제외한 것
+4. bio_data_qc는 gene 중, geomean의 10%를 못 넘는 것과, grubbs test cutoff(현재 10=1000%로 사용 안하는 중)를 못 넘는 것을 제외한 것
+5. 
+```{r}
+choice_of_column="TargetName"
+
+
+
+data_selected <- raw_data %>%
+  dplyr::select(
+    `ProbeDisplayName`,
+    `TargetName`,
+    `HUGOSymbol`,
+    matches("\\|")  # 파이프(|) 문자 포함된 컬럼명, 백틱으로 감싸야 함
+  )
+
+# 1) 우선 numeric 타입 컬럼만 찾음
+numeric_cols <- names(data_selected)[sapply(data_selected, is.numeric)]
+
+# 2) 여기서도 B, C, D 등 메타열(문자형)이 섞여있으면 제외
+#    원래 계획대로라면 AOI 카운트 열만 남겨야 함
+#    예: meta_cols <- c("ProbeDisplayName","TargetName","HUGOSymbol", ...)
+meta_cols <- c("ProbeDisplayName", "TargetName", "HUGOSymbol") 
+# 실제 이름과 맞춰 수정 가능
+
+# 3) 최종적으로 우리가 sum을 구하고 싶은 AOI 열만 선택
+aoi_cols <- setdiff(numeric_cols, meta_cols)
+aoi_cols=intersect(aoi_cols, rownames(SP))
+
+# 4) colSums
+aoi_sum <- colSums(data_selected[aoi_cols], na.rm = TRUE)
+
+## (예시) AOI outlier(너무 낮은 count) 필터링 기준 설정
+## 실제론 boxplot/IQR/임계값/수동 선택 등 다양한 방식 가능
+q1 <- quantile(aoi_sum, 0.25)
+q3 <- quantile(aoi_sum, 0.75)
+iqr_val <- q3 - q1
+low_cutoff <- q1 - 1.5 * iqr_val  # 예: 1.5*IQR 미만이면 outlier로 간주
+remove_aoi <- names(aoi_sum[aoi_sum < low_cutoff])
+
+## 현재 데이터셋에서 특정 AOI(예: 4mm 68번)가 유일하게 이상치라고 가정
+## 'remove_aoi'에 해당하면 필터링
+data_filtered_aoi <- data_selected %>%
+  select(-all_of(remove_aoi))%>%
+  select(
+         `ProbeDisplayName`,
+         `TargetName`,
+         `HUGOSymbol`,
+         all_of(aoi_cols)
+         )
+
+# -1.5IQR 미만인 AOI를 제거해준 후, negprobe만 선택
+neg_data <- data_filtered_aoi %>%
+  filter(grepl("NegProbe-WTX", ProbeDisplayName))
+
+# 최솟값을 제거
+neg_aoi <- neg_data[aoi_cols]
+neg_geo_mean <- exp(rowMeans(log(neg_aoi), na.rm = TRUE))  # +1: log(0) 방지 --> 애초에 1이 더해져 있다.
+neg_overall_geo_mean <- geoMean(neg_geo_mean, na.rm = TRUE)
+
+neg_log_sd <- sd(log(neg_geo_mean), na.rm = TRUE)
+LOQ <- exp(log(neg_overall_geo_mean) + 2 * neg_log_sd)
+
+## NegProbe-WTX가 아닌 행만: (과거엔 filter(!grepl("NegProbe-WTX", B)) )
+bio_data <- data_filtered_aoi %>%
+  filter(!grepl("NegProbe-WTX", ProbeDisplayName))
+
+bio_aoi <- bio_data[aoi_cols]
+probe_geo_mean <- exp(rowMeans(log(bio_aoi), na.rm = TRUE))
+
+## ratio_to_target: probe별 geomean / 해당 target의 geomean
+ratio_to_target <- probe_geo_mean/geoMean(probe_geo_mean)
+
+keep_idx_1 <- ratio_to_target >= 0.1
+
+
+# grubbs_percent_rosner <- apply(bio_aoi, 1, function(x) {
+#   # x: 한 probe의 모든 AOI 카운트
+#   # k = 최대 검출할 outlier 개수 (적당히 지정. 예: 전체 AOI 수의 10%나 20% 정도?)
+#   k_max <- floor(0.5 * length(x))  # 예) 최대 절반까지 outlier로 잡을 수 있다고 가정
+# 
+#   # rosnerTest로 한 번에 다중 outlier 검출
+#   # alpha는 0.05(기본), 필요시 조정
+#   # NOTE: x에 NA가 있으면 에러 -> na.omit(x) 등 미리 처리 필요
+#   out <- suppressWarnings(
+#     rosnerTest(na.omit(x), k = k_max)
+#   )
+# 
+#   # outlier로 판정된 관측치 개수
+#   n_out <- out$n.outliers
+# 
+#   # outlier 비율
+#   frac_out <- n_out / length(x)
+#   return(frac_out)
+# })
+
+# grubbs test 안한다.
+#keep_idx_2 <- grubbs_percent_rosner < 10
+#keep_idx_3 <- grubbs_percent_rosner < 0.2
+
+#bio_data_qc <- bio_data[keep_idx_1 & keep_idx_2, ]
+
+#length(keep_idx_2[keep_idx_2==TRUE])
+length(keep_idx_1[keep_idx_1==TRUE])
+bio_data_qc=bio_data[keep_idx_1, ]
+
+
+## 2. Filter
+## (주어진 frequency & threshold 조건)
+## Frequency >= 10% segments above threshold
+## Threshold = max(LOQ, user_defined=2) 등
+
+threshold_used=LOQ
+#threshold_used <- max(LOQ, 2)
+
+
+
+bio_aoi_qc <- bio_data_qc[aoi_cols]
+
+freq_above_geo <- apply(bio_aoi_qc, 1, function(x) {
+  gm_x <- exp(mean(log(x), na.rm = TRUE))
+  # geomean이 threshold_used보다 큰 경우 1, 그렇지 않으면 0
+  as.numeric(gm_x >= threshold_used)
+})
+keep_idx_geo <- (freq_above_geo == 1)  # 또는 TRUE
+bio_data_filtered <- bio_data_qc[keep_idx_geo, ]
+
+## (예시) Area, Nuclei 정보는 다른 sheet("SegmentProperties")에서 불러온다고 가정
+
+## manually remove the abnormal AOI
+#SP=subset(SP,SegmentDisplayName!=remove_aoi) #remove_aoi가 없으면... 불필요
+
+area_info <- SP$AOISurfaceArea
+nuclei_info <- SP$AOINucleiCount
+names(area_info) <- SP$SegmentDisplayName  # 실제 ID 컬럼 매핑 필요
+names(nuclei_info) <- SP$SegmentDisplayName
+
+## (예시) AOI이름과 SegmentID 매핑 필요. 스켈레톤 예시
+## scale_to_area = count / geomean(area)
+area_geo_mean <- exp(mean(log(area_info), na.rm = TRUE))
+## scale_to_nuclei = count / geomean(nuclei)
+nuclei_geo_mean <- exp(mean(log(nuclei_info), na.rm = TRUE))
+
+scaled_data_area <- sweep(bio_data_filtered[aoi_cols], 2, area_info/area_geo_mean, "/")
+scaled_data_nuclei <- sweep(bio_data_filtered[aoi_cols], 2, nuclei_info/nuclei_geo_mean, "/")
+rownames(scaled_data_area)=bio_data_filtered[[choice_of_column]]
+rownames(scaled_data_nuclei)=bio_data_filtered[[choice_of_column]]
+#HUGOSymbol이 좋은 선택인듯하다. CancerHallmark에서 TargetName을 뱉어냄. Metascape는 보긴 본다.
+# 이 이유로 targetname을 배제한 게 좋지 않다. hugosymbol은 여러 개가 튀어나옴..
+
+
+## (예: NegProbe-WTX의 지오메트릭 평균, Signal-to-Background 등)
+neg_probe_geo <- exp(colMeans(log(neg_aoi), na.rm=TRUE))
+bg_corrected <- sweep(scaled_data_area, 2, neg_probe_geo, "/")  # 예: x1 배수
+
+gene_names=rownames(bg_corrected)
+safe_gene_names=gsub("_",".",gene_names) #APOBEC3A, APOBEC3A_B의 사례에서, APOBEC3A_B가 seurat SetAssayData에서 삭제되는 현상을 발견하였음
+rownames(bg_corrected)=safe_gene_names
+
+## (Q3, Geomean, 등 선택 가능. 여기선 Q3 예시)
+norm_factors <- apply(bg_corrected, 2, quantile, 0.75)
+data_norm <- sweep(bg_corrected, 2, norm_factors, "/")
+rownames(data_norm)=rownames(bg_corrected) 
+
+
+
+# norm_factors_2=apply(bio_data_filtered[4:length(bio_data_filtered)], 2, quantile, 0.75)
+# data_norm_2=sweep(bio_data_filtered[4:length(bio_data_filtered)], 2, norm_factors_2, "/")
+# rownames(data_norm_2)=bio_data_filtered$HUGOSymbol
+
+
+## metadata를 몇 개 더하고 t를 한 merged_df.
+
+tag_data <- SP #%>% select(SegmentDisplayName, names(SP)[7:which(colnames(SP)=="QCFlags")-1]) # 등
+
+
+expr_matrix <- do.call(cbind, data_norm)
+expr_df <- as.data.frame(expr_matrix)
+rownames(expr_df)=rownames(data_norm)
+t_data=as.data.frame(t(expr_df))
+t_data$AOI=colnames(data_norm)
+merged_df <- merge(t_data, SP,
+                   by.x = "AOI",
+                   by.y = "SegmentDisplayName")  # 실제 key column 명 맞춰야
+```
+## rm()
+```{r}
+rm(data_selected, numeric_cols, meta_cols, aoi_cols, aoi_sum, q1, q3, iqr_val, low_cutoff, remove_aoi, data_filtered_aoi, neg_data, neg_aoi, neg_geo_mean, neg_overall_geo_mean, neg_log_sd, LOQ, bio_data, bio_aoi, probe_geo_mean, ratio_to_target, keep_idx_1, keep_idx_2, keep_idx_geo, grubbs_percent_rosner, bio_data_qc, threshold_used, freq_above_geo, area_info, nuclei_info, area_geo_mean, nuclei_geo_mean, scaled_data_area, scaled_data_nuclei, neg_probe_geo, norm_factors, norm_factors_2, tag_data, bio_aoi_qc, bio_data_filtered)
+
+```
+
+# Seurat, Metadata
+deep > endo > histologic > mucosal
+```{r}
+
+
+names(data_norm)%in% rownames(SP)
+data_norm=data_norm[,colnames(data_norm)%in% rownames(SP)]
+
+
+data_seurat=CreateSeuratObject(bg_corrected)
+data_seurat=SetAssayData(data_seurat,
+                         layer="data",
+                         new.data=as.matrix(data_norm),
+                         assay="RNA")
+
+SP$barcode=rownames(SP)
+
+# rownames(SP)=SP$SegmentDisplayName
+SP=SP[SP$SegmentDisplayName%in%rownames(data_seurat@meta.data),]
+
+data_seurat=AddMetaData(data_seurat, SP)
+
+md <- data_seurat@meta.data
+
+# case_when() 적용
+md <- md %>% mutate(
+  heal = case_when(
+    `Deep mucosal healing` == 1                      ~ 4,
+    `Endo remission` == 1                             ~ 3,
+    `histologic Endoscopic improvement` == 1          ~ 2,
+    `mucosal healing` == 1                            ~ 1,
+    `mucosal healing` == 0                            ~ 0,
+    is.na(`mucosal healing`)                          ~ NA_real_,
+    TRUE                                              ~ NA_real_
+  )
+)
+
+# 다시 Seurat 객체에 덮어쓰기
+data_seurat@meta.data$heal <- md$heal
+
+data_seurat@meta.data$response=case_when(
+  data_seurat@meta.data$heal%in%c(0,1)~"NR",
+  data_seurat@meta.data$heal%in%c(2,3,4)~"R",
+  TRUE ~ "NA"
+)
+data_seurat$ck_=case_when(data_seurat@meta.data$ck==T ~ "ck",
+                                           !data_seurat@meta.data$ck ~ "str",
+                                           TRUE ~ "what")
+data_seurat$`Endo remission`=as.character(data_seurat$`Endo remission`)
+data_seurat <- AddMetaData(
+  data_seurat,
+  metadata = data_seurat@meta.data$`Endo remission`,
+  col.name = "Endo_remission"
+)
+
+data_seurat$H1=ifelse(data_seurat$`mucosal healing`==1,"R","NR")
+data_seurat$H2=ifelse(data_seurat$`histologic Endoscopic improvement`==1,"R","NR")
+data_seurat$H3=ifelse(data_seurat$`Endo remission`==1,"R","NR")
+data_seurat$H4=ifelse(data_seurat$`Deep mucosal healing`==1,"R","NR")
+
+data_seurat@meta.data$r_t=paste(data_seurat@meta.data$response, "_", data_seurat$treatment)
+data_seurat@meta.data$heal_t=paste(data_seurat@meta.data$heal, "_", data_seurat$treatment)
+
+data_seurat@meta.data$drug_r=paste(data_seurat@meta.data$drug,"_", data_seurat@meta.data$`Endo remission`)
+data_seurat@meta.data$drug_t=paste(data_seurat@meta.data$drug,"_", data_seurat@meta.data$treatment)
+data_seurat@meta.data$drug_r_t=paste(data_seurat@meta.data$drug_r,"_", data_seurat@meta.data$treatment)
+
+data_seurat@meta.data$ck_r=paste(data_seurat$ck_,"_", data_seurat@meta.data$`Endo remission`)
+data_seurat@meta.data$ck_t=paste(data_seurat$ck_,"_", data_seurat@meta.data$treatment)
+data_seurat@meta.data$ck_r_t=paste(data_seurat@meta.data$ck_r,"_", data_seurat@meta.data$treatment)
+
+data_seurat@meta.data$drug_ck=paste(data_seurat@meta.data$drug,"_", data_seurat@meta.data$ck_)
+data_seurat@meta.data$drug_ck_r=paste(data_seurat@meta.data$drug,"_", data_seurat@meta.data$ck_r)
+data_seurat@meta.data$drug_ck_t=paste(data_seurat@meta.data$drug,"_", data_seurat@meta.data$ck_t)
+data_seurat@meta.data$drug_ck_r_t=paste(data_seurat@meta.data$drug,"_", data_seurat@meta.data$ck_r_t)
+
+data_seurat@meta.data$index=1:length(data_seurat$orig.ident)
+data_seurat@meta.data$ck_index=paste0(data_seurat@meta.data$ck_,"_",data_seurat@meta.data$index)
+data_seurat@meta.data$pp_index=paste0(data_seurat@meta.data$treatment,"_",data_seurat@meta.data$index)
+data_seurat@meta.data$rpp=paste0(data_seurat@meta.data$H3,"_",data_seurat@meta.data$treatment)
+data_seurat@meta.data$rpp_index=paste0(data_seurat@meta.data$rpp,"_",data_seurat@meta.data$index)
+
+rm(t_data, SP, raw_data, merged_df, md, expr_matrix, expr_df, data_norm, bg_corrected)
+```
+
+## (optional) subset - pre&post match
+pre&post가 있는 것만..
+```{r}
+
+valid_emrids1 <- data_seurat@meta.data %>%
+  mutate(unique_id= paste0(emrid, drug,ck)) %>%
+  group_by(unique_id) %>%
+  filter(all(c("pre", "post") %in% treatment))# %>%
+  # dplyr::select(c("unique_id", "emrid", "ck", "treatment")) #%>% # 조건을 만족하는 emrid만 벡터 형태로 추출
+  # unique()       # 중복 제거
+
+
+
+# res <- diagnosis_parity_detailed (
+#     sobj = data_seurat,
+#     patient = "emrid", treatment = "drug", timepoint = "treatment", tissue = "ck_",
+#     check_key = "treatment",            # 검증할 열 이름(문자열)
+#     check_values = c("pre","post")      # 페어로 맞춰야 할 값들
+# )
+# pre - post match
+valid_emrid=diagnosis_parity_detailed(data_seurat, "emrid","drug","treatment","ck_","treatment",c("pre","post"))
+# AOI match
+valid_emrid2=diagnosis_parity_detailed(data_seurat, "emrid","drug","treatment",check_key="SegmentLabel",check_values=c("Segment 1","Segment 2"))
+
+data_seurat_total=data_seurat
+# R-NR match
+
+# pre-post match
+data_seurat=subset(data_seurat, SegmentDisplayName %in% valid_emrid$paired_ids)
+data.ck=subset(data_seurat, ck==TRUE)
+data.str=subset(data_seurat, ck==FALSE)
+data.pre=subset(data_seurat, treatment=="pre")
+data.post=subset(data_seurat, treatment=="post")
+data.r=subset(data_seurat, Endo_remission==1)
+data.nr=subset(data_seurat, Endo_remission==0)
+
+print(ncol(data_seurat))
+rm(valid_emrids1,valid_emrids2,valid_emrid,valid_emrid2)
+```
+
+# sample number overview
+## Response 무시
+### 2차약제 사용자 포함
+```{r}
+patient_counts <- data_seurat@meta.data %>%
+    dplyr::group_by(drug, treatment) %>%
+    summarise(
+        n_patients = n_distinct(emrid)
+    ) %>%
+    ungroup() # 그룹 해제 (좋은 습관입니다)
+
+print(patient_counts)
+
+patient_table <- patient_counts %>%
+    pivot_wider(
+        names_from = treatment,   # "pre", "post"를 컬럼 이름으로
+        values_from = n_patients  # 값은 환자 수로
+    )
+
+print(patient_table)
+```
+
+### 2차약제 사용자 제거
+```{r}
+# 가정: data_seurat@meta.data에 emrid, drug, treatment, response 컬럼이 있음
+
+# 1. 여러 약물에 등록된 환자 ID(emrid) 리스트 확보
+patients_to_exclude <- data_seurat@meta.data %>%
+  group_by(emrid) %>%
+  summarise(n_drugs = n_distinct(drug)) %>%
+  filter(n_drugs > 1) %>%
+  pull(emrid) # 환자 ID 벡터 추출
+
+# 2. 원본 metadata에서 이 환자들을 제외
+filtered_metadata <- data_seurat@meta.data %>%
+  filter(!emrid %in% patients_to_exclude)
+
+# 3. '깨끗해진' 데이터로 drug, treatment, response 별로 환자 수 집계
+strict_patient_table_detailed <- filtered_metadata %>%
+  group_by(drug, treatment, response) %>% # 'response' 추가
+  summarise(
+    n_patients = n_distinct(emrid)
+  ) %>%
+  ungroup() %>%
+  pivot_wider(
+    names_from = treatment,
+    values_from = n_patients
+  ) %>%
+  arrange(drug, response) # 정렬 추가
+
+print(strict_patient_table_detailed)
+```
+## response 고려
+```{r}
+# 가정: data_seurat@meta.data에 emrid, drug, treatment, response 컬럼이 있음
+
+# 1. 여러 약물에 등록된 환자 ID(emrid) 리스트 확보
+patients_to_exclude <- data_seurat@meta.data %>%
+    group_by(emrid) %>%
+    summarise(n_drugs = n_distinct(drug)) %>%
+    filter(n_drugs > 1) %>%
+    pull(emrid) # 환자 ID 벡터 추출
+
+# 2. 원본 metadata에서 이 환자들을 제외
+filtered_metadata <- data_seurat@meta.data %>%
+    filter(!emrid %in% patients_to_exclude)
+
+
+# 3-1. drug, treatment 별로 환자 수 집계
+patient_table <- data_seurat@meta.data %>%
+    dplyr::group_by(drug, treatment) %>%
+    summarise(
+        n_patients = n_distinct(emrid)
+    ) %>%
+    ungroup() %>%
+    pivot_wider(
+        names_from = treatment,   # "pre", "post"를 컬럼 이름으로
+        values_from = n_patients  # 값은 환자 수로
+    )
+
+print(patient_table)
+
+# 3-2. Filtered - drug, treatment 별로 환자 수 집계
+strict_patient_table <- filtered_metadata %>%
+    dplyr::group_by(drug, treatment) %>%
+    summarise(
+        n_patients = n_distinct(emrid)
+    ) %>%
+    ungroup() %>%
+    pivot_wider(
+        names_from = treatment,   # "pre", "post"를 컬럼 이름으로
+        values_from = n_patients  # 값은 환자 수로
+    )
+
+print(strict_patient_table)
+# 4-1. drug, treatment, response 별로 환자 수 집계
+patient_table_detailed <- data_seurat@meta.data %>%
+    group_by(drug, treatment, response) %>% # 'response' 추가
+    summarise(
+        n_patients = n_distinct(emrid)
+    ) %>%
+    ungroup() %>%
+    pivot_wider(
+        names_from = treatment,
+        values_from = n_patients
+    ) %>%
+    arrange(drug, response) # 정렬 추가
+
+print(patient_table_detailed)
+# 4-2. '깨끗해진' 데이터로 drug, treatment, response 별로 환자 수 집계
+strict_patient_table_detailed <- filtered_metadata %>%
+    group_by(drug, treatment, response) %>% # 'response' 추가
+    summarise(
+        n_patients = n_distinct(emrid)
+    ) %>%
+    ungroup() %>%
+    pivot_wider(
+        names_from = treatment,
+        values_from = n_patients
+    ) %>%
+    arrange(drug, response) # 정렬 추가
+
+print(strict_patient_table_detailed)
+```
+## heal을 고려
+```{r}
+library(dplyr)
+
+# 1. '여러 약물 쓴 환자' 제외
+patients_to_exclude <- data_seurat@meta.data %>%
+    group_by(emrid) %>%
+    summarise(n_drugs = n_distinct(drug)) %>%
+    filter(n_drugs > 1) %>%
+    pull(emrid)
+
+filtered_metadata <- data_seurat@meta.data %>%
+    filter(!emrid %in% patients_to_exclude)
+
+# 2. drug, treatment, heal 별로 환자 수 집계
+patient_counts_heal <- filtered_metadata %>%
+    group_by(drug, heal, ck) %>%
+    summarise(
+        n_patients = n_distinct(emrid)
+    ) %>%
+    ungroup()%>%
+    pivot_wider(
+        names_from = heal,
+        values_from = n_patients
+    ) %>%
+    arrange(drug, ck) # 정렬 추가
+
+print(patient_counts_heal, n=50)
+```
+# subsetting & DimPlot & PCAPlot
+```{r}
+
+data_seurat=ScaleData(data_seurat)
+data_seurat=FindVariableFeatures(data_seurat)
+data_seurat=RunPCA(data_seurat)
+data_seurat=RunUMAP(data_seurat, dims = 1:30)
+
+# data_seurat= harmony::RunHarmony(data_seurat, group.by.vars = "SlideName")
+# data_seurat=RunUMAP(data_seurat, dims=1:30, reduction="harmony" ,reduction.name = "umap_harmony")
+
+data.ck=subset(data_seurat, ck==TRUE)
+data.str=subset(data_seurat, ck==FALSE)
+data.pre=subset(data_seurat, treatment=="pre")
+data.post=subset(data_seurat, treatment=="post")
+data.r=subset(data_seurat, Endo_remission==1)
+data.nr=subset(data_seurat, Endo_remission==0)
+
+data.ck.inf=subset(data.ck, drug=="Infliximab")
+data.ck.ust=subset(data.ck, drug=="Ustekinumab")
+data.ck.ved=subset(data.ck, drug=="Vedolizumab")
+data.str.inf=subset(data.str, drug=="Infliximab")
+data.str.ust=subset(data.str, drug=="Ustekinumab")
+data.str.ved=subset(data.str, drug=="Vedolizumab")
+
+data.ck.pre=subset(data.ck, treatment=="pre")
+data.ck.post=subset(data.ck, treatment=="post")
+data.str.pre=subset(data.str, treatment=="pre")
+data.str.post=subset(data.str, treatment=="post")
+
+data.pre.ck=subset(data.pre, ck==TRUE)
+data.pre.str=subset(data.pre, ck==FALSE)
+data.pre.ck.inf=subset(data.pre.ck, drug=="Infliximab")
+data.pre.ck.ust=subset(data.pre.ck, drug=="Ustekinumab")
+data.pre.ck.ved=subset(data.pre.ck, drug=="Vedolizumab")
+data.pre.str.inf=subset(data.pre.str, drug=="Infliximab")
+data.pre.str.ust=subset(data.pre.str, drug=="Ustekinumab")
+data.pre.str.ved=subset(data.pre.str, drug=="Vedolizumab")
+
+
+data.inf=subset(data_seurat, drug=="Infliximab")
+data.ust=subset(data_seurat, drug=="Ustekinumab")
+data.ved=subset(data_seurat, drug=="Vedolizumab")
+
+
+
+
+# DimPlot(data_seurat, group.by="ck")
+# DimPlot(data_seurat, group.by="drug")
+# DimPlot(data_seurat, group.by="SlideName")
+# DimPlot(data_seurat, group.by="heal")
+# DimPlot(data_seurat, group.by="treatment")
+# 
+# DimPlot(data.ck, group.by="treatment")
+# DimPlot(data.ck, group.by="heal")
+# 
+# DimPlot(data.ck)
+# DimPlot(data.str)
+```
+## subset - in rnr
+```{r}
+
+
+data.r.ck=subset(data.r, ck==TRUE)
+data.r.str=subset(data.r, ck==FALSE)
+data.r.ck.inf=subset(data.r.ck, drug=="Infliximab")
+data.r.ck.ust=subset(data.r.ck, drug=="Ustekinumab")
+data.r.ck.ved=subset(data.r.ck, drug=="Vedolizumab")
+data.r.str.inf=subset(data.r.str, drug=="Infliximab")
+data.r.str.ust=subset(data.r.str, drug=="Ustekinumab")
+data.r.str.ved=subset(data.r.str, drug=="Vedolizumab")
+
+data.nr.ck=subset(data.nr, ck==TRUE)
+data.nr.str=subset(data.nr, ck==FALSE)
+data.nr.ck.inf=subset(data.nr.ck, drug=="Infliximab")
+data.nr.ck.ust=subset(data.nr.ck, drug=="Ustekinumab")
+data.nr.ck.ved=subset(data.nr.ck, drug=="Vedolizumab")
+data.nr.str.inf=subset(data.nr.str, drug=="Infliximab")
+data.nr.str.ust=subset(data.nr.str, drug=="Ustekinumab")
+data.nr.str.ved=subset(data.nr.str, drug=="Vedolizumab")
+```
+
+## subset - rnr in pre
+```{r}
+
+data.pre.nr <- subset(data.pre, subset = Endo_remission == 0)
+data.pre.r <- subset(data.pre, subset = Endo_remission == 1)
+
+data.pre.nr.ck=subset(data.pre.nr, ck==TRUE)
+data.pre.nr.str=subset(data.pre.nr, ck==FALSE)
+data.pre.nr.ck.inf=subset(data.pre.nr.ck, drug=="Infliximab")
+data.pre.nr.ck.ust=subset(data.pre.nr.ck, drug=="Ustekinumab")
+data.pre.nr.ck.ved=subset(data.pre.nr.ck, drug=="Vedolizumab")
+data.pre.nr.str.inf=subset(data.pre.nr.str, drug=="Infliximab")
+data.pre.nr.str.ust=subset(data.pre.nr.str, drug=="Ustekinumab")
+data.pre.nr.str.ved=subset(data.pre.nr.str, drug=="Vedolizumab")
+
+data.pre.r.ck=subset(data.pre.r, ck==TRUE)
+data.pre.r.str=subset(data.pre.r, ck==FALSE)
+data.pre.r.ck.inf=subset(data.pre.r.ck, drug=="Infliximab")
+data.pre.r.ck.ust=subset(data.pre.r.ck, drug=="Ustekinumab")
+data.pre.r.ck.ved=subset(data.pre.r.ck, drug=="Vedolizumab")
+data.pre.r.str.inf=subset(data.pre.r.str, drug=="Infliximab")
+data.pre.r.str.ust=subset(data.pre.r.str, drug=="Ustekinumab")
+data.pre.r.str.ved=subset(data.pre.r.str, drug=="Vedolizumab")
+
+```
+
+# Overview
+## preprocessing
+```{r}
+data_seurat_for_heatmap=SetAssayData(data_seurat,
+                         layer="counts",
+                         new.data=GetAssayData(data_seurat, assay="RNA",layer="data"),
+                         assay="RNA")
+data_seurat_for_heatmap=NormalizeData(data_seurat_for_heatmap)
+data_seurat_for_heatmap=ScaleData(data_seurat_for_heatmap, clip.max=3)
+
+dsfh_ck=subset(data_seurat_for_heatmap,ck==TRUE)
+dsfh_str=subset(data_seurat_for_heatmap,ck==FALSE)
+
+dsfh_post=subset(data_seurat_for_heatmap, treatment=="post")
+dsfh_post_ck=subset(dsfh_post, ck==TRUE)
+dsfh_post_str=subset(dsfh_post, ck==FALSE)
+
+dsfh_pre=subset(data_seurat_for_heatmap, treatment=="pre")
+dsfh_pre_ck=subset(dsfh_pre, ck==TRUE)
+dsfh_pre_str=subset(dsfh_pre, ck==FALSE)
+
+
+# poc 중.
+dsfh_post_ck$heal_re=case_when(
+  dsfh_post_ck$heal %in% c(0,1) ~ "g0",
+  dsfh_post_ck$heal %in% c(2) ~ "g1",
+  dsfh_post_ck$heal %in% c(3,4) ~ "g2"
+)
+```
+## Fig S1. target cell profiling
+```{r}
+
+baseline=FindMarkers(data.pre.ck, group.by="drug", ident.1="Infliximab", test.use="t")
+baseline2=FindMarkers(data.pre.ck, group.by="H3", ident.1="R", test.use="t")
+baseline3=FindMarkers(data.pre.str, group.by="drug", ident.1="Infliximab", test.use="t")
+# TCP
+myhm_genes4(data_seurat_for_heatmap, group="ck_index", assay="RNA", genes = c("KRT8", "EPCAM","CDH1","MUC2","MUC13","CLDN3","VIM","COL1A1", "ACTA2", "PTPRC", "PECAM1"))
+
+```
+
+## Fig 1B. inflammation score
+"mucosal healing"
+"histologic Endoscopic improvement"
+"Endo remission"
+"Deep mucosal healing"
+## deprecated (heatmap of ck)
+```{r}
+markers_heatmap_ck <- c(
+  "CXCL1", "CXCL8", #neutrophil recruitment
+  "IL1B", "TNF", #epithelium inducible
+  "MUC1", "MUC2", "MUC13", #goblet
+  "CLDN2", "REG1A", "REG3A", #tight junction, anti-microbial, regeneration marker
+  "S100A8", "S100A9", #epihelium inducible
+  "CASP1", "NLRP3", "HSPA1A", "HSPA1B" #inflammasome, stress response
+)
+
+markers_heatmap_str <- c(
+  # Immune lineage
+  "PTPRC", "CD3E", "CD8A", "CD4",
+  "MS4A1", "NCAM1", "GNLY", "GZMB",
+  "CD68", "CD163", "ITGAX", "FCGR3A",
+  # Fibroblast / mesenchymal
+  "VIM", "COL1A1", "COL3A1", "ACTA2", "FAP",
+  # Cytokines / chemokines
+  "IL6", "IL1B", "TNF", "CXCL9", "CXCL10", "CXCL11",
+  # Angiogenesis / endothelial
+  "PECAM1", "VWF", "VEGFA"
+)
+
+
+# pre vs post
+myhm_genes4(dsfh_ck, group="rpp", assay="RNA", genes = markers_heatmap_ck)
+myhm_genes4(dsfh_ck, group="rpp_index", assay="RNA", genes = markers_heatmap_ck)
+# in post, by heal
+myhm_genes4(dsfh_post_ck, group="heal", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_ck, group="heal_re", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_ck, group="drug_r", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_str, group="heal", assay="RNA", genes=markers_heatmap_str)
+myhm_genes4(dsfh_post_ck, group="heal", assay="RNA", genes=markers_heatmap_ck)
+myhm_genes4(dsfh_post_ck, group="heal", assay="RNA", genes=markers_heatmap_ck)
+
+
+names(data_seurat@meta.data)[94:108]
+ # [1] "InflammatoryScore" "Androgen"          "EGFR"              "Estrogen"          "Hypoxia"           "JAK-STAT"          "MAPK"              "NFkB"
+ # [9] "p53"               "PI3K"              "TGFb"              "TNFa"              "Trail"             "VEGF"              "WNT"     
+# a=FindMarkers(data_seurat, ident.1="Infliximab",group.by="drug")
+# vln_p(data_seurat, "FKBP5", group.by="ck",split.by ="drug")
+vln_p(data.pre, "InflammatoryScore", group.by="ck",split.by ="drug")
+mybox(data.pre, features="InflammatoryScore",sample_col="emrid", assay="RNA",layer="data", violin=T, group.by="ck",split.by ="drug")
+vln_p(data.pre, "Androgen", group.by="ck",split.by ="drug")
+vln_p(data.pre, "EGFR", group.by="ck",split.by ="drug")
+vln_p(data.pre, "Estrogen", group.by="ck",split.by ="drug")
+vln_p(data.pre, "Hypoxia", group.by="ck",split.by ="drug")
+vln_p(data.pre, "JAK-STAT", group.by="ck",split.by ="drug")
+vln_p(data.pre, "MAPK", group.by="ck",split.by ="drug")
+vln_p(data.pre, "NFkB", group.by="ck",split.by ="drug")
+vln_p(data.pre, "p53", group.by="ck",split.by ="drug")
+vln_p(data.pre, "PI3K", group.by="ck",split.by ="drug")
+vln_p(data.pre, "TGFb", group.by="ck",split.by ="drug")
+vln_p(data.pre, "TNFa", group.by="ck",split.by ="drug")
+vln_p(data.pre, "Trail", group.by="ck",split.by ="drug")
+vln_p(data.pre, "VEGF", group.by="ck",split.by ="drug")
+vln_p(data.pre, "WNT", group.by="ck",split.by ="drug")
+
+
+```
+
+## pre-post DEGs
+```{r}
+# boxplot (claude)
+plot_pre_post_boxplot(data.ck, "IL1B", my_config, split_by="drug")
+
+# EMMeans
+res_IL1B=plot_interaction_for_gene(data_seurat, "IL1B",nested=FALSE,subset_comp=TRUE)
+res_IL1B$plot_emmeans   # 시간×약제 상호작용 평균±CI
+res_IL1B$plot_spaghetti # 환자별 실측 pre→post
+#res_IL1B$plot_delta     # 약제별 Δ(post-pre) 비교
+
+res_IL1B_CK=plot_interaction_for_gene(data.ck, "IL1B",nested=FALSE,subset_comp=TRUE)
+res_IL1B_CK$plot_emmeans   # 시간×약제 상호작용 평균±CI
+res_IL1B_CK$plot_spaghetti # 환자별 실측 pre→post
+res_IL1B_CK$plot_delta     # 약제별 Δ(post-pre) 비교
+
+res_IL1B_STR=plot_interaction_for_gene(data.str, "IL1B",nested=FALSE,subset_comp=TRUE)
+res_IL1B_STR$plot_emmeans   # 시간×약제 상호작용 평균±CI
+res_IL1B_STR$plot_spaghetti # 환자별 실측 pre→post
+res_IL1B_STR$plot_delta     # 약제별 Δ(post-pre) 비교
+
+genes <- c("IL1B","CXCL8","CXCL2","CXCL1","CXCL3","S100A8","S100A9","TNFRSF6B","CSF3R")
+res_list <- lapply(genes, function(g) plot_interaction_for_gene(data_seurat, g, subset_comp=TRUE))
+names(res_list) <- genes
+
+heatmap_out <- plot_delta_heatmap(res_list)
+heatmap_out
+```
+
+# FindMarkers
+
+## pre vs post
+```{r}
+# pre post
+
+m.pp=FindMarkers(data_seurat,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.ck=FindMarkers(data.ck,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.str=FindMarkers(data.str,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.ck.inf=FindMarkers(data.ck.inf,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.ck.ust=FindMarkers(data.ck.ust,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.ck.ved=FindMarkers(data.ck.ved,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.str.inf=FindMarkers(data.str.inf,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.str.ust=FindMarkers(data.str.ust,group.by="treatment",ident.1="post")%>% marker_filter
+m.pp.str.ved=FindMarkers(data.str.ved,group.by="treatment",ident.1="post")%>% marker_filter
+
+m.pp2=FindMarkers(data_seurat,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.ck2=FindMarkers(data.ck,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.str2=FindMarkers(data.str,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.ck.inf2=FindMarkers(data.ck.inf,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.ck.ust2=FindMarkers(data.ck.ust,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.ck.ved2=FindMarkers(data.ck.ved,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.str.inf2=FindMarkers(data.str.inf,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.str.ust2=FindMarkers(data.str.ust,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+m.pp.str.ved2=FindMarkers(data.str.ved,group.by="treatment",ident.1="post",test.use="t")%>% marker_filter
+
+# m.pp2=FindMarkers(data_seurat,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.ck2=FindMarkers(data.ck,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.str2=FindMarkers(data.str,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.ck.inf2=FindMarkers(data.ck.inf,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.ck.ust2=FindMarkers(data.ck.ust,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.ck.ved2=FindMarkers(data.ck.ved,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.str.inf2=FindMarkers(data.str.inf,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.str.ust2=FindMarkers(data.str.ust,group.by="treatment",ident.1="post", test.use="roc")
+# m.pp.str.ved2=FindMarkers(data.str.ved,group.by="treatment",ident.1="post", test.use="roc")
+
+# m.pp
+# m.pp.ck
+# m.pp.str
+# m.pp.ck.inf
+# m.pp.ck.ust
+# m.pp.ck.ved
+# m.pp.str.inf
+# m.pp.str.ust
+# m.pp.str.ved
+# 
+# %>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# %>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+# post upregulated
+
+m.pp_=m.pp%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck_=m.pp.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str_=m.pp.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck.inf_=m.pp.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck.ust_=m.pp.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck.ved_=m.pp.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str.inf_=m.pp.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str.ust_=m.pp.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str.ved_=m.pp.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+
+# pre upregulated
+
+m.pp__=m.pp%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck__=m.pp.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str__=m.pp.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck.inf__=m.pp.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck.ust__=m.pp.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.ck.ved__=m.pp.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str.inf__=m.pp.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str.ust__=m.pp.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.pp.str.ved__=m.pp.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+
+# Venn
+
+plot_g1=ggvenn(list(pre_ck.inf=m.pp.ck.inf__$gene,
+                   pre_ck.ved=m.pp.ck.ved__$gene,
+                   pre_ck.ust=m.pp.ck.ust__$gene))
+plot_g2=ggvenn(list(post_ck.inf=m.pp.ck.inf_$gene,
+                   post_ck.ved=m.pp.ck.ved_$gene,
+                   post_ck.ust=m.pp.ck.ust_$gene))
+plot_g3=ggvenn(list(pre_str.inf=m.pp.str.inf__$gene,
+                   pre_str.ved=m.pp.str.ved__$gene,
+                   pre_str.ust=m.pp.str.ust__$gene))
+plot_g4=ggvenn(list(post_str.inf=m.pp.str.inf_$gene,
+                   post_str.ved=m.pp.str.ved_$gene,
+                   post_str.ust=m.pp.str.ust_$gene))
+
+# 있는 그대로
+
+paste(m.pp.ck.inf__$gene, collapse=", ")
+paste(m.pp.ck.ved__$gene, collapse=", ")
+paste(m.pp.ck.ust__$gene, collapse=", ")
+
+paste(m.pp.str.inf__$gene, collapse=", ")
+paste(m.pp.str.ved__$gene, collapse=", ")
+paste(m.pp.str.ust__$gene, collapse=", ")
+
+paste(m.pp.ck.inf_$gene, collapse=", ")
+paste(m.pp.ck.ved_$gene, collapse=", ")
+paste(m.pp.ck.ust_$gene, collapse=", ")
+
+paste(m.pp.str.inf_$gene, collapse=", ")
+paste(m.pp.str.ved_$gene, collapse=", ")
+paste(m.pp.str.ust_$gene, collapse=", ")
+
+# 고유
+
+m.pp.ck.inf__only=setdiff(setdiff(m.pp.ck.inf__$gene, m.pp.ck.ved__$gene),m.pp.ck.ust__$gene)
+m.pp.ck.ved__only=setdiff(setdiff(m.pp.ck.ved__$gene, m.pp.ck.inf__$gene),m.pp.ck.ust__$gene)
+m.pp.ck.ust__only=setdiff(setdiff(m.pp.ck.ust__$gene, m.pp.ck.ved__$gene),m.pp.ck.inf__$gene)
+
+m.pp.ck.inf_only=setdiff(setdiff(m.pp.ck.inf_$gene, m.pp.ck.ved_$gene),m.pp.ck.ust_$gene)
+m.pp.ck.ved_only=setdiff(setdiff(m.pp.ck.ved_$gene, m.pp.ck.inf_$gene),m.pp.ck.ust_$gene)
+m.pp.ck.ust_only=setdiff(setdiff(m.pp.ck.ust_$gene, m.pp.ck.ved_$gene),m.pp.ck.inf_$gene)
+
+m.pp.str.inf__only=setdiff(setdiff(m.pp.str.inf__$gene, m.pp.str.ved__$gene),m.pp.str.ust__$gene)
+m.pp.str.ved__only=setdiff(setdiff(m.pp.str.ved__$gene, m.pp.str.inf__$gene),m.pp.str.ust__$gene)
+m.pp.str.ust__only=setdiff(setdiff(m.pp.str.ust__$gene, m.pp.str.ved__$gene),m.pp.str.inf__$gene)
+
+m.pp.str.inf_only=setdiff(setdiff(m.pp.str.inf_$gene, m.pp.str.ved_$gene),m.pp.str.ust_$gene)
+m.pp.str.ved_only=setdiff(setdiff(m.pp.str.ved_$gene, m.pp.str.inf_$gene),m.pp.str.ust_$gene)
+m.pp.str.ust_only=setdiff(setdiff(m.pp.str.ust_$gene, m.pp.str.ved_$gene),m.pp.str.inf_$gene)
+
+
+paste(m.pp.ck.inf__only, collapse=", ")
+paste(m.pp.ck.ved__only, collapse=", ")
+paste(m.pp.ck.ust__only, collapse=", ")
+
+paste(m.pp.str.inf__only, collapse=", ")
+paste(m.pp.str.ved__only, collapse=", ")
+paste(m.pp.str.ust__only, collapse=", ")
+
+paste(m.pp.ck.inf_only, collapse=", ")
+paste(m.pp.ck.ved_only, collapse=", ")
+paste(m.pp.ck.ust_only, collapse=", ")
+
+paste(m.pp.str.inf_only, collapse=", ")
+paste(m.pp.str.ved_only, collapse=", ")
+paste(m.pp.str.ust_only, collapse=", ")
+
+# paste(m.pp.ck_$gene[1:100], collapse=", ")
+# paste(m.pp.ck__$gene[1:100], collapse=", ")
+# paste(m.pp.str_$gene[1:100], collapse=", ")
+# paste(m.pp.str__$gene[1:100], collapse=", ")
+# 
+# 
+# paste(m.pp.ck.inf_$gene[1:100], collapse=", ")
+# paste(m.pp.ck.ved_$gene[1:100], collapse=", ")
+# paste(m.pp.ck.ust_$gene[1:100], collapse=", ")
+# paste(m.pp.ck.inf__$gene[1:100], collapse=", ")
+# paste(m.pp.ck.ved__$gene[1:100], collapse=", ")
+# paste(m.pp.ck.ust__$gene[1:100], collapse=", ")
+# paste(m.pp.str.inf_$gene[1:100], collapse=", ")
+# paste(m.pp.str.ved_$gene[1:100], collapse=", ")
+# paste(m.pp.str.ust_$gene[1:100], collapse=", ")
+# paste(m.pp.str.inf__$gene[1:100], collapse=", ")
+# paste(m.pp.str.ved__$gene[1:100], collapse=", ")
+# paste(m.pp.str.ust__$gene[1:100], collapse=", ")
+
+# 공통
+
+paste(intersect(m.pp.ck.inf__$gene, m.pp.ck.ved__$gene), collapse=", ")
+paste(intersect(m.pp.ck.inf__$gene, m.pp.ck.ust__$gene), collapse=", ")
+paste(intersect(m.pp.ck.ved__$gene, m.pp.ck.ust__$gene), collapse=", ")
+paste(intersect(m.pp.str.inf__$gene, m.pp.str.ved__$gene), collapse=", ")
+paste(intersect(m.pp.str.inf__$gene, m.pp.str.ust__$gene), collapse=", ")
+paste(intersect(m.pp.str.ved__$gene, m.pp.str.ust__$gene), collapse=", ")
+
+paste(intersect(m.pp.ck.inf_$gene, m.pp.ck.ved_$gene), collapse=", ")
+paste(intersect(m.pp.ck.inf_$gene, m.pp.ck.ust_$gene), collapse=", ")
+paste(intersect(m.pp.ck.ved_$gene, m.pp.ck.ust_$gene), collapse=", ")
+paste(intersect(m.pp.str.inf_$gene, m.pp.str.ved_$gene), collapse=", ")
+paste(intersect(m.pp.str.inf_$gene, m.pp.str.ust_$gene), collapse=", ")
+paste(intersect(m.pp.str.ved_$gene, m.pp.str.ust_$gene), collapse=", ")
+
+```
+
+### pre vs post - paired
+```{r}
+
+```
+
+### pre vs post in responder
+```{r}
+
+data.r.ck.inf=subset(data.r.ck, drug=="Infliximab")
+data.r.ck.ust=subset(data.r.ck, drug=="Ustekinumab")
+data.r.ck.ved=subset(data.r.ck, drug=="Vedolizumab")
+data.r.str.inf=subset(data.r.str, drug=="Infliximab")
+data.r.str.ust=subset(data.r.str, drug=="Ustekinumab")
+data.r.str.ved=subset(data.r.str, drug=="Vedolizumab")
+
+# m.r.pp=FindMarkers(data_seurat,group.by="treatment",ident.1="post")
+# m.r.pp.ck=FindMarkers(data.ck,group.by="treatment",ident.1="post")
+# m.r.pp.str=FindMarkers(data.str,group.by="treatment",ident.1="post")
+m.r.pp.ck.inf=FindMarkers(data.r.ck.inf,group.by="treatment",ident.1="post")
+# m.r.pp.ck.ust=FindMarkers(data.r.ck.ust,group.by="treatment",ident.1="post")
+m.r.pp.ck.ved=FindMarkers(data.r.ck.ved,group.by="treatment",ident.1="post")
+m.r.pp.str.inf=FindMarkers(data.r.str.inf,group.by="treatment",ident.1="post")
+# m.r.pp.str.ust=FindMarkers(data.r.str.ust,group.by="treatment",ident.1="post")
+m.r.pp.str.ved=FindMarkers(data.r.str.ved,group.by="treatment",ident.1="post")
+
+# post upregulated
+
+# m.r.pp_=m.r.pp%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck_=m.r.pp.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str_=m.r.pp.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.inf_=m.r.pp.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck.ust_=m.r.pp.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.ved_=m.r.pp.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.inf_=m.r.pp.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str.ust_=m.r.pp.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.ved_=m.r.pp.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+
+# pre upregulated
+
+# m.r.pp__=m.r.pp%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck__=m.r.pp.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str__=m.r.pp.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.inf__=m.r.pp.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.ck.ust__=m.r.pp.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.ck.ved__=m.r.pp.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.inf__=m.r.pp.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.r.pp.str.ust__=m.r.pp.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.pp.str.ved__=m.r.pp.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+```
+### pre vs post in NR
+```{r}
+
+m.nr.pp.ck.inf=FindMarkers(data.nr.ck.inf,group.by="treatment",ident.1="post")
+m.nr.pp.ck.ust=FindMarkers(data.nr.ck.ust,group.by="treatment",ident.1="post")
+m.nr.pp.ck.ved=FindMarkers(data.nr.ck.ved,group.by="treatment",ident.1="post")
+m.nr.pp.str.inf=FindMarkers(data.nr.str.inf,group.by="treatment",ident.1="post")
+m.nr.pp.str.ust=FindMarkers(data.nr.str.ust,group.by="treatment",ident.1="post")
+m.nr.pp.str.ved=FindMarkers(data.nr.str.ved,group.by="treatment",ident.1="post")
+
+# post upregulated
+
+# m.nr.pp_=m.nr.pp%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.ck_=m.nr.pp.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.str_=m.nr.pp.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.inf_=m.nr.pp.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ust_=m.nr.pp.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ved_=m.nr.pp.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.inf_=m.nr.pp.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ust_=m.nr.pp.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ved_=m.nr.pp.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+
+# pre upregulated
+
+# m.nr.pp__=m.nr.pp%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.ck__=m.nr.pp.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+# m.nr.pp.str__=m.nr.pp.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.inf__=m.nr.pp.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ust__=m.nr.pp.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.ck.ved__=m.nr.pp.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.inf__=m.nr.pp.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ust__=m.nr.pp.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.nr.pp.str.ved__=m.nr.pp.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+```
+
+## Response vs NR in pre
+```{r}
+
+
+
+# Response
+m.r=FindMarkers(data.pre,group.by="Endo remission",ident.1="1")
+m.r.ck=FindMarkers(data.pre.ck,group.by="Endo remission",ident.1="1")
+m.r.str=FindMarkers(data.pre.str,group.by="Endo remission",ident.1="1")
+m.r.ck.inf=FindMarkers(data.pre.ck.inf,group.by="Endo remission",ident.1="1")
+m.r.ck.ust=FindMarkers(data.pre.ck.ust,group.by="Endo remission",ident.1="1")
+m.r.ck.ved=FindMarkers(data.pre.ck.ved,group.by="Endo remission",ident.1="1")
+m.r.str.inf=FindMarkers(data.pre.str.inf,group.by="Endo remission",ident.1="1")
+m.r.str.ust=FindMarkers(data.pre.str.ust,group.by="Endo remission",ident.1="1")
+m.r.str.ved=FindMarkers(data.pre.str.ved,group.by="Endo remission",ident.1="1")
+
+# responder favor
+m.r_=m.r%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck_=m.r.ck%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str_=m.r.str%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck.inf_=m.r.ck.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck.ust_=m.r.ck.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck.ved_=m.r.ck.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str.inf_=m.r.str.inf%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str.ust_=m.r.str.ust%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str.ved_=m.r.str.ved%>%.[.$avg_log2FC>0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+## NR favor
+m.r__=m.r%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck__=m.r.ck%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str__=m.r.str%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck.inf__=m.r.ck.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck.ust__=m.r.ck.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.ck.ved__=m.r.ck.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str.inf__=m.r.str.inf%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str.ust__=m.r.str.ust%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+m.r.str.ved__=m.r.str.ved%>%.[.$avg_log2FC<0,]%>%.[.$p_val<0.05, ]%>%mutate(gene=rownames(.))
+
+plot_g11=ggvenn(list(NR_ck.inf=m.r.ck.inf__$gene,
+                   NR_ck.ved=m.r.ck.ved__$gene,
+                   NR_ck.ust=m.r.ck.ust__$gene))
+plot_g12=ggvenn(list(R_ck.inf=m.r.ck.inf_$gene,
+                   R_ck.ved=m.r.ck.ved_$gene,
+                   R_ck.ust=m.r.ck.ust_$gene))
+plot_g13=ggvenn(list(NR_str.inf=m.r.str.inf__$gene,
+                   NR_str.ved=m.r.str.ved__$gene,
+                   NR_str.ust=m.r.str.ust__$gene))
+plot_g14=ggvenn(list(R_str.inf=m.r.str.inf_$gene,
+                   R_str.ved=m.r.str.ved_$gene,
+                   R_str.ust=m.r.str.ust_$gene))
+
+
+m.r.ck.inf_only=setdiff(setdiff(m.r.ck.inf_$gene, m.r.ck.ved_$gene),m.r.ck.ust_$gene)
+m.r.ck.ved_only=setdiff(setdiff(m.r.ck.ved_$gene, m.r.ck.inf_$gene),m.r.ck.ust_$gene)
+m.r.ck.ust_only=setdiff(setdiff(m.r.ck.ust_$gene, m.r.ck.ved_$gene),m.r.ck.inf_$gene)
+
+m.r.ck.inf__only=setdiff(setdiff(m.r.ck.inf__$gene, m.r.ck.ved__$gene),m.r.ck.ust__$gene)
+m.r.ck.ved__only=setdiff(setdiff(m.r.ck.ved__$gene, m.r.ck.inf__$gene),m.r.ck.ust__$gene)
+m.r.ck.ust__only=setdiff(setdiff(m.r.ck.ust__$gene, m.r.ck.ved__$gene),m.r.ck.inf__$gene)
+
+m.r.str.inf_only=setdiff(setdiff(m.r.str.inf_$gene, m.r.str.ved_$gene),m.r.str.ust_$gene)
+m.r.str.ved_only=setdiff(setdiff(m.r.str.ved_$gene, m.r.str.inf_$gene),m.r.str.ust_$gene)
+m.r.str.ust_only=setdiff(setdiff(m.r.str.ust_$gene, m.r.str.ved_$gene),m.r.str.inf_$gene)
+
+m.r.str.inf__only=setdiff(setdiff(m.r.str.inf__$gene, m.r.str.ved__$gene),m.r.str.ust__$gene)
+m.r.str.ved__only=setdiff(setdiff(m.r.str.ved__$gene, m.r.str.inf__$gene),m.r.str.ust__$gene)
+m.r.str.ust__only=setdiff(setdiff(m.r.str.ust__$gene, m.r.str.ved__$gene),m.r.str.inf__$gene)
+
+
+# NR
+paste(m.r.ck.inf__only, collapse=", ")
+paste(m.r.ck.ved__only, collapse=", ")
+paste(m.r.ck.ust__only, collapse=", ")
+
+paste(m.r.str.inf__only, collapse=", ")
+paste(m.r.str.ved__only, collapse=", ")
+paste(m.r.str.ust__only, collapse=", ")
+
+# R
+
+paste(m.r.ck.inf_only, collapse=", ")
+paste(m.r.ck.ved_only, collapse=", ")
+paste(m.r.ck.ust_only, collapse=", ")
+
+paste(m.r.str.inf_only, collapse=", ")
+paste(m.r.str.ved_only, collapse=", ")
+paste(m.r.str.ust_only, collapse=", ")
+
+
+paste(intersect(m.r.ck.inf__$gene, m.r.ck.ved__$gene), collapse=", ")
+paste(intersect(m.r.ck.inf__$gene, m.r.ck.ust__$gene), collapse=", ")
+paste(intersect(m.r.ck.ved__$gene, m.r.ck.ust__$gene), collapse=", ")
+paste(intersect(m.r.str.inf__$gene, m.r.str.ved__$gene), collapse=", ")
+paste(intersect(m.r.str.inf__$gene, m.r.str.ust__$gene), collapse=", ")
+paste(intersect(m.r.str.ved__$gene, m.r.str.ust__$gene), collapse=", ")
+
+paste(intersect(m.r.ck.inf_$gene, m.r.ck.ved_$gene), collapse=", ")
+paste(intersect(m.r.ck.inf_$gene, m.r.ck.ust_$gene), collapse=", ")
+paste(intersect(m.r.ck.ved_$gene, m.r.ck.ust_$gene), collapse=", ")
+paste(intersect(m.r.str.inf_$gene, m.r.str.ved_$gene), collapse=", ")
+paste(intersect(m.r.str.inf_$gene, m.r.str.ust_$gene), collapse=", ")
+paste(intersect(m.r.str.ved_$gene, m.r.str.ust_$gene), collapse=", ")
+
+# u1=upset_gene_lists(list(mucosal=t2_$gene,endo=t3_$gene,histo=t4_$gene,deep=t5_$gene))
+
+
+```
+
+
+## pathways - myGO, myGSEA
+```{r}
+# prepost, pre favor, ck
+go_result1=myGO(m.pp.ck.inf__[m.pp.ck.inf__$gene%in%m.pp.ck.inf__only,], use_all_genes=T)
+go_result2=myGO(m.pp.ck.ved__[m.pp.ck.ved__$gene%in%m.pp.ck.ved__only,], use_all_genes=T)
+go_result3=myGO(m.pp.ck.ust__[m.pp.ck.ust__$gene%in%m.pp.ck.ust__only,], use_all_genes=T)
+go_result1_go=myGO(m.pp.ck.inf__[m.pp.ck.inf__$gene%in%m.pp.ck.inf__only,], use_all_genes=T, db="GO_BP")
+go_result2_go=myGO(m.pp.ck.ved__[m.pp.ck.ved__$gene%in%m.pp.ck.ved__only,], use_all_genes=T, db="GO_BP")
+go_result3_go=myGO(m.pp.ck.ust__[m.pp.ck.ust__$gene%in%m.pp.ck.ust__only,], use_all_genes=T, db="GO_BP")
+go_result1_5=go_result1[go_result1$pvalue<0.05,]
+go_result2_5=go_result2[go_result2$pvalue<0.05,]
+go_result3_5=go_result3[go_result3$pvalue<0.05,]
+go12=intersect(go_result1_5$ID, go_result2_5$ID)
+go13=intersect(go_result1_5$ID, go_result3_5$ID)
+go23=intersect(go_result2_5$ID, go_result3_5$ID)
+
+
+gsea_result1=myGSEA(m.pp.ck.inf__[m.pp.ck.inf__$gene%in%m.pp.ck.inf__only,])
+# prepost, pre favor, str
+go_result4=myGO(m.pp.str.inf_[m.pp.str.inf_$gene%in%m.pp.str.inf_only,], use_all_genes=T)
+go_result5=myGO(m.pp.str.ved_[m.pp.str.ved_$gene%in%m.pp.str.ved_only,], use_all_genes=T)
+go_result6=myGO(m.pp.str.ust_[m.pp.str.ust_$gene%in%m.pp.str.ust_only,], use_all_genes=T)
+go_result4_go=myGO(m.pp.str.inf_[m.pp.str.inf_$gene%in%m.pp.str.inf_only,], use_all_genes=T, db="GO_BP")
+go_result5_go=myGO(m.pp.str.ved_[m.pp.str.ved_$gene%in%m.pp.str.ved_only,], use_all_genes=T, db="GO_BP")
+go_result6_go=myGO(m.pp.str.ust_[m.pp.str.ust_$gene%in%m.pp.str.ust_only,], use_all_genes=T, db="GO_BP")
+go_result4_5=go_result4[go_result4$pvalue<0.05,]
+go_result5_5=go_result5[go_result5$pvalue<0.05,]
+go_result6_5=go_result6[go_result6$pvalue<0.05,]
+go45=intersect(go_result4_5$ID, go_result5_5$ID)
+go46=intersect(go_result4_5$ID, go_result6_5$ID)
+go56=intersect(go_result5_5$ID, go_result6_5$ID)
+
+# prepost, post favor, ck
+go_result7=myGO(m.pp.ck.inf_[m.pp.ck.inf_$gene%in%m.pp.ck.inf_only,], use_all_genes=T)
+go_result8=myGO(m.pp.ck.ved_[m.pp.ck.ved_$gene%in%m.pp.ck.ved_only,], use_all_genes=T)
+go_result9=myGO(m.pp.ck.ust_[m.pp.ck.ust_$gene%in%m.pp.ck.ust_only,], use_all_genes=T)
+go_result7_go=myGO(m.pp.ck.inf_[m.pp.ck.inf_$gene%in%m.pp.ck.inf_only,], use_all_genes=T, db="GO_BP")
+go_result8_go=myGO(m.pp.ck.ved_[m.pp.ck.ved_$gene%in%m.pp.ck.ved_only,], use_all_genes=T, db="GO_BP")
+go_result9_go=myGO(m.pp.ck.ust_[m.pp.ck.ust_$gene%in%m.pp.ck.ust_only,], use_all_genes=T, db="GO_BP")
+go_result7_5=go_result7[go_result7$pvalue<0.05,]
+go_result8_5=go_result8[go_result8$pvalue<0.05,]
+go_result9_5=go_result9[go_result9$pvalue<0.05,]
+go78=intersect(go_result7_5$ID, go_result8_5$ID)
+go79=intersect(go_result7_5$ID, go_result9_5$ID)
+go89=intersect(go_result8_5$ID, go_result9_5$ID)
+
+# prepost, post favor, str
+go_result10=myGO(m.pp.str.inf_[m.pp.str.inf_$gene%in%m.pp.str.inf_only,], use_all_genes=T)
+go_result11=myGO(m.pp.str.ved_[m.pp.str.ved_$gene%in%m.pp.str.ved_only,], use_all_genes=T)
+go_result12=myGO(m.pp.str.ust_[m.pp.str.ust_$gene%in%m.pp.str.ust_only,], use_all_genes=T)
+go_result10_go=myGO(m.pp.str.inf_[m.pp.str.inf_$gene%in%m.pp.str.inf_only,], use_all_genes=T, db="GO_BP")
+go_result11_go=myGO(m.pp.str.ved_[m.pp.str.ved_$gene%in%m.pp.str.ved_only,], use_all_genes=T, db="GO_BP")
+go_result12_go=myGO(m.pp.str.ust_[m.pp.str.ust_$gene%in%m.pp.str.ust_only,], use_all_genes=T, db="GO_BP")
+go_result10_5=go_result10[go_result10$pvalue<0.05,]
+go_result11_5=go_result11[go_result11$pvalue<0.05,]
+go_result12_5=go_result12[go_result12$pvalue<0.05,]
+go1011=intersect(go_result10_5$ID, go_result11_5$ID)
+go1012=intersect(go_result10_5$ID, go_result12_5$ID)
+go1112=intersect(go_result11_5$ID, go_result12_5$ID)
+
+# R vs NR - NR favor genes, ck
+go_result1_r=myGO(m.r.ck.inf__[m.r.ck.inf__$gene%in%m.r.ck.inf__only,], use_all_genes=T)
+go_result2_r=myGO(m.r.ck.ved__[m.r.ck.ved__$gene%in%m.r.ck.ved__only,], use_all_genes=T)
+go_result3_r=myGO(m.r.ck.ust__[m.r.ck.ust__$gene%in%m.r.ck.ust__only,], use_all_genes=T)
+# go_result1_go_r=myGO(m.r.ck.inf__[m.r.ck.inf__$gene%in%m.r.ck.inf__only,], use_all_genes=T, db="GO_BP")
+# go_result2_go_r=myGO(m.r.ck.ved__[m.r.ck.ved__$gene%in%m.r.ck.ved__only,], use_all_genes=T, db="GO_BP")
+# go_result3_go_r=myGO(m.r.ck.ust__[m.r.ck.ust__$gene%in%m.r.ck.ust__only,], use_all_genes=T, db="GO_BP")
+go_result1_5_r=go_result1_r[go_result1_r$pvalue<0.05,]
+go_result2_5_r=go_result2_r[go_result2_r$pvalue<0.05,]
+go_result3_5_r=go_result3_r[go_result3_r$pvalue<0.05,]
+go12_r=intersect(go_result1_5_r$ID, go_result2_5_r$ID)
+go13_r=intersect(go_result1_5_r$ID, go_result3_5_r$ID)
+go23_r=intersect(go_result2_5_r$ID, go_result3_5_r$ID)
+
+# R vs NR - NR favor genes, str
+go_result4_r=myGO(m.r.str.inf__[m.r.str.inf__$gene%in%m.r.str.inf__only,], use_all_genes=T)
+go_result5_r=myGO(m.r.str.ved__[m.r.str.ved__$gene%in%m.r.str.ved__only,], use_all_genes=T)
+go_result6_r=myGO(m.r.str.ust__[m.r.str.ust__$gene%in%m.r.str.ust__only,], use_all_genes=T)
+# go_result4_go_r=myGO(m.r.str.inf__[m.r.str.inf__$gene%in%m.r.str.inf__only,], use_all_genes=T, db="GO_BP")
+# go_result5_go_r=myGO(m.r.str.ved__[m.r.str.ved__$gene%in%m.r.str.ved__only,], use_all_genes=T, db="GO_BP")
+# go_result6_go_r=myGO(m.r.str.ust__[m.r.str.ust__$gene%in%m.r.str.ust__only,], use_all_genes=T, db="GO_BP")
+go_result4_5_r=go_result4_r[go_result4_r$pvalue<0.05,]
+go_result5_5_r=go_result5_r[go_result5_r$pvalue<0.05,]
+go_result6_5_r=go_result6_r[go_result6_r$pvalue<0.05,]
+go45_r=intersect(go_result4_5_r$ID, go_result5_5_r$ID)
+go46_r=intersect(go_result4_5_r$ID, go_result6_5_r$ID)
+go56_r=intersect(go_result5_5_r$ID, go_result6_5_r$ID)
+
+# R vs NR - R favor genes, ck
+go_result7_r=myGO(m.r.ck.inf_[m.r.ck.inf_$gene%in%m.r.ck.inf_only,], use_all_genes=T)
+go_result8_r=myGO(m.r.ck.ved_[m.r.ck.ved_$gene%in%m.r.ck.ved_only,], use_all_genes=T)
+go_result9_r=myGO(m.r.ck.ust_[m.r.ck.ust_$gene%in%m.r.ck.ust_only,], use_all_genes=T)
+# go_result7_go_r=myGO(m.r.ck.inf_[m.r.ck.inf_$gene%in%m.r.ck.inf_only,], use_all_genes=T, db="GO_BP")
+# go_result8_go_r=myGO(m.r.ck.ved_[m.r.ck.ved_$gene%in%m.r.ck.ved_only,], use_all_genes=T, db="GO_BP")
+# go_result9_go_r=myGO(m.r.ck.ust_[m.r.ck.ust_$gene%in%m.r.ck.ust_only,], use_all_genes=T, db="GO_BP")
+go_result7_5_r=go_result7_r[go_result7_r$pvalue<0.05,]
+go_result8_5_r=go_result8_r[go_result8_r$pvalue<0.05,]
+go_result9_5_r=go_result9_r[go_result9_r$pvalue<0.05,]
+go78_r=intersect(go_result7_5_r$ID, go_result8_5_r$ID)
+go79_r=intersect(go_result7_5_r$ID, go_result9_5_r$ID)
+go89_r=intersect(go_result8_5_r$ID, go_result9_5_r$ID)
+
+# R vs NR - R favor genes, str
+go_result10_r=myGO(m.r.str.inf_[m.r.str.inf_$gene%in%m.r.str.inf_only,], use_all_genes=T)
+go_result11_r=myGO(m.r.str.ved_[m.r.str.ved_$gene%in%m.r.str.ved_only,], use_all_genes=T)
+go_result12_r=myGO(m.r.str.ust_[m.r.str.ust_$gene%in%m.r.str.ust_only,], use_all_genes=T)
+# go_result10_go_r=myGO(m.r.str.inf_[m.r.str.inf_$gene%in%m.r.str.inf_only,], use_all_genes=T, db="GO_BP")
+# go_result11_go_r=myGO(m.r.str.ved_[m.r.str.ved_$gene%in%m.r.str.ved_only,], use_all_genes=T, db="GO_BP")
+# go_result12_go_r=myGO(m.r.str.ust_[m.r.str.ust_$gene%in%m.r.str.ust_only,], use_all_genes=T, db="GO_BP")
+go_result10_5_r=go_result10_r[go_result10_r$pvalue<0.05,]
+go_result11_5_r=go_result11_r[go_result11_r$pvalue<0.05,]
+go_result12_5_r=go_result12_r[go_result12_r$pvalue<0.05,]
+go1011_r=intersect(go_result10_5_r$ID, go_result11_5_r$ID)
+go1012_r=intersect(go_result10_5_r$ID, go_result12_5_r$ID)
+go1112_r=intersect(go_result11_5_r$ID, go_result12_5_r$ID)
+```
+## Fisher's exact test
+```{r}
+# 1. 각 DEG 목록 정의 (이미 가지고 계신 데이터)
+# genes_inf <- m.pp.ck.inf__$gene
+# genes.ust <- m.pp.ck.ust__$gene
+# genes.ved <- m.pp.ck.ved__$gene
+# genes_inf <- m.pp.ck.inf_$gene
+# genes.ust <- m.pp.ck.ust_$gene
+# genes.ved <- m.pp.ck.ved_$gene
+# genes_inf <- m.pp.str.inf__$gene
+# genes.ust <- m.pp.str.ust__$gene
+# genes.ved <- m.pp.str.ved__$gene
+# genes_inf <- m.pp.str.inf_$gene
+# genes.ust <- m.pp.str.ust_$gene
+# genes.ved <- m.pp.str.ved_$gene
+
+
+# genes_inf <- m.r.ck.inf__$gene
+# genes.ust <- m.r.ck.ust__$gene
+# genes.ved <- m.r.ck.ved__$gene
+genes_inf <- m.r.ck.inf_$gene
+genes.ust <- m.r.ck.ust_$gene
+genes.ved <- m.r.ck.ved_$gene
+# genes_inf <- m.r.str.inf__$gene
+# genes.ust <- m.r.str.ust__$gene
+# genes.ved <- m.r.str.ved__$gene
+# genes_inf <- m.r.str.inf_$gene
+# genes.ust <- m.r.str.ust_$gene
+# genes.ved <- m.r.str.ved_$gene
+
+# 2. 배경 유전자 정의 (아래 두 가지 방법 중 하나 선택)
+# 방법 A: 각 데이터의 모든 유전자의 합집합 (추천)
+bg_genes <- union(rownames(data.ck.inf), 
+                  union(rownames(data.ck.ust), rownames(data.ck.ved)))
+
+# 방법 B: GeoMx 플랫폼의 전체 유전자 목록 (가장 이상적)
+# bg_genes <- c("전체 유전자 목록 벡터") 
+
+# 각 목록의 크기 확인
+N <- length(bg_genes) # 전체 배경 유전자 수
+
+# 1. 중복 유전자 수 계산
+overlap_inf.ved <- length(intersect(genes_inf, genes.ved))
+overlap_inf.ust <- length(intersect(genes_inf, genes.ust))
+overlap.ved.ust <- length(intersect(genes.ved, genes.ust))
+
+# 2-1. 2x2 분할표 (Contingency Table) 만들기
+#              Ustekinumab (+)   Ustekinumab (-)
+# Infliximab (+)      k              K - k
+# Infliximab (-)    n - k        N - (K + n - k)
+
+k <- overlap_inf.ved
+K <- length(genes_inf)
+n <- length(genes.ved)
+# N은 위에서 정의한 배경 유전자 수
+
+contingency_table <- matrix(c(k, K - k, n - k, N - K - n + k), nrow = 2)
+
+# 3. Fisher's Exact Test 실행
+# alternative="greater"는 "두 목록의 중복이 우연보다 더 클 것"을 검정하는 단측 검정입니다.
+fisher.test(contingency_table, alternative = "greater")
+fisher.test(contingency_table, alternative = "less")
+
+# 2-2. 2x2 분할표 (Contingency Table) 만들기
+
+k <- overlap_inf.ust
+K <- length(genes_inf)
+n <- length(genes.ust)
+# N은 위에서 정의한 배경 유전자 수
+
+contingency_table <- matrix(c(k, K - k, n - k, N - K - n + k), nrow = 2)
+
+# 3. Fisher's Exact Test 실행
+# alternative="greater"는 "두 목록의 중복이 우연보다 더 클 것"을 검정하는 단측 검정입니다.
+fisher.test(contingency_table, alternative = "greater")
+fisher.test(contingency_table, alternative = "less")
+
+# 2-1. 2x2 분할표 (Contingency Table) 만들기
+#              Ustekinumab (+)   Ustekinumab (-)
+# Infliximab (+)      k              K - k
+# Infliximab (-)    n - k        N - (K + n - k)
+
+k <- overlap.ved.ust
+K <- length(genes.ved)
+n <- length(genes.ust)
+# N은 위에서 정의한 배경 유전자 수
+
+contingency_table <- matrix(c(k, K - k, n - k, N - K - n + k), nrow = 2)
+
+# 3. Fisher's Exact Test 실행
+# alternative="greater"는 "두 목록의 중복이 우연보다 더 클 것"을 검정하는 단측 검정입니다.
+fisher.test(contingency_table, alternative = "greater")
+fisher.test(contingency_table, alternative = "less")
+```
+
+### Functionalize
+```{r}
+# install.packages("dplyr") # 혹시 설치되어 있지 않다면 설치
+# install.packages("tibble") # 혹시 설치되어 있지 않다면 설치
+library(dplyr)
+library(tibble)
+
+#' @title Analyze Pairwise Overlap Significance Between Sets
+#' @description Performs pairwise statistical tests (Fisher's Exact or Chi-squared) on a list of character vectors (e.g., gene lists) to evaluate the significance of their overlap.
+#'
+#' @param ... A variable number of character vectors, each representing a set (e.g., gene list). It's best to provide them as named arguments (e.g., inf = genes_inf, ust = genes.ust).
+#' @param bg_genes A character vector representing the total population (background) from which the sets are drawn.
+#' @param method A string specifying the statistical test to use. Either "fisher" (default) for Fisher's Exact Test or "chisq" for Chi-squared Test.
+#' @param alternative A string specifying the alternative hypothesis. Must be one of "two.sided" (default), "greater" (enrichment), or "less" (depletion).
+#' @param adj_method A string specifying the p-value adjustment method for multiple comparisons. Use one of the methods from `p.adjust.methods` (e.g., "bonferroni", "BH", "holm"). If NULL (default), no adjustment is performed.
+#' @param detail A boolean. If TRUE (default), prints the detailed output of each statistical test.
+#' @param significant_only A boolean. If TRUE (default), `detail` output is only shown for pairs with a p-value (or adjusted p-value) less than 0.05. Ignored if `detail` is FALSE.
+#'
+#' @return A list containing three elements:
+#'         1. `summary_table`: A matrix with formatted p-values and significance stars.
+#'         2. `p_values`: A numeric matrix of raw p-values.
+#'         3. `adjusted_p_values`: A numeric matrix of adjusted p-values (NULL if `adj_method` was NULL).
+#' @examples
+#' # --- Example Usage ---
+#' # 1. Create dummy data
+#' set.seed(123)
+#' all_genes <- paste0("gene", 1:1000)
+#' group_A <- sample(all_genes, 100)
+#' group_B <- c(sample(group_A, 30), sample(setdiff(all_genes, group_A), 70)) # Significant overlap with A
+#' group_C <- sample(all_genes, 120) # Random group
+#'
+#' # 2. Run the analysis
+#' results <- analyze_set_overlap(
+#'   A = group_A,
+#'   B = group_B,
+#'   C = group_C,
+#'   bg_genes = all_genes,
+#'   alternative = "greater",
+#'   adj_method = "bonferroni"
+#' )
+#'
+#' # 3. View the summary table
+#' print(results$summary_table)
+
+analyze_set_overlap <- function(..., 
+                              bg_genes, 
+                              method = c("fisher", "chisq"),
+                              alternative = c("two.sided", "greater", "less"),
+                              adj_method = NULL,
+                              detail = TRUE, 
+                              significant_only = TRUE) {
+
+  # --- 1. 입력값 처리 및 유효성 검사 ---
+  method <- match.arg(method)
+  alternative <- match.arg(alternative)
+  
+  gene_lists <- list(...)
+  list_names <- names(gene_lists)
+  
+  # 이름이 없는 경우, 입력받은 변수명으로 이름을 생성
+  if (is.null(list_names)) {
+    list_names <- as.character(match.call(expand.dots = FALSE)$...)
+  }
+  
+  n_lists <- length(gene_lists)
+  if (n_lists < 2) {
+    stop("적어도 두 개 이상의 유전자 목록을 입력해야 합니다.")
+  }
+  if (missing(bg_genes) || !is.vector(bg_genes)) {
+    stop("'bg_genes' 인수는 전체 유전자 목록을 담은 벡터여야 합니다.")
+  }
+
+  # --- 2. 결과 저장을 위한 매트릭스 초기화 ---
+  p_matrix <- matrix(NA, nrow = n_lists, ncol = n_lists,
+                     dimnames = list(list_names, list_names))
+  
+  detailed_results <- list()
+
+  # --- 3. 모든 유전자 목록 쌍에 대해 반복 작업 ---
+  N <- length(unique(bg_genes))
+
+  for (i in 1:(n_lists - 1)) {
+    for (j in (i + 1):n_lists) {
+      list1 <- unique(gene_lists[[i]])
+      list2 <- unique(gene_lists[[j]])
+      name1 <- list_names[i]
+      name2 <- list_names[j]
+
+      # 분할표(Contingency Table) 값 계산
+      k <- length(intersect(list1, list2)) # overlap
+      K <- length(list1)
+      n <- length(list2)
+      
+      #   | list2(+) | list2(-)
+      # --|----------|----------
+      # + | k        | K-k
+      # - | n-k      | N-K-n+k
+      contingency_table <- matrix(c(k, n - k, K - k, N - (K + n - k)), nrow = 2)
+
+      # 통계 테스트 실행
+      test_result <- switch(
+        method,
+        "fisher" = fisher.test(contingency_table, alternative = alternative),
+        "chisq" = chisq.test(contingency_table)
+      )
+      
+      p_val <- test_result$p.value
+      p_matrix[i, j] <- p_val
+      p_matrix[j, i] <- p_val
+      
+      # 상세 결과 저장
+      pair_name <- paste(name1, "vs", name2)
+      detailed_results[[pair_name]] <- test_result
+    }
+  }
+
+  # --- 4. 다중검정 보정 ---
+  adj_p_matrix <- NULL
+  if (!is.null(adj_method)) {
+    if (!adj_method %in% p.adjust.methods) {
+      stop(paste("'", adj_method, "'는 유효한 보정 방법이 아닙니다. 다음 중 하나를 선택하세요: ", 
+                 paste(p.adjust.methods, collapse = ", ")))
+    }
+    
+    # 매트릭스의 상삼각행렬(upper triangle)에서 p-value를 벡터로 추출
+    p_values_vector <- p_matrix[upper.tri(p_matrix)]
+    adjusted_p_values <- p.adjust(p_values_vector, method = adj_method)
+    
+    # 보정된 p-value를 새로운 매트릭스에 채워 넣기
+    adj_p_matrix <- matrix(NA, nrow = n_lists, ncol = n_lists,
+                           dimnames = list(list_names, list_names))
+    adj_p_matrix[upper.tri(adj_p_matrix)] <- adjusted_p_values
+    adj_p_matrix[lower.tri(adj_p_matrix)] <- t(adj_p_matrix)[lower.tri(adj_p_matrix)]
+  }
+
+  # --- 5. 최종 요약 테이블 생성 ---
+  display_matrix <- if (is.null(adj_p_matrix)) p_matrix else adj_p_matrix
+  
+  # p-value를 포맷팅하고 유의수준 별(*) 추가하는 헬퍼 함수
+  format_p_value <- function(p) {
+    if (is.na(p)) return("")
+    stars <- case_when(
+      p < 0.001 ~ "***",
+      p < 0.01  ~ "**",
+      p < 0.05  ~ "*",
+      TRUE      ~ ""
+    )
+    return(paste0(format(p, scientific = TRUE, digits = 2), " ", stars))
+  }
+  
+  summary_table <- apply(display_matrix, c(1, 2), format_p_value)
+  diag(summary_table) <- "-"
+  
+  cat("--- Overlap Significance Analysis ---\n")
+  if (!is.null(adj_method)) {
+    cat("P-values adjusted using:", adj_method, "\n")
+  }
+  print(summary_table)
+  cat("---\nSignificance codes:  0 '***' 0.001 '**' 0.01 '*' 0.05\n\n")
+
+  # --- 6. 상세 결과 출력 ---
+  if (detail) {
+    cat("\n--- Detailed Test Results ---\n")
+    p_values_for_filtering <- if (is.null(adj_p_matrix)) p_matrix else adj_p_matrix
+
+    for (name in names(detailed_results)) {
+      pair <- strsplit(name, " vs ")[[1]]
+      p_val <- p_values_for_filtering[pair[1], pair[2]]
+      
+      if (!significant_only || (!is.na(p_val) && p_val < 0.05)) {
+        cat(paste("\n### Test for:", name, "###\n"))
+        print(detailed_results[[name]])
+      }
+    }
+  }
+
+  # --- 7. 결과 반환 ---
+  invisible(list(
+    summary_table = summary_table,
+    p_values = p_matrix,
+    adjusted_p_values = adj_p_matrix
+  ))
+}
+```
+
+#### use
+```{r}
+# 함수 실행
+# - 비교할 유전자 목록을 이름과 함께 전달합니다 (예: inf = genes_inf).
+# - 배경 유전자 목록을 'bg_genes'에 전달합니다.
+# - alternative="greater"는 두 목록의 중복이 우연보다 유의미하게 '많은지'(enrichment)를 검정합니다.
+# - adj_method="bonferroni"는 다중검정 보정을 위해 본페로니 방법을 사용합니다.
+
+
+# 1. 각 DEG 목록 정의 (이미 가지고 계신 데이터)
+# genes_inf <- m.pp.ck.inf__$gene
+# genes.ust <- m.pp.ck.ust__$gene
+# genes.ved <- m.pp.ck.ved__$gene
+# genes_inf <- m.pp.ck.inf_$gene
+# genes.ust <- m.pp.ck.ust_$gene
+# genes.ved <- m.pp.ck.ved_$gene
+# genes_inf <- m.pp.str.inf__$gene
+# genes.ust <- m.pp.str.ust__$gene
+# genes.ved <- m.pp.str.ved__$gene
+# genes_inf <- m.pp.str.inf_$gene
+# genes.ust <- m.pp.str.ust_$gene
+# genes.ved <- m.pp.str.ved_$gene
+
+
+# genes_inf <- m.r.ck.inf__$gene
+# genes.ust <- m.r.ck.ust__$gene
+# genes.ved <- m.r.ck.ved__$gene
+# genes_inf <- m.r.ck.inf_$gene
+# genes.ust <- m.r.ck.ust_$gene
+# genes.ved <- m.r.ck.ved_$gene
+# genes_inf <- m.r.str.inf__$gene
+# genes.ust <- m.r.str.ust__$gene
+# genes.ved <- m.r.str.ved__$gene
+# genes_inf <- m.r.str.inf_$gene
+# genes.ust <- m.r.str.ust_$gene
+# genes.ved <- m.r.str.ved_$gene
+
+# 2. 배경 유전자 정의 (아래 두 가지 방법 중 하나 선택)
+# 방법 A: 각 데이터의 모든 유전자의 합집합 (추천)
+bg_genes <- union(rownames(data.ck.inf),
+                  union(rownames(data.ck.ust), rownames(data.ck.ved)))
+
+results1 <- analyze_set_overlap(
+  inf = m.pp.ck.inf__$gene, 
+  ust = m.pp.ck.ust__$gene, 
+  ved = m.pp.ck.ved__$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+
+results2 <- analyze_set_overlap(
+  inf = m.pp.ck.inf_$gene, 
+  ust = m.pp.ck.ust_$gene, 
+  ved = m.pp.ck.ved_$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+
+bg_genes <- union(rownames(data.str.inf),
+                  union(rownames(data.str.ust), rownames(data.str.ved)))
+
+results3 <- analyze_set_overlap(
+  inf = m.pp.str.inf__$gene, 
+  ust = m.pp.str.ust__$gene, 
+  ved = m.pp.str.ved__$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+
+results4 <- analyze_set_overlap(
+  inf = m.pp.str.inf_$gene, 
+  ust = m.pp.str.ust_$gene, 
+  ved = m.pp.str.ved_$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+
+
+bg_genes <- union(rownames(data.ck.inf),
+                  union(rownames(data.ck.ust), rownames(data.ck.ved)))
+
+results5 <- analyze_set_overlap(
+  inf = m.r.ck.inf__$gene, 
+  ust = m.r.ck.ust__$gene, 
+  ved = m.r.ck.ved__$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+
+results6 <- analyze_set_overlap(
+  inf = m.r.ck.inf_$gene, 
+  ust = m.r.ck.ust_$gene, 
+  ved = m.r.ck.ved_$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+
+bg_genes <- union(rownames(data.str.inf),
+                  union(rownames(data.str.ust), rownames(data.str.ved)))
+
+results7 <- analyze_set_overlap(
+  inf = m.r.str.inf__$gene, 
+  ust = m.r.str.ust__$gene, 
+  ved = m.r.str.ved__$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+
+results8 <- analyze_set_overlap(
+  inf = m.r.str.inf_$gene, 
+  ust = m.r.str.ust_$gene, 
+  ved = m.r.str.ved_$gene,
+  bg_genes = bg_genes,
+  alternative = "two.sided",
+  adj_method = "bonferroni",
+  detail = TRUE,             # 상세 결과 출력
+  significant_only = TRUE    # p<0.05인 쌍의 상세 결과만 출력
+)
+```
+
+# LMER
+```{r}
+lmm1=
+data.ck
+data.ck.inf
+data.ck.ust
+data.ck.ved
+
+```
+
+
+# TNF signature self-calculating
+## gene candidates
+### DBs
+```{r}
+library(msigdbr)
+## MSigDB (curated → 안정적·재현성 좋음)
+hallmark  <- msigdbr(species = "Homo sapiens", category = "H") %>%
+  filter(gs_name == "HALLMARK_TNFA_SIGNALING_VIA_NFKB") %>% 
+  pull(gene_symbol) %>% unique()
+
+reactome <- msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:REACTOME") %>%
+  filter(grepl("TNF|NFkB", gs_name, ignore.case = TRUE)) %>% 
+  pull(gene_symbol) %>% unique()
+
+kegg <- msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:KEGG") %>% 
+  filter(gs_name == "KEGG_TNF_SIGNALING_PATHWAY") %>% 
+  pull(gene_symbol) %>% unique()
+
+candidate_genes <- union(hallmark, union(reactome, kegg))
+length(candidate_genes)
+
+
+```
+
+
+
+### hand curation
+```{r}
+# upstream (regulators / receptors / key transducers)
+upstream_manual <- c("TNF", "LTA", "LTB",              # ligands
+                     "TNFRSF1A", "TNFRSF1B",          # receptors
+                     "TRADD", "RIPK1", "TRAF2", "TRAF5",
+                     "CHUK", "IKBKB", "IKBKG", "MAP3K7",
+                     "NFKB1", "NFKB2", "RELA", "RELB")
+
+# downstream (classical early-response TNF targets)
+downstream_manual <- c("IL6", "IL8", "CXCL1", "CXCL2", "CXCL3", "CXCL10",
+                       "CCL2", "CCL5", "ICAM1", "VCAM1",
+                       "PTGS2", "MMP1", "MMP9",
+                       "SERPINE1", "CSF2", "LIF", "NFKBIA")
+```
+### duplicates removal
+```{r}
+gene_pool <- union(candidate_genes, union(upstream_manual, downstream_manual))
+gene_pool <- gene_pool[gene_pool %in% rownames(data_seurat)]  # 발현 확인
+length(gene_pool)
+```
+
+## gene filtering
+```{r}
+
+# 3-a. Infliximab 치료군만 subset & heal 기반 반응(Responder/NR) 레이블 정의
+seu_inf <- subset(data_seurat, subset = drug == "Infliximab")
+seu_inf$resp <- ifelse(seu_inf$heal <= 1, "NR", "R")
+
+# 3-b. 셀 이름 기준으로 훈련/검증 셀 분리
+set.seed(2025)
+cells_inf    <- colnames(seu_inf)
+train_cells  <- sample(cells_inf, size = floor(0.7 * length(cells_inf)))
+valid_cells  <- setdiff(cells_inf, train_cells)
+
+# 3-c. metadata에서 이름으로 레이블 추출 (unnamed vector 문제 해결)
+train_lab <- seu_inf@meta.data[train_cells, "resp"]
+valid_lab <- seu_inf@meta.data[valid_cells, "resp"]
+
+# 3-d. expr 매트릭스 불러오기 (subset된 객체에서)
+# expr_mat <- GetAssayData(seu_inf, layer = "data")[gene_pool, ]
+expr_mat <- as.matrix(GetAssayData(seu_inf, layer = "data"))[gene_pool, ]
+# expr_mat <- GetAssayData(data_seurat, slot = "data")[gene_pool, ]
+
+# 3-b. 발현률·변동성 필터
+
+expr_pct <- Matrix::rowMeans(as.matrix(expr_mat) > 0)
+# expr_var <- MatrixGenerics::rowVars(expr_mat)
+expr_var <- MatrixGenerics::rowVars(as.matrix(expr_mat))
+
+keep <- gene_pool[expr_pct > 0.05 & expr_var > median(expr_var)]
+length(keep)
+
+# 3-c. 훈련셋 AUROC 기반 top-N 선택
+
+auc_vec <- map_dbl(
+  keep,
+  ~ {
+    roc_obj <- roc(
+      train_lab,                 # a named vector of length length(train_cells)
+      expr_mat[.x, train_cells], # use train_cells instead of train_idx
+      levels    = c("NR", "R"),
+      direction = "<"
+    )
+    as.numeric(roc_obj$auc)
+  }
+)
+
+gene_rank <- tibble(gene = keep, auc = auc_vec) %>% arrange(desc(auc))
+head(gene_rank, 20)
+
+top_upstream   <- head(filter(gene_rank, gene %in% upstream_manual),  20)$gene
+top_downstream <- head(filter(gene_rank, gene %in% downstream_manual), 20)$gene
+top10=gene_rank[1:10,]$gene
+top10_=gene_rank[length(gene_rank$gene)-9:length(gene_rank$gene),]$gene
+top30=gene_rank[1:30,]$gene
+top30_=gene_rank[length(gene_rank$gene)-29:length(gene_rank$gene),]$gene
+top50=gene_rank[1:50,]$gene
+top50_=gene_rank[length(gene_rank$gene)-49:length(gene_rank$gene),]$gene
+
+# 3-d. 최종 모듈 (리스트 형식, AddModuleScore용)
+module_list <- list(
+  TNF_Upstream   = top_upstream,
+  TNF_Downstream = top_downstream
+)
+
+# 3-e. AddModuleScore
+data_seurat <- AddModuleScore(
+  object = data_seurat,
+  features = module_list,
+  name = c("TNF_Upstream_Score", "TNF_Downstream_Score")
+)
+
+
+module_total=list(
+  TNF_Upstream   = top_upstream,
+  TNF_Downstream = top_downstream,
+  Top10=top10,
+  Bottom10=top10_,
+  gene_total=gene_pool,
+  gene_variable=keep,
+  Top50=top50,
+  Bottom50=top50_,
+  Top30=top30,
+  Bottom30=top30_
+  )
+```
+
+
+## Ustekinumab & Vedolizumab
+```{r}
+## ── 1. MSigDB에서 경로별 유전자 세트 끌어오기 ─────────
+# 1-a. 모든 H(=Hallmark), C2:KEGG, C2:REACTOME 가져오기
+msig_H <- msigdbr(species = "Homo sapiens", category = "H")
+msig_R <- msigdbr(species = "Homo sapiens",
+                  category = "C2", subcategory = "CP:REACTOME")
+msig_K <- msigdbr(species = "Homo sapiens",
+                  category = "C2", subcategory = "CP:KEGG")
+
+# 1-b. 약제 기전 키워드로 필터링
+ustek_kw <- c("IL12", "IL23", "INTERLEUKIN_12", "INTERLEUKIN_23", "STAT4")
+vedo_kw  <- c("INTEGRIN", "LEUKOCYTE_TRA", "ADHESION")
+
+grab_genes <- function(tbl, keywords) {
+  tbl %>%
+    filter(stringr::str_detect(gs_name, str_c(keywords, collapse = "|"), ignore_case = TRUE)) %>%
+    pull(gene_symbol) %>% unique()
+}
+grab_genes <- function(tbl, keywords) {
+  # build a single “or” pattern
+  pat <- str_c(keywords, collapse = "|")
+  
+  tbl %>%
+    filter(str_detect(gs_name, regex(pat, ignore_case = TRUE))) %>%
+    pull(gene_symbol) %>%
+    unique()
+}
+
+ustek_path_genes <- unique(c(
+  grab_genes(msig_H, ustek_kw),
+  grab_genes(msig_R, ustek_kw),
+  grab_genes(msig_K, ustek_kw)
+))
+
+vedo_path_genes <- unique(c(
+  grab_genes(msig_H, vedo_kw),
+  grab_genes(msig_R, vedo_kw),
+  grab_genes(msig_K, vedo_kw)
+))
+
+## ── 2. 수동 리스트와 병합 ─────────────────────────────
+# 수동 리스트(앞서 작성)
+ustek_up   <- c("IL12A","IL12B","IL23A","IL12RB1","IL12RB2","IL23R","JAK2","STAT4")
+ustek_down <- c("IFNG","CXCL9","CXCL10","SOCS3","IRF1","TNFSF10","CCL3","CCL4")
+
+vedo_up    <- c("ITGA4","ITGB7","MADCAM1")
+vedo_down  <- c("PTK2","PXN","VAV1","RAC1","CDC42","TALIN1","TLN1","FERMT3")
+
+# MSigDB → Upstream/Downstream에 편리하게 나누려면,
+# 간단히 '리간드/수용체·키나아제' vs 'Effector/타겟' 식으로 분할
+ustek_up_all   <- unique(c(ustek_up,
+                           intersect(ustek_path_genes,
+                                     c("IL12A","IL12B","IL23A","IL23R","IL12RB1","IL12RB2",
+                                       "JAK2","TYK2","STAT4","STAT3","STAT1"))))
+ustek_down_all <- unique(c(ustek_down, setdiff(ustek_path_genes, ustek_up_all)))
+
+vedo_up_all    <- unique(c(vedo_up,
+                           intersect(vedo_path_genes,
+                                     c("ITGA4","ITGB7","ITGB1","MADCAM1","VCAM1"))))
+vedo_down_all  <- unique(c(vedo_down, setdiff(vedo_path_genes, vedo_up_all)))
+
+## ── 3. 약제별 모듈 리스트 완성 ────────────────────────
+modules <- list(
+  Ustekinumab = list(Upstream = ustek_up_all, Downstream = ustek_down_all),
+  Vedolizumab = list(Upstream = vedo_up_all,  Downstream = vedo_down_all)
+)
+
+modules_usve=list(usup=ustek_up_all,usdown=ustek_down_all, vedoup=vedo_up_all, vedodown=vedo_down_all)
+
+data_seurat=AddModuleScore(data_seurat,features=modules_usve,name=names(modules_usve))
+
+VlnPlot(data_seurat, features=c("usup1","usdown2","vedoup3","vedodown4"), split.by = "heal", group.by="drug")
+VlnPlot(data_seurat, features=c("usup1","usdown2","vedoup3","vedodown4"), split.by = "response", group.by="drug")
+
+myhm_genes2(data_seurat, group="heal", assay="RNA", genes=top_upstream)
+myhm_genes2(data_seurat, group="heal", assay="RNA", genes=top_downstream)
+myhm_genes2(data_seurat, group="heal", assay="RNA", genes=ustek_up_all)
+myhm_genes2(data_seurat, group="heal", assay="RNA", genes=vedo_up_all)
+
+myhm_genes2(data_seurat, group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(data_seurat, group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(data_seurat, group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(data_seurat, group="treatment", assay="RNA", genes=vedo_up_all)
+
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="heal", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="heal", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="heal", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="heal", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="heal", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="heal", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="heal", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="heal", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="heal", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="heal", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="heal", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="heal", assay="RNA", genes=vedo_up_all)
+
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=vedo_up_all)
+
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=gene_rank[1:20,]$gene)
+
+myhm_genes2(subset(data_seurat, drug=="Infliximab"&ck==TRUE), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"&ck==TRUE), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"&ck==TRUE), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"&ck==TRUE), group="treatment", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"&ck==TRUE), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"&ck==TRUE), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"&ck==TRUE), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"&ck==TRUE), group="treatment", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"&ck==TRUE), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"&ck==TRUE), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"&ck==TRUE), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"&ck==TRUE), group="treatment", assay="RNA", genes=vedo_up_all)
+
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Infliximab"), group="treatment", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Ustekinumab"), group="treatment", assay="RNA", genes=vedo_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=top_upstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=top_downstream)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=ustek_up_all)
+myhm_genes2(subset(data_seurat, drug=="Vedolizumab"), group="treatment", assay="RNA", genes=vedo_up_all)
+
+```
+
+# NN
+
+```{r}
+NN_analysis_tc4=run_nichenet_analysis_legacy(data_seurat,
+                                 species = c("human"),
+                                 sender_celltypes=FALSE,
+                                 receiver_celltype=TRUE,
+                                 assay_name = "SCT",
+                                 cluster_col="ck",
+                                 receiver_DE_ident1="2",
+                                 receiver_DE_ident2 = NULL,
+                                 receiver_DE_group_by="group3",
+                                 min_pct_expressed = 0.10,
+                                 p_val_adj_cutoff = 0.05,
+                                 logfc_cutoff = 0.25,
+                                 top_n_ligands = 20,
+                                 top_n_targets_per_ligand = 200,
+                                 ligand_target_cutoff = 0.33,
+                                 nichenet_data_dir ="/data/kjc1/projects/NicheNet",
+                                 nichenet_data_name= "NicheNetData",
+                                 output_dir ="/data/kjc1/mylit/plots/NicheNet/",
+                                 run_circos = TRUE,
+                                 run_signaling_path_inference = TRUE,
+                                 verbose = TRUE)
+```
+
+
+
+
+# genes
+```{r}
+
+
+hif1a_targets <- c(
+  # Angiogenesis
+  "VEGFA", "FLT1", "KDR", "ANGPTL4", "PDGFB", "ADM",
+  
+  # Glucose Metabolism
+  "GLUT1", "HK1", "HK2", "PFKFB3", "PFKFB4", "LDHA", "PGK1", "ENO1", "PDPK1",
+  
+  # Lactate and pH Regulation
+  "MCT4", "CAR9",
+  
+  # Cell Proliferation and Survival
+  "EPO", "BNIP3", "BNIP3L", "IGF2", "TGFA",
+  
+  # Iron Metabolism
+  "TFRC", "HMOX1", "FTH1",
+  
+  # ECM Remodeling
+  "LOX", "COL5A1", "COL6A3", "MMP2", "MMP9",
+  
+  # Apoptosis and Stress Response
+  "PMAIP1", "DDIT4", "HSP90AA1", "ATF4",
+  
+  # Oxidative Stress Response
+  "SOD2", "PRDX2", "TXN",
+  
+  # Other Genes
+  "CXCR4", "PLIN2", "CYGB", "SERPINE1", "EDN1"
+)
+```
+## the review article markers
+```{r}
+
+rcc_review=list(
+  emt_markers = c(
+  "CDH1", "CLDN4", "OCLN", "KRT18", "KRT19",  # Epithelial markers
+  "VIM", "FN1", "SNAI1", "SNAI2", "TWIST1", "TWIST2", "ZEB1", "ZEB2",  # Mesenchymal markers
+  "COL1A1", "COL1A2", "TGFB1", "MMP2", "MMP9", "SERPINE1"  # EMT regulators
+)
+,
+macrophage_fibroblast_markers = c(
+  "IL1B", "CD68", "CD163", "CSF1R",  # Macrophage markers
+  "ACTA2", "PDPN", "COL3A1", "COL6A3", "FAP",  # Fibroblast markers
+  "IL1R1", "CSF1"  # Receptor-ligand pairs
+)
+,
+hyaline_stroma_markers = c(
+  "CP", "COL4A1", "COL4A2",  # Ceruloplasmin and collagen IV
+  "TNC", "SPARC", "DCN"  # Stromal markers
+)
+,
+tls_markers = c(
+  "MS4A1", "CD79A", "CD79B", "IGHG", "IGHM", "IGLC",  # B cell markers
+  "CD3E", "CD4", "CD8A", "CXCL13",  # T cell markers
+  "FAP", "CXCL12",  # Fibroblast markers in TLS
+  "C3", "C4B", "C5"  # Complement pathway genes
+)
+
+)
+```
+
+##
+```{r}
+HIF_pos=c("HIF1A","SLEC2A1","ENO1","BHLHB2","BNIP3","PDK1","MIF","LDHA","GAPDH","VEGFA","SERPINE1","ANKRD37","DDIT4","STC2")
+HIF_neg=c("ISG15","NRF1","HLA-A","HLA-B","HLA-C","HLA-E","HLA-F","HLA-G","HLA-K","HLA-L") # K, L - pseudogenes, E~G: less polymorphic
+postn_pos <- c("SERPINE1", "CTGF", "IGFBP3", "IL11", "MMP1", "MMP3", "MMP13", "IL6", "IL8", "NOS2", "ADAMTS5", "VEGFB", "MMP2", "MMP9", "PDGFA", "PDGFB")
+mhc1_genes <- grep("^HLA-(?!D)", rownames(sce), value = TRUE, perl = TRUE)
+mhc2_genes <- grep("^HLA-D(?!$)", rownames(sce), value = TRUE, perl = TRUE)
+
+# Additional positively correlated genes with HIF-2α
+HIF2_pos_genes <- c("EPO", "VEGFA", "CCND1", "ANGPT2", "DLL4", "PPARA", "POSTN", "SERPINE1", "EGLN3")
+
+
+```
+
+## functions (myGO, myGSEA)
+```{r}
+# Required libraries
+library(clusterProfiler)
+library(org.Hs.eg.db)  # For human; use org.Mm.eg.db for mouse
+library(msigdbr)
+library(fgsea)
+library(dplyr)
+library(tibble)
+
+# Function 1: GO and Pathway Analysis
+myGO <- function(m1, 
+                 target_pathway = NULL, 
+                 pattern = NULL, 
+                 db = c("GO_BP", "GO_MF", "GO_CC", "Hallmark", "KEGG", "Reactome", "WikiPathways"),
+                 species = "Homo sapiens",
+                 pval_cutoff = 0.05,
+                 logFC_cutoff = 0.25,
+                 pAdjustMethod = "BH",
+                 minGSSize = 10,
+                 maxGSSize = 500,
+                 use_all_genes = FALSE) {
+  
+  # Check if m1 has required columns
+  required_cols <- c("avg_log2FC")
+  if (!all(required_cols %in% colnames(m1))) {
+    # Try alternative column names
+    if ("avg_logFC" %in% colnames(m1)) {
+      m1$avg_log2FC <- m1$avg_logFC / log(2)
+    } else if ("logFC" %in% colnames(m1)) {
+      m1$avg_log2FC <- m1$logFC
+    } else {
+      stop("Could not find log fold change column. Expected: avg_log2FC, avg_logFC, or logFC")
+    }
+  }
+  
+  # Check for p-value columns
+  if (!"p_val_adj" %in% colnames(m1)) {
+    if ("p_val" %in% colnames(m1)) {
+      m1$p_val_adj <- m1$p_val
+      warning("Using unadjusted p-values as adjusted p-values were not found")
+    } else if ("padj" %in% colnames(m1)) {
+      m1$p_val_adj <- m1$padj
+    } else if ("FDR" %in% colnames(m1)) {
+      m1$p_val_adj <- m1$FDR
+    } else {
+      m1$p_val_adj <- 0  # Use all genes if no p-value available
+      warning("No p-value column found. Using all genes.")
+    }
+  }
+  
+  # Handle gene names - check if they're in rownames or a column
+  if ("gene" %in% colnames(m1)) {
+    rownames(m1) <- m1$gene
+  } else if ("SYMBOL" %in% colnames(m1)) {
+    rownames(m1) <- m1$SYMBOL
+  } else if (is.null(rownames(m1)) || all(rownames(m1) == as.character(1:nrow(m1)))) {
+    stop("Gene names not found in rownames or 'gene'/'SYMBOL' column")
+  }
+  
+  # Filter significant genes or use all
+  if (use_all_genes) {
+    sig_genes <- m1
+    message(paste("Using all", nrow(m1), "genes for analysis"))
+  } else {
+    sig_genes <- m1 %>%
+      filter(p_val_adj < pval_cutoff & abs(avg_log2FC) > logFC_cutoff)
+    
+    if (nrow(sig_genes) == 0) {
+      warning(paste("No significant genes found with p_val_adj <", pval_cutoff, 
+                   "and |logFC| >", logFC_cutoff, ". Try relaxing thresholds or use use_all_genes=TRUE"))
+      return(data.frame())
+    }
+    message(paste("Found", nrow(sig_genes), "significant genes"))
+  }
+  
+  # Get gene list
+  gene_list <- sig_genes$avg_log2FC
+  names(gene_list) <- rownames(sig_genes)
+  gene_list <- sort(gene_list, decreasing = TRUE)
+  
+  # Check if we have any genes
+  if (length(gene_list) == 0) {
+    warning("No genes available for analysis after filtering")
+    return(data.frame())
+  }
+  
+  # Determine organism database
+  if (grepl("Homo sapiens|human", species, ignore.case = TRUE)) {
+    org_db <- org.Hs.eg.db
+    kegg_org <- "hsa"
+  } else if (grepl("Mus musculus|mouse", species, ignore.case = TRUE)) {
+    if (!require(org.Mm.eg.db)) {
+      stop("Please install org.Mm.eg.db for mouse analysis: BiocManager::install('org.Mm.eg.db')")
+    }
+    org_db <- org.Mm.eg.db
+    kegg_org <- "mmu"
+  } else {
+    stop("Currently only supports human and mouse. Please specify species as 'Homo sapiens' or 'Mus musculus'")
+  }
+  
+  # Convert gene symbols to Entrez IDs if needed
+  gene_symbols <- names(gene_list)
+  
+  # Try to convert to Entrez IDs
+  entrez_ids <- tryCatch({
+    mapIds(org_db, 
+           keys = gene_symbols,
+           keytype = "SYMBOL",
+           column = "ENTREZID",
+           multiVals = "first")
+  }, error = function(e) {
+    warning("Could not convert gene symbols to Entrez IDs. Some analyses may be skipped.")
+    return(NULL)
+  })
+  
+  # Prepare gene list with Entrez IDs if available
+  if (!is.null(entrez_ids)) {
+    valid_idx <- !is.na(entrez_ids)
+    entrez_ids <- entrez_ids[valid_idx]
+    gene_list_entrez <- gene_list[valid_idx]
+    names(gene_list_entrez) <- entrez_ids
+    message(paste("Converted", length(entrez_ids), "gene symbols to Entrez IDs"))
+  } else {
+    gene_list_entrez <- NULL
+  }
+  
+  # Initialize results list
+  all_results <- list()
+  
+  # Process each database
+  for (database in db) {
+    
+    if (database %in% c("GO_BP", "GO_MF", "GO_CC")) {
+      # GO Analysis - skip if no Entrez IDs
+      if (is.null(gene_list_entrez) || length(gene_list_entrez) == 0) {
+        warning(paste("Skipping", database, "- no Entrez IDs available"))
+        next
+      }
+      
+      ont <- switch(database,
+                   "GO_BP" = "BP",
+                   "GO_MF" = "MF",
+                   "GO_CC" = "CC")
+      
+      go_result <- tryCatch({
+        enrichGO(gene = names(gene_list_entrez),
+                OrgDb = org_db,
+                ont = ont,
+                pAdjustMethod = pAdjustMethod,
+                pvalueCutoff = 1,  # Get all results
+                qvalueCutoff = 1,
+                minGSSize = minGSSize,
+                maxGSSize = maxGSSize,
+                readable = TRUE)
+      }, error = function(e) {
+        warning(paste("Error in GO analysis for", database, ":", e$message))
+        return(NULL)
+      })
+      
+      if (!is.null(go_result) && nrow(go_result@result) > 0) {
+        result_df <- go_result@result %>%
+          mutate(db = database,
+                 pathway = Description,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list_entrez[geneID %>% 
+                                                                                   strsplit("/") %>% 
+                                                                                   unlist()])))
+        
+        all_results[[database]] <- result_df %>%
+          select(db, ID, pathway, pvalue, p.adjust, 
+                 total_genes, overlap_genes, gene_ratio, 
+                 enrichment_score, geneID)
+      }
+      
+    } else if (database == "Hallmark") {
+      # Hallmark gene sets
+      hallmark_sets <- msigdbr(species = species, category = "H") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+      
+      # Perform enrichment
+      enrich_result <- enricher(gene = gene_symbols,
+                                TERM2GENE = msigdbr(species = species, category = "H") %>%
+                                  select(gs_name, gene_symbol),
+                                pAdjustMethod = pAdjustMethod,
+                                pvalueCutoff = 1,
+                                qvalueCutoff = 1,
+                                minGSSize = minGSSize,
+                                maxGSSize = maxGSSize)
+      
+      if (!is.null(enrich_result) && nrow(enrich_result@result) > 0) {
+        result_df <- enrich_result@result %>%
+          mutate(db = "Hallmark",
+                 pathway = ID,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list[geneID %>% 
+                                                                            strsplit("/") %>% 
+                                                                            unlist()])))
+        
+        all_results[[database]] <- result_df %>%
+          select(db, ID = ID, pathway, pvalue, p.adjust, 
+                 total_genes, overlap_genes, gene_ratio, 
+                 enrichment_score, geneID)
+      }
+      
+    } else if (database == "KEGG") {
+      # KEGG pathways - skip if no Entrez IDs
+      if (is.null(gene_list_entrez) || length(gene_list_entrez) == 0) {
+        warning(paste("Skipping", database, "- no Entrez IDs available"))
+        next
+      }
+      
+      kegg_result <- tryCatch({
+        enrichKEGG(gene = names(gene_list_entrez),
+                  organism = kegg_org,
+                  pAdjustMethod = pAdjustMethod,
+                  pvalueCutoff = 1,
+                  qvalueCutoff = 1,
+                  minGSSize = minGSSize,
+                  maxGSSize = maxGSSize)
+      }, error = function(e) {
+        warning(paste("Error in KEGG analysis:", e$message))
+        return(NULL)
+      })
+      
+      if (!is.null(kegg_result) && nrow(kegg_result@result) > 0) {
+        result_df <- kegg_result@result %>%
+          mutate(db = "KEGG",
+                 pathway = Description,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list_entrez[geneID %>% 
+                                                                                   strsplit("/") %>% 
+                                                                                   unlist()])))
+        
+        all_results[[database]] <- result_df %>%
+          select(db, ID, pathway, pvalue, p.adjust, 
+                 total_genes, overlap_genes, gene_ratio, 
+                 enrichment_score, geneID)
+      }
+      
+    } else if (database %in% c("Reactome", "WikiPathways")) {
+      # MSigDB C2 pathways
+      category_code <- ifelse(database == "Reactome", "CP:REACTOME", "CP:WIKIPATHWAYS")
+      
+      pathway_sets <- msigdbr(species = species, category = "C2", subcategory = category_code)
+      
+      enrich_result <- enricher(gene = gene_symbols,
+                                TERM2GENE = pathway_sets %>% select(gs_name, gene_symbol),
+                                pAdjustMethod = pAdjustMethod,
+                                pvalueCutoff = 1,
+                                qvalueCutoff = 1,
+                                minGSSize = minGSSize,
+                                maxGSSize = maxGSSize)
+      
+      if (!is.null(enrich_result) && nrow(enrich_result@result) > 0) {
+        result_df <- enrich_result@result %>%
+          mutate(db = database,
+                 pathway = ID,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list[geneID %>% 
+                                                                            strsplit("/") %>% 
+                                                                            unlist()])))
+        
+        all_results[[database]] <- result_df %>%
+          select(db, ID = ID, pathway, pvalue, p.adjust, 
+                 total_genes, overlap_genes, gene_ratio, 
+                 enrichment_score, geneID)
+      }
+    }
+  }
+  
+  # Combine all results
+  combined_results <- bind_rows(all_results)
+  
+  if (nrow(combined_results) == 0) {
+    message("No enriched pathways found")
+    return(data.frame())
+  }
+  
+  # Filter by target_pathway if specified
+  if (!is.null(target_pathway)) {
+    combined_results <- combined_results %>%
+      filter(pathway %in% target_pathway | ID %in% target_pathway)
+  }
+  
+  # Filter by pattern if specified
+  if (!is.null(pattern)) {
+    combined_results <- combined_results %>%
+      filter(grepl(pattern, pathway, ignore.case = TRUE) | 
+             grepl(pattern, ID, ignore.case = TRUE))
+  }
+  
+  # Sort by p-value
+  combined_results <- combined_results %>%
+    arrange(pvalue)
+  
+  return(combined_results)
+}
+
+# Function 2: GSEA Analysis
+myGSEA <- function(m1,
+                   target_pathway = NULL,
+                   pattern = NULL,
+                   db = c("Hallmark", "GO_BP", "KEGG", "Reactome"),
+                   species = "Homo sapiens",
+                   minSize = 10,
+                   maxSize = 500,
+                   nperm = 10000,
+                   pAdjustMethod = "BH") {
+  
+  # Create ranked gene list
+  gene_list <- m1$avg_log2FC
+  names(gene_list) <- rownames(m1)
+  gene_list <- sort(gene_list, decreasing = TRUE)
+  
+  # Initialize results list
+  all_results <- list()
+  
+  # Process each database
+  for (database in db) {
+    
+    if (database == "Hallmark") {
+      # Get Hallmark gene sets
+      gene_sets <- msigdbr(species = species, category = "H") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+      
+    } else if (database == "GO_BP") {
+      # Get GO BP gene sets
+      gene_sets <- msigdbr(species = species, category = "C5", subcategory = "BP") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+      
+    } else if (database == "KEGG") {
+      # Get KEGG gene sets
+      gene_sets <- msigdbr(species = species, category = "C2", subcategory = "CP:KEGG") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+      
+    } else if (database == "Reactome") {
+      # Get Reactome gene sets
+      gene_sets <- msigdbr(species = species, category = "C2", subcategory = "CP:REACTOME") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+    }
+    
+    # Run GSEA
+    gsea_result <- fgsea(pathways = gene_sets,
+                         stats = gene_list,
+                         minSize = minSize,
+                         maxSize = maxSize,
+                         nperm = nperm)
+    
+    if (!is.null(gsea_result) && nrow(gsea_result) > 0) {
+      # Format results
+      result_df <- gsea_result %>%
+        mutate(db = database,
+               pathway = pathway,
+               enrichment_score = ES,
+               normalized_ES = NES,
+               leading_edge_size = lengths(leadingEdge),
+               leading_edge_genes = sapply(leadingEdge, paste, collapse = "/")) %>%
+        select(db, pathway, pval, padj, enrichment_score, 
+               normalized_ES, size, leading_edge_size, leading_edge_genes)
+      
+      all_results[[database]] <- result_df
+    }
+  }
+  
+  # Combine all results
+  combined_results <- bind_rows(all_results)
+  
+  if (nrow(combined_results) == 0) {
+    message("No significant GSEA results found")
+    return(data.frame())
+  }
+  
+  # Filter by target_pathway if specified
+  if (!is.null(target_pathway)) {
+    combined_results <- combined_results %>%
+      filter(pathway %in% target_pathway)
+  }
+  
+  # Filter by pattern if specified
+  if (!is.null(pattern)) {
+    combined_results <- combined_results %>%
+      filter(grepl(pattern, pathway, ignore.case = TRUE))
+  }
+  
+  # Sort by p-value
+  combined_results <- combined_results %>%
+    arrange(pval)
+  
+  return(combined_results)
+}
+
+# Helper function to visualize top pathways
+plotPathways <- function(results, top_n = 20, type = "dotplot") {
+  library(ggplot2)
+  
+  # Select top pathways
+  top_pathways <- results %>%
+    slice_head(n = top_n)
+  
+  if (type == "dotplot") {
+    # Dot plot
+    p <- ggplot(top_pathways, aes(x = gene_ratio, y = reorder(pathway, gene_ratio))) +
+      geom_point(aes(size = overlap_genes, color = -log10(p.adjust))) +
+      scale_color_gradient(low = "blue", high = "red") +
+      labs(x = "Gene Ratio", y = "Pathway", 
+           size = "Gene Count", color = "-log10(FDR)") +
+      theme_minimal() +
+      facet_wrap(~db, scales = "free_y")
+    
+  } else if (type == "barplot") {
+    # Bar plot for GSEA NES
+    p <- ggplot(top_pathways, aes(x = reorder(pathway, normalized_ES), y = normalized_ES)) +
+      geom_bar(stat = "identity", aes(fill = padj < 0.05)) +
+      coord_flip() +
+      labs(x = "Pathway", y = "Normalized Enrichment Score", fill = "Significant") +
+      theme_minimal() +
+      facet_wrap(~db, scales = "free_y")
+  }
+  
+  return(p)
+}
+
+# Example usage:
+# m1 <- FindMarkers(seurat_obj, ident.1 = "cluster1", ident.2 = "cluster2")
+# 
+# # GO/Pathway analysis
+# go_results <- myGO(m1, db = c("GO_BP", "Hallmark", "KEGG"))
+# go_inflammation <- myGO(m1, pattern = "inflamm", db = c("GO_BP", "Hallmark"))
+# go_specific <- myGO(m1, target_pathway = c("HALLMARK_INFLAMMATORY_RESPONSE"))
+# 
+# # GSEA analysis
+# gsea_results <- myGSEA(m1, db = c("Hallmark", "GO_BP"))
+# gsea_inflammation <- myGSEA(m1, pattern = "inflamm")
+# 
+# # Visualization
+# plotPathways(go_results, top_n = 20, type = "dotplot")
+```
+
+### v7 -> v12 -> v17
+```{r}
+# Required libraries
+library(clusterProfiler)
+library(org.Hs.eg.db)  # For human; use org.Mm.eg.db for mouse
+library(msigdbr)
+library(fgsea)
+library(dplyr)
+library(tibble)
+library(biomaRt)  # For better gene ID conversion
+
+# Enhanced gene name conversion function
+convertGeneNames <- function(genes, from_type = "auto", to_type = "SYMBOL", species = "human") {
+  
+  # Clean gene names (remove version numbers, handle common formats)
+  genes_clean <- gsub("\\..*", "", genes)  # Remove version numbers (ENSG00000.1 -> ENSG00000)
+  genes_clean <- gsub("^MT-", "MT", genes_clean)  # MT- to MT for mitochondrial
+  
+  # Auto-detect gene type if needed
+  if (from_type == "auto") {
+    if (any(grepl("^ENSG", genes_clean[1:min(10, length(genes_clean))]))) {
+      from_type <- "ENSEMBL"
+    } else if (any(grepl("^[0-9]+$", genes_clean[1:min(10, length(genes_clean))]))) {
+      from_type <- "ENTREZID"
+    } else {
+      from_type <- "SYMBOL"
+    }
+    message(paste("Auto-detected gene type:", from_type))
+  }
+  
+  # If already in target format, return as is
+  if (from_type == to_type) {
+    return(setNames(genes_clean, genes))
+  }
+  
+  # Try multiple conversion methods
+  converted <- NULL
+  
+  # Method 1: Try org.db first
+  if (species == "human") {
+    org_db <- org.Hs.eg.db
+  } else if (species == "mouse") {
+    if (!require(org.Mm.eg.db)) {
+      BiocManager::install("org.Mm.eg.db")
+      library(org.Mm.eg.db)
+    }
+    org_db <- org.Mm.eg.db
+  }
+  
+  # Try standard conversion
+  tryCatch({
+    converted <- mapIds(org_db,
+                       keys = genes_clean,
+                       keytype = from_type,
+                       column = to_type,
+                       multiVals = "first")
+  }, error = function(e) {
+    message("Standard conversion failed, trying alternatives...")
+  })
+  
+  # Method 2: Try with aliases if SYMBOL conversion fails
+  if (is.null(converted) || sum(is.na(converted)) > length(converted) * 0.5) {
+    if (from_type == "SYMBOL") {
+      # Try ALIAS conversion for symbols
+      alias_map <- tryCatch({
+        AnnotationDbi::select(org_db, 
+               keys = genes_clean,
+               columns = c("ALIAS", to_type),
+               keytype = "ALIAS")
+      }, error = function(e) NULL)
+      
+      if (!is.null(alias_map)) {
+        # Remove duplicates and create mapping
+        alias_map <- alias_map[!duplicated(alias_map$ALIAS), ]
+        converted <- setNames(alias_map[[to_type]], alias_map$ALIAS)[genes_clean]
+      }
+    }
+  }
+  
+  # Method 3: Try biomaRt for remaining unmapped genes
+  if (!is.null(converted)) {
+    unmapped <- genes_clean[is.na(converted)]
+    if (length(unmapped) > 0 && length(unmapped) < 500) {  # Limit biomaRt queries
+      tryCatch({
+        require(biomaRt)
+        if (species == "human") {
+          mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+          
+          # Use correct attribute names for human
+          biomart_map <- getBM(attributes = c("hgnc_symbol", "entrezgene_id"),
+                               filters = "hgnc_symbol",
+                               values = unmapped,
+                               mart = mart)
+          
+          if (nrow(biomart_map) > 0) {
+            biomart_converted <- setNames(as.character(biomart_map$entrezgene_id), 
+                                         biomart_map$hgnc_symbol)
+            converted[unmapped] <- biomart_converted[unmapped]
+          }
+        } else {
+          mart <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+          
+          # Use correct attribute names for mouse
+          biomart_map <- getBM(attributes = c("mgi_symbol", "entrezgene_id"),
+                               filters = "mgi_symbol",
+                               values = unmapped,
+                               mart = mart)
+          
+          if (nrow(biomart_map) > 0) {
+            biomart_converted <- setNames(as.character(biomart_map$entrezgene_id),
+                                         biomart_map$mgi_symbol)
+            converted[unmapped] <- biomart_converted[unmapped]
+          }
+        }
+      }, error = function(e) {
+        message("BiomaRt conversion skipped: ", e$message)
+      })
+    }
+  }
+  
+  # Handle special cases for common gene name patterns
+  if (!is.null(converted)) {
+    # Handle mitochondrial genes
+    mt_genes <- which(is.na(converted) & grepl("^MT", genes_clean))
+    if (length(mt_genes) > 0) {
+      mt_alternatives <- gsub("^MT", "MT-", genes_clean[mt_genes])
+      mt_converted <- mapIds(org_db, keys = mt_alternatives, 
+                            keytype = from_type, column = to_type, 
+                            multiVals = "first")
+      converted[mt_genes] <- mt_converted
+    }
+    
+    # Handle ribosomal genes  
+    rp_genes <- which(is.na(converted) & grepl("^RP[SL]", genes_clean))
+    if (length(rp_genes) > 0) {
+      # Try with hyphen
+      rp_alternatives <- gsub("^(RP[SL])([0-9])", "\\1-\\2", genes_clean[rp_genes])
+      rp_converted <- mapIds(org_db, keys = rp_alternatives,
+                            keytype = from_type, column = to_type,
+                            multiVals = "first")
+      converted[rp_genes] <- rp_converted
+    }
+  }
+  
+  return(converted)
+}
+
+# Enhanced GO and Pathway Analysis Function
+myGO <- function(m1, 
+                 target_pathway = NULL, 
+                 pattern = NULL, 
+                 db = c("GO_BP", "GO_MF", "GO_CC", "Hallmark", "KEGG", "Reactome", "WikiPathways"),
+                 species = "human",  # or "mouse"
+                 pval_cutoff = 0.05,
+                 logFC_cutoff = 0.25,
+                 pAdjustMethod = "BH",
+                 minGSSize = 3,  # Lower than default for better coverage
+                 maxGSSize = 500,
+                 use_all_genes = FALSE,
+                 background_genes = NULL) {  # Option to provide background gene set
+  
+  # Validate species
+  species <- tolower(species)
+  if (!species %in% c("human", "mouse")) {
+    stop("Species must be 'human' or 'mouse'")
+  }
+  
+  species_msigdb <- ifelse(species == "human", "Homo sapiens", "Mus musculus")
+  
+  # Check and prepare data
+  if (!is.data.frame(m1)) {
+    stop("Input must be a data frame")
+  }
+  
+  # Handle various column name formats
+  if (!"avg_log2FC" %in% colnames(m1)) {
+    if ("avg_logFC" %in% colnames(m1)) {
+      m1$avg_log2FC <- m1$avg_logFC / log(2)
+    } else if ("logFC" %in% colnames(m1)) {
+      m1$avg_log2FC <- m1$logFC
+    } else if ("log2FoldChange" %in% colnames(m1)) {
+      m1$avg_log2FC <- m1$log2FoldChange
+    } else {
+      stop("Could not find log fold change column")
+    }
+  }
+  
+  # Handle p-value columns
+  if (!"p_val_adj" %in% colnames(m1)) {
+    if ("padj" %in% colnames(m1)) {
+      m1$p_val_adj <- m1$padj
+    } else if ("FDR" %in% colnames(m1)) {
+      m1$p_val_adj <- m1$FDR
+    } else if ("p_val" %in% colnames(m1) || "pvalue" %in% colnames(m1)) {
+      m1$p_val_adj <- ifelse("p_val" %in% colnames(m1), m1$p_val, m1$pvalue)
+      warning("Using unadjusted p-values")
+    } else {
+      m1$p_val_adj <- 0
+      warning("No p-value column found. Using all genes.")
+    }
+  }
+  
+  # Get gene names
+  if ("gene" %in% colnames(m1)) {
+    rownames(m1) <- m1$gene
+  } else if ("SYMBOL" %in% colnames(m1)) {
+    rownames(m1) <- m1$SYMBOL
+  }
+  
+  # Filter genes
+  if (use_all_genes) {
+    sig_genes <- m1
+    message(paste("Using all", nrow(m1), "genes for analysis"))
+  } else {
+    sig_genes <- m1 %>%
+      filter(p_val_adj < pval_cutoff & abs(avg_log2FC) > logFC_cutoff)
+    
+    if (nrow(sig_genes) == 0) {
+      warning("No significant genes found. Try use_all_genes=TRUE")
+      return(data.frame())
+    }
+    message(paste("Found", nrow(sig_genes), "significant genes"))
+  }
+  
+  # Create gene list
+  gene_list <- sig_genes$avg_log2FC
+  names(gene_list) <- rownames(sig_genes)
+  gene_list <- sort(gene_list, decreasing = TRUE)
+  
+  # Get gene symbols
+  gene_symbols <- names(gene_list)
+  
+  # Get appropriate organism database FIRST
+  if (species == "human") {
+    org_db <- org.Hs.eg.db
+    kegg_org <- "hsa"
+  } else {
+    if (!require(org.Mm.eg.db)) {
+      BiocManager::install("org.Mm.eg.db")
+      library(org.Mm.eg.db)
+    }
+    org_db <- org.Mm.eg.db
+    kegg_org <- "mmu"
+  }
+  
+  # Convert to Entrez IDs with enhanced conversion
+  message("Converting gene identifiers...")
+  entrez_ids <- convertGeneNames(gene_symbols, from_type = "SYMBOL", 
+                                 to_type = "ENTREZID", species = species)
+  
+  # Remove NA values but keep track of unconverted genes
+  valid_idx <- !is.na(entrez_ids)
+  unconverted_genes <- gene_symbols[!valid_idx]
+  if (length(unconverted_genes) > 0) {
+    message(paste("Could not convert", length(unconverted_genes), "genes to Entrez IDs"))
+    if (length(unconverted_genes) <= 10) {
+      message("Unconverted genes: ", paste(unconverted_genes, collapse = ", "))
+    }
+  }
+  
+  entrez_ids <- entrez_ids[valid_idx]
+  gene_list_entrez <- gene_list[valid_idx]
+  names(gene_list_entrez) <- entrez_ids
+  
+  message(paste("Successfully converted", length(entrez_ids), "genes to Entrez IDs"))
+  
+  # Prepare background genes if provided
+  if (!is.null(background_genes)) {
+    bg_entrez <- convertGeneNames(background_genes, from_type = "SYMBOL",
+                                  to_type = "ENTREZID", species = species)
+    bg_entrez <- bg_entrez[!is.na(bg_entrez)]
+    message(paste("Using", length(bg_entrez), "background genes"))
+  } else {
+    bg_entrez <- NULL
+  }
+  
+  # Initialize results
+  all_results <- list()
+  
+  # Process each database
+  for (database in db) {
+    
+    message(paste("\nAnalyzing", database, "..."))
+    
+    if (database %in% c("GO_BP", "GO_MF", "GO_CC")) {
+      # GO Analysis
+      if (length(entrez_ids) == 0) {
+        warning(paste("Skipping", database, "- no Entrez IDs available"))
+        next
+      }
+      
+      ont <- switch(database,
+                   "GO_BP" = "BP",
+                   "GO_MF" = "MF", 
+                   "GO_CC" = "CC")
+      
+      go_result <- tryCatch({
+        enrichGO(gene = names(gene_list_entrez),
+                universe = bg_entrez,
+                OrgDb = org_db,
+                ont = ont,
+                pAdjustMethod = pAdjustMethod,
+                pvalueCutoff = 1,
+                qvalueCutoff = 1,
+                minGSSize = minGSSize,
+                maxGSSize = maxGSSize,
+                readable = TRUE)
+      }, error = function(e) {
+        warning(paste("Error in GO analysis:", e$message))
+        return(NULL)
+      })
+      
+      if (!is.null(go_result) && nrow(go_result@result) > 0) {
+        result_df <- go_result@result %>%
+          mutate(db = database,
+                 pathway = Description,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 fold_enrichment = (Count / as.numeric(sub("/.*", "", GeneRatio))) / 
+                                  (as.numeric(sub("/.*", "", BgRatio)) / as.numeric(sub(".*/", "", BgRatio))),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list[unlist(strsplit(geneID, "/"))])))
+        
+        all_results[[database]] <- result_df %>%
+          dplyr::select(db, ID, pathway, pvalue, p.adjust, 
+                 total_genes, overlap_genes, gene_ratio,
+                 fold_enrichment, enrichment_score, geneID)
+      }
+      
+    } else if (database == "Hallmark") {
+      # Hallmark gene sets - use gene symbols directly
+      hallmark_sets <- msigdbr(species = species_msigdb, category = "H")
+      
+      enrich_result <- tryCatch({
+        enricher(gene = gene_symbols,
+                universe = background_genes,
+                TERM2GENE = hallmark_sets %>% dplyr::select(gs_name, gene_symbol),
+                pAdjustMethod = pAdjustMethod,
+                pvalueCutoff = 1,
+                qvalueCutoff = 1,
+                minGSSize = minGSSize,
+                maxGSSize = maxGSSize)
+      }, error = function(e) {
+        warning(paste("Error in Hallmark analysis:", e$message))
+        return(NULL)
+      })
+      
+      if (!is.null(enrich_result) && nrow(enrich_result@result) > 0) {
+        result_df <- enrich_result@result %>%
+          mutate(db = "Hallmark",
+                 pathway = ID,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 fold_enrichment = (Count / as.numeric(sub("/.*", "", GeneRatio))) / 
+                                  (as.numeric(sub("/.*", "", BgRatio)) / as.numeric(sub(".*/", "", BgRatio))),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list[unlist(strsplit(geneID, "/"))])))
+        
+        all_results[[database]] <- result_df %>%
+          dplyr::select(db, ID, pathway, pvalue, p.adjust,
+                 total_genes, overlap_genes, gene_ratio,
+                 fold_enrichment, enrichment_score, geneID)
+      }
+      
+    } else if (database == "KEGG") {
+      # KEGG pathways
+      if (length(entrez_ids) == 0) {
+        warning(paste("Skipping", database, "- no Entrez IDs available"))
+        next
+      }
+      
+      kegg_result <- tryCatch({
+        enrichKEGG(gene = names(gene_list_entrez),
+                  universe = bg_entrez,
+                  organism = kegg_org,
+                  pAdjustMethod = pAdjustMethod,
+                  pvalueCutoff = 1,
+                  qvalueCutoff = 1,
+                  minGSSize = minGSSize,
+                  maxGSSize = maxGSSize)
+      }, error = function(e) {
+        warning(paste("Error in KEGG analysis:", e$message))
+        return(NULL)
+      })
+      
+      if (!is.null(kegg_result) && nrow(kegg_result@result) > 0) {
+        result_df <- kegg_result@result %>%
+          mutate(db = "KEGG",
+                 pathway = Description,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 fold_enrichment = (Count / as.numeric(sub("/.*", "", GeneRatio))) / 
+                                  (as.numeric(sub("/.*", "", BgRatio)) / as.numeric(sub(".*/", "", BgRatio))),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list_entrez[unlist(strsplit(geneID, "/"))])))
+        
+        all_results[[database]] <- result_df %>%
+          dplyr::select(db, ID, pathway, pvalue, p.adjust,
+                 total_genes, overlap_genes, gene_ratio,
+                 fold_enrichment, enrichment_score, geneID)
+      }
+      
+    } else if (database %in% c("Reactome", "WikiPathways")) {
+      # MSigDB C2 pathways - use gene symbols
+      category_code <- ifelse(database == "Reactome", "CP:REACTOME", "CP:WIKIPATHWAYS")
+      pathway_sets <- msigdbr(species = species_msigdb, category = "C2", subcategory = category_code)
+      
+      enrich_result <- tryCatch({
+        enricher(gene = gene_symbols,
+                universe = background_genes,
+                TERM2GENE = pathway_sets %>% dplyr::select(gs_name, gene_symbol),
+                pAdjustMethod = pAdjustMethod,
+                pvalueCutoff = 1,
+                qvalueCutoff = 1,
+                minGSSize = minGSSize,
+                maxGSSize = maxGSSize)
+      }, error = function(e) {
+        warning(paste("Error in", database, "analysis:", e$message))
+        return(NULL)
+      })
+      
+      if (!is.null(enrich_result) && nrow(enrich_result@result) > 0) {
+        result_df <- enrich_result@result %>%
+          mutate(db = database,
+                 pathway = ID,
+                 total_genes = as.numeric(sub("/.*", "", BgRatio)),
+                 overlap_genes = Count,
+                 gene_ratio = Count / as.numeric(sub("/.*", "", BgRatio)),
+                 fold_enrichment = (Count / as.numeric(sub("/.*", "", GeneRatio))) / 
+                                  (as.numeric(sub("/.*", "", BgRatio)) / as.numeric(sub(".*/", "", BgRatio))),
+                 enrichment_score = -log10(pvalue) * sign(mean(gene_list[unlist(strsplit(geneID, "/"))])))
+        
+        all_results[[database]] <- result_df %>%
+          dplyr::select(db, ID, pathway, pvalue, p.adjust,
+                 total_genes, overlap_genes, gene_ratio,
+                 fold_enrichment, enrichment_score, geneID)
+      }
+    }
+  }
+  
+  # Combine results
+  combined_results <- bind_rows(all_results)
+  
+  if (nrow(combined_results) == 0) {
+    message("No enriched pathways found")
+    return(data.frame())
+  }
+  
+  # Apply filters
+  if (!is.null(target_pathway)) {
+    combined_results <- combined_results %>%
+      filter(pathway %in% target_pathway | ID %in% target_pathway)
+  }
+  
+  if (!is.null(pattern)) {
+    combined_results <- combined_results %>%
+      filter(grepl(pattern, pathway, ignore.case = TRUE) | 
+             grepl(pattern, ID, ignore.case = TRUE))
+  }
+  
+  # Sort and return
+  combined_results <- combined_results %>%
+    arrange(pvalue) %>%
+    mutate(rank = row_number())
+  
+  message(paste("\nFound", nrow(combined_results), "enriched pathways"))
+  return(combined_results)
+}
+
+# Enhanced GSEA Function
+myGSEA <- function(m1,
+                   target_pathway = NULL,
+                   pattern = NULL,
+                   db = c("Hallmark", "GO_BP", "KEGG", "Reactome"),
+                   species = "human",
+                   minSize = 10,
+                   maxSize = 500,
+                   nperm = 10000,
+                   pAdjustMethod = "BH",
+                   scoreType = "std") {  # pos, neg, or std
+  
+  # Validate species
+  species <- tolower(species)
+  species_msigdb <- ifelse(species == "human", "Homo sapiens", "Mus musculus")
+  
+  # Prepare gene list
+  if (!"avg_log2FC" %in% colnames(m1)) {
+    if ("avg_logFC" %in% colnames(m1)) {
+      m1$avg_log2FC <- m1$avg_logFC / log(2)
+    } else if ("logFC" %in% colnames(m1)) {
+      m1$avg_log2FC <- m1$logFC
+    }
+  }
+  
+  # Get gene names
+  if ("gene" %in% colnames(m1)) {
+    rownames(m1) <- m1$gene
+  }
+  
+  # Create ranked gene list
+  gene_list <- m1$avg_log2FC
+  names(gene_list) <- rownames(m1)
+  
+  # Remove any NA or infinite values
+  gene_list <- gene_list[!is.na(gene_list) & !is.infinite(gene_list)]
+  
+  # Sort by fold change
+  gene_list <- sort(gene_list, decreasing = TRUE)
+  
+  message(paste("Running GSEA with", length(gene_list), "genes"))
+  
+  # Initialize results
+  all_results <- list()
+  
+  # Process each database
+  for (database in db) {
+    
+    message(paste("Analyzing", database, "..."))
+    
+    if (database == "Hallmark") {
+      gene_sets <- msigdbr(species = species_msigdb, category = "H") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+      
+    } else if (database == "GO_BP") {
+      gene_sets <- msigdbr(species = species_msigdb, category = "C5", subcategory = "BP") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+      
+    } else if (database == "KEGG") {
+      gene_sets <- msigdbr(species = species_msigdb, category = "C2", subcategory = "CP:KEGG") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+      
+    } else if (database == "Reactome") {
+      gene_sets <- msigdbr(species = species_msigdb, category = "C2", subcategory = "CP:REACTOME") %>%
+        split(x = .$gene_symbol, f = .$gs_name)
+    }
+    
+    # Run fGSEA
+    gsea_result <- tryCatch({
+      fgsea(pathways = gene_sets,
+           stats = gene_list,
+           minSize = minSize,
+           maxSize = maxSize,
+           nperm = nperm,
+           scoreType = scoreType)
+    }, error = function(e) {
+      warning(paste("Error in GSEA for", database, ":", e$message))
+      return(NULL)
+    })
+    
+    if (!is.null(gsea_result) && nrow(gsea_result) > 0) {
+      result_df <- gsea_result %>%
+        mutate(db = database,
+               pathway = pathway,
+               enrichment_score = ES,
+               normalized_ES = NES,
+               leading_edge_size = lengths(leadingEdge),
+               leading_edge_genes = sapply(leadingEdge, function(x) 
+                 paste(head(x, 10), collapse = "/"))) %>%  # Show first 10 genes
+        dplyr::select(db, pathway, pval, padj, enrichment_score,
+               normalized_ES, size, leading_edge_size, leading_edge_genes)
+      
+      all_results[[database]] <- result_df
+    }
+  }
+  
+  # Combine results
+  combined_results <- bind_rows(all_results)
+  
+  if (nrow(combined_results) == 0) {
+    message("No significant GSEA results found")
+    return(data.frame())
+  }
+  
+  # Apply filters
+  if (!is.null(target_pathway)) {
+    combined_results <- combined_results %>%
+      filter(pathway %in% target_pathway)
+  }
+  
+  if (!is.null(pattern)) {
+    combined_results <- combined_results %>%
+      filter(grepl(pattern, pathway, ignore.case = TRUE))
+  }
+  
+  # Sort by p-value
+  combined_results <- combined_results %>%
+    arrange(pval) %>%
+    mutate(rank = row_number())
+  
+  message(paste("Found", nrow(combined_results), "gene sets"))
+  return(combined_results)
+}
+
+# Visualization functions
+plotPathways <- function(results, 
+                        top_n = 20, 
+                        type = "dotplot",
+                        facet_by_db = TRUE,
+                        show_labels = TRUE) {
+  
+  library(ggplot2)
+  library(scales)
+  
+  # Select top pathways
+  if (facet_by_db && "db" %in% colnames(results)) {
+    top_pathways <- results %>%
+      group_by(db) %>%
+      slice_head(n = top_n) %>%
+      ungroup()
+  } else {
+    top_pathways <- results %>%
+      slice_head(n = top_n)
+  }
+  
+  # Truncate long pathway names
+  top_pathways$pathway_short <- substr(top_pathways$pathway, 1, 50)
+  top_pathways$pathway_short <- ifelse(nchar(top_pathways$pathway) > 50,
+                                       paste0(top_pathways$pathway_short, "..."),
+                                       top_pathways$pathway)
+  
+  if (type == "dotplot") {
+    p <- ggplot(top_pathways, aes(x = gene_ratio, y = reorder(pathway_short, gene_ratio))) +
+      geom_point(aes(size = overlap_genes, color = -log10(p.adjust))) +
+      scale_color_gradient(low = "blue", high = "red", name = "-log10(FDR)") +
+      scale_size_continuous(name = "Gene Count", range = c(2, 8)) +
+      labs(x = "Gene Ratio", y = "Pathway") +
+      theme_minimal() +
+      theme(axis.text.y = element_text(size = 8))
+    
+    if (facet_by_db && "db" %in% colnames(results)) {
+      p <- p + facet_wrap(~db, scales = "free_y", ncol = 2)
+    }
+    
+  } else if (type == "barplot") {
+    # For GSEA results
+    if ("normalized_ES" %in% colnames(top_pathways)) {
+      p <- ggplot(top_pathways, aes(x = reorder(pathway_short, normalized_ES), 
+                                    y = normalized_ES)) +
+        geom_bar(stat = "identity", aes(fill = padj < 0.05)) +
+        coord_flip() +
+        labs(x = "Pathway", y = "Normalized Enrichment Score", fill = "FDR < 0.05") +
+        theme_minimal() +
+        theme(axis.text.y = element_text(size = 8))
+    } else {
+      # For regular enrichment
+      p <- ggplot(top_pathways, aes(x = reorder(pathway_short, -log10(pvalue)), 
+                                    y = -log10(pvalue))) +
+        geom_bar(stat = "identity", aes(fill = p.adjust < 0.05)) +
+        coord_flip() +
+        labs(x = "Pathway", y = "-log10(p-value)", fill = "FDR < 0.05") +
+        theme_minimal() +
+        theme(axis.text.y = element_text(size = 8))
+    }
+    
+    if (facet_by_db && "db" %in% colnames(results)) {
+      p <- p + facet_wrap(~db, scales = "free", ncol = 2)
+    }
+  }
+  
+  return(p)
+}
+
+# Export results in Metascape-compatible format
+exportForMetascape <- function(genes, filename = "genes_for_metascape.txt") {
+  writeLines(genes, filename)
+  message(paste("Exported", length(genes), "genes to", filename, "for Metascape analysis"))
+}
+
+# Compare with Metascape results
+compareWithMetascape <- function(my_results, metascape_file) {
+  # Read Metascape results
+  metascape <- read.csv(metascape_file, stringsAsFactors = FALSE)
+  
+  # Standardize pathway names for comparison
+  my_pathways <- unique(my_results$pathway)
+  metascape_pathways <- unique(metascape$Description)
+  
+  # Find overlaps
+  common <- intersect(tolower(my_pathways), tolower(metascape_pathways))
+  only_mine <- setdiff(tolower(my_pathways), tolower(metascape_pathways))
+  only_metascape <- setdiff(tolower(metascape_pathways), tolower(my_pathways))
+  
+  cat("Comparison with Metascape:\n")
+  cat("Common pathways:", length(common), "\n")
+  cat("Only in my analysis:", length(only_mine), "\n")
+  cat("Only in Metascape:", length(only_metascape), "\n")
+  
+  return(list(
+    common = common,
+    only_mine = only_mine,
+    only_metascape = only_metascape,
+    comparison_table = data.frame(
+      Source = c("Common", "My Analysis Only", "Metascape Only"),
+      Count = c(length(common), length(only_mine), length(only_metascape))
+    )
+  ))
+}
+
+# Additional utility functions for better gene mapping
+
+# Function to prepare genes for multiple databases
+prepareGenesForAnalysis <- function(genes, species = "human") {
+  
+  # Clean common gene name issues
+  genes_clean <- genes
+  
+  # Handle mitochondrial genes
+  genes_clean <- gsub("^mt-", "MT-", genes_clean, ignore.case = TRUE)
+  genes_clean <- gsub("^MT([0-9])", "MT-\\1", genes_clean)
+  
+  # Handle ribosomal proteins
+  genes_clean <- gsub("^Rpl", "RPL", genes_clean, ignore.case = TRUE)
+  genes_clean <- gsub("^Rps", "RPS", genes_clean, ignore.case = TRUE)
+  
+  # Handle heat shock proteins
+  genes_clean <- gsub("^Hsp", "HSP", genes_clean, ignore.case = TRUE)
+  
+  # Remove any trailing version numbers
+  genes_clean <- gsub("\\.\\d+$", "", genes_clean)
+  
+  # For mouse genes, convert to human orthologs if needed
+  if (species == "mouse") {
+    # Convert mouse gene symbols to human orthologs
+    genes_clean <- convertMouseToHuman(genes_clean)
+  }
+  
+  return(genes_clean)
+}
+
+# Convert mouse genes to human orthologs
+convertMouseToHuman <- function(mouse_genes) {
+  
+  require(biomaRt)
+  
+  tryCatch({
+    # Connect to biomart
+    human <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+    mouse <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+    
+    # Get orthologs
+    orthologs <- getLDS(attributes = c("mgi_symbol"),
+                       filters = "mgi_symbol",
+                       values = mouse_genes,
+                       mart = mouse,
+                       attributesL = c("hgnc_symbol"),
+                       martL = human)
+    
+    # Create mapping
+    ortholog_map <- setNames(orthologs$HGNC.symbol, orthologs$MGI.symbol)
+    
+    # Convert
+    human_genes <- ortholog_map[mouse_genes]
+    
+    # Keep original if no ortholog found
+    human_genes[is.na(human_genes)] <- mouse_genes[is.na(human_genes)]
+    
+    message(paste("Converted", sum(!is.na(ortholog_map[mouse_genes])), 
+                 "mouse genes to human orthologs"))
+    
+    return(human_genes)
+    
+  }, error = function(e) {
+    warning("Could not convert mouse to human genes: ", e$message)
+    return(mouse_genes)
+  })
+}
+
+# Metascape-style multi-list analysis
+multiListGO <- function(gene_lists, 
+                       list_names = NULL,
+                       db = c("GO_BP", "Hallmark", "KEGG"),
+                       species = "human",
+                       top_n_per_list = 5,
+                       combine_method = "union") {  # or "intersection"
+  
+  if (is.null(list_names)) {
+    list_names <- paste0("List_", 1:length(gene_lists))
+  }
+  
+  # Run analysis for each list
+  all_results <- list()
+  
+  for (i in 1:length(gene_lists)) {
+    # Create dummy dataframe for myGO
+    dummy_df <- data.frame(
+      avg_log2FC = rep(1, length(gene_lists[[i]])),
+      p_val_adj = rep(0.001, length(gene_lists[[i]]))
+    )
+    rownames(dummy_df) <- gene_lists[[i]]
+    
+    # Run GO analysis
+    result <- myGO(dummy_df, 
+                  db = db,
+                  species = species,
+                  use_all_genes = TRUE)
+    
+    if (nrow(result) > 0) {
+      result$list <- list_names[i]
+      all_results[[i]] <- result
+    }
+  }
+  
+  # Combine results
+  combined <- bind_rows(all_results)
+  
+  # Create summary matrix (pathway x list)
+  pathway_matrix <- combined %>%
+    dplyr::select(pathway, list, pvalue) %>%
+    pivot_wider(names_from = list, 
+               values_from = pvalue,
+               values_fill = 1) %>%
+    column_to_rownames("pathway")
+  
+  # Calculate combined significance
+  if (combine_method == "union") {
+    # Fisher's combined probability test
+    combined_pval <- apply(pathway_matrix, 1, function(x) {
+      pchisq(-2 * sum(log(x)), df = 2 * length(x), lower.tail = FALSE)
+    })
+  } else {
+    # Max p-value (intersection)
+    combined_pval <- apply(pathway_matrix, 1, max)
+  }
+  
+  # Create final result
+  final_result <- data.frame(
+    pathway = names(combined_pval),
+    combined_pvalue = combined_pval,
+    n_lists_significant = rowSums(pathway_matrix < 0.05),
+    pathway_matrix
+  ) %>%
+    arrange(combined_pvalue)
+  
+  return(final_result)
+}
+
+# Example usage with enhanced functions:
+# 
+# # Prepare your FindMarkers result
+# m1 <- FindMarkers(seurat_obj, ident.1 = "cluster1")
+# 
+# # Basic analysis with better gene conversion
+# go_results <- myGO(m1, 
+#                   db = c("GO_BP", "Hallmark", "KEGG"),
+#                   species = "human",  # or "mouse"
+#                   minGSSize = 3,  # Lower threshold for more results
+#                   use_all_genes = FALSE)
+# 
+# # Find inflammation-related pathways
+# inflam_results <- myGO(m1, 
+#                       pattern = "inflamm|immune|cytokine",
+#                       db = c("GO_BP", "Hallmark", "Reactome"))
+# 
+# # GSEA analysis
+# gsea_results <- myGSEA(m1,
+#                        db = c("Hallmark", "KEGG"),
+#                        species = "human",
+#                        minSize = 10)
+# 
+# # Visualize top results
+# plotPathways(go_results, top_n = 20, type = "dotplot")
+# 
+# # Export genes for Metascape validation
+# sig_genes <- rownames(m1)[m1$p_val_adj < 0.05]
+# exportForMetascape(sig_genes, "my_genes_for_metascape.txt")
+# 
+# # Multi-list analysis (like Metascape)
+# list1 <- rownames(m1)[m1$avg_log2FC > 0]
+# list2 <- rownames(m2)[m2$avg_log2FC > 0]
+# multi_results <- multiListGO(list(list1, list2),
+#                              list_names = c("Cluster1_up", "Cluster2_up"))
+
+# Installation helper
+install_required_packages <- function() {
+  # CRAN packages
+  if (!require(dplyr)) install.packages("dplyr")
+  if (!require(tibble)) install.packages("tibble")
+  if (!require(ggplot2)) install.packages("ggplot2")
+  
+  # Bioconductor packages
+  if (!require(BiocManager)) install.packages("BiocManager")
+  
+  bioc_packages <- c("clusterProfiler", "org.Hs.eg.db", "org.Mm.eg.db",
+                     "fgsea", "biomaRt", "msigdbr")
+  
+  for (pkg in bioc_packages) {
+    if (!require(pkg, character.only = TRUE)) {
+      BiocManager::install(pkg)
+    }
+  }
+  
+  message("All required packages installed!")
+}
+
+# Debugging helper
+debugGeneConversion <- function(genes, species = "human") {
+  cat("Gene conversion debugging:\n")
+  cat("Total input genes:", length(genes), "\n")
+  cat("Sample genes:", head(genes, 10), "\n\n")
+  
+  # Try different conversion methods
+  if (species == "human") {
+    org_db <- org.Hs.eg.db
+  } else {
+    org_db <- org.Mm.eg.db
+  }
+  
+  # Check what keys are available
+  cat("Available key types:", keytypes(org_db), "\n\n")
+  
+  # Try symbol mapping
+  symbol_to_entrez <- tryCatch({
+    mapIds(org_db, keys = genes[1:min(10, length(genes))],
+          keytype = "SYMBOL", column = "ENTREZID", multiVals = "first")
+  }, error = function(e) NULL)
+  
+  if (!is.null(symbol_to_entrez)) {
+    cat("Symbol to Entrez mapping (first 10):\n")
+    print(symbol_to_entrez)
+  }
+  
+  # Try alias mapping
+  alias_to_entrez <- tryCatch({
+    mapIds(org_db, keys = genes[1:min(10, length(genes))],
+          keytype = "ALIAS", column = "ENTREZID", multiVals = "first")
+  }, error = function(e) NULL)
+  
+  if (!is.null(alias_to_entrez)) {
+    cat("\nAlias to Entrez mapping (first 10):\n")
+    print(alias_to_entrez)
+  }
+  
+  # Check if genes might be Ensembl IDs
+  if (any(grepl("^ENS", genes[1:min(10, length(genes))]))) {
+    cat("\nDetected possible Ensembl IDs\n")
+    ensembl_to_entrez <- tryCatch({
+      mapIds(org_db, keys = genes[1:min(10, length(genes))],
+            keytype = "ENSEMBL", column = "ENTREZID", multiVals = "first")
+    }, error = function(e) NULL)
+    
+    if (!is.null(ensembl_to_entrez)) {
+      print(ensembl_to_entrez)
+    }
+  }
+  
+  return(invisible(NULL))
+}
+```
+
+### metascape 스타일
+```{r}
+# Metascape 스타일의 순수 gene list 기반 enrichment
+metascapeStyle <- function(genes, 
+                          db = c("GO_BP", "Hallmark", "KEGG", "WikiPathways"),
+                          species = "human",
+                          background = NULL,
+                          minGSSize = 3,
+                          maxGSSize = 500,
+                          pAdjustMethod = "BH") {
+  
+  require(msigdbr)
+  require(clusterProfiler)
+  require(dplyr)
+  
+  species_msigdb <- ifelse(species == "human", "Homo sapiens", "Mus musculus")
+  
+  # Gene name cleaning (Metascape 스타일)
+  genes <- unique(genes)
+  genes <- genes[genes != "" & !is.na(genes)]
+  
+  # Remove version numbers
+  genes <- gsub("\\..*", "", genes)
+  
+  # Handle common variations
+  genes <- gsub("^MT-", "MT", genes)
+  
+  message(paste("Processing", length(genes), "unique genes"))
+  
+  all_results <- list()
+  
+  for (database in db) {
+    
+    message(paste("Analyzing", database, "..."))
+    
+    if (database == "GO_BP") {
+      # GO analysis with symbols (like Metascape)
+      go_sets <- msigdbr(species = species_msigdb, category = "C5", subcategory = "BP")
+      
+      result <- enricher(gene = genes,
+                        universe = background,
+                        TERM2GENE = go_sets[, c("gs_name", "gene_symbol")],
+                        pAdjustMethod = pAdjustMethod,
+                        pvalueCutoff = 1,
+                        qvalueCutoff = 1,
+                        minGSSize = minGSSize,
+                        maxGSSize = maxGSSize)
+      
+    } else if (database == "Hallmark") {
+      hallmark_sets <- msigdbr(species = species_msigdb, category = "H")
+      
+      result <- enricher(gene = genes,
+                        universe = background,
+                        TERM2GENE = hallmark_sets[, c("gs_name", "gene_symbol")],
+                        pAdjustMethod = pAdjustMethod,
+                        pvalueCutoff = 1,
+                        qvalueCutoff = 1,
+                        minGSSize = minGSSize,
+                        maxGSSize = maxGSSize)
+      
+    } else if (database == "KEGG") {
+      kegg_sets <- msigdbr(species = species_msigdb, category = "C2", subcategory = "CP:KEGG")
+      
+      result <- enricher(gene = genes,
+                        universe = background,
+                        TERM2GENE = kegg_sets[, c("gs_name", "gene_symbol")],
+                        pAdjustMethod = pAdjustMethod,
+                        pvalueCutoff = 1,
+                        qvalueCutoff = 1,
+                        minGSSize = minGSSize,
+                        maxGSSize = maxGSSize)
+      
+    } else if (database == "WikiPathways") {
+      wiki_sets <- msigdbr(species = species_msigdb, category = "C2", subcategory = "CP:WIKIPATHWAYS")
+      
+      result <- enricher(gene = genes,
+                        universe = background,
+                        TERM2GENE = wiki_sets[, c("gs_name", "gene_symbol")],
+                        pAdjustMethod = pAdjustMethod,
+                        pvalueCutoff = 1,
+                        qvalueCutoff = 1,
+                        minGSSize = minGSSize,
+                        maxGSSize = maxGSSize)
+    }
+    
+    if (!is.null(result) && nrow(result@result) > 0) {
+      df <- result@result
+      df$db <- database
+      df$pathway <- df$ID
+      df$overlap_genes <- df$Count
+      df$total_genes <- as.numeric(sub("/.*", "", df$BgRatio))
+      df$gene_ratio <- df$Count / df$total_genes
+      df$fold_enrichment <- (df$Count / as.numeric(sub("/.*", "", df$GeneRatio))) / 
+                            (df$total_genes / as.numeric(sub(".*/", "", df$BgRatio)))
+      
+      # Metascape는 -log10(p) 사용
+      df$metascape_score <- -log10(df$pvalue)
+      
+      all_results[[database]] <- df
+    }
+  }
+  
+  combined <- bind_rows(all_results)
+  
+  # Metascape 스타일 정렬: p-value 기준
+  combined <- combined %>%
+    arrange(pvalue) %>%
+    mutate(rank = row_number())
+  
+  return(combined)
+}
+
+# 사용 예시
+genes <- rownames(m.pp.ck.inf__[m.pp.ck.inf__$gene %in% m.pp.ck.inf__only, ])
+
+# Metascape 스타일 분석
+meta_results <- metascapeStyle(genes, 
+                               db = c("GO_BP", "Hallmark", "WikiPathways"),
+                               minGSSize = 3)
+
+# 결과 확인
+head(meta_results[, c("db", "pathway", "pvalue", "p.adjust", "overlap_genes", "fold_enrichment")])
+table(meta_results$db)
+
+# Top pathways by database
+meta_results %>%
+  group_by(db) %>%
+  slice_min(pvalue, n = 5) %>%
+  dplyr::select(db, pathway, pvalue, overlap_genes)
+```
+
+## myCompare
+```{r}
+# Required libraries
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(pheatmap)
+library(corrplot)
+library(GOSemSim)
+library(org.Hs.eg.db)
+library(igraph)
+library(ggrepel)
+library(reshape2)
+library(viridis)
+
+# Main comparison function
+myCompare <- function(go_list, 
+                     names = NULL,
+                     method = c("correlation", "overlap", "semantic", "network", "comprehensive"),
+                     pval_cutoff = 0.05,
+                     top_n = NULL,
+                     plot = TRUE) {
+  
+  # Handle input format - can be list of dataframes or individual dataframes
+  if (is.data.frame(go_list)) {
+    stop("Please provide a list of GO/GSEA results")
+  }
+  
+  # Set names if not provided
+  if (is.null(names)) {
+    names <- paste0("Condition_", 1:length(go_list))
+  }
+  names(go_list) <- names
+  
+  # Initialize results
+  results <- list()
+  
+  # Run selected methods
+  if ("correlation" %in% method || "comprehensive" %in% method) {
+    results$correlation <- compareByCorrelation(go_list, names, plot)
+  }
+  
+  if ("overlap" %in% method || "comprehensive" %in% method) {
+    results$overlap <- compareByOverlap(go_list, names, pval_cutoff, plot)
+  }
+  
+  if ("semantic" %in% method || "comprehensive" %in% method) {
+    results$semantic <- compareBySemantic(go_list, names, pval_cutoff)
+  }
+  
+  if ("network" %in% method || "comprehensive" %in% method) {
+    results$network <- compareByNetwork(go_list, names, pval_cutoff, plot)
+  }
+  
+  if ("comprehensive" %in% method) {
+    results$summary <- generateComprehensiveSummary(results, go_list, names)
+  }
+  
+  class(results) <- "pathwayComparison"
+  return(results)
+}
+
+# Method 1: Quantitative Score-based Comparison
+compareByCorrelation <- function(go_list, names, plot = TRUE) {
+  
+  message("=== Performing Quantitative Score-based Comparison ===")
+  
+  # Extract all unique pathways
+  all_pathways <- unique(unlist(lapply(go_list, function(x) x$pathway)))
+  
+  # Create matrix for NES/enrichment scores
+  score_matrix <- matrix(0, nrow = length(all_pathways), ncol = length(go_list))
+  rownames(score_matrix) <- all_pathways
+  colnames(score_matrix) <- names
+  
+  # Fill matrix with scores
+  for (i in 1:length(go_list)) {
+    df <- go_list[[i]]
+    
+    # Determine which score to use
+    if ("normalized_ES" %in% colnames(df)) {
+      # GSEA results
+      scores <- setNames(df$normalized_ES, df$pathway)
+    } else if ("enrichment_score" %in% colnames(df)) {
+      # GO results with enrichment score
+      scores <- setNames(df$enrichment_score, df$pathway)
+    } else {
+      # Use -log10(p-value) as score
+      scores <- setNames(-log10(df$pvalue + 1e-10), df$pathway)
+    }
+    
+    # Fill in scores
+    matching_pathways <- intersect(names(scores), rownames(score_matrix))
+    score_matrix[matching_pathways, i] <- scores[matching_pathways]
+  }
+  
+  # Calculate correlations
+  cor_matrix <- cor(score_matrix, use = "pairwise.complete.obs", method = "spearman")
+  
+  # Calculate p-values for correlations
+  cor_pvalues <- matrix(NA, ncol(cor_matrix), ncol(cor_matrix))
+  for (i in 1:(ncol(cor_matrix)-1)) {
+    for (j in (i+1):ncol(cor_matrix)) {
+      test <- cor.test(score_matrix[,i], score_matrix[,j], method = "spearman")
+      cor_pvalues[i,j] <- cor_pvalues[j,i] <- test$p.value
+    }
+  }
+  diag(cor_pvalues) <- 0
+  
+  # Plotting
+  if (plot) {
+    # Correlation heatmap
+    corrplot(cor_matrix, method = "color", type = "full",
+             order = "hclust", tl.col = "black", tl.srt = 45,
+             addCoef.col = "black", number.cex = 0.8,
+             title = "Pathway Profile Correlation", mar = c(0,0,2,0))
+    
+    # If only 2 conditions, create scatter plot
+    if (length(go_list) == 2) {
+      df_scatter <- data.frame(
+        Condition1 = score_matrix[,1],
+        Condition2 = score_matrix[,2],
+        pathway = rownames(score_matrix)
+      )
+      
+      # Remove zeros (non-significant in both)
+      df_scatter <- df_scatter[!(df_scatter$Condition1 == 0 & df_scatter$Condition2 == 0),]
+      
+      p <- ggplot(df_scatter, aes(x = Condition1, y = Condition2)) +
+        geom_point(alpha = 0.5) +
+        geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+        geom_text_repel(data = df_scatter[abs(df_scatter$Condition1) > 2 | 
+                                          abs(df_scatter$Condition2) > 2,],
+                        aes(label = substr(pathway, 1, 30)), size = 3) +
+        labs(x = names[1], y = names[2],
+             title = "Pathway Score Comparison",
+             subtitle = paste("Correlation:", round(cor_matrix[1,2], 3))) +
+        theme_minimal()
+      print(p)
+    }
+  }
+  
+  return(list(
+    correlation_matrix = cor_matrix,
+    correlation_pvalues = cor_pvalues,
+    score_matrix = score_matrix
+  ))
+}
+
+# Method 2: Overlap-based Comparison
+compareByOverlap <- function(go_list, names, pval_cutoff = 0.05, plot = TRUE) {
+  
+  message("=== Performing Overlap-based Comparison ===")
+  
+  # Get significant pathways for each condition
+  sig_pathways <- lapply(go_list, function(x) {
+    if ("p.adjust" %in% colnames(x)) {
+      x$pathway[x$p.adjust < pval_cutoff]
+    } else {
+      x$pathway[x$pvalue < pval_cutoff]
+    }
+  })
+  
+  # Calculate overlap matrix
+  overlap_matrix <- matrix(0, length(go_list), length(go_list))
+  rownames(overlap_matrix) <- colnames(overlap_matrix) <- names
+  
+  jaccard_matrix <- overlap_matrix
+  fisher_pvalues <- overlap_matrix
+  
+  # All pathways as background
+  all_pathways <- unique(unlist(lapply(go_list, function(x) x$pathway)))
+  n_total <- length(all_pathways)
+  
+  for (i in 1:length(go_list)) {
+    for (j in 1:length(go_list)) {
+      if (i <= j) {
+        overlap <- length(intersect(sig_pathways[[i]], sig_pathways[[j]]))
+        union <- length(union(sig_pathways[[i]], sig_pathways[[j]]))
+        
+        overlap_matrix[i,j] <- overlap_matrix[j,i] <- overlap
+        
+        # Jaccard index
+        if (union > 0) {
+          jaccard_matrix[i,j] <- jaccard_matrix[j,i] <- overlap / union
+        }
+        
+        # Fisher's exact test
+        if (i != j) {
+          # Create contingency table
+          a <- overlap  # in both
+          b <- length(sig_pathways[[i]]) - overlap  # only in i
+          c <- length(sig_pathways[[j]]) - overlap  # only in j
+          d <- n_total - a - b - c  # in neither
+          
+          if (d > 0) {
+            fisher_test <- fisher.test(matrix(c(a, b, c, d), 2, 2))
+            fisher_pvalues[i,j] <- fisher_pvalues[j,i] <- fisher_test$p.value
+          }
+        }
+      }
+    }
+  }
+  
+  # Plotting
+  if (plot && length(go_list) <= 5) {
+    # Venn diagram for 2-3 conditions
+    if (length(go_list) %in% 2:3) {
+      library(VennDiagram)
+      venn.plot <- venn.diagram(
+        x = sig_pathways,
+        category.names = names,
+        filename = NULL,
+        output = TRUE,
+        main = "Significant Pathways Overlap"
+      )
+      grid::grid.draw(venn.plot)
+    }
+    
+    # Heatmap of Jaccard indices
+    pheatmap(jaccard_matrix, 
+             display_numbers = TRUE,
+             number_format = "%.2f",
+             main = "Jaccard Similarity Index",
+             cluster_rows = length(go_list) > 2,
+             cluster_cols = length(go_list) > 2)
+  }
+  
+  # Find common and unique pathways
+  common_pathways <- Reduce(intersect, sig_pathways)
+  unique_pathways <- lapply(1:length(sig_pathways), function(i) {
+    setdiff(sig_pathways[[i]], unlist(sig_pathways[-i]))
+  })
+  names(unique_pathways) <- names
+  
+  return(list(
+    overlap_counts = overlap_matrix,
+    jaccard_indices = jaccard_matrix,
+    fisher_pvalues = fisher_pvalues,
+    significant_pathways = sig_pathways,
+    common_pathways = common_pathways,
+    unique_pathways = unique_pathways,
+    n_significant = sapply(sig_pathways, length)
+  ))
+}
+
+# Method 3: Semantic Similarity (for GO terms)
+compareBySemantic <- function(go_list, names, pval_cutoff = 0.05) {
+  
+  message("=== Performing Semantic Similarity Comparison ===")
+  
+  # Check if GO terms are present
+  has_go <- all(sapply(go_list, function(x) {
+    any(grepl("^GO:", x$ID)) || any(grepl("^GO:", x$pathway))
+  }))
+  
+  if (!has_go) {
+    message("No GO terms found. Skipping semantic similarity analysis.")
+    return(NULL)
+  }
+  
+  tryCatch({
+    # Prepare GO data
+    hsGO <- godata('org.Hs.eg.db', ont="BP")
+    
+    # Get significant GO terms for each condition
+    sig_go_terms <- lapply(go_list, function(x) {
+      if ("p.adjust" %in% colnames(x)) {
+        terms <- x$ID[x$p.adjust < pval_cutoff]
+      } else {
+        terms <- x$ID[x$pvalue < pval_cutoff]
+      }
+      # Extract GO IDs
+      terms <- terms[grepl("^GO:", terms)]
+      return(terms)
+    })
+    
+    # Calculate semantic similarity between conditions
+    sem_sim_matrix <- matrix(NA, length(go_list), length(go_list))
+    rownames(sem_sim_matrix) <- colnames(sem_sim_matrix) <- names
+    
+    for (i in 1:length(go_list)) {
+      for (j in i:length(go_list)) {
+        if (length(sig_go_terms[[i]]) > 0 && length(sig_go_terms[[j]]) > 0) {
+          # Calculate similarity between two sets of GO terms
+          sim <- mgoSim(sig_go_terms[[i]], sig_go_terms[[j]], 
+                       semData = hsGO, measure = "Wang", combine = "BMA")
+          sem_sim_matrix[i,j] <- sem_sim_matrix[j,i] <- sim
+        }
+      }
+    }
+    
+    return(list(
+      semantic_similarity = sem_sim_matrix,
+      go_terms_used = sig_go_terms
+    ))
+    
+  }, error = function(e) {
+    message("Semantic similarity calculation failed: ", e$message)
+    return(NULL)
+  })
+}
+
+# Method 4: Network-based Comparison
+compareByNetwork <- function(go_list, names, pval_cutoff = 0.05, plot = TRUE) {
+  
+  message("=== Performing Network-based Comparison ===")
+  
+  # Combine all significant pathways with their genes
+  all_sig_pathways <- list()
+  
+  for (i in 1:length(go_list)) {
+    df <- go_list[[i]]
+    
+    # Filter significant
+    if ("p.adjust" %in% colnames(df)) {
+      sig_df <- df[df$p.adjust < pval_cutoff,]
+    } else {
+      sig_df <- df[df$pvalue < pval_cutoff,]
+    }
+    
+    if (nrow(sig_df) > 0) {
+      # Extract genes for each pathway
+      for (j in 1:nrow(sig_df)) {
+        pathway_name <- sig_df$pathway[j]
+        
+        # Get genes (handle different column names)
+        if ("geneID" %in% colnames(sig_df)) {
+          genes <- unlist(strsplit(sig_df$geneID[j], "/"))
+        } else if ("leading_edge_genes" %in% colnames(sig_df)) {
+          genes <- unlist(strsplit(sig_df$leading_edge_genes[j], "/"))
+        } else {
+          genes <- c()
+        }
+        
+        all_sig_pathways[[paste0(names[i], "::", pathway_name)]] <- genes
+      }
+    }
+  }
+  
+  # Create pathway similarity network based on gene overlap
+  n_pathways <- length(all_sig_pathways)
+  
+  if (n_pathways < 2) {
+    message("Not enough pathways for network analysis")
+    return(NULL)
+  }
+  
+  # Calculate Jaccard similarity between all pathway pairs
+  similarity_matrix <- matrix(0, n_pathways, n_pathways)
+  rownames(similarity_matrix) <- colnames(similarity_matrix) <- names(all_sig_pathways)
+  
+  for (i in 1:(n_pathways-1)) {
+    for (j in (i+1):n_pathways) {
+      genes1 <- all_sig_pathways[[i]]
+      genes2 <- all_sig_pathways[[j]]
+      
+      if (length(genes1) > 0 && length(genes2) > 0) {
+        overlap <- length(intersect(genes1, genes2))
+        union <- length(union(genes1, genes2))
+        if (union > 0) {
+          similarity_matrix[i,j] <- similarity_matrix[j,i] <- overlap / union
+        }
+      }
+    }
+  }
+  
+  # Create network
+  threshold <- 0.25  # Minimum similarity to create edge
+  edges <- which(similarity_matrix > threshold & upper.tri(similarity_matrix), arr.ind = TRUE)
+  
+  if (nrow(edges) > 0) {
+    # Create igraph object
+    g <- graph_from_edgelist(cbind(rownames(similarity_matrix)[edges[,1]], 
+                                   rownames(similarity_matrix)[edges[,2]]), 
+                             directed = FALSE)
+    
+    # Add edge weights
+    E(g)$weight <- similarity_matrix[edges]
+    
+    # Add node attributes
+    V(g)$condition <- gsub("::.*", "", V(g)$name)
+    V(g)$pathway <- gsub(".*::", "", V(g)$name)
+    
+    # Find communities
+    communities <- cluster_fast_greedy(g)
+    
+    # Plotting
+    if (plot && vcount(g) < 100) {
+      # Set colors by condition
+      condition_colors <- rainbow(length(names))
+      names(condition_colors) <- names
+      V(g)$color <- condition_colors[V(g)$condition]
+      
+      # Plot network
+      plot(g, 
+           vertex.label = NA,
+           vertex.size = 5,
+           edge.width = E(g)$weight * 5,
+           main = "Pathway Similarity Network",
+           sub = "Nodes colored by condition")
+      legend("topright", legend = names, fill = condition_colors, bty = "n")
+    }
+    
+    # Analyze which conditions share functional modules
+    module_sharing <- table(V(g)$condition, communities$membership)
+    
+    return(list(
+      network = g,
+      communities = communities,
+      module_sharing = module_sharing,
+      similarity_matrix = similarity_matrix
+    ))
+  } else {
+    message("No significant pathway overlap for network construction")
+    return(NULL)
+  }
+}
+
+# Generate Comprehensive Summary
+generateComprehensiveSummary <- function(results, go_list, names) {
+  
+  message("\n=== Generating Comprehensive Summary ===")
+  
+  summary_text <- list()
+  
+  # 1. Overall similarity scores
+  if (!is.null(results$correlation)) {
+    cor_mat <- results$correlation$correlation_matrix
+    avg_correlation <- mean(cor_mat[upper.tri(cor_mat)])
+    summary_text$correlation <- paste0(
+      "Average pathway profile correlation: ", round(avg_correlation, 3)
+    )
+  }
+  
+  # 2. Overlap statistics
+  if (!is.null(results$overlap)) {
+    n_common <- length(results$overlap$common_pathways)
+    total_unique <- sum(sapply(results$overlap$unique_pathways, length))
+    summary_text$overlap <- paste0(
+      "Common pathways: ", n_common, 
+      ", Total unique pathways: ", total_unique
+    )
+  }
+  
+  # 3. Semantic similarity (if GO)
+  if (!is.null(results$semantic)) {
+    sem_mat <- results$semantic$semantic_similarity
+    if (!all(is.na(sem_mat))) {
+      avg_semantic <- mean(sem_mat[upper.tri(sem_mat)], na.rm = TRUE)
+      summary_text$semantic <- paste0(
+        "Average GO semantic similarity: ", round(avg_semantic, 3)
+      )
+    }
+  }
+  
+  # 4. Network modules
+  if (!is.null(results$network)) {
+    n_communities <- length(unique(results$network$communities$membership))
+    summary_text$network <- paste0(
+      "Network communities identified: ", n_communities
+    )
+  }
+  
+  # Create summary dataframe
+  summary_df <- data.frame(
+    Metric = names(summary_text),
+    Value = unlist(summary_text),
+    stringsAsFactors = FALSE
+  )
+  
+  # Pairwise comparison matrix
+  if (length(go_list) > 1) {
+    pairwise_summary <- matrix(NA, length(names), length(names))
+    rownames(pairwise_summary) <- colnames(pairwise_summary) <- names
+    
+    if (!is.null(results$correlation)) {
+      for (i in 1:length(names)) {
+        for (j in 1:length(names)) {
+          if (i != j) {
+            pairwise_summary[i,j] <- results$correlation$correlation_matrix[i,j]
+          }
+        }
+      }
+    }
+  } else {
+    pairwise_summary <- NULL
+  }
+  
+  return(list(
+    summary_statistics = summary_df,
+    pairwise_correlations = pairwise_summary,
+    interpretation = generateInterpretation(results, names)
+  ))
+}
+
+# Generate interpretation text
+generateInterpretation <- function(results, names) {
+  
+  interpretation <- c()
+  
+  # Correlation interpretation
+  if (!is.null(results$correlation)) {
+    cor_mat <- results$correlation$correlation_matrix
+    
+    # Find most similar pair
+    cor_mat_no_diag <- cor_mat
+    diag(cor_mat_no_diag) <- NA
+    max_cor <- max(cor_mat_no_diag, na.rm = TRUE)
+    max_pair <- which(cor_mat_no_diag == max_cor, arr.ind = TRUE)[1,]
+    
+    interpretation <- c(interpretation,
+      paste0("Highest similarity: ", names[max_pair[1]], " and ", 
+             names[max_pair[2]], " (r = ", round(max_cor, 3), ")")
+    )
+  }
+  
+  # Overlap interpretation
+  if (!is.null(results$overlap)) {
+    n_common <- length(results$overlap$common_pathways)
+    if (n_common > 0) {
+      top_common <- head(results$overlap$common_pathways, 3)
+      interpretation <- c(interpretation,
+        paste0("Key shared pathways: ", paste(top_common, collapse = ", "))
+      )
+    }
+    
+    # Unique pathways
+    for (i in 1:length(names)) {
+      n_unique <- length(results$overlap$unique_pathways[[i]])
+      if (n_unique > 0) {
+        interpretation <- c(interpretation,
+          paste0(names[i], " has ", n_unique, " unique pathways")
+        )
+      }
+    }
+  }
+  
+  return(interpretation)
+}
+
+# Visualization function for comprehensive results
+plotComparisonResults <- function(comparison_results) {
+  
+  if (!inherits(comparison_results, "pathwayComparison")) {
+    stop("Input must be a pathwayComparison object from myCompare()")
+  }
+  
+  # Create multi-panel plot
+  par(mfrow = c(2, 2))
+  
+  # Panel 1: Correlation heatmap
+  if (!is.null(comparison_results$correlation)) {
+    corrplot(comparison_results$correlation$correlation_matrix,
+             method = "color", type = "full")
+  }
+  
+  # Panel 2: Overlap counts
+  if (!is.null(comparison_results$overlap)) {
+    barplot(comparison_results$overlap$n_significant,
+            main = "Number of Significant Pathways",
+            las = 2)
+  }
+  
+  # Panel 3: Jaccard similarity
+  if (!is.null(comparison_results$overlap)) {
+    heatmap(comparison_results$overlap$jaccard_indices,
+            main = "Jaccard Similarity")
+  }
+  
+  # Panel 4: Summary text
+  if (!is.null(comparison_results$summary)) {
+    plot.new()
+    text(0.5, 0.5, paste(comparison_results$summary$interpretation, collapse = "\n"),
+         cex = 0.8)
+  }
+  
+  par(mfrow = c(1, 1))
+}
+
+# Create pathway score heatmap across conditions
+createPathwayHeatmap <- function(go_list, 
+                                 names = NULL,
+                                 top_n = 50,
+                                 cluster_pathways = TRUE,
+                                 cluster_conditions = TRUE,
+                                 show_pvalues = FALSE) {
+  
+  if (is.null(names)) {
+    names <- paste0("Condition_", 1:length(go_list))
+  }
+  
+  # Get top pathways by average significance
+  all_pathways_scores <- list()
+  
+  for (i in 1:length(go_list)) {
+    df <- go_list[[i]]
+    pathway_scores <- setNames(-log10(df$pvalue + 1e-10), df$pathway)
+    all_pathways_scores[[names[i]]] <- pathway_scores
+  }
+  
+  # Create matrix
+  all_pathways <- unique(unlist(lapply(all_pathways_scores, names)))
+  score_matrix <- matrix(0, length(all_pathways), length(names))
+  rownames(score_matrix) <- all_pathways
+  colnames(score_matrix) <- names
+  
+  for (i in 1:length(names)) {
+    matching <- intersect(names(all_pathways_scores[[i]]), rownames(score_matrix))
+    score_matrix[matching, i] <- all_pathways_scores[[i]][matching]
+  }
+  
+  # Select top pathways
+  avg_scores <- rowMeans(score_matrix)
+  top_pathways <- names(sort(avg_scores, decreasing = TRUE)[1:min(top_n, length(avg_scores))])
+  score_matrix_top <- score_matrix[top_pathways, , drop = FALSE]
+  
+  # Truncate long pathway names
+  rownames(score_matrix_top) <- substr(rownames(score_matrix_top), 1, 50)
+  
+  # Create heatmap
+  pheatmap(score_matrix_top,
+           cluster_rows = cluster_pathways,
+           cluster_cols = cluster_conditions,
+           scale = "row",
+           color = colorRampPalette(c("blue", "white", "red"))(100),
+           main = paste("Top", min(top_n, nrow(score_matrix_top)), "Pathways Across Conditions"),
+           fontsize_row = 8,
+           fontsize_col = 10,
+           display_numbers = show_pvalues)
+}
+
+# Example usage:
+# go_result1 <- myGO(markers1, db = c("GO_BP", "Hallmark"))
+# go_result2 <- myGO(markers2, db = c("GO_BP", "Hallmark"))
+# go_result3 <- myGO(markers3, db = c("GO_BP", "Hallmark"))
+# 
+# # Compare results
+# comparison <- myCompare(
+#   list(go_result1, go_result2, go_result3),
+#   names = c("Drug1", "Drug2", "Drug3"),
+#   method = "comprehensive"
+# )
+# 
+# # View results
+# print(comparison$summary$summary_statistics)
+# print(comparison$summary$interpretation)
+# 
+# # Create comprehensive heatmap
+# createPathwayHeatmap(
+#   list(go_result1, go_result2, go_result3),
+#   names = c("Drug1", "Drug2", "Drug3"),
+#   top_n = 30
+# )
+# 
+# # Plot all comparison results
+# plotComparisonResults(comparison)
+```
+## myCompare, p.adjust 문제
+```{r}
+# Required libraries
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(pheatmap)
+library(corrplot)
+library(GOSemSim)
+library(org.Hs.eg.db)
+library(igraph)
+library(ggrepel)
+library(reshape2)
+library(viridis)
+
+# Main comparison function
+myCompare2 <- function(go_list, 
+                     names = NULL,
+                     method = c("correlation", "overlap", "semantic", "network", "comprehensive"),
+                     pval_cutoff = 0.05,
+                     top_n = NULL,
+                     plot = TRUE,
+                     p.use="p.adjust") {
+  
+  # Handle input format - can be list of dataframes or individual dataframes
+  if (is.data.frame(go_list)) {
+    stop("Please provide a list of GO/GSEA results")
+  }
+  
+  # Set names if not provided
+  if (is.null(names)) {
+    names <- paste0("Condition_", 1:length(go_list))
+  }
+  names(go_list) <- names
+  
+  # Initialize results
+  results <- list()
+  
+  # Run selected methods
+  if ("correlation" %in% method || "comprehensive" %in% method) {
+    results$correlation <- compareByCorrelation(go_list, names, plot)
+  }
+  
+  if ("overlap" %in% method || "comprehensive" %in% method) {
+    results$overlap <- compareByOverlap(go_list, names, pval_cutoff, plot, p.use)
+  }
+  
+  if ("semantic" %in% method || "comprehensive" %in% method) {
+    results$semantic <- compareBySemantic(go_list, names, pval_cutoff, p.use)
+  }
+  
+  if ("network" %in% method || "comprehensive" %in% method) {
+    results$network <- compareByNetwork(go_list, names, pval_cutoff, plot, p.use)
+  }
+  
+  if ("comprehensive" %in% method) {
+    results$summary <- generateComprehensiveSummary(results, go_list, names)
+  }
+  
+  class(results) <- "pathwayComparison"
+  return(results)
+}
+
+# Method 1: Quantitative Score-based Comparison
+compareByCorrelation <- function(go_list, names, plot = TRUE) {
+  
+  message("=== Performing Quantitative Score-based Comparison ===")
+  
+  # Extract all unique pathways
+  all_pathways <- unique(unlist(lapply(go_list, function(x) x$pathway)))
+  
+  # Create matrix for NES/enrichment scores
+  score_matrix <- matrix(0, nrow = length(all_pathways), ncol = length(go_list))
+  rownames(score_matrix) <- all_pathways
+  colnames(score_matrix) <- names
+  
+  # Fill matrix with scores
+  for (i in 1:length(go_list)) {
+    df <- go_list[[i]]
+    
+    # Determine which score to use
+    if ("normalized_ES" %in% colnames(df)) {
+      # GSEA results
+      scores <- setNames(df$normalized_ES, df$pathway)
+    } else if ("enrichment_score" %in% colnames(df)) {
+      # GO results with enrichment score
+      scores <- setNames(df$enrichment_score, df$pathway)
+    } else {
+      # Use -log10(p-value) as score
+      scores <- setNames(-log10(df$pvalue + 1e-10), df$pathway)
+    }
+    
+    # Fill in scores
+    matching_pathways <- intersect(names(scores), rownames(score_matrix))
+    score_matrix[matching_pathways, i] <- scores[matching_pathways]
+  }
+  
+  # Calculate correlations
+  cor_matrix <- cor(score_matrix, use = "pairwise.complete.obs", method = "spearman")
+  
+  # Calculate p-values for correlations
+  cor_pvalues <- matrix(NA, ncol(cor_matrix), ncol(cor_matrix))
+  for (i in 1:(ncol(cor_matrix)-1)) {
+    for (j in (i+1):ncol(cor_matrix)) {
+      test <- cor.test(score_matrix[,i], score_matrix[,j], method = "spearman")
+      cor_pvalues[i,j] <- cor_pvalues[j,i] <- test$p.value
+    }
+  }
+  diag(cor_pvalues) <- 0
+  
+  # Plotting
+  if (plot) {
+    # Correlation heatmap
+    corrplot(cor_matrix, method = "color", type = "full",
+             order = "hclust", tl.col = "black", tl.srt = 45,
+             addCoef.col = "black", number.cex = 0.8,
+             title = "Pathway Profile Correlation", mar = c(0,0,2,0))
+    
+    # If only 2 conditions, create scatter plot
+    if (length(go_list) == 2) {
+      df_scatter <- data.frame(
+        Condition1 = score_matrix[,1],
+        Condition2 = score_matrix[,2],
+        pathway = rownames(score_matrix)
+      )
+      
+      # Remove zeros (non-significant in both)
+      df_scatter <- df_scatter[!(df_scatter$Condition1 == 0 & df_scatter$Condition2 == 0),]
+      
+      p <- ggplot(df_scatter, aes(x = Condition1, y = Condition2)) +
+        geom_point(alpha = 0.5) +
+        geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+        geom_text_repel(data = df_scatter[abs(df_scatter$Condition1) > 2 | 
+                                          abs(df_scatter$Condition2) > 2,],
+                        aes(label = substr(pathway, 1, 30)), size = 3) +
+        labs(x = names[1], y = names[2],
+             title = "Pathway Score Comparison",
+             subtitle = paste("Correlation:", round(cor_matrix[1,2], 3))) +
+        theme_minimal()
+      print(p)
+    }
+  }
+  
+  return(list(
+    correlation_matrix = cor_matrix,
+    correlation_pvalues = cor_pvalues,
+    score_matrix = score_matrix
+  ))
+}
+
+# Method 2: Overlap-based Comparison
+compareByOverlap <- function(go_list, names, pval_cutoff = 0.05, plot = TRUE, p.use) {
+  
+  message("=== Performing Overlap-based Comparison ===")
+  
+  # Get significant pathways for each condition
+  sig_pathways <- lapply(go_list, function(x) {
+    if (p.use=="p.adjust") {
+      x$pathway[x$p.adjust < pval_cutoff]
+    } else {
+      x$pathway[x$pvalue < pval_cutoff]
+    }
+  })
+  
+  # Calculate overlap matrix
+  overlap_matrix <- matrix(0, length(go_list), length(go_list))
+  rownames(overlap_matrix) <- colnames(overlap_matrix) <- names
+  
+  jaccard_matrix <- overlap_matrix
+  fisher_pvalues <- overlap_matrix
+  
+  # All pathways as background
+  all_pathways <- unique(unlist(lapply(go_list, function(x) x$pathway)))
+  n_total <- length(all_pathways)
+  
+  for (i in 1:length(go_list)) {
+    for (j in 1:length(go_list)) {
+      if (i <= j) {
+        overlap <- length(intersect(sig_pathways[[i]], sig_pathways[[j]]))
+        union <- length(union(sig_pathways[[i]], sig_pathways[[j]]))
+        
+        overlap_matrix[i,j] <- overlap_matrix[j,i] <- overlap
+        
+        # Jaccard index
+        if (union > 0) {
+          jaccard_matrix[i,j] <- jaccard_matrix[j,i] <- overlap / union
+        }
+        
+        # Fisher's exact test
+        if (i != j) {
+          # Create contingency table
+          a <- overlap  # in both
+          b <- length(sig_pathways[[i]]) - overlap  # only in i
+          c <- length(sig_pathways[[j]]) - overlap  # only in j
+          d <- n_total - a - b - c  # in neither
+          
+          if (d > 0) {
+            fisher_test <- fisher.test(matrix(c(a, b, c, d), 2, 2))
+            fisher_pvalues[i,j] <- fisher_pvalues[j,i] <- fisher_test$p.value
+          }
+        }
+      }
+    }
+  }
+  
+  # Plotting
+  if (plot && length(go_list) <= 5) {
+    # Venn diagram for 2-3 conditions
+    if (length(go_list) %in% 2:3) {
+      library(VennDiagram)
+      venn.plot <- venn.diagram(
+        x = sig_pathways,
+        category.names = names,
+        filename = NULL,
+        output = TRUE,
+        main = "Significant Pathways Overlap"
+      )
+      grid::grid.draw(venn.plot)
+    }
+    
+    # Heatmap of Jaccard indices
+    pheatmap(jaccard_matrix, 
+             display_numbers = TRUE,
+             number_format = "%.2f",
+             main = "Jaccard Similarity Index",
+             cluster_rows = length(go_list) > 2,
+             cluster_cols = length(go_list) > 2)
+  }
+  
+  # Find common and unique pathways
+  common_pathways <- Reduce(intersect, sig_pathways)
+  unique_pathways <- lapply(1:length(sig_pathways), function(i) {
+    setdiff(sig_pathways[[i]], unlist(sig_pathways[-i]))
+  })
+  names(unique_pathways) <- names
+  
+  return(list(
+    overlap_counts = overlap_matrix,
+    jaccard_indices = jaccard_matrix,
+    fisher_pvalues = fisher_pvalues,
+    significant_pathways = sig_pathways,
+    common_pathways = common_pathways,
+    unique_pathways = unique_pathways,
+    n_significant = sapply(sig_pathways, length)
+  ))
+}
+
+# Method 3: Semantic Similarity (for GO terms)
+compareBySemantic <- function(go_list, names, pval_cutoff = 0.05, p.use) {
+  
+  message("=== Performing Semantic Similarity Comparison ===")
+  
+  # Check if GO terms are present
+  has_go <- all(sapply(go_list, function(x) {
+    any(grepl("^GO:", x$ID)) || any(grepl("^GO:", x$pathway))
+  }))
+  
+  if (!has_go) {
+    message("No GO terms found. Skipping semantic similarity analysis.")
+    return(NULL)
+  }
+  
+  tryCatch({
+    # Prepare GO data
+    hsGO <- godata('org.Hs.eg.db', ont="BP")
+    
+    # Get significant GO terms for each condition
+    sig_go_terms <- lapply(go_list, function(x) {
+      if (p.use=="p.adjust") {
+        terms <- x$ID[x$p.adjust < pval_cutoff]
+      } else {
+        terms <- x$ID[x$pvalue < pval_cutoff]
+      }
+      # Extract GO IDs
+      terms <- terms[grepl("^GO:", terms)]
+      return(terms)
+    })
+    
+    # Calculate semantic similarity between conditions
+    sem_sim_matrix <- matrix(NA, length(go_list), length(go_list))
+    rownames(sem_sim_matrix) <- colnames(sem_sim_matrix) <- names
+    
+    for (i in 1:length(go_list)) {
+      for (j in i:length(go_list)) {
+        if (length(sig_go_terms[[i]]) > 0 && length(sig_go_terms[[j]]) > 0) {
+          # Calculate similarity between two sets of GO terms
+          sim <- mgoSim(sig_go_terms[[i]], sig_go_terms[[j]], 
+                       semData = hsGO, measure = "Wang", combine = "BMA")
+          sem_sim_matrix[i,j] <- sem_sim_matrix[j,i] <- sim
+        }
+      }
+    }
+    
+    return(list(
+      semantic_similarity = sem_sim_matrix,
+      go_terms_used = sig_go_terms
+    ))
+    
+  }, error = function(e) {
+    message("Semantic similarity calculation failed: ", e$message)
+    return(NULL)
+  })
+}
+
+# Method 4: Network-based Comparison
+compareByNetwork <- function(go_list, names, pval_cutoff = 0.05, plot = TRUE, p.use) {
+  
+  message("=== Performing Network-based Comparison ===")
+  
+  # Combine all significant pathways with their genes
+  all_sig_pathways <- list()
+  
+  for (i in 1:length(go_list)) {
+    df <- go_list[[i]]
+    
+    # Filter significant
+    if (p.use=="p.adjust") {
+      sig_df <- df[df$p.adjust < pval_cutoff,]
+    } else {
+      sig_df <- df[df$pvalue < pval_cutoff,]
+    }
+    
+    if (nrow(sig_df) > 0) {
+      # Extract genes for each pathway
+      for (j in 1:nrow(sig_df)) {
+        pathway_name <- sig_df$pathway[j]
+        
+        # Get genes (handle different column names)
+        if ("geneID" %in% colnames(sig_df)) {
+          genes <- unlist(strsplit(sig_df$geneID[j], "/"))
+        } else if ("leading_edge_genes" %in% colnames(sig_df)) {
+          genes <- unlist(strsplit(sig_df$leading_edge_genes[j], "/"))
+        } else {
+          genes <- c()
+        }
+        
+        all_sig_pathways[[paste0(names[i], "::", pathway_name)]] <- genes
+      }
+    }
+  }
+  
+  # Create pathway similarity network based on gene overlap
+  n_pathways <- length(all_sig_pathways)
+  
+  if (n_pathways < 2) {
+    message("Not enough pathways for network analysis")
+    return(NULL)
+  }
+  
+  # Calculate Jaccard similarity between all pathway pairs
+  similarity_matrix <- matrix(0, n_pathways, n_pathways)
+  rownames(similarity_matrix) <- colnames(similarity_matrix) <- names(all_sig_pathways)
+  
+  for (i in 1:(n_pathways-1)) {
+    for (j in (i+1):n_pathways) {
+      genes1 <- all_sig_pathways[[i]]
+      genes2 <- all_sig_pathways[[j]]
+      
+      if (length(genes1) > 0 && length(genes2) > 0) {
+        overlap <- length(intersect(genes1, genes2))
+        union <- length(union(genes1, genes2))
+        if (union > 0) {
+          similarity_matrix[i,j] <- similarity_matrix[j,i] <- overlap / union
+        }
+      }
+    }
+  }
+  
+  # Create network
+  threshold <- 0.25  # Minimum similarity to create edge
+  edges <- which(similarity_matrix > threshold & upper.tri(similarity_matrix), arr.ind = TRUE)
+  
+  if (nrow(edges) > 0) {
+    # Create igraph object
+    g <- graph_from_edgelist(cbind(rownames(similarity_matrix)[edges[,1]], 
+                                   rownames(similarity_matrix)[edges[,2]]), 
+                             directed = FALSE)
+    
+    # Add edge weights
+    E(g)$weight <- similarity_matrix[edges]
+    
+    # Add node attributes
+    V(g)$condition <- gsub("::.*", "", V(g)$name)
+    V(g)$pathway <- gsub(".*::", "", V(g)$name)
+    
+    # Find communities
+    communities <- cluster_fast_greedy(g)
+    
+    # Plotting
+    if (plot && vcount(g) < 100) {
+      # Set colors by condition
+      condition_colors <- rainbow(length(names))
+      names(condition_colors) <- names
+      V(g)$color <- condition_colors[V(g)$condition]
+      
+      # Plot network
+      plot(g, 
+           vertex.label = NA,
+           vertex.size = 5,
+           edge.width = E(g)$weight * 5,
+           main = "Pathway Similarity Network",
+           sub = "Nodes colored by condition")
+      legend("topright", legend = names, fill = condition_colors, bty = "n")
+    }
+    
+    # Analyze which conditions share functional modules
+    module_sharing <- table(V(g)$condition, communities$membership)
+    
+    return(list(
+      network = g,
+      communities = communities,
+      module_sharing = module_sharing,
+      similarity_matrix = similarity_matrix
+    ))
+  } else {
+    message("No significant pathway overlap for network construction")
+    return(NULL)
+  }
+}
+
+# Generate Comprehensive Summary
+generateComprehensiveSummary <- function(results, go_list, names) {
+  
+  message("\n=== Generating Comprehensive Summary ===")
+  
+  summary_text <- list()
+  
+  # 1. Overall similarity scores
+  if (!is.null(results$correlation)) {
+    cor_mat <- results$correlation$correlation_matrix
+    avg_correlation <- mean(cor_mat[upper.tri(cor_mat)])
+    summary_text$correlation <- paste0(
+      "Average pathway profile correlation: ", round(avg_correlation, 3)
+    )
+  }
+  
+  # 2. Overlap statistics
+  if (!is.null(results$overlap)) {
+    n_common <- length(results$overlap$common_pathways)
+    total_unique <- sum(sapply(results$overlap$unique_pathways, length))
+    summary_text$overlap <- paste0(
+      "Common pathways: ", n_common, 
+      ", Total unique pathways: ", total_unique
+    )
+  }
+  
+  # 3. Semantic similarity (if GO)
+  if (!is.null(results$semantic)) {
+    sem_mat <- results$semantic$semantic_similarity
+    if (!all(is.na(sem_mat))) {
+      avg_semantic <- mean(sem_mat[upper.tri(sem_mat)], na.rm = TRUE)
+      summary_text$semantic <- paste0(
+        "Average GO semantic similarity: ", round(avg_semantic, 3)
+      )
+    }
+  }
+  
+  # 4. Network modules
+  if (!is.null(results$network)) {
+    n_communities <- length(unique(results$network$communities$membership))
+    summary_text$network <- paste0(
+      "Network communities identified: ", n_communities
+    )
+  }
+  
+  # Create summary dataframe
+  summary_df <- data.frame(
+    Metric = names(summary_text),
+    Value = unlist(summary_text),
+    stringsAsFactors = FALSE
+  )
+  
+  # Pairwise comparison matrix
+  if (length(go_list) > 1) {
+    pairwise_summary <- matrix(NA, length(names), length(names))
+    rownames(pairwise_summary) <- colnames(pairwise_summary) <- names
+    
+    if (!is.null(results$correlation)) {
+      for (i in 1:length(names)) {
+        for (j in 1:length(names)) {
+          if (i != j) {
+            pairwise_summary[i,j] <- results$correlation$correlation_matrix[i,j]
+          }
+        }
+      }
+    }
+  } else {
+    pairwise_summary <- NULL
+  }
+  
+  return(list(
+    summary_statistics = summary_df,
+    pairwise_correlations = pairwise_summary,
+    interpretation = generateInterpretation(results, names)
+  ))
+}
+
+# Generate interpretation text
+generateInterpretation <- function(results, names) {
+  
+  interpretation <- c()
+  
+  # Correlation interpretation
+  if (!is.null(results$correlation)) {
+    cor_mat <- results$correlation$correlation_matrix
+    
+    # Find most similar pair
+    cor_mat_no_diag <- cor_mat
+    diag(cor_mat_no_diag) <- NA
+    max_cor <- max(cor_mat_no_diag, na.rm = TRUE)
+    max_pair <- which(cor_mat_no_diag == max_cor, arr.ind = TRUE)[1,]
+    
+    interpretation <- c(interpretation,
+      paste0("Highest similarity: ", names[max_pair[1]], " and ", 
+             names[max_pair[2]], " (r = ", round(max_cor, 3), ")")
+    )
+  }
+  
+  # Overlap interpretation
+  if (!is.null(results$overlap)) {
+    n_common <- length(results$overlap$common_pathways)
+    if (n_common > 0) {
+      top_common <- head(results$overlap$common_pathways, 3)
+      interpretation <- c(interpretation,
+        paste0("Key shared pathways: ", paste(top_common, collapse = ", "))
+      )
+    }
+    
+    # Unique pathways
+    for (i in 1:length(names)) {
+      n_unique <- length(results$overlap$unique_pathways[[i]])
+      if (n_unique > 0) {
+        interpretation <- c(interpretation,
+          paste0(names[i], " has ", n_unique, " unique pathways")
+        )
+      }
+    }
+  }
+  
+  return(interpretation)
+}
+
+# Visualization function for comprehensive results
+plotComparisonResults <- function(comparison_results) {
+  
+  if (!inherits(comparison_results, "pathwayComparison")) {
+    stop("Input must be a pathwayComparison object from myCompare()")
+  }
+  
+  # Create multi-panel plot
+  par(mfrow = c(2, 2))
+  
+  # Panel 1: Correlation heatmap
+  if (!is.null(comparison_results$correlation)) {
+    corrplot(comparison_results$correlation$correlation_matrix,
+             method = "color", type = "full")
+  }
+  
+  # Panel 2: Overlap counts
+  if (!is.null(comparison_results$overlap)) {
+    barplot(comparison_results$overlap$n_significant,
+            main = "Number of Significant Pathways",
+            las = 2)
+  }
+  
+  # Panel 3: Jaccard similarity
+  if (!is.null(comparison_results$overlap)) {
+    heatmap(comparison_results$overlap$jaccard_indices,
+            main = "Jaccard Similarity")
+  }
+  
+  # Panel 4: Summary text
+  if (!is.null(comparison_results$summary)) {
+    plot.new()
+    text(0.5, 0.5, paste(comparison_results$summary$interpretation, collapse = "\n"),
+         cex = 0.8)
+  }
+  
+  par(mfrow = c(1, 1))
+}
+
+# Create pathway score heatmap across conditions
+createPathwayHeatmap <- function(go_list, 
+                                 names = NULL,
+                                 top_n = 50,
+                                 cluster_pathways = TRUE,
+                                 cluster_conditions = TRUE,
+                                 show_pvalues = FALSE) {
+  
+  if (is.null(names)) {
+    names <- paste0("Condition_", 1:length(go_list))
+  }
+  
+  # Get top pathways by average significance
+  all_pathways_scores <- list()
+  
+  for (i in 1:length(go_list)) {
+    df <- go_list[[i]]
+    pathway_scores <- setNames(-log10(df$pvalue + 1e-10), df$pathway)
+    all_pathways_scores[[names[i]]] <- pathway_scores
+  }
+  
+  # Create matrix
+  all_pathways <- unique(unlist(lapply(all_pathways_scores, names)))
+  score_matrix <- matrix(0, length(all_pathways), length(names))
+  rownames(score_matrix) <- all_pathways
+  colnames(score_matrix) <- names
+  
+  for (i in 1:length(names)) {
+    matching <- intersect(names(all_pathways_scores[[i]]), rownames(score_matrix))
+    score_matrix[matching, i] <- all_pathways_scores[[i]][matching]
+  }
+  
+  # Select top pathways
+  avg_scores <- rowMeans(score_matrix)
+  top_pathways <- names(sort(avg_scores, decreasing = TRUE)[1:min(top_n, length(avg_scores))])
+  score_matrix_top <- score_matrix[top_pathways, , drop = FALSE]
+  
+  # Truncate long pathway names
+  rownames(score_matrix_top) <- substr(rownames(score_matrix_top), 1, 50)
+  
+  # Create heatmap
+  pheatmap(score_matrix_top,
+           cluster_rows = cluster_pathways,
+           cluster_cols = cluster_conditions,
+           scale = "row",
+           color = colorRampPalette(c("blue", "white", "red"))(100),
+           main = paste("Top", min(top_n, nrow(score_matrix_top)), "Pathways Across Conditions"),
+           fontsize_row = 8,
+           fontsize_col = 10,
+           display_numbers = show_pvalues)
+}
+
+# Example usage:
+# go_result1 <- myGO(markers1, db = c("GO_BP", "Hallmark"))
+# go_result2 <- myGO(markers2, db = c("GO_BP", "Hallmark"))
+# go_result3 <- myGO(markers3, db = c("GO_BP", "Hallmark"))
+# 
+# # Compare results
+# comparison <- myCompare(
+#   list(go_result1, go_result2, go_result3),
+#   names = c("Drug1", "Drug2", "Drug3"),
+#   method = "comprehensive"
+# )
+# 
+# # View results
+# print(comparison$summary$summary_statistics)
+# print(comparison$summary$interpretation)
+# 
+# # Create comprehensive heatmap
+# createPathwayHeatmap(
+#   list(go_result1, go_result2, go_result3),
+#   names = c("Drug1", "Drug2", "Drug3"),
+#   top_n = 30
+# )
+# 
+# # Plot all comparison results
+# plotComparisonResults(comparison)
+```
+##3
+
+##4
