@@ -1,4 +1,6 @@
 ---
+
+---
 title: "mIBD Responder vs Non-Responder Signature Analysis"
 author: "Comprehensive Pipeline"
 date: "`r Sys.Date()`"
@@ -888,7 +890,7 @@ cat("- Non-responders:", ncol(seurat_nonresponder), "samples\n")
 
 ## 4.4: Verification of Data Subsets
 
-This section provides summary tables to verify the contents of the `seurat_matched` and `seurat_preonly` objects. # It runs AFTER the filtering and splitting to give a clear picture of the final analysis cohorts.
+This section provides summary tables to verify the contents of the `seurat_matched` and `seurat_preonly` objects. \# It runs AFTER the filtering and splitting to give a clear picture of the final analysis cohorts.
 
 ```{r}
 #| label: verification-tables
