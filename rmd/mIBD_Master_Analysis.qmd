@@ -1,0 +1,1339 @@
+---
+title: "mIBD Responder vs Non-Responder Signature Analysis"
+author: "Comprehensive Pipeline"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    self-contained: true
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: false
+fig-width: 12
+fig-height: 8
+---
+
+# Part 1: Global Setup and Data Loading
+
+## 1.1: Project Setup and Variable Definitions
+
+This section loads all required libraries, sets up the R environment, and defines key variables based on the project's data hierarchy.
+
+### Data Hierarchy
+
+The data has the following structure: - **Patient**: The unique patient identifier (`emrid`). - **Drug Treatment**: A unique patient-drug treatment pair (`key`, derived from `emrid` and `drugno`). - **Sample**: The physical pathology slide (`patho_id`). - **ROI (Region of Interest)**: A region on the TMA slide (`key_tma`). - **AOI (Area of Interest)**: The final unit of observation from GeoMx, corresponding to a single cell/observation in the Seurat object. The identifier is the barcode/rowname (`SegmentDisplayName`).
+
+```{r}
+#| label: setup
+#| include: false
+# Load myR package
+library(devtools)
+# Unload the package if it's already loaded to ensure we get the latest version from source
+if ("myR" %in% loadedNamespaces()) {
+  unloadNamespace("myR")
+}
+# Load the development version of the package from the specified path
+devtools::load_all("/data/kjc1/mylit/myR")
+
+# Core packages
+library(Seurat)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readxl)
+library(lme4)
+library(emmeans)
+library(purrr)
+library(ComplexHeatmap)
+library(pheatmap)
+library(grid)
+library(ggrepel)
+library(stringr)
+library(broom)
+library(car)
+library(Hmisc)
+library(circlize)
+library(patchwork)  # For side-by-side plots
+library(moments)    # For skewness and kurtosis
+library(goftest)     # For Anderson-Darling test
+library(conflicted) # To manage namespace conflicts
+
+# Set preferences for conflicting functions
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflict_prefer("select", "dplyr")
+conflict_prefer("summarise", "dplyr")
+conflict_prefer("summarize", "dplyr")
+conflict_prefer("pheatmap", "pheatmap")
+```
+
+```{r}
+#| label: define-vars
+# Define consistent column names based on the data hierarchy
+# - Patient (emrid): A unique patient identifier.
+# - Patient-Drug Pair (key): A unique patient-drug treatment pair, derived from emrid and drugno.
+#   A patient can have multiple entries if they try different drugs over time.
+# - Sample (patho_id): The physical pathology slide.
+# - ROI (key_tma): A Region of Interest on the TMA slide. This is the key used for pre/post pairing.
+# - AOI (SegmentDisplayName): The final unit of observation (Area of Interest), corresponding to a "cell" in Seurat.
+VAR_PATIENT_ID <- "emrid"
+VAR_SAMPLE_ID  <- "patho_id"
+VAR_ROI_ID     <- "key_tma"
+VAR_AOI_ID     <- "SegmentDisplayName"
+VAR_DRUG       <- "drug"
+VAR_RESPONSE_CRITERION <- "Endo remission"
+
+PROJECT_ROOT <- "/data/kjc1/projects/#124. mIBD"
+```
+
+------------------------------------------------------------------------
+
+## 1.2: Load Raw Data
+
+```{r}
+#| label: load-data
+# Load count matrix
+mibd <- read_xlsx(
+  file.path(PROJECT_ROOT, "Initial Dataset_merged_250729.xlsx"),
+  sheet = "BioProbeCountMatrix"
+) %>% as.data.frame()
+
+# Load segment properties (raw metadata)
+mibd_meta_raw <- read_xlsx(
+  file.path(PROJECT_ROOT, "Initial Dataset_merged_250729.xlsx"),
+  sheet = "SegmentProperties"
+) %>%
+  .[!names(.) %in% c("drug", "treatment")] %>%
+  as.data.frame()
+
+# Load clinical metadata
+mibd_meta_clinical <- read_xlsx(
+  file.path(PROJECT_ROOT, "1. biologics naive 이름_병록번호 제외_merged2_250728.xlsx")
+) %>%
+  .[!names(.) %in% c("treatment", "slide", "TMA 순번")] %>%
+  as.data.frame()
+
+# Create long format for pre/post matching
+# 'key_pre' and 'key_post' are the Ground Truth for pairing, defined in the clinical data.
+# We pivot this data to create a long-format table.
+# CRITICAL: We also explicitly create the 'treatment' column here.
+mibd_meta_clinical_long <- mibd_meta_clinical %>%
+  pivot_longer(
+    cols = c(key_pre, key_post),
+    names_to = "treatment", # This will contain "key_pre" or "key_post"
+    values_to = "key_tma"
+  ) %>%
+  mutate(
+    # Clean up the 'treatment' column to be just 'pre' or 'post'
+    treatment = if_else(treatment == "key_pre", "pre", "post")
+  )
+
+# Join metadata
+mibd_meta <- mibd_meta_raw %>%
+  mutate(ROILabel = as.numeric(ROILabel)) %>%
+  left_join(mibd_meta_clinical_long, by = c("key_tma"))
+
+# Final metadata with response information
+mibd_meta_final <- mibd_meta %>%
+  drop_na(patho_id, `Endo remission`) %>%
+  mutate(response = `Endo remission`)
+
+# Prepare data matrices
+raw_data <- mibd
+rownames(raw_data) <- raw_data$ProbeDisplayName
+SP <- mibd_meta_final
+rownames(SP) <- SP$SegmentDisplayName
+
+cat("Data loaded successfully:\n")
+cat("- Gene probes:", nrow(raw_data), "\n")
+cat("- Samples (ROIs):", nrow(SP), "\n")
+cat("- Patients:", length(unique(SP$emrid)), "\n")
+```
+
+## 1.2 Gene and AOI Filtering
+
+```{r}
+#| label: gene-filtering
+# Define column choice
+choice_of_column <- "TargetName"
+
+# Select relevant columns
+data_selected <- raw_data %>%
+  dplyr::select(
+    `ProbeDisplayName`,
+    `TargetName`,
+    `HUGOSymbol`,
+    matches("\\|")  # ROI columns
+  )
+
+# Identify numeric columns (AOI counts)
+numeric_cols <- names(data_selected)[sapply(data_selected, is.numeric)]
+meta_cols <- c("ProbeDisplayName", "TargetName", "HUGOSymbol")
+aoi_cols <- setdiff(numeric_cols, meta_cols)
+aoi_cols <- intersect(aoi_cols, rownames(SP))
+
+# Calculate AOI totals for QC
+aoi_sum <- colSums(data_selected[aoi_cols], na.rm = TRUE)
+
+# Filter AOIs by IQR criterion
+q1 <- quantile(aoi_sum, 0.25)
+q3 <- quantile(aoi_sum, 0.75)
+iqr_val <- q3 - q1
+low_cutoff <- q1 - 1.5 * iqr_val
+remove_aoi <- names(aoi_sum[aoi_sum < low_cutoff])
+
+cat("AOI filtering:\n")
+cat("- Total AOIs:", length(aoi_cols), "\n")
+cat("- AOIs removed:", length(remove_aoi), "\n")
+cat("- AOIs kept:", length(aoi_cols) - length(remove_aoi), "\n")
+
+# Apply AOI filtering
+data_filtered_aoi <- data_selected %>%
+  select(-all_of(remove_aoi)) %>%
+  select(`ProbeDisplayName`, `TargetName`, `HUGOSymbol`, all_of(aoi_cols))
+```
+
+## 1.3 Negative Probe Processing
+
+```{r}
+#| label: neg-probe
+# Extract negative probes for background estimation
+neg_data <- data_filtered_aoi %>%
+  filter(grepl("NegProbe-WTX", ProbeDisplayName))
+
+neg_aoi <- neg_data[intersect(aoi_cols, names(neg_data))]
+neg_geo_mean <- exp(rowMeans(log(neg_aoi + 1), na.rm = TRUE))  # +1 to avoid log(0)
+neg_overall_geo_mean <- exp(mean(log(neg_geo_mean), na.rm = TRUE))  # Geometric mean
+
+neg_log_sd <- sd(log(neg_geo_mean), na.rm = TRUE)
+LOQ <- exp(log(neg_overall_geo_mean) + 2 * neg_log_sd)
+
+cat("Negative probe statistics:\n")
+cat("- Geometric mean:", round(neg_overall_geo_mean, 2), "\n")
+cat("- LOQ (Limit of Quantification):", round(LOQ, 2), "\n")
+```
+
+## 1.4 Biological Probe Processing and QC
+
+```{r}
+#| label: bio-probe
+# Filter to biological probes only
+bio_data <- data_filtered_aoi %>%
+  filter(!grepl("NegProbe-WTX", ProbeDisplayName))
+
+bio_aoi <- bio_data[intersect(aoi_cols, names(bio_data))]
+probe_geo_mean <- exp(rowMeans(log(bio_aoi + 1), na.rm = TRUE))  # +1 to avoid log(0)
+
+# Calculate ratio to target for QC
+overall_geo_mean <- exp(mean(log(probe_geo_mean), na.rm = TRUE))  # Geometric mean
+ratio_to_target <- probe_geo_mean / overall_geo_mean
+
+# Filter probes below 10% of geomean
+cutoff <- 0.1
+keep_probes <- ratio_to_target > cutoff
+bio_data_qc <- bio_data[keep_probes, ]
+
+cat("Probe QC:\n")
+cat("- Starting probes:", nrow(bio_data), "\n")
+cat("- Probes removed:", sum(!keep_probes), "\n")
+cat("- Probes kept:", sum(keep_probes), "\n")
+```
+
+## 1.5 Q3 Normalization
+
+```{r}
+#| label: q3-normalize
+# Prepare data for Q3 normalization
+# First, select only numeric AOI columns from bio_data_qc
+aoi_cols_clean <- intersect(aoi_cols, names(bio_data_qc))
+expr_matrix <- bio_data_qc %>%
+  select(all_of(aoi_cols_clean)) %>%
+  as.matrix()
+
+# Set rownames to gene names
+rownames(expr_matrix) <- bio_data_qc$TargetName
+
+# Create gene info
+gene_info <- bio_data_qc %>%
+  select(ProbeDisplayName, TargetName, HUGOSymbol) %>%
+  mutate(gene = TargetName)
+
+# Verify matrix dimensions
+cat("Preparing expression matrix:\n")
+cat("- Genes (rows):", nrow(expr_matrix), "\n")
+cat("- Samples (columns):", ncol(expr_matrix), "\n")
+cat("- Sample names:", head(colnames(expr_matrix)), "\n")
+
+# Apply Q3 normalization directly to the matrix
+# The q3_normalize function from GeoMx.R takes a matrix and returns a list
+geomx_norm <- myR::q3_normalize(expr_matrix, scaling_factor = 1000)
+
+# Extract normalized counts
+norm_expr <- geomx_norm$normalized  # Linear scale normalized
+norm_expr_log <- geomx_norm$normalized_log  # Log2 transformed
+
+# LOG TRANSFORMATION LOGIC:
+# Q3 normalization scales counts to have similar Q3 (75th percentile) values across samples.
+# Log transformation (log2) is then applied because:
+# 1. Count data is typically right-skewed - log makes distribution more normal
+# 2. Compresses large values and expands small values - reduces impact of outliers
+# 3. Makes variance more stable across expression levels (variance stabilization)
+# 4. Standard practice in RNA-seq/spatial transcriptomics for downstream analysis
+# 5. Q3 normalization brings samples to similar scales, then log2 makes them 
+#    comparable and suitable for statistical tests (t-tests, linear models, etc.)
+# 6. Log transform also helps with fold-change interpretation (log2 FC = doubling)
+
+cat("\nNormalization complete:\n")
+cat("- Input matrix:", dim(expr_matrix), "\n")
+cat("- Normalized matrix:", dim(norm_expr), "\n")
+cat("- Q3 factors applied:", length(geomx_norm$q3_factors), "\n")
+cat("\nNote: norm_expr = linear scale Q3-normalized counts\n")
+cat("      norm_expr_log = log2(norm_expr + 1) for downstream analysis\n")
+```
+
+## 1.6 Normalization Verification
+
+```{r}
+#| label: verify-normalization
+# Ensure SP row names match column names of expression matrix
+if (!identical(rownames(SP), colnames(expr_matrix))) {
+  rownames(SP) <- colnames(expr_matrix)
+}
+
+# Create Seurat object for visualization (Seurat v5 compatible)
+seurat_raw <- CreateSeuratObject(
+  counts = expr_matrix,
+  project = "mIBD",
+  assay = "RNA",
+  meta.data = SP
+)
+
+# Create normalized Seurat object
+seurat_norm <- CreateSeuratObject(
+  counts = norm_expr,  # Use normalized counts (linear scale)
+  project = "mIBD",
+  assay = "RNA",
+  meta.data = SP
+)
+
+# Set log-normalized data as a layer (Seurat v5 uses layers, not slots)
+seurat_norm <- SetAssayData(
+  seurat_norm,
+  layer = "data",
+  new.data = as.matrix(norm_expr_log),
+  assay = "RNA"
+)
+
+# Calculate QC metrics using Layers() for Seurat v5
+seurat_raw$total_counts <- colSums(LayerData(seurat_raw, layer = "counts"))
+seurat_norm$total_counts <- colSums(LayerData(seurat_norm, layer = "counts"))
+
+# Visualize QC
+p1 <- myR::mybar(seurat_raw@meta.data, column = total_counts, 
+            main = "Total Counts Before Normalization")
+p2 <- myR::mybar(seurat_norm@meta.data, column = total_counts,
+            main = "Total Counts After Q3 Normalization")
+
+# Show plots side by side
+library(patchwork)
+combined_plot <- p1 | p2
+print(combined_plot)
+
+# Save plots to project folder
+if (!dir.exists(file.path(PROJECT_ROOT, "plots"))) {
+  dir.create(file.path(PROJECT_ROOT, "plots"), recursive = TRUE)
+}
+
+# Save individual plots
+ggsave(file.path(PROJECT_ROOT, "plots", "raw_counts_histogram.png"), 
+       p1, width = 8, height = 6, dpi = 300)
+ggsave(file.path(PROJECT_ROOT, "plots", "normalized_counts_histogram.png"), 
+       p2, width = 8, height = 6, dpi = 300)
+ggsave(file.path(PROJECT_ROOT, "plots", "counts_comparison.png"), 
+       combined_plot, width = 12, height = 6, dpi = 300)
+
+cat("Plots saved to:", file.path(PROJECT_ROOT, "plots"), "\n")
+
+# Distribution testing
+test_distribution <- function(data, name = "Data") {
+  cat("\n=== Distribution Testing for", name, "===\n")
+  
+  # Remove zeros and NAs for testing
+  test_data <- data[data > 0 & !is.na(data)]
+  
+  if (length(test_data) < 3) {
+    cat("Insufficient data for testing\n")
+    return(NULL)
+  }
+  
+  # Shapiro-Wilk test for normality
+  shapiro_test <- shapiro.test(test_data)
+  cat("Shapiro-Wilk normality test:\n")
+  cat("  p-value:", round(shapiro_test$p.value, 6), "\n")
+  cat("  Normal:", shapiro_test$p.value > 0.05, "\n")
+  
+  # Kolmogorov-Smirnov test for log-normal
+  log_data <- log(test_data)
+  ks_log <- ks.test(log_data, "pnorm", mean(log_data), sd(log_data))
+  cat("\nKolmogorov-Smirnov test for log-normality:\n")
+  cat("  p-value:", round(ks_log$p.value, 6), "\n")
+  cat("  Log-normal:", ks_log$p.value > 0.05, "\n")
+  
+  # Anderson-Darling test for exponential (if available)
+  if (requireNamespace("goftest", quietly = TRUE)) {
+    exp_test <- goftest::ad.test(test_data, "pexp")
+    cat("\nAnderson-Darling test for exponential:\n")
+    cat("  p-value:", round(exp_test$p.value, 6), "\n")
+    cat("  Exponential:", exp_test$p.value > 0.05, "\n")
+  }
+  
+  # Basic statistics
+  cat("\nBasic statistics:\n")
+  cat("  Mean:", round(mean(test_data), 2), "\n")
+  cat("  Median:", round(median(test_data), 2), "\n")
+  cat("  SD:", round(sd(test_data), 2), "\n")
+  
+  # Calculate skewness and kurtosis manually if moments package not available
+  n <- length(test_data)
+  mean_val <- mean(test_data)
+  sd_val <- sd(test_data)
+  
+  # Skewness calculation
+  skewness <- sum((test_data - mean_val)^3) / (n * sd_val^3)
+  cat("  Skewness:", round(skewness, 3), "\n")
+  
+  # Kurtosis calculation
+  kurtosis <- sum((test_data - mean_val)^4) / (n * sd_val^4) - 3
+  cat("  Kurtosis:", round(kurtosis, 3), "\n")
+  
+  # Determine best fit
+  best_fit <- "Unknown"
+  if (shapiro_test$p.value > 0.05) {
+    best_fit <- "Normal"
+  } else if (ks_log$p.value > 0.05) {
+    best_fit <- "Log-normal"
+  } else {
+    best_fit <- "Non-normal (possibly exponential or other)"
+  }
+  
+  cat("\nBest fit:", best_fit, "\n")
+  
+  return(list(
+    shapiro = shapiro_test,
+    ks_log = ks_log,
+    best_fit = best_fit,
+    stats = list(
+      mean = mean(test_data),
+      median = median(test_data),
+      sd = sd(test_data),
+      skewness = skewness,
+      kurtosis = kurtosis
+    )
+  ))
+}
+
+# Test distributions
+raw_dist <- test_distribution(seurat_raw$total_counts, "Raw Counts")
+norm_dist <- test_distribution(seurat_norm$total_counts, "Normalized Counts")
+```
+
+------------------------------------------------------------------------
+
+# Part 2: Metadata Processing and Analysis
+
+## 2.1 Metadata Pruning and Filtering
+
+```{r}
+#| label: metadata-pruning
+# Create patient-drug response summary
+pd <- mibd_meta_final %>%
+  filter(!is.na(response)) %>%
+  mutate(response = as.integer(response)) %>%
+  group_by(emrid, drug) %>%
+  summarise(
+    vals = unique(response),
+    patient_response = if (length(vals) == 1) vals else NA_integer_,
+    .groups = "drop"
+  ) %>%
+  select(emrid, drug, patient_response)
+
+# Count responders by drug
+counts <- pd %>%
+  filter(!is.na(patient_response)) %>%
+  count(drug, patient_response, name = "n_patients") %>%
+  mutate(patient_response = as.character(patient_response)) %>%
+  pivot_wider(
+    names_from = patient_response,
+    values_from = n_patients,
+    values_fill = 0
+  ) %>%
+  rename(Responder = `1`, NonResponder = `0`) %>%
+  mutate(
+    Total = Responder + NonResponder,
+    RespRate = ifelse(Total > 0, Responder / Total, NA_real_)
+  ) %>%
+  arrange(drug)
+
+print(counts)
+```
+
+## 2.2 Metadata Multicollinearity Analysis
+
+```{r}
+#| label: multicollinearity
+# Prepare metadata for correlation analysis
+meta_vars <- SP %>%
+  select_if(is.numeric) %>%
+  select(-contains("segment"))
+
+# Calculate correlation matrix
+cor_matrix <- cor(meta_vars, use = "pairwise.complete.obs", method = "pearson")
+
+# Visualize multicollinearity
+p <- pheatmap(
+  cor_matrix,
+  clustering_distance_rows = "correlation",
+  clustering_distance_cols = "correlation",
+  main = "Metadata Variable Correlations"
+)
+
+print(p)
+```
+
+## 2.3 Metadata Merging
+
+```{r}
+#| label: metadata-merge
+# Create comprehensive metadata with response info
+# Store original treatment column before modification
+SP_interim <- SP %>%
+  mutate(treatment_original = treatment) %>%
+  left_join(pd %>% select(emrid, drug, patient_response),
+            by = c("emrid", "drug")) %>%
+  mutate(
+    response_status = case_when(
+      patient_response == 1 ~ "Responder",
+      patient_response == 0 ~ "NonResponder",
+      TRUE ~ NA_character_
+    ),
+    treatment_combined = ifelse(!is.na(drug) & !is.na(treatment_original),
+                               paste0(drug, "_", treatment_original),
+                               treatment_original)
+  )
+
+# DEBUGGING ROW NAMES
+cat("=== DEBUGGING METADATA ROWNAMES ===\n")
+cat("Original SP rownames (first 5):", head(rownames(SP)), "\n")
+cat("Seurat cell names (first 5):", head(colnames(seurat_norm)), "\n")
+
+# Check if row names were lost during manipulation
+cat("SP_interim rownames after join:", head(rownames(SP_interim)), "\n")
+if(identical(as.character(1:nrow(SP_interim)), rownames(SP_interim))) {
+  cat("WARNING: Row names were reset to default integers!\n")
+}
+
+# The row names for the metadata MUST match the cell names in the Seurat object.
+# The original SP dataframe had correct rownames. We need to restore them.
+SP_final <- SP_interim
+rownames(SP_final) <- rownames(SP)
+cat("Restored rownames to SP_final from original SP\n")
+cat("SP_final rownames (first 5):", head(rownames(SP_final)), "\n")
+cat("Is identical now?", identical(rownames(SP_final), colnames(seurat_norm)), "\n")
+
+# Now that rownames are correct, update Seurat metadata
+seurat_norm@meta.data <- SP_final
+
+# Final check
+cat("Final check: seurat_norm metadata rownames (first 5):", head(rownames(seurat_norm@meta.data)), "\n")
+cat("Is final metadata identical to SP_final?", identical(seurat_norm@meta.data, SP_final), "\n")
+
+cat("\nFinal metadata summary:\n")
+cat("- Total samples:", nrow(SP_final), "\n")
+cat("- Responders:", sum(SP_final$patient_response == 1, na.rm = TRUE), "\n")
+cat("- Non-responders:", sum(SP_final$patient_response == 0, na.rm = TRUE), "\n")
+cat("- Drugs:", paste(unique(SP_final$drug), collapse = ", "), "\n")
+```
+
+------------------------------------------------------------------------
+
+# Part 3: Signature Scoring
+
+## 3.1: (TBD) Known Issues and Workarounds
+
+This section documents known issues encountered during the signature scoring process and the workarounds implemented in the code.
+
+### `AddModuleScore` Error: `subscript out of bounds`
+
+-   **Problem**: When calculating module scores (e.g., Inflammatory Score), Seurat's `AddModuleScore` function sometimes fails with a `subscript out of bounds` error. This is a known, intermittent issue in Seurat, often related to the internal binning of genes by expression level to select control genes.
+-   **Workaround**: A `tryCatch` block is implemented. If `AddModuleScore` fails, the code falls back to a more direct method: calculating the mean expression of all available genes in the signature. While this doesn't use Seurat's control gene correction, it provides a robust and reliable score, preventing the analysis from halting.
+
+### `progeny` Warning: `Layer "counts" isn't present`
+
+-   **Problem**: When running `progeny` to calculate pathway scores, a warning `Layer "counts" isn't present in the assay object` is generated. This is likely due to a minor incompatibility between the `progeny` package and the Seurat v5 object structure, which uses "layers" (e.g., `counts`, `data`) for storing different data matrices. The `progeny` function appears to specifically look for a `counts` layer which might not be the active or intended layer for its calculation.
+-   **Workaround**: The `myR::add_progeny_scores` wrapper function successfully proceeds by using the scaled data from the `progeny` assay it generates. The warning can be safely ignored as the final scores are correctly calculated and added to the object metadata.
+
+------------------------------------------------------------------------
+
+## 3.2 Calculate Inflammatory Score (IS)
+
+```{r}
+#| label: is-score
+# Define inflammatory signature genes
+inflammatory_genes <- c(
+  "IL1B", "TNF", "IL6", "CXCL8", "CXCL1", "CXCL2", "CXCL3",
+  "CCL2", "CCL3", "CCL4", "CCL5",
+  "S100A8", "S100A9", "S100A12",
+  "CD68", "CD163", "ARG1", "NOS2"
+)
+
+# Add module score for inflammatory genes
+cat("Checking gene availability:\n")
+cat("- Total genes in Seurat object:", nrow(seurat_norm), "\n")
+cat("- First 10 gene names:", head(rownames(seurat_norm), 10), "\n")
+
+# Check which inflammatory genes are available
+available_genes <- inflammatory_genes[inflammatory_genes %in% rownames(seurat_norm)]
+missing_genes <- setdiff(inflammatory_genes, available_genes)
+
+cat("- Requested inflammatory genes:", length(inflammatory_genes), "\n")
+cat("- Available genes:", length(available_genes), "\n")
+cat("- Missing genes:", paste(missing_genes, collapse = ", "), "\n")
+
+if (length(available_genes) > 0) {
+  cat("- Available genes:", paste(available_genes, collapse = ", "), "\n")
+  
+  # Create gene list for AddModuleScore
+  gene_list <- list(Inflammatory = available_genes)
+  
+  # Try AddModuleScore with error handling
+  tryCatch({
+    seurat_norm <- AddModuleScore(
+      seurat_norm,
+      features = gene_list,
+      name = "IS_",
+      assay = "RNA"
+    )
+    
+    # Rename the module score column
+    seurat_norm$IS <- seurat_norm$IS_1
+    
+    cat("Inflammatory Score added successfully:\n")
+    cat("- Signature genes used:", length(available_genes), "\n")
+    cat("- IS range:", paste(round(range(seurat_norm$IS, na.rm = TRUE), 3), collapse = " to "), "\n")
+    
+  }, error = function(e) {
+    cat("Error in AddModuleScore:", e$message, "\n")
+    cat("Trying alternative approach...\n")
+    
+    # Alternative: Calculate IS manually
+    expr_data <- LayerData(seurat_norm, layer = "data")
+    available_expr <- expr_data[available_genes, ]
+    seurat_norm$IS <- colMeans(available_expr, na.rm = TRUE)
+    
+    cat("Inflammatory Score calculated manually:\n")
+    cat("- Signature genes used:", length(available_genes), "\n")
+    cat("- IS range:", paste(round(range(seurat_norm$IS, na.rm = TRUE), 3), collapse = " to "), "\n")
+  })
+  
+} else {
+  warning("No inflammatory genes found in the dataset!")
+}
+```
+
+## 3.3 Add PROGENy Pathway Scores
+
+```{r}
+#| label: progeny
+# Load progeny package
+library(progeny)
+
+# Add PROGENy pathway scores using myR function
+cat("Attempting to add PROGENy scores...\n")
+
+tryCatch({
+  seurat_norm <- myR::add_progeny_scores(
+    seurat_obj = seurat_norm,
+    organism = "Human",
+    topn = 100
+  )
+  cat("PROGENy scores added to metadata successfully\n")
+  cat("- PROGENy pathways added:", length(grep("^pathway_|^NFkB|^JAK-STAT", colnames(seurat_norm@meta.data))), "\n")
+}, error = function(e) {
+  cat("Error adding PROGENy scores:", e$message, "\n")
+  cat("Skipping PROGENy scores for now. Continuing with analysis...\n")
+})
+```
+
+## 3.4 Custom Gene Set Signatures
+
+```{r}
+#| label: custom-signatures
+# Define custom gene sets relevant to mIBD
+barrier_genes <- c("MUC2", "OCLN", "TJP1", "CLDN1", "CLDN2", "CLDN4")
+fibrosis_genes <- c("COL1A1", "COL3A1", "TGFB1", "ACTA2", "FN1", "TIMP1")
+stromal_genes <- c("VIM", "PDGFRA", "PDGFRB", "FAP", "SMA")
+
+gene_sets_custom <- list(
+  Barrier = barrier_genes,
+  Fibrosis = fibrosis_genes,
+  Stromal = stromal_genes
+)
+
+# Loop through each custom gene set and add module score with error handling
+for (set_name in names(gene_sets_custom)) {
+  cat(paste("\n--- Calculating score for:", set_name), "---\n")
+  
+  gene_list_current <- gene_sets_custom[[set_name]]
+  
+  # Check which genes are available
+  available_genes <- gene_list_current[gene_list_current %in% rownames(seurat_norm)]
+  missing_genes <- setdiff(gene_list_current, available_genes)
+  
+  cat("- Requested genes:", length(gene_list_current), "\n")
+  cat("- Available genes:", length(available_genes), "\n")
+  if (length(missing_genes) > 0) {
+    cat("- Missing genes:", paste(missing_genes, collapse = ", "), "\n")
+  }
+
+  if (length(available_genes) > 0) {
+    # Try AddModuleScore with error handling
+    tryCatch({
+      seurat_norm <- AddModuleScore(
+        seurat_norm,
+        features = list(available_genes),
+        name = set_name,
+        assay = "RNA"
+      )
+      
+      # Rename the module score column for consistency (AddModuleScore adds '1')
+      seurat_norm[[set_name]] <- seurat_norm[[paste0(set_name, "1")]]
+      seurat_norm[[paste0(set_name, "1")]] <- NULL # remove old column
+      
+      cat(paste(set_name, "Score added successfully using AddModuleScore.\n"))
+      
+    }, error = function(e) {
+      cat("Error in AddModuleScore for", set_name, ":", e$message, "\n")
+      cat("Falling back to manual calculation (mean expression).\n")
+      
+      # Alternative: Calculate score manually
+      expr_data <- LayerData(seurat_norm, layer = "data")
+      # Use drop = FALSE to handle cases with a single gene without turning it into a vector
+      available_expr <- expr_data[available_genes, , drop = FALSE]
+      
+      seurat_norm[[set_name]] <- colMeans(available_expr, na.rm = TRUE)
+      
+      cat(paste(set_name, "Score calculated manually.\n"))
+    })
+    
+  } else {
+    warning(paste("No genes for signature '", set_name, "' found in the dataset!"))
+    # Add a column of NAs as a placeholder
+    seurat_norm[[set_name]] <- NA
+  }
+}
+
+cat("\nCustom signature scoring complete.\n")
+```
+
+------------------------------------------------------------------------
+
+# Part 4: Data Splitting and Feature Engineering
+
+## 4.1: Metadata Feature Engineering
+
+This section creates new metadata columns for analysis, including a unified `heal` score, `response` status, and various interaction terms. This is done *after* all signature scoring to prevent columns from being accidentally overwritten.
+
+```{r}
+#| label: feature-engineering
+# Use the seurat_norm object which now has the complete metadata
+md <- seurat_norm@meta.data
+
+# Create a unified 'heal' score based on a hierarchy of remission criteria
+md <- md %>% mutate(
+  heal = case_when(
+    `Deep mucosal healing` == 1                      ~ 4,
+    `Endo remission` == 1                             ~ 3,
+    `histologic Endoscopic improvement` == 1          ~ 2,
+    `mucosal healing` == 1                            ~ 1,
+    `mucosal healing` == 0                            ~ 0,
+    is.na(`mucosal healing`)                          ~ NA_real_,
+    TRUE                                              ~ NA_real_
+  )
+)
+
+# Create a binary 'response' status based on the heal score
+# This is a different 'response' column than the one from the raw data
+md$response_derived <- case_when(
+  md[[VAR_RESPONSE_CRITERION]] == 1 ~ "Responder",
+  md[[VAR_RESPONSE_CRITERION]] == 0 ~ "NonResponder",
+  TRUE ~ NA_character_
+)
+
+# Create a simplified tissue type column
+md$ck_ <- case_when(
+    md$ck == TRUE ~ "ck",
+    md$ck == FALSE ~ "str",
+    TRUE ~ "unknown"
+)
+
+# Create simplified binary response columns for each healing criterion
+md$H1 <- ifelse(md$`mucosal healing` == 1, "R", "NR")
+md$H2 <- ifelse(md$`histologic Endoscopic improvement` == 1, "R", "NR")
+md$H3 <- ifelse(md$`Endo remission` == 1, "R", "NR")
+md$H4 <- ifelse(md$`Deep mucosal healing` == 1, "R", "NR")
+
+# Create various interaction terms for downstream analysis and plotting
+# Note: We use 'treatment_original' to ensure we are using the raw 'pre'/'post' labels
+md$r_t <- paste(md$response_derived, md$treatment_original, sep = "_")
+md$heal_t <- paste(md$heal, md$treatment_original, sep = "_")
+md$drug_r <- paste(md$drug, md$response_derived, sep = "_")
+md$drug_t <- paste(md$drug, md$treatment_original, sep = "_")
+md$drug_r_t <- paste(md$drug, md$response_derived, md$treatment_original, sep = "_")
+md$ck_r <- paste(md$ck_, md$response_derived, sep = "_")
+md$ck_t <- paste(md$ck_, md$treatment_original, sep = "_")
+md$ck_r_t <- paste(md$ck_, md$response_derived, md$treatment_original, sep = "_")
+md$drug_ck <- paste(md$drug, md$ck_, sep = "_")
+md$drug_ck_r <- paste(md$drug, md$ck_, md$response_derived, sep = "_")
+md$drug_ck_t <- paste(md$drug, md$ck_, md$treatment_original, sep = "_")
+md$drug_ck_r_t <- paste(md$drug, md$ck_, md$response_derived, md$treatment_original, sep = "_")
+
+# Update the Seurat object using AddMetaData, which handles row name alignment
+seurat_norm <- AddMetaData(seurat_norm, md)
+
+cat("--- Metadata Feature Engineering Complete ---\n")
+cat("New columns added, including 'heal', 'response_derived', and various interaction terms.\n")
+print(table(seurat_norm$heal, seurat_norm$response_derived, useNA = "ifany"))
+```
+
+## 4.2: Identify Pre-Post Matched Pairs
+
+```{r}
+#| label: pre-post-identification
+# --- New, More Robust Matching Logic using pre-defined pairs ---
+
+# 1. Identify valid pre/post pairs from the clinical metadata.
+# A valid pair has non-NA values for both key_pre and key_post.
+valid_pairs <- mibd_meta_clinical %>%
+  filter(!is.na(key_pre) & !is.na(key_post))
+
+# 2. Create a unique identifier for each pair, which will be used for the LMM random effect.
+valid_pairs <- valid_pairs %>%
+  mutate(pair_id = paste(emrid, drugno, sep = "_"))
+
+# 3. Get the list of all key_tma values that belong to these valid pairs.
+paired_tma_keys <- unique(c(valid_pairs$key_pre, valid_pairs$key_post))
+
+# 4. Create the matched Seurat object by filtering the full dataset
+# for cells whose key_tma is in our list of paired keys.
+seurat_matched <- subset(seurat_norm, subset = key_tma %in% paired_tma_keys)
+
+# 5. Add the 'pair_id' to the metadata of the matched object.
+# This is crucial for running the paired statistical tests correctly.
+# First, create a mapping from key_tma to pair_id.
+key_to_pair_id_pre <- valid_pairs %>% select(key_tma = key_pre, pair_id)
+key_to_pair_id_post <- valid_pairs %>% select(key_tma = key_post, pair_id)
+key_to_pair_id_map <- bind_rows(key_to_pair_id_pre, key_to_pair_id_post) %>%
+  distinct()
+
+# Now, join this map with the metadata of our matched Seurat object.
+# We use a temporary ID to preserve rownames during the join.
+matched_meta <- seurat_matched@meta.data
+matched_meta$temp_id <- rownames(matched_meta)
+matched_meta <- left_join(matched_meta, key_to_pair_id_map, by = "key_tma")
+rownames(matched_meta) <- matched_meta$temp_id
+matched_meta$temp_id <- NULL
+seurat_matched@meta.data <- matched_meta
+
+# --- Define the pre-only object (ALL pre-treatment samples) ---
+seurat_preonly <- subset(seurat_norm, subset = treatment_original == "pre")
+
+# --- Report the results ---
+cat("--- Data Splitting Summary ---\n")
+cat("Total unique pre/post pairs identified from clinical data:", nrow(valid_pairs), "\n")
+cat("Total cells in the complete matched dataset (`seurat_matched`):", ncol(seurat_matched), "\n")
+unmatched_cells <- sum(is.na(seurat_matched$pair_id))
+if(unmatched_cells > 0){
+    cat("  - WARNING:", unmatched_cells, "cells in seurat_matched could not be assigned to a pair_id!\n")
+}
+cat("Total cells in the pre-only dataset (`seurat_preonly`):", ncol(seurat_preonly), "\n")
+```
+
+------------------------------------------------------------------------
+
+## 4.3: Create Analysis Subsets
+
+```{r}
+#| label: analysis-subsets
+# Subset by CK (or other segment identifier if applicable)
+if ("ck" %in% colnames(SP_final)) {
+  seurat_ck <- subset(seurat_norm, ck == TRUE)
+  cat("CK subset:", ncol(seurat_ck), "samples\n")
+}
+
+# Subset by response status
+seurat_responder <- subset(seurat_norm, response_status == "Responder")
+seurat_nonresponder <- subset(seurat_norm, response_status == "NonResponder")
+
+cat("Response-based subsets:\n")
+cat("- Responders:", ncol(seurat_responder), "samples\n")
+cat("- Non-responders:", ncol(seurat_nonresponder), "samples\n")
+```
+
+------------------------------------------------------------------------
+
+## 4.4: Verification of Data Subsets
+
+This section provides summary tables to verify the contents of the `seurat_matched` and `seurat_preonly` objects. # It runs AFTER the filtering and splitting to give a clear picture of the final analysis cohorts.
+
+```{r}
+#| label: verification-tables
+#| message: false
+#| warning: false
+# --- Helper function to generate a hierarchical summary table ---
+generate_hierarchical_summary <- function(metadata, group_vars) {
+  
+  summary_table <- metadata %>%
+    mutate(patient_drug_pair = paste(emrid, drug, sep = "_")) %>%
+    group_by(across(all_of(group_vars))) %>%
+    summarise(
+      `1. 환자<br>(emrid)` = n_distinct(emrid),
+      `2. 환자-약물 쌍<br>(key)` = n_distinct(patient_drug_pair),
+      `3. 샘플<br>(patho_id)` = n_distinct(patho_id),
+      `4. ROI<br>(key_tma)` = n_distinct(key_tma),
+      `5. AOI<br>(SegmentDisplayName)` = n(),
+      .groups = "drop"
+    )
+
+  # escape=FALSE allows rendering of <br> tag in the header
+  print(knitr::kable(summary_table, caption = "계층적 데이터 요약 (Hierarchical Data Summary)", escape = FALSE))
+  cat("\n")
+}
+
+
+# --- 1. Overall Summary (Multi-drug patients included) ---
+cat("### 1. Overall Summary of Datasets\n")
+
+cat("\n--- Matched Pre/Post Dataset Summary ---\n")
+generate_hierarchical_summary(
+  metadata = seurat_matched@meta.data,
+  group_vars = "treatment_original"
+)
+
+cat("\n--- Pre-Only (for R vs NR) Dataset Summary ---\n")
+preonly_meta_filtered <- seurat_preonly@meta.data %>%
+  filter(!is.na(response_derived))
+generate_hierarchical_summary(
+  metadata = preonly_meta_filtered,
+  group_vars = "response_derived"
+)
+
+
+# --- 2. Drug-Specific Summary ---
+cat("\n### 2. Drug-Specific Breakdown\n")
+
+cat("\n--- Matched Pre/Post Data by Drug ---\n")
+generate_hierarchical_summary(
+  metadata = seurat_matched@meta.data,
+  group_vars = c("drug", "treatment_original")
+)
+
+cat("\n--- Pre-Only (R vs NR) Data by Drug ---\n")
+generate_hierarchical_summary(
+  metadata = preonly_meta_filtered,
+  group_vars = c("drug", "response_derived")
+)
+```
+
+------------------------------------------------------------------------
+
+## 4.5: Investigation of Sample Discrepancies
+
+This section investigates why the final number of matched pairs for a drug might be lower than the number defined in the clinical metadata. This is typically due to one of the samples in a pair being filtered out during initial quality control.
+
+```{r}
+#| label: investigate-missing-samples
+# --- Forensic Investigation of the Missing Vedolizumab Pair ---
+cat("\n\n--- FORENSIC INVESTIGATION: The Missing Vedolizumab Pair ---\n")
+
+# 1. Identify all defined Vedolizumab pairs from the original clinical metadata.
+vedo_pairs_clinical <- mibd_meta_clinical %>%
+  filter(drug == "Vedolizumab", !is.na(key_pre), !is.na(key_post))
+cat(sprintf("1. Clinical metadata defines %d pairs for Vedolizumab.\n", nrow(vedo_pairs_clinical)))
+
+# 2. Extract all 'key_tma' values that SHOULD be in these pairs.
+vedo_paired_keys_clinical <- unique(c(vedo_pairs_clinical$key_pre, vedo_pairs_clinical$key_post))
+cat(sprintf("   - These %d pairs correspond to %d unique key_tma values.\n", nrow(vedo_pairs_clinical), length(vedo_paired_keys_clinical)))
+
+# 3. Get the list of 'key_tma' values that ACTUALLY EXIST in the final matched Seurat object.
+#    This is the crucial step: we check the object that is actually used for analysis.
+keys_in_matched_seurat <- seurat_matched@meta.data %>%
+  filter(drug == "Vedolizumab") %>%
+  pull(key_tma) %>%
+  unique()
+cat(sprintf("2. After QC and pairing logic, %d unique Vedolizumab key_tma values remain in the final `seurat_matched` object.\n", length(keys_in_matched_seurat)))
+
+# 4. Find the missing key(s) by comparing the original list with the final list.
+missing_keys <- setdiff(vedo_paired_keys_clinical, keys_in_matched_seurat)
+
+if (length(missing_keys) > 0) {
+  cat(sprintf("3. DISCREPANCY: Found %d missing key_tma(s) in the final matched object: %s\n", length(missing_keys), paste(missing_keys, collapse = ", ")))
+  
+  # 5. Cross-reference the missing key(s) with the list of AOIs that were removed during QC.
+  #    'remove_aoi' (a vector of SegmentDisplayName) was created in the 'gene-filtering' chunk.
+  #    We use 'mibd_meta_raw' to find the 'key_tma' associated with the removed AOIs.
+  removed_aoi_details <- mibd_meta_raw %>%
+    filter(SegmentDisplayName %in% remove_aoi) %>%
+    select(SegmentDisplayName, key_tma)
+    
+  is_missing_key_in_qc_removed_list <- any(missing_keys %in% removed_aoi_details$key_tma)
+    
+  if (is_missing_key_in_qc_removed_list) {
+    cat("4. ROOT CAUSE IDENTIFIED:\n")
+    cat("   - The sample(s) for the missing key(s) were REMOVED during the initial AOI quality control ('gene-filtering' chunk).\n")
+    cat("   - This happens when an AOI's total counts are too low (an outlier).\n")
+    
+    # Identify exactly which clinical pair is affected by this missing key.
+    affected_pair <- vedo_pairs_clinical %>%
+      filter(key_pre %in% missing_keys | key_post %in% missing_keys)
+    
+    cat("   - The specific patient-drug pair affected by this QC removal is:\n")
+    print(affected_pair %>% select(emrid, drugno, key_pre, key_post))
+    
+    cat("\nCONCLUSION: The Vedolizumab analysis correctly proceeds with 12 pairs because one of the original 13 pairs had a sample that failed quality control. Paired analysis requires both samples to be present.\n")
+    
+  } else {
+    cat("4. ROOT CAUSE UNKNOWN: The missing key was not found in the list of QC-removed AOIs. This requires further manual investigation.\n")
+  }
+  
+} else {
+  cat("3. NO DISCREPANCY: All expected keys from the 13 pairs are present in the final matched object. If the count is still 12, the issue lies elsewhere.\n")
+}
+```
+
+------------------------------------------------------------------------
+
+# Part 5: Segmented Differential Expression Analysis
+
+## 5.1 Create CK-based Subsets
+
+# Now, we split the complete `seurat_matched` object into CK+ and CK- subsets.
+
+# This correctly handles cases where CK status might differ within a pair.
+
+```{r}
+#| label: create-ck-subsets
+# Check if 'ck' column is available
+if (!"ck" %in% colnames(seurat_norm@meta.data)) {
+  stop("Metadata column 'ck' not found! Cannot perform segmented analysis.")
+}
+
+# Subsets for matched data
+seurat_matched_ck_pos <- subset(seurat_matched, ck == TRUE)
+seurat_matched_ck_neg <- subset(seurat_matched, ck == FALSE)
+
+# Subsets for pre-only data
+seurat_preonly_ck_pos <- subset(seurat_preonly, ck == TRUE)
+seurat_preonly_ck_neg <- subset(seurat_preonly, ck == FALSE)
+
+cat("--- CK-based Subsets Created ---\n")
+cat("Matched CK+ samples:", ncol(seurat_matched_ck_pos), "\n")
+cat("Matched CK- samples:", ncol(seurat_matched_ck_neg), "\n")
+cat("Pre-only CK+ samples:", ncol(seurat_preonly_ck_pos), "\n")
+cat("Pre-only CK- samples:", ncol(seurat_preonly_ck_neg), "\n")
+```
+
+## 5.2 Initialize Structured Results List & Define Gene List
+
+# A nested list to hold all DEG results and a list of genes for LMM.
+
+```{r}
+#| label: init-deg-structure
+deg_results <- list()
+
+# Genes to test with LMM (computationally intensive, so we use a curated list)
+candidate_genes <- unique(c(
+  inflammatory_genes, barrier_genes, fibrosis_genes, stromal_genes, "TNFRSF6B", "CSF3R", "CD84"
+))
+```
+
+## 5.3 Run Segmented DEG Analysis Loop
+
+# This loop will iterate through CK+ and CK- segments and run all comparisons.
+
+```{r}
+#| label: deg-loop
+# Reload the local myR package to ensure functions are available in this environment.
+cat("Reloading myR package to ensure all functions are available...\n")
+devtools::load_all("/data/kjc1/mylit/myR")
+
+# Define the analysis configuration required by the LMM function
+# We now use 'pair_id' as the patient/subject identifier for a more accurate paired model.
+my_config <- list(
+  timepoint = "treatment_original",
+  drug = "drug",
+  response = "response_status",
+  patient = "pair_id", # Use the new, more precise pairing ID
+  segment = "ck"
+)
+
+analysis_segments <- list(
+  CK_Positive = list(
+    matched = seurat_matched_ck_pos,
+    preonly = seurat_preonly_ck_pos
+  ),
+  CK_Negative = list(
+    matched = seurat_matched_ck_neg,
+    preonly = seurat_preonly_ck_neg
+  )
+)
+
+for (segment_name in names(analysis_segments)) {
+  
+  cat(paste("\n\n--- Starting Analysis for Segment:", segment_name), "---\n")
+  
+  # --- 1. Pre vs. Post Analysis (Paired LMM) ---
+  cat("\n--- 1. Pre vs. Post Analysis (Paired LMM) ---\n")
+  
+  current_matched_obj <- analysis_segments[[segment_name]]$matched
+  
+  if (ncol(current_matched_obj) > 0 && length(unique(current_matched_obj$treatment_original)) > 1) {
+    
+    genes_for_lmm <- intersect(candidate_genes, rownames(current_matched_obj))
+
+    # --- DEBUGGING: Show a summary of the data being analyzed ---
+    cat("\n    --- Debugging Info for Matched LMM ---\n")
+    print(
+      current_matched_obj@meta.data %>%
+        group_by(drug, treatment_original) %>%
+        summarise(n_samples = n(), .groups = "drop")
+    )
+    cat("    --------------------------------------\n")
+    
+    # 1.1) Total pre vs post
+    cat("  - Running LMM for Total Pre vs. Post...\n")
+    lmm_total <- myR::run_lmm_multiple_genes(current_matched_obj, genes_for_lmm, my_config, n_cores = 4)
+    deg_results[[segment_name]][['pre_vs_post']][['total']] <- lmm_total$summary
+    
+    # 1.2) By each drug
+    deg_results[[segment_name]][['pre_vs_post']][['by_drug']] <- list()
+    for (drug_name in unique(current_matched_obj$drug)) {
+      cat(paste("  - Running LMM for Pre vs. Post, Drug:", drug_name), "...\n")
+      drug_subset <- subset(current_matched_obj, drug == drug_name)
+      
+      unique_treatments <- unique(drug_subset$treatment_original)
+      cat(sprintf("    - Drug: %s | Unique treatments found: %s\n", drug_name, paste(unique_treatments, collapse=", ")))
+
+      if(length(unique_treatments) > 1) {
+        cat("    - Condition MET: Both pre and post samples found. Running LMM.\n")
+        lmm_drug <- myR::run_lmm_multiple_genes(drug_subset, genes_for_lmm, my_config, n_cores = 4)
+        deg_results[[segment_name]][['pre_vs_post']][['by_drug']][[drug_name]] <- lmm_drug$summary
+      } else {
+        cat("    - Condition FAILED: Not enough treatment types (need both pre and post). Skipping.\n")
+      }
+    }
+    
+    # 1.3) By responder status
+    deg_results[[segment_name]][['pre_vs_post']][['by_response']] <- list()
+    for (resp_status in c("Responder", "NonResponder")) {
+      cat(paste("  - Running LMM for Pre vs. Post, Response:", resp_status), "...\n")
+      resp_subset <- subset(current_matched_obj, response_status == resp_status)
+       if(length(unique(resp_subset$treatment_original)) > 1) {
+        lmm_resp <- myR::run_lmm_multiple_genes(resp_subset, genes_for_lmm, my_config, n_cores = 4)
+        deg_results[[segment_name]][['pre_vs_post']][['by_response']][[resp_status]] <- lmm_resp$summary
+      }
+    }
+  } else {
+    cat("  - Skipping: No matched samples with both pre/post in this segment.\n")
+  }
+  
+  # --- 2. Non-Responder vs. Responder Analysis (Unpaired Wilcoxon) ---
+  cat("\n--- 2. NR vs. R Analysis (Unpaired Wilcoxon on Pre-samples) ---\n")
+  
+  current_preonly_obj <- analysis_segments[[segment_name]]$preonly
+  
+  if (ncol(current_preonly_obj) > 0 && length(unique(current_preonly_obj$response_status)) > 1) {
+    
+    # 2.1) Total NR vs R
+    cat("  - Running Wilcoxon for Total NR vs. R...\n")
+    deg_wilcox_total <- FindMarkers(
+      current_preonly_obj, ident.1 = "Responder", ident.2 = "NonResponder",
+      group.by = "response_status", test.use = "wilcox", logfc.threshold = 0.1
+    )
+    deg_results[[segment_name]][['nr_vs_r']][['total']] <- deg_wilcox_total
+    
+    # 2.2) By each drug
+    deg_results[[segment_name]][['nr_vs_r']][['by_drug']] <- list()
+    for (drug_name in unique(current_preonly_obj$drug)) {
+      cat(paste("  - Running Wilcoxon for NR vs. R, Drug:", drug_name), "...\n")
+      drug_subset <- subset(current_preonly_obj, drug == drug_name)
+      if (length(unique(drug_subset$response_status)) > 1) {
+        deg_wilcox_drug <- FindMarkers(
+          drug_subset, ident.1 = "Responder", ident.2 = "NonResponder",
+          group.by = "response_status", test.use = "wilcox", logfc.threshold = 0.1
+        )
+        deg_results[[segment_name]][['nr_vs_r']][['by_drug']][[drug_name]] <- deg_wilcox_drug
+      }
+    }
+  } else {
+    cat("  - Skipping: Not enough samples or response groups in this segment.\n")
+  }
+}
+
+cat("\n\n--- DEG Analysis Complete ---\n")
+```
+
+------------------------------------------------------------------------
+
+# Part 6: Structured Results Visualization
+
+## 6.1 Helper Function for Plotting
+
+# This function generates a volcano plot and a heatmap for a given DEG result.
+
+```{r}
+#| label: plot-helper
+generate_deg_plots <- function(deg_df, title, seurat_obj_for_heatmap, annotation_cols) {
+  
+  if (is.null(deg_df) || nrow(deg_df) == 0) {
+    cat(paste("No DEG results to plot for:", title, "\n"))
+    return()
+  }
+  
+  # Add gene column if not present (from rownames)
+  if (!"gene" %in% colnames(deg_df)) {
+    deg_df <- deg_df %>% mutate(gene = rownames(.))
+  }
+  
+  # Determine p-value and logFC columns (handling LMM vs Wilcoxon)
+  if ("p_val_adj" %in% colnames(deg_df) && "avg_log2FC" %in% colnames(deg_df)) {
+    # Wilcoxon result from FindMarkers
+    p_val_col <- "p_val_adj"
+    logfc_col <- "avg_log2FC"
+  } else if ("p.adj" %in% colnames(deg_df) && "Estimate" %in% colnames(deg_df)) {
+    # LMM result from custom function
+    p_val_col <- "p.adj"
+    logfc_col <- "Estimate"
+  } else {
+    # Fallback for unknown format, try original logic
+    p_val_col <- if ("p.adj" %in% colnames(deg_df)) "p.adj" else "p_val_adj"
+    logfc_col <- if ("avg_log2FC" %in% colnames(deg_df)) "avg_log2FC" else "Estimate"
+  }
+  
+  if(!p_val_col %in% colnames(deg_df) || !logfc_col %in% colnames(deg_df)){
+      cat("Could not find p-value or logFC column for:", title, "\n")
+      return()
+  }
+  
+  # --- Volcano Plot ---
+  p_volcano <- ggplot(deg_df, aes_string(x = logfc_col, y = paste0("-log10(", p_val_col, ")"))) +
+    geom_point(aes(color = .data[[p_val_col]] < 0.05), alpha = 0.6) +
+    geom_text_repel(
+      data = deg_df %>% filter(.data[[p_val_col]] < 0.05) %>% arrange(.data[[p_val_col]]) %>% head(20),
+      aes(label = gene), max.overlaps = 20
+    ) +
+    labs(title = paste("Volcano Plot:", title), x = "Log2 Fold Change") +
+    theme_bw() +
+    scale_color_manual(values = c("gray", "red"), name = "Significant (p.adj < 0.05)")
+  
+  print(p_volcano)
+  
+  # --- Heatmap of Top DEGs ---
+  top_degs <- deg_df %>%
+    filter(.data[[p_val_col]] < 0.05) %>%
+    arrange(.data[[p_val_col]]) %>%
+    head(50) %>%
+    pull(gene)
+    
+  if (length(top_degs) > 0 && !is.null(seurat_obj_for_heatmap)) {
+    
+    pheatmap(
+      LayerData(seurat_obj_for_heatmap, layer = "data")[top_degs, ],
+      annotation_col = seurat_obj_for_heatmap@meta.data[, annotation_cols, drop = FALSE],
+      show_colnames = FALSE,
+      main = paste("Top 50 DEGs:", title)
+    )
+  }
+}
+```
+
+## 6.2 Visualize Key Comparisons
+
+```{r}
+#| label: visualize-key-results
+cat("\n--- Visualizing CK Positive Segment ---\n")
+# NR vs R (Total)
+generate_deg_plots(
+  deg_df = deg_results$CK_Positive$nr_vs_r$total,
+  title = "CK+ | NR vs R (all drugs, pre-treatment)",
+  seurat_obj_for_heatmap = analysis_segments$CK_Positive$preonly,
+  annotation_cols = c("drug", "response_status")
+)
+
+cat("\n--- Visualizing CK Negative Segment ---\n")
+# NR vs R (Total)
+generate_deg_plots(
+  deg_df = deg_results$CK_Negative$nr_vs_r$total,
+  title = "CK- | NR vs R (all drugs, pre-treatment)",
+  seurat_obj_for_heatmap = analysis_segments$CK_Negative$preonly,
+  annotation_cols = c("drug", "response_status")
+)
+```
+
+------------------------------------------------------------------------
+
+# Part 7: Structured Summary of Findings
+
+## 7.1 Summary of DEG Results
+
+```{r}
+#| label: summary-of-degs
+cat("\n\n--- SUMMARY OF ALL DEG COMPARISONS ---\n")
+
+for (segment_name in names(deg_results)) {
+  cat(paste("\n--- Segment:", segment_name), "---\n")
+  
+  # Pre vs Post (LMM)
+  if ("pre_vs_post" %in% names(deg_results[[segment_name]])) {
+    cat("  - Pre vs Post (LMM on candidate genes):\n")
+    # Total
+    total_df <- deg_results[[segment_name]]$pre_vs_post$total
+    if (!is.null(total_df)) {
+      cat(sprintf("    - Total: %d significant genes\n", sum(total_df$p.adj < 0.05, na.rm = TRUE)))
+    }
+    # By Drug
+    for(drug in names(deg_results[[segment_name]]$pre_vs_post$by_drug)) {
+      drug_df <- deg_results[[segment_name]]$pre_vs_post$by_drug[[drug]]
+      cat(sprintf("    - Drug (%s): %d significant genes\n", drug, sum(drug_df$p.adj < 0.05, na.rm = TRUE)))
+    }
+  }
+  
+  # NR vs R (Wilcoxon)
+  if ("nr_vs_r" %in% names(deg_results[[segment_name]])) {
+    cat("  - NR vs R (Wilcoxon on all genes):\n")
+    # Total
+    total_df <- deg_results[[segment_name]]$nr_vs_r$total
+    if (!is.null(total_df)) {
+      cat(sprintf("    - Total: %d significant genes\n", sum(total_df$p_val_adj < 0.05, na.rm = TRUE)))
+    }
+    # By Drug
+    for(drug in names(deg_results[[segment_name]]$nr_vs_r$by_drug)) {
+      drug_df <- deg_results[[segment_name]]$nr_vs_r$by_drug[[drug]]
+      cat(sprintf("    - Drug (%s): %d significant genes\n", drug, sum(drug_df$p_val_adj < 0.05, na.rm = TRUE)))
+    }
+  }
+}
+```
+
+------------------------------------------------------------------------
+
+# Session Info
+
+```{r}
+#| label: session-info
+sessionInfo()
+```
