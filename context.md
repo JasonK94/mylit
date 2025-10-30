@@ -1,7 +1,7 @@
 # Project-Specific Context
 
 ## Primary Goal
-the data is acquired from UC patient's endoscopic biopsy sample of active resion in rectum using GeoMx DSP platform. patients are on biologics treatment (Infliximab, Ustekinumab, Vedolizumab). samples are obtained pre/post treatment. Most of but not all samples have one ROI which has two AOIs(PanCK positive / negative). Most patients got just one drug treatment, but some tried two on different periods. The goainvestigate each drug's molecular effect, the difference between each drug, and the difference between clinical responders and nonresponders. All the aanalysis should be done for each tissue type(AOI type; PanCK positive / negative; epithelium / stroma). patient ID: $emrid, sample ID: $patho_id, ROI id:
+to develop comprehensive scRNAseq and other omics data analysis platform.
 
 ## AI Model
 anything.
