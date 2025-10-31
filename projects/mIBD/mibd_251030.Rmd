@@ -21,7 +21,7 @@ while (TRUE) {
 #library(myR)
 library(devtools)
 setwd("/data/kjc1/mylit/myR") #dir 변경은 chunk 끝나면 초기화됨.
-load_all()
+devtools::load_all("/data/kjc1/mylit/myR")
 
 #데이터 다루기, 통계
 library(readxl)
@@ -48,6 +48,23 @@ library(circlize) #colorRamp라는 요소
 library(caret)        # 머신러닝 도구
 library(pROC)         # AUROC 계산
 library(purrr)
+
+library(moments)    # For skewness and kurtosis
+library(goftest)     # For Anderson-Darling test
+library(conflicted) # To manage namespace conflicts
+
+# Set preferences for conflicting functions
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflict_prefer("select", "dplyr")
+conflict_prefer("summarise", "dplyr")
+conflict_prefer("summarize", "dplyr")
+conflict_prefer("pheatmap", "pheatmap")
+
+# Warning messages:
+# 1: replacing previous import ‘Seurat::Assays’ by ‘SummarizedExperiment::Assays’ when loading ‘myR’ 
+# 2: replacing previous import ‘purrr::discard’ by ‘scales::discard’ when loading ‘myR’ 
+# 3: replacing previous import ‘slingshot::predict’ by ‘stats::predict’ when loading ‘myR’ 
 ```
 
 # load & metadata joining
@@ -813,22 +830,23 @@ vln_p(data.pre, "WNT", group.by="ck",split.by ="drug")
 ```{r}
 # boxplot (claude)
 plot_pre_post_boxplot(data.ck, "IL1B", my_config, split_by="drug")
+plot_pre_post_boxplot(data.ck, "S100A9", my_config, split_by="drug")
 
-# EMMeans
-res_IL1B=plot_interaction_for_gene(data_seurat, "IL1B",nested=FALSE,subset_comp=TRUE)
-res_IL1B$plot_emmeans   # 시간×약제 상호작용 평균±CI
-res_IL1B$plot_spaghetti # 환자별 실측 pre→post
-#res_IL1B$plot_delta     # 약제별 Δ(post-pre) 비교
+# # EMMeans
+# res_IL1B=plot_interaction_for_gene(data_seurat, "IL1B",nested=FALSE,subset_comp=TRUE)
+# res_IL1B$plot_emmeans   # 시간×약제 상호작용 평균±CI
+# res_IL1B$plot_spaghetti # 환자별 실측 pre→post
+# #res_IL1B$plot_delta     # 약제별 Δ(post-pre) 비교
 
 res_IL1B_CK=plot_interaction_for_gene(data.ck, "IL1B",nested=FALSE,subset_comp=TRUE)
 res_IL1B_CK$plot_emmeans   # 시간×약제 상호작용 평균±CI
 res_IL1B_CK$plot_spaghetti # 환자별 실측 pre→post
-res_IL1B_CK$plot_delta     # 약제별 Δ(post-pre) 비교
+# res_IL1B_CK$plot_delta     # 약제별 Δ(post-pre) 비교
 
 res_IL1B_STR=plot_interaction_for_gene(data.str, "IL1B",nested=FALSE,subset_comp=TRUE)
 res_IL1B_STR$plot_emmeans   # 시간×약제 상호작용 평균±CI
 res_IL1B_STR$plot_spaghetti # 환자별 실측 pre→post
-res_IL1B_STR$plot_delta     # 약제별 Δ(post-pre) 비교
+# res_IL1B_STR$plot_delta     # 약제별 Δ(post-pre) 비교
 
 genes <- c("IL1B","CXCL8","CXCL2","CXCL1","CXCL3","S100A8","S100A9","TNFRSF6B","CSF3R")
 res_list <- lapply(genes, function(g) plot_interaction_for_gene(data_seurat, g, subset_comp=TRUE))
@@ -836,8 +854,58 @@ names(res_list) <- genes
 
 heatmap_out <- plot_delta_heatmap(res_list)
 heatmap_out
+
+res_list$S100A9$plot_emmeans
+res_list$S100A9$plot_spaghetti
+
+
+
+res_list1 <- lapply(genes_epithelial, function(g) plot_interaction_for_gene(data.ck, g, subset_comp=TRUE))
+res_list2 <- lapply(genes_stromal[which(genes_stromal%in% unique(lmm$summary$gene))[-1]],
+                    function(g) plot_interaction_for_gene(data.str, g, subset_comp=TRUE))
+heatmap_out1<- plot_delta_heatmap(res_list1)
+heatmap_out2<- plot_delta_heatmap(res_list2)
+
 ```
 
+genes
+```{r}
+genes_epithelial <- c(
+    # 1. 염증 및 호중구 유도 (Inflammation & Neutrophil Chemotaxis)
+    "CXCL8", "CXCL1", "CXCL2", "CXCL3", # 호중구 유인 케모카인
+    "IL1B", "IL6",                     # 염증성 사이토카인
+    
+    # 2. 알라민 및 상피 스트레스 (Alarmins & Epithelial Stress)
+    "S100A8", "S100A9", "S100A12",     # Calprotectin 등 알라민
+    "LCN2", "REG3A",                 # 항균 펩타이드 및 스트레스 마커
+    "DUOX2", "NOS2",                 # 산화 스트레스
+    
+    # 3. 장벽 기능 및 회복 (Barrier Function & Repair)
+    "MUC2", "TFF3",                  # Goblet cell (점액 및 회복)
+    "CDH1", "CLDN4", "CLDN7",         # Tight junction & Adherens junction
+    "KRT20", "REG1A"                 # 분화 및 재생 마커
+)
+genes_stromal <- c(
+    # 1. T세포 및 관련 사이토카인 (T-cell Signatures)
+    "IFNG", "TBX21",                 # Th1 시그니처
+    "IL17A", "IL23A", "RORC",        # Th17 시그니처
+    "TNF",                           # 주요 염증성 사이토카인 (Infliximab 타겟)
+    "FOXP3", "IL10",                 # Treg (회복)
+    "CD3D", "CD8A", "GZMB",          # T세포 마커
+    
+    # 2. 골수계(Myeloid) 및 형질세포 (Myeloid & Plasma Cells)
+    "CD68", "CD14",                  # 대식세포
+    "MPO", "ELANE", "CSF3R",         # 호중구 마커
+    "CD163", "MRC1",                 # M2 대식세포 (회복)
+    "SDC1", "IGHG1", "JCHAIN",       # 형질세포 (B-cell) 마커 (UC에서 매우 높음)
+
+    # 3. 기질 리모델링 및 섬유화 (Stromal Remodeling & Fibrosis)
+    "COL1A1", "COL3A1",              # 콜라겐
+    "ACTA2", "POSTN",                # 활성 섬유아세포 (Myofibroblasts)
+    "MMP3", "MMP9",                  # 기질 분해 효소
+    "TNFRSF6B"                       # Decoy receptor (염증 조절)
+)
+```
 # FindMarkers
 
 ## pre vs post
