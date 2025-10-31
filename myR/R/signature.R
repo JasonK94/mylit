@@ -1106,7 +1106,7 @@ example_usage <- function() {
 #' # NMF for multi-class
 #' result <- find_gene_signature(count_matrix, meta.data=metadata, 
 #'                                target_var="condition", method="nmf")
-
+#' @export
 find_gene_signature <- function(data, 
                                 meta.data = NULL,
                                 target_var,
@@ -1616,6 +1616,7 @@ find_gene_signature <- function(data,
 
 
 # Helper function to score new data with signature
+#' @export
 score_signature <- function(expr_data, signature, normalize=TRUE) {
   genes <- signature$genes
   weights <- signature$weights
