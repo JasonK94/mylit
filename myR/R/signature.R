@@ -1118,10 +1118,10 @@ find_gene_signature <- function(data,
                                 min_cells = 10,
                                 min_pct = 0.01,
                                 return_model = FALSE,
-                                seed = 42,
+                                fgs_seed = 42,
                                 ...) {
   
-  set.seed(seed)
+  set.seed(fgs_seed)
   method <- match.arg(method)
   
   # ===
@@ -1495,8 +1495,13 @@ find_gene_signature <- function(data,
                      
                      # Run NMF
                      rank <- min(n_groups + 2, 10)  # adaptive rank
-                     nmf_res <- NMF::nmf(expr_mat_pos, rank=rank, ...)
                      
+                     # The 'seed' argument from find_gene_signature conflicts with an NMF internal generic.
+                     # We remove it and rely on the set.seed() call at the start of the function.
+                     dots <- list(...)
+                     dots$seed <- NULL
+                     nmf_res <- do.call(NMF::nmf, c(list(x = expr_mat_pos, rank = rank), dots))
+
                      W <- NMF::basis(nmf_res)  # gene loadings
                      H <- NMF::coef(nmf_res)   # cell scores
                      

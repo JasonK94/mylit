@@ -68,7 +68,7 @@ get_barcode_mapping <- function(prob_matrix,
   if (!is.matrix(prob_matrix)) {
     stop("prob_matrix must be a matrix")
   }
-  
+
   if (is.null(rownames(prob_matrix))) {
     rownames(prob_matrix) <- paste0("Cell_", seq_len(nrow(prob_matrix)))
   }

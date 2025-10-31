@@ -38,6 +38,7 @@ Imports:
     methods,
     mgcv,
     monocle3,
+    NMF,
     nichenetr,
     org.Hs.eg.db,
     patchwork,
