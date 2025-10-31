@@ -197,7 +197,7 @@ mylines <- function(..., vectors_right = NULL,
          col = all_cols, lty = all_lty, lwd = 2)
 }
 
-# 교점 찾기 및 표시 헬퍼 함수
+# 교점 찾기 및 표시 헬퍼 함수; myline, mylines에 사용됨.
 find_and_mark_intersection <- function(x_vals, y_vals, cutoff, col, label_prefix) {
   idx_above <- which(y_vals >= cutoff)
   idx_below <- which(y_vals < cutoff)
