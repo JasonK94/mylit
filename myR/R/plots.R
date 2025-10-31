@@ -2477,7 +2477,3 @@ myhm_genes4 <- function(
   return(gene_expression_df)
 }
 
-
-#  Utility: infix fn for NULL‑coalescing (tiny helper)
-
-`%||%` <- function(a, b) if (is.null(a)) b else a
