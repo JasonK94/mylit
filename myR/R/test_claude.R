@@ -1,3 +1,9 @@
+#------- 약어 ---------
+# https://www.notion.so/drgoze/205-myR-27f650f736bf80f08125e4b1f3896125?source=copy_link
+# CAC, QSG, FLSG, RLMG 는 필수
+# PPPB, PV도 도움 됨. (여기까지 이 문서)
+# PIFG, PDH도 도움 됨. MDMP, DOGE, MDEM, PDRM까지 test_working.R에 가있다.
+
 # ===
 # GEOMX SEURAT ANALYSIS SUITE - REFACTORED
 # ===

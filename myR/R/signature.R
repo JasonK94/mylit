@@ -471,13 +471,13 @@ add_signature_enrichit <- function(seurat_obj,
   if (is.character(gene_source) && file.exists(gene_source)) {
     ext <- tools::file_ext(gene_source)
     gene_list_raw <- switch(ext,
-                            xlsx = read_xlsx(gene_source, sheet = sheet_name)[[gene_col]],
-                            csv = read.csv(gene_source, stringsAsFactors = FALSE)[[gene_col]],
-                            txt = read.table(gene_source, stringsAsFactors = FALSE)[[gene_col]],
+                            xlsx = read_xlsx(gene_source, sheet = sheet_name)%>% pull(gene_col),
+                            csv = read.csv(gene_source, stringsAsFactors = FALSE)%>% pull(gene_col),
+                            txt = read.table(gene_source, stringsAsFactors = FALSE)%>% pull(gene_col),
                             stop("Unsupported file type.")
     )
   } else if (is.data.frame(gene_source)) {
-    gene_list_raw <- gene_source[[gene_col]]
+    gene_list_raw <- gene_source%>% pull(gene_col)
   } else if (is.vector(gene_source)) {
     gene_list_raw <- gene_source
   } else {
