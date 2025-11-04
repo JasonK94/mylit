@@ -1206,8 +1206,7 @@ quick_screen_genes <- function(seurat_obj,
 #' \item{formula}{모델에 사용된 공식 (string)}
 #' \item{all_drugs}{데이터에 있는 모든 약물}
 #' \item{ref_drug}{모델의 참조(reference) 약물}
-#' @importFrom lme4 lmer
-#' @importFrom lmerTest anova
+#' @importFrom lmerTest anova lmer
 #' @importFrom stats as.formula relevel
 fit_lmm_single_gene <- function(gene_expr,
                                 metadata,
