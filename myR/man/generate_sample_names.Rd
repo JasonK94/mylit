@@ -2,25 +2,30 @@
 % Please edit documentation in R/demulti_utils.R
 \name{generate_sample_names}
 \alias{generate_sample_names}
-\title{Generate Sample Names for Demultiplexing}
+\title{Generate Sample Names (Formatted)}
 \usage{
-generate_sample_names(vector)
+generate_sample_names(
+  n_samples,
+  format = "Sample \%d",
+  include_doublets = TRUE
+)
 }
 \arguments{
-\item{vector}{Character vector containing sample names}
+\item{n_samples}{Number of samples}
+
+\item{format}{Format string with \\%d placeholder (default: "Sample \\%d")}
+
+\item{include_doublets}{Whether to include doublet combinations (default: TRUE)}
 }
 \value{
-A character vector containing all possible sample combinations:
-singlets (original names) and doublets (combinations with '+')
+Character vector of formatted sample names
 }
 \description{
-This function generates a vector of sample names including both singlets and
-doublets for demultiplexing analysis.
+Creates formatted sample name lists for display/plotting.
 }
 \examples{
-\dontrun{
-# Generate sample names for samples A, B, C
-samples <- generate_sample_names(c("A", "B", "C"))
-# Returns: c("A", "B", "C", "A+B", "A+C", "B+C")
-}
+generate_sample_names(3, format = "Patient \%d")
+# Returns: c("Patient 1", "Patient 2", "Patient 3", 
+#            "Patient 1+Patient 2", "Patient 1+Patient 3", "Patient 2+Patient 3")
+
 }

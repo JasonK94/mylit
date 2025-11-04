@@ -576,498 +576,6 @@ add_progeny_scores <- function(seurat_obj, organism = "Human", topn = 100, ...) 
   return(seurat_obj)
 }
 
-# NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
-
-linear_seurat <- function(sobj, 
-                          layer = c("counts", "data", "scale.data"), 
-                          features = "all", 
-                          regressor = "val1", 
-                          regressor.type = c("continuous", "categorical", "ordinal"),
-                          reference.level = NULL,
-                          ordinal.method = c("linear", "polynomial", "spline"),
-                          link.function = "linear",
-                          effect = c("fixed", "random"), 
-                          covariates = NULL,
-                          min.cells = 10,
-                          return.full = FALSE,
-                          ...) {
-  
-  # Input validation
-  if (!inherits(sobj, "Seurat")) {
-    stop("Input must be a Seurat object")
-  }
-  
-  layer <- match.arg(layer)
-  effect <- match.arg(effect)
-  regressor.type <- match.arg(regressor.type)
-  ordinal.method <- match.arg(ordinal.method)
-  
-  # Check if regressor exists in metadata
-  if (!regressor %in% colnames(sobj@meta.data)) {
-    stop(paste("Regressor", regressor, "not found in metadata"))
-  }
-  
-  # Get expression data based on layer
-  if (layer == "counts") {
-    expr_data <- GetAssayData(sobj, layer = "counts")
-  } else if (layer == "data") {
-    expr_data <- GetAssayData(sobj, layer = "data")
-  } else if (layer == "scale.data") {
-    expr_data <- GetAssayData(sobj, layer = "scale.data")
-  }
-  
-  # Select features
-  if (features[1] == "all") {
-    features <- rownames(expr_data)
-  } else {
-    # Check if all features exist
-    missing_features <- setdiff(features, rownames(expr_data))
-    if (length(missing_features) > 0) {
-      warning(paste("Features not found:", paste(missing_features, collapse = ", ")))
-      features <- intersect(features, rownames(expr_data))
-    }
-  }
-  
-  # Filter features by minimum cell expression
-  if (min.cells > 0) {
-    feature_counts <- Matrix::rowSums(expr_data[features, ] > 0)
-    features <- features[feature_counts >= min.cells]
-  }
-  
-  if (length(features) == 0) {
-    stop("No features passed filtering criteria")
-  }
-  
-  # Prepare metadata
-  meta_data <- sobj@meta.data
-  regressor_values <- meta_data[[regressor]]
-  
-  # Process regressor based on type
-  if (regressor.type == "categorical") {
-    regressor_values <- as.factor(regressor_values)
-    
-    # Set reference level if specified
-    if (!is.null(reference.level)) {
-      if (!reference.level %in% levels(regressor_values)) {
-        stop(paste("Reference level", reference.level, "not found in regressor levels"))
-      }
-      regressor_values <- relevel(regressor_values, ref = reference.level)
-    }
-    
-    cat("Categorical regressor with levels:", paste(levels(regressor_values), collapse = ", "), "\n")
-    cat("Reference level:", levels(regressor_values)[1], "\n")
-    
-  } else if (regressor.type == "ordinal") {
-    # Check if it's already ordered
-    if (!is.ordered(regressor_values)) {
-      if (is.factor(regressor_values)) {
-        regressor_values <- ordered(regressor_values)
-      } else {
-        # Try to convert to ordered factor
-        unique_vals <- sort(unique(regressor_values[!is.na(regressor_values)]))
-        regressor_values <- ordered(regressor_values, levels = unique_vals)
-      }
-    }
-    
-    cat("Ordinal regressor with levels:", paste(levels(regressor_values), collapse = " < "), "\n")
-    cat("Ordinal method:", ordinal.method, "\n")
-    
-  } else if (regressor.type == "continuous") {
-    regressor_values <- as.numeric(regressor_values)
-    if (all(is.na(regressor_values))) {
-      stop("Regressor cannot be converted to numeric for continuous analysis")
-    }
-  }
-  
-  # Check for missing values in regressor
-  if (any(is.na(regressor_values))) {
-    warning("Missing values found in regressor variable")
-    valid_cells <- !is.na(regressor_values)
-    expr_data <- expr_data[, valid_cells]
-    meta_data <- meta_data[valid_cells, ]
-    regressor_values <- regressor_values[valid_cells]
-  }
-  
-  # Prepare covariate formula
-  covariate_formula <- ""
-  if (!is.null(covariates)) {
-    # Check if covariates exist in metadata
-    missing_covariates <- setdiff(covariates, colnames(meta_data))
-    if (length(missing_covariates) > 0) {
-      warning(paste("Covariates not found:", paste(missing_covariates, collapse = ", ")))
-      covariates <- intersect(covariates, colnames(meta_data))
-    }
-    if (length(covariates) > 0) {
-      covariate_formula <- paste("+", paste(covariates, collapse = " + "))
-    }
-  }
-  
-  # Function to fit model for each gene
-  fit_gene_model <- function(gene) {
-    expression <- as.numeric(expr_data[gene, ])
-    
-    # Create data frame for modeling
-    model_data <- data.frame(
-      expression = expression,
-      regressor = regressor_values
-    )
-    
-    # Add covariates if specified
-    if (!is.null(covariates) && length(covariates) > 0) {
-      for (cov in covariates) {
-        model_data[[cov]] <- meta_data[[cov]]
-      }
-    }
-    
-    # Remove rows with missing values
-    model_data <- model_data[complete.cases(model_data), ]
-    
-    if (nrow(model_data) < 10) {
-      return(data.frame(
-        gene = gene,
-        estimate = NA,
-        std.error = NA,
-        statistic = NA,
-        p.value = NA,
-        n_cells = nrow(model_data),
-        regressor_type = regressor.type
-      ))
-    }
-    
-    # Prepare formula based on regressor type
-    if (regressor.type == "continuous") {
-      regressor_formula <- "regressor"
-    } else if (regressor.type == "categorical") {
-      regressor_formula <- "regressor"  # R automatically handles factor contrasts
-    } else if (regressor.type == "ordinal") {
-      if (ordinal.method == "linear") {
-        # Convert to numeric for linear trend
-        model_data$regressor_numeric <- as.numeric(model_data$regressor)
-        regressor_formula <- "regressor_numeric"
-      } else if (ordinal.method == "polynomial") {
-        # Use polynomial contrasts
-        regressor_formula <- "poly(as.numeric(regressor), degree = min(3, length(levels(regressor))-1))"
-      } else if (ordinal.method == "spline") {
-        # Use natural splines (requires splines package)
-        if (requireNamespace("splines", quietly = TRUE)) {
-          regressor_formula <- "splines::ns(as.numeric(regressor), df = min(3, length(levels(regressor))-1))"
-        } else {
-          warning("splines package not available, using linear method")
-          model_data$regressor_numeric <- as.numeric(model_data$regressor)
-          regressor_formula <- "regressor_numeric"
-        }
-      }
-    }
-    
-    # Fit model based on effect type
-    tryCatch({
-      if (effect == "fixed") {
-        formula_str <- paste("expression ~", regressor_formula, covariate_formula)
-        
-        if (link.function == "linear") {
-          model <- lm(as.formula(formula_str), data = model_data, ...)
-        } else if (link.function == "poisson") {
-          model <- glm(as.formula(formula_str), data = model_data, family = poisson(), ...)
-        } else if (link.function == "negative.binomial") {
-          model <- MASS::glm.nb(as.formula(formula_str), data = model_data, ...)
-        }
-        
-        # Extract results - handle different regressor types
-        model_summary <- tidy(model)
-        
-        if (regressor.type == "categorical") {
-          # For categorical variables, extract all factor levels
-          regressor_rows <- model_summary[grepl("^regressor", model_summary$term), ]
-          
-          if (nrow(regressor_rows) == 0) {
-            # Single level case
-            regressor_rows <- model_summary[model_summary$term == "regressor", ]
-          }
-          
-          # Calculate overall F-test p-value for categorical variables
-          if (nrow(regressor_rows) > 1) {
-            model_anova <- anova(model)
-            # More robust way to get p-value from anova table
-            pval_col <- which(grepl("Pr\\(>F\\)", colnames(model_anova)))
-            if (length(pval_col) > 0) {
-              overall_p <- model_anova[1, pval_col]
-            } else {
-              overall_p <- regressor_rows$p.value[1]
-            }
-          } else {
-            overall_p <- regressor_rows$p.value[1]
-          }
-          
-          # Return summary statistics
-          result <- data.frame(
-            gene = gene,
-            estimate = ifelse(nrow(regressor_rows) > 0, regressor_rows$estimate[1], NA),
-            std.error = ifelse(nrow(regressor_rows) > 0, regressor_rows$std.error[1], NA),
-            statistic = ifelse(nrow(regressor_rows) > 0, regressor_rows$statistic[1], NA),
-            p.value = overall_p,
-            n_cells = nrow(model_data),
-            model_type = paste(effect, link.function, regressor.type, sep = "_"),
-            n_levels = length(levels(model_data$regressor))
-          )
-          
-        } else {
-          # For continuous and ordinal (treated as continuous)
-          if (regressor.type == "ordinal" && ordinal.method == "linear") {
-            regressor_rows <- model_summary[model_summary$term == "regressor_numeric", ]
-            overall_p <- regressor_rows$p.value[1]
-          } else if (regressor.type == "ordinal" && ordinal.method %in% c("polynomial", "spline")) {
-            regressor_rows <- model_summary[grepl("poly|ns", model_summary$term), ]
-            # For polynomial/spline, use F-test
-            if (nrow(regressor_rows) > 1) {
-              model_anova <- anova(model)
-              # Find the row corresponding to polynomial/spline term
-              poly_spline_rows <- grepl("poly|ns", rownames(model_anova))
-              pval_col <- which(grepl("Pr\\(>F\\)", colnames(model_anova)))
-              
-              if (any(poly_spline_rows) && length(pval_col) > 0) {
-                overall_p <- model_anova[which(poly_spline_rows)[1], pval_col]
-              } else {
-                overall_p <- regressor_rows$p.value[1]
-              }
-            } else {
-              overall_p <- regressor_rows$p.value[1]
-            }
-          } else {
-            regressor_rows <- model_summary[model_summary$term == "regressor", ]
-            overall_p <- regressor_rows$p.value[1]
-          }
-          
-          result <- data.frame(
-            gene = gene,
-            estimate = ifelse(nrow(regressor_rows) > 0, regressor_rows$estimate[1], NA),
-            std.error = ifelse(nrow(regressor_rows) > 0, regressor_rows$std.error[1], NA),
-            statistic = ifelse(nrow(regressor_rows) > 0, regressor_rows$statistic[1], NA),
-            p.value = overall_p,
-            n_cells = nrow(model_data),
-            model_type = paste(effect, link.function, regressor.type, sep = "_")
-          )
-        }
-        
-      } else if (effect == "random") {
-        # Random effects implementation
-        if (is.null(covariates) || length(covariates) == 0) {
-          stop("Random effects models require at least one grouping variable in covariates")
-        }
-        
-        group_var <- covariates[1]
-        formula_str <- paste("expression ~", regressor_formula, "+ (1|", group_var, ")")
-        if (length(covariates) > 1) {
-          formula_str <- paste(formula_str, "+", paste(covariates[-1], collapse = " + "))
-        }
-        
-        model <- lmer(as.formula(formula_str), data = model_data, ...)
-        model_summary <- tidy(model, effects = "fixed")
-        
-        if (regressor.type == "ordinal" && ordinal.method == "linear") {
-          regressor_rows <- model_summary[model_summary$term == "regressor_numeric", ]
-        } else {
-          regressor_rows <- model_summary[grepl("regressor", model_summary$term), ]
-        }
-        
-        result <- data.frame(
-          gene = gene,
-          estimate = ifelse(nrow(regressor_rows) > 0, regressor_rows$estimate[1], NA),
-          std.error = ifelse(nrow(regressor_rows) > 0, regressor_rows$std.error[1], NA),
-          statistic = ifelse(nrow(regressor_rows) > 0, regressor_rows$statistic[1], NA),
-          p.value = ifelse(nrow(regressor_rows) > 0, regressor_rows$p.value[1], NA),
-          n_cells = nrow(model_data),
-          model_type = paste(effect, link.function, regressor.type, sep = "_")
-        )
-      }
-      
-      return(result)
-      
-    }, error = function(e) {
-      data.frame(
-        gene = gene,
-        estimate = NA,
-        std.error = NA,
-        statistic = NA,
-        p.value = NA,
-        n_cells = nrow(model_data),
-        model_type = paste(effect, link.function, regressor.type, sep = "_"),
-        error = as.character(e)
-      )
-    })
-  }
-  
-  # Apply function to all features
-  cat("Fitting models for", length(features), "features...\n")
-  
-  # Use parallel processing if available
-  if (requireNamespace("parallel", quietly = TRUE) && length(features) > 100) {
-    results <- parallel::mclapply(features, fit_gene_model, mc.cores = parallel::detectCores() - 1)
-  } else {
-    results <- lapply(features, fit_gene_model)
-  }
-  
-  # Combine results
-  results_df <- do.call(rbind, results)
-  
-  # Multiple testing correction
-  valid_pvals <- !is.na(results_df$p.value)
-  results_df$adj.p.value <- NA
-  if (sum(valid_pvals) > 0) {
-    results_df$adj.p.value[valid_pvals] <- p.adjust(results_df$p.value[valid_pvals], method = "BH")
-  }
-  
-  # Sort by p-value
-  results_df <- results_df[order(results_df$p.value, na.last = TRUE), ]
-  
-  # Add metadata about the analysis
-  attr(results_df, "analysis_info") <- list(
-    regressor = regressor,
-    regressor.type = regressor.type,
-    layer = layer,
-    effect = effect,
-    link.function = link.function,
-    covariates = covariates,
-    n_features_tested = length(features),
-    n_cells = ncol(expr_data),
-    reference.level = ifelse(regressor.type == "categorical", levels(regressor_values)[1], NA),
-    ordinal.method = ifelse(regressor.type == "ordinal", ordinal.method, NA)
-  )
-  
-  if (return.full) {
-    return(list(
-      results = results_df,
-      seurat_object = sobj,
-      features_tested = features
-    ))
-  } else {
-    return(results_df)
-  }
-}
-
-# Helper function to visualize top results
-plot_top_genes <- function(results, sobj, layer = "data", top_n = 6) {
-  library(ggplot2)
-  library(gridExtra)
-  
-  # Get analysis info
-  analysis_info <- attr(results, "analysis_info")
-  regressor <- analysis_info$regressor
-  regressor.type <- analysis_info$regressor.type
-  
-  # Get top significant genes
-  top_genes <- head(results[!is.na(results$p.value), ], top_n)$gene
-  
-  # Get expression data
-  if (layer == "counts") {
-    expr_data <- GetAssayData(sobj, layer = "counts")
-  } else if (layer == "data") {
-    expr_data <- GetAssayData(sobj, layer = "data")
-  } else if (layer == "scale.data") {
-    expr_data <- GetAssayData(sobj, layer = "scale.data")
-  }
-  
-  # Prepare regressor data
-  regressor_data <- sobj@meta.data[[regressor]]
-  if (regressor.type == "categorical") {
-    regressor_data <- as.factor(regressor_data)
-  } else if (regressor.type == "ordinal") {
-    if (!is.ordered(regressor_data)) {
-      if (is.factor(regressor_data)) {
-        regressor_data <- ordered(regressor_data)
-      } else {
-        unique_vals <- sort(unique(regressor_data[!is.na(regressor_data)]))
-        regressor_data <- ordered(regressor_data, levels = unique_vals)
-      }
-    }
-  } else {
-    regressor_data <- as.numeric(regressor_data)
-  }
-  
-  # Create plots
-  plots <- list()
-  for (i in seq_along(top_genes)) {
-    gene <- top_genes[i]
-    gene_result <- results[results$gene == gene, ]
-    
-    plot_data <- data.frame(
-      expression = as.numeric(expr_data[gene, ]),
-      regressor = regressor_data
-    )
-    
-    # Remove missing values
-    plot_data <- plot_data[complete.cases(plot_data), ]
-    
-    if (regressor.type == "categorical") {
-      p <- ggplot(plot_data, aes(x = regressor, y = expression)) +
-        geom_boxplot(aes(fill = regressor), alpha = 0.7) +
-        geom_jitter(width = 0.2, alpha = 0.5) +
-        labs(
-          title = paste0(gene, " (p=", format(gene_result$p.value, digits = 3), ")"),
-          x = regressor,
-          y = paste("Expression (", layer, ")", sep = "")
-        ) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-        guides(fill = "none")
-      
-    } else if (regressor.type == "ordinal") {
-      p <- ggplot(plot_data, aes(x = regressor, y = expression)) +
-        geom_boxplot(aes(group = regressor, fill = regressor), alpha = 0.7) +
-        geom_jitter(width = 0.2, alpha = 0.5) +
-        geom_smooth(aes(group = 1), method = "lm", se = TRUE, color = "red") +
-        labs(
-          title = paste0(gene, " (p=", format(gene_result$p.value, digits = 3), ")"),
-          x = regressor,
-          y = paste("Expression (", layer, ")", sep = "")
-        ) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-        guides(fill = "none")
-      
-    } else {  # continuous
-      p <- ggplot(plot_data, aes(x = regressor, y = expression)) +
-        geom_point(alpha = 0.6) +
-        geom_smooth(method = "lm", se = TRUE, color = "red") +
-        labs(
-          title = paste0(gene, " (p=", format(gene_result$p.value, digits = 3), ")"),
-          x = regressor,
-          y = paste("Expression (", layer, ")", sep = "")
-        ) +
-        theme_minimal()
-    }
-    
-    plots[[i]] <- p
-  }
-  
-  # Arrange plots
-  do.call(grid.arrange, c(plots, ncol = 2))
-}
-
-# Example usage function
-example_usage <- function() {
-  # === CATEGORICAL VARIABLES ===
-  # results_cat <- linear_seurat(sobj, 
-  #                             regressor = "cell_type",
-  #                             regressor.type = "categorical",
-  #                             reference.level = "Control")
-  
-  # === ORDINAL VARIABLES ===
-  # results_ord <- linear_seurat(sobj,
-  #                             regressor = "disease_stage",
-  #                             regressor.type = "ordinal",
-  #                             ordinal.method = "linear")
-  
-  # === CONTINUOUS VARIABLES ===
-  # results_cont <- linear_seurat(sobj,
-  #                              regressor = "age",
-  #                              regressor.type = "continuous")
-}
-
-
-
-
-
-
 
 #' Find Gene Signatures that Best Separate Target Variable
 #'
@@ -1670,4 +1178,562 @@ print.gene_signature <- function(x, ...) {
     cat("\nPerformance:\n")
     print(x$performance)
   }
+}
+
+
+#' Find Gene Signatures that Best Separate Target Variable
+#'
+#' @param data Seurat object, count matrix, or data.frame with genes as rows/columns
+#' @param meta.data Optional metadata data.frame (required if data is not Seurat)
+#' @param target_var Column name in metadata representing the target variable
+#' @param target_group For numeric targets: quantile cutoff (0-1) or list(low=0.25, high=0.75)
+#'                     For factor: specific levels to compare (default: all vs all)
+#' @param method One of: "tree_based", "lasso", "limma", "nmf", "wilcoxon", "gam", "pca_loadings"
+#' @param n_features Number of top features to return (default: 50)
+#' @param preprocess Logical, whether to normalize/scale data (default: TRUE)
+#' @param min_cells Minimum cells expressing gene (default: 10)
+#' @param min_pct Minimum percentage of cells expressing gene (default: 0.01)
+#' @param return_model Logical, return full model object (default: FALSE)
+#' @param seed Random seed for reproducibility (default: 42)
+#' @param ... Additional method-specific parameters
+#'
+#' @return List containing:
+#'   - genes: Character vector of selected genes
+#'   - weights: Named numeric vector of gene weights/importance
+#'   - scores: Per-cell signature scores (if applicable)
+#'   - performance: Separation metrics (AUC, accuracy, etc.)
+#'   - method: Method used
+#'   - model: Full model object (if return_model=TRUE)
+#'
+#' @examples
+#' # Random Forest for binary classification
+#' result <- find_gene_signature(seurat_obj, target_var="cell_type", 
+#'                                target_group=c("TypeA", "TypeB"), 
+#'                                method="tree_based")
+#' 
+#' # LASSO for continuous variable (top vs bottom quartile)
+#' result <- find_gene_signature(seurat_obj, target_var="pseudotime", 
+#'                                target_group=0.25, method="lasso")
+#' 
+#' # NMF for multi-class
+#' result <- find_gene_signature(count_matrix, meta.data=metadata, 
+#'                                target_var="condition", method="nmf")
+#' @export
+find_gene_signature_v3 <- function(data, 
+                                 meta.data = NULL,
+                                 target_var,
+                                 target_group = NULL,
+                                 method = c("tree_based", "lasso", "limma", 
+                                            "nmf", "wilcoxon", "gam", "pca_loadings"),
+                                 n_features = 50,
+                                 preprocess = TRUE,
+                                 min_cells = 10,
+                                 min_pct = 0.01,
+                                 return_model = FALSE,
+                                 fgs_seed = 42,
+                                 lambda_selection = "lambda.1se",
+                                 ...) {
+  
+  # ===
+  # 0. Batch Processing (v2와 동일)
+  # ===
+  
+  all_methods <- c("tree_based", "lasso", "limma", "nmf", "wilcoxon", "gam", "pca_loadings")
+  
+  if (is.null(method)) {
+    method <- all_methods
+  }
+  
+  if (length(method) > 1) {
+    current_call <- match.call()
+    
+    results_list <- lapply(method, function(m) {
+      single_call <- current_call
+      single_call$method <- m
+      tryCatch({
+        eval(single_call)
+      }, error = function(e) {
+        warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+        return(list(method = m, error = e$message))
+      })
+    })
+    
+    names(results_list) <- method
+    return(results_list)
+  }
+  
+  if (!method %in% all_methods) {
+    stop(sprintf("Invalid method '%s'. Choose from: %s", 
+                 method, paste(all_methods, collapse=", ")))
+  }
+  
+  set.seed(fgs_seed)
+  
+  # ===
+  # 1. Input validation and data extraction (v2와 동일)
+  # ===
+  
+  is_seurat <- inherits(data, "Seurat")
+  
+  if (is_seurat) {
+    if (!requireNamespace("Seurat", quietly = TRUE)) {
+      stop("Seurat package required but not installed")
+    }
+    if (is.null(meta.data)) {
+      meta.data <- data@meta.data
+    }
+    if ("data" %in% names(data@assays[[1]])) {
+      expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "data"))
+    } else {
+      expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "counts"))
+    }
+  } else {
+    if (is.null(meta.data)) {
+      stop("meta.data must be provided when data is not a Seurat object")
+    }
+    expr_mat <- as.matrix(data)
+    if (nrow(expr_mat) == nrow(meta.data)) {
+      expr_mat <- t(expr_mat)
+    }
+  }
+  
+  if (!target_var %in% colnames(meta.data)) {
+    stop(sprintf("target_var '%s' not found in metadata columns: %s", 
+                 target_var, paste(colnames(meta.data), collapse=", ")))
+  }
+  
+  common_cells <- intersect(colnames(expr_mat), rownames(meta.data))
+  if (length(common_cells) == 0) {
+    stop("No common cells found between expression matrix and metadata")
+  }
+  expr_mat <- expr_mat[, common_cells]
+  meta.data <- meta.data[common_cells, ]
+  
+  # ===
+  # 2. Process target variable (v2와 동일)
+  # ===
+  
+  target_values <- meta.data[[target_var]]
+  target_type <- class(target_values)[1]
+  
+  if (is.numeric(target_values)) {
+    if (is.null(target_group)) {
+      target_group <- 0.25
+    }
+    if (is.list(target_group)) {
+      low_cutoff <- quantile(target_values, target_group$low, na.rm=TRUE)
+      high_cutoff <- quantile(target_values, target_group$high, na.rm=TRUE)
+      group_labels <- ifelse(target_values <= low_cutoff, "Low",
+                             ifelse(target_values >= high_cutoff, "High", NA))
+    } else if (length(target_group) == 1 && target_group < 1) {
+      low_cutoff <- quantile(target_values, target_group, na.rm=TRUE)
+      high_cutoff <- quantile(target_values, 1 - target_group, na.rm=TRUE)
+      group_labels <- ifelse(target_values <= low_cutoff, "Low",
+                             ifelse(target_values >= high_cutoff, "High", NA))
+    } else {
+      group_labels <- ifelse(target_values < target_group, "Low", "High")
+    }
+    keep_cells <- !is.na(group_labels)
+    expr_mat <- expr_mat[, keep_cells]
+    meta.data <- meta.data[keep_cells, ]
+    target_binary <- factor(group_labels[keep_cells])
+  } else {
+    if (!is.null(target_group)) {
+      keep_cells <- target_values %in% target_group
+      expr_mat <- expr_mat[, keep_cells]
+      meta.data <- meta.data[keep_cells, ]
+      target_binary <- factor(target_values[keep_cells])
+    } else {
+      target_binary <- factor(target_values)
+    }
+  }
+  
+  if (length(unique(target_binary)) < 2) {
+    stop("Target variable must have at least 2 groups after processing")
+  }
+  
+  n_groups <- length(unique(target_binary))
+  
+  # ===
+  # 3. Filter and preprocess genes (v2와 동일)
+  # ===
+  
+  n_cells_expr <- rowSums(expr_mat > 0)
+  pct_cells_expr <- n_cells_expr / ncol(expr_mat)
+  keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
+  expr_mat <- expr_mat[keep_genes, ]
+  
+  if (nrow(expr_mat) == 0) {
+    stop("No genes pass filtering criteria")
+  }
+  
+  if (preprocess) {
+    if (max(expr_mat) > 100) {
+      expr_mat <- log1p(expr_mat)
+    }
+    if (method %in% c("lasso", "gam", "pca_loadings")) {
+      gene_means <- rowMeans(expr_mat)
+      gene_sds <- apply(expr_mat, 1, sd)
+      gene_sds[gene_sds == 0] <- 1
+      expr_mat <- (expr_mat - gene_means) / gene_sds
+    }
+  }
+  
+  # ===
+  # 4. Method-specific signature discovery
+  # ===
+  
+  # X (samples x genes)는 여러 메서드에서 공통으로 사용
+  X <- t(expr_mat)
+  y <- target_binary
+  
+  result <- switch(method,
+                 
+                 tree_based = {
+                   if (!requireNamespace("randomForest", quietly = TRUE)) {
+                     stop("randomForest package required. Install with: install.packages('randomForest')")
+                   }
+                   
+                   X_rf <- X
+                   if (nrow(expr_mat) > 2000) {
+                     gene_vars <- apply(expr_mat, 1, var)
+                     top_var_genes <- names(sort(gene_vars, decreasing=TRUE)[1:2000])
+                     X_rf <- X[, top_var_genes]
+                   }
+                   
+                   rf_model <- randomForest::randomForest(x = X_rf, y = y, ntree = 500, importance = TRUE, ...)
+                   
+                   importance_scores <- randomForest::importance(rf_model)
+                   if (n_groups == 2) {
+                     weights_magnitude <- importance_scores[, "MeanDecreaseGini"]
+                   } else {
+                     weights_magnitude <- rowMeans(importance_scores[, grep("MeanDecreaseGini", colnames(importance_scores))])
+                   }
+                   
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, length(weights_magnitude))])
+                   weights_magnitude <- weights_magnitude[top_genes]
+                   
+                   # === v3: 방향성 보정 ===
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     # effect_size: group2 (예: NR) - group1 (예: R)
+                     effect_size <- mean_g2 - mean_g1 
+                     weights <- weights_magnitude * sign(effect_size) # 중요도 * 방향
+                   } else {
+                     warning("tree_based: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   # === v3 끝 ===
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   pred <- rf_model$predicted
+                   if (n_groups == 2) {
+                     if (requireNamespace("pROC", quietly = TRUE)) {
+                       roc_obj <- pROC::roc(y, scores, quiet=TRUE)
+                       auc <- as.numeric(pROC::auc(roc_obj))
+                     } else { auc <- NA }
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+                   } else {
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, confusion = table(pred, y))
+                   }
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) rf_model else NULL)
+                 },
+                 
+                 lasso = {
+                   if (!requireNamespace("glmnet", quietly = TRUE)) {
+                     stop("glmnet package required. Install with: install.packages('glmnet')")
+                   }
+                   
+                   if (n_groups == 2) {
+                     cv_fit <- glmnet::cv.glmnet(X, y, family="binomial", alpha=1, ...)
+                   } else {
+                     cv_fit <- glmnet::cv.glmnet(X, y, family="multinomial", alpha=1, ...)
+                   }
+                   
+                   coefs <- coef(cv_fit, s = lambda_selection) 
+                   
+                   if (n_groups == 2) {
+                     weights_all <- as.numeric(coefs[-1])
+                     names(weights_all) <- rownames(coefs)[-1]
+                   } else {
+                     coef_list <- lapply(coefs, function(x) as.numeric(x[-1]))
+                     weights_all <- rowMeans(do.call(cbind, coef_list))
+                     names(weights_all) <- rownames(coefs[[1]])[-1]
+                   }
+                   
+                   nonzero_genes <- names(weights_all)[weights_all != 0]
+                   if (length(nonzero_genes) == 0) {
+                     warning(sprintf("No genes selected by LASSO with s='%s'. Returning top genes by coefficient magnitude.", lambda_selection))
+                     top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+                   } else {
+                     # v3 수정: non-zero 유전자 중에서도 절대값 크기 순으로 정렬
+                     nonzero_weights <- weights_all[nonzero_genes]
+                     top_genes <- names(sort(abs(nonzero_weights), decreasing=TRUE)[1:min(n_features, length(nonzero_weights))])
+                   }
+                   
+                   weights <- weights_all[top_genes] # 최종 가중치 (부호 있음)
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   pred_probs <- predict(cv_fit, newx=X, s = lambda_selection, type="response")
+                   if (n_groups == 2) {
+                     pred <- factor(ifelse(pred_probs > 0.5, levels(y)[2], levels(y)[1]), levels=levels(y))
+                     if (requireNamespace("pROC", quietly = TRUE)) {
+                       # v3 수정: AUC 계산 시 점수(scores) 사용
+                       roc_obj <- pROC::roc(y, scores, quiet=TRUE) 
+                       auc <- as.numeric(pROC::auc(roc_obj))
+                     } else { auc <- NA }
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+                   } else {
+                     pred <- levels(y)[apply(pred_probs, 1, which.max)]
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, confusion = table(pred, y))
+                   }
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) cv_fit else NULL)
+                 },
+                 
+                 limma = {
+                   if (!requireNamespace("limma", quietly = TRUE)) {
+                     stop("limma package required. Install with: BiocManager::install('limma')")
+                   }
+                   design <- model.matrix(~0 + target_binary)
+                   colnames(design) <- levels(target_binary)
+                   fit <- limma::lmFit(expr_mat, design)
+                   if (n_groups == 2) {
+                     contrast_str <- paste(levels(target_binary)[2], levels(target_binary)[1], sep="-")
+                   } else {
+                     contrast_str <- limma::makeContrasts(
+                       contrasts = combn(levels(target_binary), 2, function(x) paste(x, collapse="-")),
+                       levels = design
+                     )
+                   }
+                   contrast_mat <- limma::makeContrasts(contrasts=contrast_str, levels=design)
+                   fit2 <- limma::contrasts.fit(fit, contrast_mat)
+                   fit2 <- limma::eBayes(fit2)
+                   top_table <- limma::topTable(fit2, number=Inf, sort.by="B")
+                   
+                   weights_all <- top_table$t
+                   names(weights_all) <- rownames(top_table)
+                   
+                   top_genes <- rownames(top_table)[1:min(n_features, nrow(top_table))]
+                   weights <- weights_all[top_genes] # 최종 가중치 (부호 있음)
+                   
+                   # v3 수정: 점수 계산 방식 통일
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   # ... (limma의 performance 부분은 v2와 동일하게 유지)
+                   perf <- list(top_table = top_table[top_genes, ])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) fit2 else NULL)
+                 },
+                 
+                 wilcoxon = {
+                   pvals <- numeric(nrow(expr_mat))
+                   effect_sizes <- numeric(nrow(expr_mat))
+                   
+                   for (i in 1:nrow(expr_mat)) {
+                     if (n_groups == 2) {
+                       group1 <- expr_mat[i, target_binary == levels(target_binary)[1]]
+                       group2 <- expr_mat[i, target_binary == levels(target_binary)[2]]
+                       test <- wilcox.test(group1, group2)
+                       pvals[i] <- test$p.value
+                       effect_sizes[i] <- median(group2) - median(group1) # 부호 있음
+                     } else {
+                       test <- kruskal.test(expr_mat[i, ] ~ target_binary)
+                       pvals[i] <- test$p.value
+                       effect_sizes[i] <- var(tapply(expr_mat[i, ], target_binary, median)) # 부호 없음
+                     }
+                   }
+                   
+                   names(pvals) <- rownames(expr_mat)
+                   names(effect_sizes) <- rownames(expr_mat)
+                   
+                   padj <- p.adjust(pvals, method="BH")
+                   
+                   # v3 수정: 랭킹 방식을 p-value와 effect-size의 절대값으로
+                   ranks <- rank(pvals) + rank(-abs(effect_sizes))
+                   top_genes <- names(sort(ranks)[1:min(n_features, length(ranks))])
+                   
+                   weights <- effect_sizes[top_genes] # 최종 가중치 (부호 있음)
+                   
+                   # v3 수정: 점수 계산 방식 통일
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(pvalues = pvals[top_genes], padj = padj[top_genes],
+                                effect_sizes = effect_sizes[top_genes])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = NULL)
+                 },
+                 
+                 nmf = {
+                   if (!requireNamespace("NMF", quietly = TRUE)) {
+                     stop("NMF package required. Install with: install.packages('NMF')")
+                   }
+                   expr_mat_pos <- expr_mat - min(expr_mat) + 0.01
+                   rank <- min(n_groups + 2, 10)
+                   dots <- list(...)
+                   dots$seed <- NULL 
+                   nmf_res <- do.call(NMF::nmf, c(list(x = expr_mat_pos, rank = rank), dots))
+                   W <- NMF::basis(nmf_res)
+                   H <- NMF::coef(nmf_res)
+                   
+                   component_cors <- numeric(rank)
+                   for (k in 1:rank) {
+                     if (n_groups == 2) {
+                       component_cors[k] <- abs(cor(H[k, ], as.numeric(target_binary)))
+                     } else {
+                       component_cors[k] <- summary(aov(H[k, ] ~ target_binary))[[1]][1, "F value"]
+                     }
+                   }
+                   
+                   best_component <- which.max(component_cors)
+                   weights_magnitude <- W[, best_component] # 항상 양수
+                   names(weights_magnitude) <- rownames(expr_mat)
+                   
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, length(weights_magnitude))])
+                   weights_magnitude <- weights_magnitude[top_genes]
+                   
+                   # === v3: 방향성 보정 ===
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1
+                     weights <- weights_magnitude * sign(effect_size) # 중요도 * 방향
+                   } else {
+                     warning("nmf: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   # === v3 끝 ===
+                   
+                   # v3 수정: 점수 계산 방식 통일
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(component = best_component, correlation = component_cors[best_component])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) nmf_res else NULL)
+                 },
+                 
+                 gam = {
+                   if (!requireNamespace("mgcv", quietly = TRUE)) {
+                     stop("mgcv package required. Install with: install.packages('mgcv')")
+                   }
+                   
+                   # v3 수정: 더 많은 유전자를 테스트하기 위해 상한을 높임 (속도 주의)
+                   n_test_genes <- min(2000, nrow(expr_mat)) 
+                   test_genes_idx <- 1:n_test_genes
+                   
+                   # 상위 2000개 유전자가 아닌, 분산이 높은 2000개 유전자를 테스트
+                   if(nrow(expr_mat) > 2000) {
+                       gene_vars <- apply(expr_mat, 1, var)
+                       test_genes_idx <- order(gene_vars, decreasing = TRUE)[1:2000]
+                   }
+                   
+                   deviance_explained <- numeric(nrow(expr_mat))
+                   names(deviance_explained) <- rownames(expr_mat)
+                   
+                   for (i in test_genes_idx) {
+                     gene_expr <- expr_mat[i, ]
+                     if (n_groups == 2) {
+                       y_numeric_gam <- as.numeric(target_binary) - 1 
+                       gam_fit <- mgcv::gam(y_numeric_gam ~ s(gene_expr), family="binomial", ...)
+                     } else {
+                       gam_fit <- mgcv::gam(as.numeric(target_binary) ~ s(gene_expr), ...)
+                     }
+                     deviance_explained[i] <- summary(gam_fit)$dev.expl
+                   }
+                   
+                   weights_magnitude <- deviance_explained
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, sum(weights_magnitude > 0))])
+                   weights_magnitude <- weights_magnitude[top_genes]
+
+                   # === v3: 방향성 보정 ===
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1
+                     weights <- weights_magnitude * sign(effect_size) # 중요도 * 방향
+                   } else {
+                     warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   # === v3 끝 ===
+                   
+                   # v3 수정: 점수 계산 방식 통일
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(deviance_explained = weights_magnitude) # 방향성 보정 전의 중요도
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = NULL)
+                 },
+                 
+                 pca_loadings = {
+                   # v3 수정: PCA는 스케일링된 데이터를 사용해야 함
+                   # 함수 상단의 전처리 블록에서 method="pca_loadings"일 때 이미 스케일링됨.
+                   pca_res <- prcomp(X, center=FALSE, scale.=FALSE) 
+                   
+                   pc_cors <- numeric(min(50, ncol(pca_res$x)))
+                   for (k in 1:length(pc_cors)) {
+                     if (n_groups == 2) {
+                       pc_cors[k] <- abs(cor(pca_res$x[, k], as.numeric(target_binary)))
+                     } else {
+                       pc_cors[k] <- summary(aov(pca_res$x[, k] ~ target_binary))[[1]][1, "F value"]
+                     }
+                   }
+                   
+                   best_pc <- which.max(pc_cors)
+                   weights_all <- pca_res$rotation[, best_pc] # 부호 있음
+                   
+                   top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+                   weights <- weights_all[top_genes] # 최종 가중치 (부호 있음)
+                   
+                   # v3 수정: 점수 계산 방식 통일
+                   # (v2의 scores = pca_res$x[, best_pc]는 '모든' 유전자를 사용한 점수였음)
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(PC = best_pc, correlation = pc_cors[best_pc],
+                                variance_explained = summary(pca_res)$importance[2, best_pc])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) pca_res else NULL)
+                 }
+  )
+  
+  # ===
+  # 5. Return results (v2와 동일)
+  # ===
+  
+  result$method <- method
+  result$target_var <- target_var
+  result$n_groups <- n_groups
+  result$n_cells <- ncol(expr_mat)
+  result$formula <- paste(deparse(match.call()), collapse = " ")
+  
+  class(result) <- c("gene_signature", "list")
+  return(result)
 }

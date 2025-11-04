@@ -2,33 +2,42 @@
 % Please edit documentation in R/demulti_utils.R
 \name{get_barcode_mapping}
 \alias{get_barcode_mapping}
-\title{Create Barcode Mapping from Demultiplexing Data}
+\title{Get Barcode Mapping}
 \usage{
-get_barcode_mapping(demux_data)
+get_barcode_mapping(
+  prob_matrix,
+  singlet_threshold = 0.5,
+  doublet_threshold = 0.3,
+  return_probs = FALSE
+)
 }
 \arguments{
-\item{demux_data}{A data frame containing demultiplexing results. Must have a 'BARCODE'
-column and additional columns for sample probabilities}
+\item{prob_matrix}{Matrix where rows are cells and columns are samples,
+containing assignment probabilities}
+
+\item{singlet_threshold}{Minimum probability for singlet assignment (default: 0.5)}
+
+\item{doublet_threshold}{Minimum probability for doublet assignment (default: 0.3)}
+
+\item{return_probs}{Whether to return probability values (default: FALSE)}
 }
 \value{
-A data frame containing:
-- Barcode: The cell barcode
-- Best_Sample: The sample with highest probability
-- Best_Probability: The highest probability value
-- Second_Best_Sample: The sample with second highest probability
-- Second_Best_Probability: The second highest probability value
-- Probability_Ratio: Ratio of best to second-best probabilities
+Data frame with columns:
+\item{barcode}{Cell barcode}
+\item{assignment}{Assigned sample(s)}
+\item{type}{"singlet" or "doublet"}
+\item{prob1}{(if return_probs=TRUE) Top probability}
+\item{prob2}{(if return_probs=TRUE) Second probability}
 }
 \description{
-This function processes demultiplexing data to create a mapping between barcodes
-and their most likely sample assignments, including probability information.
+Assigns barcodes (cell identities) to samples based on probability matrix.
 }
 \examples{
 \dontrun{
-# Create barcode mapping from demultiplexing results
-mapping <- get_barcode_mapping(demux_data)
-
-# Filter for high confidence assignments
-high_conf <- mapping[mapping$Probability_Ratio > 2, ]
+prob_matrix <- matrix(runif(100), nrow = 10, ncol = 10)
+colnames(prob_matrix) <- paste0("Sample", 1:10)
+rownames(prob_matrix) <- paste0("Cell", 1:10)
+assignments <- get_barcode_mapping(prob_matrix)
 }
+
 }

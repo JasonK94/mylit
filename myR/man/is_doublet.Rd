@@ -2,24 +2,21 @@
 % Please edit documentation in R/demulti_utils.R
 \name{is_doublet}
 \alias{is_doublet}
-\title{Check if a Sample is a Doublet}
+\title{Check if Sample is Doublet}
 \usage{
-is_doublet(sample)
+is_doublet(sample_name)
 }
 \arguments{
-\item{sample}{Character string containing the sample name}
+\item{sample_name}{Character vector of sample names}
 }
 \value{
-Logical value: TRUE if the sample is a doublet, FALSE otherwise
+Logical vector indicating doublet status
 }
 \description{
-This function checks if a sample name contains a '+' character, indicating it is
-a doublet (combination of two samples).
+Determines if a sample identifier represents a doublet (contains "+").
 }
 \examples{
-\dontrun{
-# Check if samples are doublets
-is_doublet("1")     # Returns FALSE
-is_doublet("1+2")   # Returns TRUE
-}
+is_doublet(c("Sample1", "Sample1+Sample2", "Sample3"))
+# Returns: c(FALSE, TRUE, FALSE)
+
 }

@@ -2,27 +2,26 @@
 % Please edit documentation in R/demulti_utils.R
 \name{generate_sample_values}
 \alias{generate_sample_values}
-\title{Generate Sample Values for Demultiplexing}
+\title{Generate Sample Values}
 \usage{
-generate_sample_values(start_num, end_num)
+generate_sample_values(n_samples, include_doublets = TRUE, prefix = "Sample")
 }
 \arguments{
-\item{start_num}{Integer specifying the starting sample number}
+\item{n_samples}{Number of samples}
 
-\item{end_num}{Integer specifying the ending sample number}
+\item{include_doublets}{Whether to include doublet combinations (default: TRUE)}
+
+\item{prefix}{Prefix for sample names (default: "Sample")}
 }
 \value{
-A character vector containing all possible sample combinations:
-singlets (e.g., "1", "2", "3") and doublets (e.g., "1+2", "1+3", "2+3")
+Character vector of sample identifiers
 }
 \description{
-This function generates a vector of sample values including both singlets and
-doublets for demultiplexing analysis.
+Creates a list of sample identifiers including both singlets and doublets.
 }
 \examples{
-\dontrun{
-# Generate sample values for samples 1-3
-samples <- generate_sample_values(1, 3)
-# Returns: c("1", "2", "3", "1+2", "1+3", "2+3")
-}
+generate_sample_values(3)
+# Returns: c("Sample1", "Sample2", "Sample3", "Sample1+Sample2", 
+#            "Sample1+Sample3", "Sample2+Sample3")
+
 }
