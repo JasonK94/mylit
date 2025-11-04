@@ -261,6 +261,8 @@ mydensity <- function(data, column = NULL, adjust = 1, x_unit = NULL, y_unit = N
   print(p)
 }
 
+# Boxplot ----------
+
 .fetch_plot_data <- function(data, features, sample_col = NULL, group.by = NULL, split.by = NULL, 
                              assay = NULL, layer = "data") {
   
@@ -764,7 +766,8 @@ mybox_geomx <- function(
   invisible(stat_results)
 }
 
-#
+
+# boxplot end
 
 #' UpSet Plot for Multiple Gene Lists
 #'
@@ -1451,21 +1454,20 @@ cdf_multi <- function(
 #' @export
 #' @import dplyr ggplot2 viridisLite
 scatter_smooth_colored <- function(object,
-                                   feature,
-                                   group.by   = "sample_no",
-                                   x_var      = "nih_change",
-                                   transpose  = FALSE,
-                                   color_by   = NULL,
-                                   palette    = NULL,
-                                   transparency       = TRUE,
-                                   transparency_desc  = FALSE,
-                                   fitted_line = c("linear", "loess", "lasso", NULL)) {
+                                     feature,
+                                     group.by   = "sample_no",
+                                     x_var      = "nih_change",
+                                     transpose  = FALSE,
+                                     color_by   = NULL,
+                                     palette    = NULL,
+                                     transparency    = TRUE,
+                                     transparency_desc = FALSE,
+                                     fitted_line = c("linear", "loess", "lasso", NULL)) {
   fitted_line <- match.arg(fitted_line)
   stopifnot(is.character(feature), length(feature) == 1)
   
-
-  # 1. Build per‑cell tibble ------------------------------------------------
-
+  # 1. Build per-cell tibble ------------------------------------------------
+  
   if (inherits(object, "Seurat")) {
     expr_vec <- Seurat::FetchData(object, vars = feature)[, 1]
     meta_df  <- tibble::as_tibble(object@meta.data)
@@ -1481,22 +1483,43 @@ scatter_smooth_colored <- function(object,
       stop("Column '", col, "' not found in data.")
   }
   
-
+  
   # 2. Aggregate by group ---------------------------------------------------
-
+  
+  # *** 수정된 부분 시작 ***
+  #
+  # color_by 열이 숫자형인지 미리 확인합니다.
+  is_color_numeric <- if (!is.null(color_by)) {
+    is.numeric(cell_df[[color_by]])
+  } else {
+    FALSE # color_by가 NULL이면 어차피 사용되지 않음
+  }
+  
   agg_df <- cell_df %>%
     dplyr::group_by(.data[[group.by]]) %>%
-    dplyr::summarise(avg_expr = mean(.data[[feature]], na.rm = TRUE),
-                     x_val    = mean(.data[[x_var]], na.rm = TRUE),
-                     colour   = if (!is.null(color_by))
-                       mean(.data[[color_by]], na.rm = TRUE) else NA,
-                     .groups  = "drop")
+    dplyr::summarise(
+      avg_expr = mean(.data[[feature]], na.rm = TRUE),
+      x_val    = mean(.data[[x_var]], na.rm = TRUE),
+      # color_by의 타입에 따라 집계 방식을 다르게 합니다.
+      colour   = if (!is.null(color_by)) {
+        if (is_color_numeric) {
+          # 숫자형이면 평균 계산
+          mean(.data[[color_by]], na.rm = TRUE)
+        } else {
+          # 범주형(문자열/팩터)이면 그룹의 첫 번째 값 사용
+          dplyr::first(.data[[color_by]], na_rm = TRUE)
+        }
+      } else {
+        NA
+      },
+      .groups  = "drop"
+    )
+  #
+  # *** 수정된 부분 끝 ***
   
-  # reorder transparency variable if categorical? We'll detect later
   
-
   # 3. Aesthetics -----------------------------------------------------------
-
+  
   x_col <- if (transpose) "avg_expr" else "x_val"
   y_col <- if (transpose) "x_val"   else "avg_expr"
   
@@ -1504,10 +1527,14 @@ scatter_smooth_colored <- function(object,
   
   # Point layer with colour / alpha mapping
   if (!is.null(color_by)) {
+    # (원본 코드)
+    # 여기서는 cell_df의 원본 열 타입을 확인하는 것이 올바릅니다.
+    # 위에서 agg_df$colour의 타입을 올바르게 생성했기 때문에
+    # 이 로직이 이제 정상적으로 작동합니다.
     if (is.numeric(cell_df[[color_by]])) {
       # numeric colour gradient
       p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour,
-                                                alpha   = colour), size = 3)
+                                                 alpha  = colour), size = 3)
       alpha_range <- if (transparency_desc) c(1, 0.2) else c(0.2, 1)
       if (transparency) {
         p <- p + ggplot2::scale_alpha(range = alpha_range, guide = "none")
@@ -1518,6 +1545,7 @@ scatter_smooth_colored <- function(object,
       p <- p + ggplot2::scale_colour_gradientn(colours = pal, name = color_by)
     } else {
       # categorical palette
+      # agg_df$colour가 이제 문자열이므로 ggplot이 자동으로 이산형으로 처리합니다.
       p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour), size = 3)
       pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$colour))), "Set1")
       p <- p + ggplot2::scale_colour_manual(values = pal, name = color_by)
@@ -1526,9 +1554,9 @@ scatter_smooth_colored <- function(object,
     p <- p + ggplot2::geom_point(size = 3)
   }
   
-
+  
   # 4. Smoothing line -------------------------------------------------------
-
+  
   if (!is.null(fitted_line)) {
     if (fitted_line == "linear") {
       p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE, colour = "black")
@@ -1558,9 +1586,9 @@ scatter_smooth_colored <- function(object,
     }
   }
   
-
+  
   # 5. Labels & theme -------------------------------------------------------
-
+  
   p <- p + ggplot2::theme_bw() +
     ggplot2::labs(x = if (transpose) paste("Average", feature, "expression") else x_var,
                   y = if (transpose) x_var else paste("Average", feature, "expression"),

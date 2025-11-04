@@ -1,1 +1,14 @@
 ^LICENSE\.md$
+^\\.github$
+^docs$
+^ipynb$
+^rmd$
+^projects$
+^trash$
+^README.*\\.Rmd$
+^\.Rhistory$
+^deprecated$
+^renv$
+^trash$
+^projects$
+^environment\.yml$

@@ -7,7 +7,7 @@
 #'
 #' @return a simple form of scatter plot with regression fit. 
 #' @export
-scatter_smooth = function(sobj, feature, clinical_variable = "nih_change", transpose = FALSE) {
+scatter_smooth_legacy = function(sobj, feature, clinical_variable = "nih_change", transpose = FALSE) {
   
   # 1) Make a per-cell data.frame with the expression for 'feature'
   df <- data.frame(
@@ -1767,7 +1767,7 @@ myhm_genes2_legacy <- function(
 }
 
 #' @export
-myhm_genesets3 <- function(
+myhm_genesets3_legacy <- function(
     sobj,
     group = "seurat_clusters",
     value = "average",

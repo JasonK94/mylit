@@ -366,7 +366,7 @@ linear_seurat <- function(sobj,
   }
 }
 
-# Helper function to visualize top results
+# Helper function to visualize top results (linear_seurat)
 plot_top_genes <- function(results, sobj, layer = "data", top_n = 6) {
   library(ggplot2)
   library(gridExtra)
@@ -765,4 +765,299 @@ run_spearman_pseudobulk <- function(sobj, ordinal_var, patient_col, assay = "RNA
   
   cat("스피어만 상관관계 분석 완료.\n")
   return(spearman_results_df)
+}
+
+
+
+
+.fetch_plot_data <- function(data, features, sample_col = NULL, group.by = NULL, split.by = NULL, 
+                             assay = NULL, layer = "data") {
+  
+  `%||%` <- rlang::`%||%`
+  
+  # 1. Seurat 객체 처리
+  if (inherits(data, "Seurat")) {
+    sobj <- data
+    meta_cols <- names(sobj@meta.data)
+    
+    meta_features <- intersect(features, meta_cols)
+    assay_features <- setdiff(features, meta_cols)
+    
+    # 필요한 모든 컬럼 정의
+    grouping_cols <- unique(c(sample_col, group.by, split.by))
+    grouping_cols <- grouping_cols[!is.null(grouping_cols)]
+    
+    vars_to_fetch <- unique(c(grouping_cols, meta_features, assay_features))
+    vars_to_fetch <- vars_to_fetch[vars_to_fetch %in% c(meta_cols, rownames(sobj[[assay %||% DefaultAssay(sobj)]]))] # 존재하는 것만
+    
+    # 데이터 추출
+    fetched_df <- data.frame(matrix(ncol = 0, nrow = ncol(sobj)))
+    rownames(fetched_df) <- colnames(sobj)
+    
+    if (length(vars_to_fetch) > 0) {
+        if (length(assay_features) > 0) {
+          assay_to_use <- assay %||% DefaultAssay(sobj)
+          fetched_df <- FetchData(sobj, vars = vars_to_fetch, assay = assay_to_use, layer = layer)
+        } else {
+          fetched_df <- FetchData(sobj, vars = vars_to_fetch)
+        }
+    } else {
+       warning("가져올 유효한 피처나 메타데이터가 없습니다.")
+       return(data.frame())
+    }
+
+  # 2. 데이터 프레임 처리
+  } else if (is.data.frame(data)) {
+    fetched_df <- data
+    req_cols <- unique(c(features, sample_col, group.by, split.by))
+    req_cols <- req_cols[!is.null(req_cols)]
+    
+    missing_cols <- setdiff(req_cols, names(fetched_df))
+    if (length(missing_cols) > 0) {
+      stop("데이터 프레임에 다음 컬럼이 없습니다: ", paste(missing_cols, collapse=", "))
+    }
+  } else {
+    stop("`data` 인수는 Seurat 객체 또는 data.frame이어야 합니다.")
+  }
+  
+  return(fetched_df)
+}
+
+#' 세포 단위 피처 발현 박스플롯 (plot_gene_boxplot 스타일)
+#'
+#' @param data Seurat 객체 또는 data.frame
+#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
+#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
+#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
+#' @param idents 'group.by'에서 포함할 특정 값들
+#' @param assay Seurat 객체용 assay
+#' @param layer Seurat 객체용 layer
+#' @param ncol 플롯 컬럼 수
+#' @param pt.size 점 크기 (0이면 숨김)
+#' @param violin 바이올린 플롯 오버레이
+#' @param add_stats 통계 검정 추가 (ggpubr::stat_compare_means)
+#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE, method = "t.test")
+#'
+#' @return ggplot 객체
+#' @export
+mybox_cell <- function(data, 
+                                      features, 
+                                      group.by, 
+                                      split.by, 
+                                      idents = NULL, 
+                                      assay = NULL, 
+                                      layer = "data",
+                                      ncol = 3, 
+                                      pt.size = 0.2, 
+                                      violin = FALSE,
+                                      add_stats = TRUE,
+                                      ...) {
+
+  plot_df_base <- .fetch_plot_data(data, features, NULL, group.by, split.by, assay, layer)
+  
+  all_plots <- list()
+  
+  for (feature_name in features) {
+    current_df <- plot_df_base
+    
+    # 1. group.by가 NULL일 경우 "Overall"로 처리
+    group.by.internal <- group.by
+    if (is.null(group.by)) {
+      group.by.internal <- ".internal_placeholder_group"
+      current_df[[group.by.internal]] <- "Overall"
+    }
+    
+    # 2. idents 필터링 (mybox 로직과 동일)
+    if (!is.null(group.by) && !is.null(idents)) {
+      original_col_type <- class(current_df[[group.by.internal]])
+      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
+      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
+      
+      if (nrow(current_df) == 0) {
+         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
+         next
+      }
+      
+      if ("factor" %in% original_col_type) {
+        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
+        valid_subset_levels <- intersect(original_levels, idents)
+        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
+      } else {
+        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+      }
+    }
+    
+    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+    current_df[[split.by]] <- as.factor(current_df[[split.by]])
+    
+    # 3. ggplot 생성 (Req 3 레이아웃)
+    p <- ggplot(current_df, aes(x = .data[[split.by]], y = .data[[feature_name]], fill = .data[[split.by]]))
+    
+    if (violin) {
+      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
+    }
+    
+    # outlier.shape=NA로 설정 (Req 2)
+    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
+    
+    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
+    if (pt.size > 0) {
+      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.3, 
+                           width = 0.2, height = 0, na.rm = TRUE)
+    }
+    
+    # 통계 추가 (ggpubr)
+    if (add_stats) {
+      # `...` 인수로 paired=TRUE 등을 받을 수 있음
+      p <- p + stat_compare_means(label = "p.format", ...) 
+    }
+    
+    # 패널(facet) 적용 및 테마 설정 (Req 3)
+    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
+      labs(title = feature_name,
+           x = split.by,
+           y = feature_name) +
+      theme_bw(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            plot.title = element_text(hjust = 0.5),
+            legend.position = "none") # 범례 제거
+    
+    all_plots[[feature_name]] <- p
+  }
+  
+  if (length(all_plots) == 0) {
+    message("생성된 플롯이 없습니다.")
+    return(invisible(NULL))
+  }
+  
+  return(patchwork::wrap_plots(all_plots, ncol = ncol))
+}
+#' 샘플 단위(Pseudobulk) 피처 평균 박스플롯 (mybox 로직 + plot_gene_boxplot 스타일)
+#'
+#' @param data Seurat 객체 또는 data.frame
+#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
+#' @param sample_col 샘플/환자 식별 컬럼 (필수)
+#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
+#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
+#' @param idents 'group.by'에서 포함할 특정 값들
+#' @param assay Seurat 객체용 assay
+#' @param layer Seurat 객체용 layer
+#' @param ncol 플롯 컬럼 수
+#' @param pt.size 샘플 평균 점 크기 (0이면 숨김)
+#' @param violin 바이올린 플롯 오버레이
+#' @param add_stats 통계 검정 추가 (요약된 데이터 대상)
+#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE)
+#'
+#' @return ggplot 객체
+#' @export
+mybox_pb <- function(data, 
+                                    features, 
+                                    sample_col, 
+                                    group.by, 
+                                    split.by, 
+                                    idents = NULL, 
+                                    assay = NULL, 
+                                    layer = "data",
+                                    ncol = 3, 
+                                    pt.size = 1.0, 
+                                    violin = FALSE,
+                                    add_stats = FALSE,
+                                    ...) {
+
+  if (is.null(sample_col)) {
+    stop("`sample_col` 인수는 Pseudobulk 플롯에 필수입니다.")
+  }
+
+  plot_df_base <- .fetch_plot_data(data, features, sample_col, group.by, split.by, assay, layer)
+  
+  all_plots <- list()
+  
+  for (feature_name in features) {
+    current_df <- plot_df_base
+    
+    # 1. group.by가 NULL일 경우 "Overall"로 처리
+    group.by.internal <- group.by
+    if (is.null(group.by)) {
+      group.by.internal <- ".internal_placeholder_group"
+      current_df[[group.by.internal]] <- "Overall"
+    }
+    
+    # 2. idents 필터링
+    if (!is.null(group.by) && !is.null(idents)) {
+      original_col_type <- class(current_df[[group.by.internal]])
+      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
+      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
+      
+      if (nrow(current_df) == 0) {
+         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
+         next
+      }
+      
+      if ("factor" %in% original_col_type) {
+        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
+        valid_subset_levels <- intersect(original_levels, idents)
+        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
+      } else {
+        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+      }
+    }
+    
+    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+    current_df[[split.by]] <- as.factor(current_df[[split.by]])
+    current_df[[sample_col]] <- as.factor(current_df[[sample_col]])
+    
+    # 3. *** 데이터 요약 (Aggregation) ***
+    grouping_vars <- unique(c(sample_col, group.by.internal, split.by))
+    
+    aggregated_df <- current_df %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(grouping_vars))) %>%
+      dplyr::summarise(mean_value = mean(.data[[feature_name]], na.rm = TRUE), .groups = 'drop')
+    
+    if (nrow(aggregated_df) == 0) {
+      warning(feature_name, "에서 요약 후 데이터가 없습니다. 건너뜁니다.")
+      next
+    }
+    
+    # 4. ggplot 생성 (Req 3 레이아웃)
+    p <- ggplot(aggregated_df, aes(x = .data[[split.by]], y = mean_value, fill = .data[[split.by]]))
+    
+    if (violin) {
+      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
+    }
+    
+    # outlier.shape=NA로 설정 (Req 2)
+    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
+    
+    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
+    if (pt.size > 0) {
+      # PB 플롯은 점이 샘플을 의미하므로 더 진하게 (alpha=0.7)
+      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.7, 
+                           width = 0.2, height = 0, na.rm = TRUE)
+    }
+
+    # 통계 추가 (요약된 데이터를 대상으로 함)
+    if (add_stats) {
+      # paired=TRUE를 `...`로 전달받아 샘플 페어 테스트 가능
+      p <- p + stat_compare_means(label = "p.format", ...) 
+    }
+
+    # 패널(facet) 적용 및 테마 설정 (Req 3)
+    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
+      labs(title = feature_name,
+           x = split.by,
+           y = paste("Average", feature_name)) +
+      theme_bw(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            plot.title = element_text(hjust = 0.5),
+            legend.position = "none") # 범례 제거
+            
+    all_plots[[feature_name]] <- p
+  }
+  
+  if (length(all_plots) == 0) {
+    message("생성된 플롯이 없습니다.")
+    return(invisible(NULL))
+  }
+  
+  return(patchwork::wrap_plots(all_plots, ncol = ncol))
 }
