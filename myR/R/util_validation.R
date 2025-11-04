@@ -380,3 +380,124 @@ check_packages <- function(packages, load = FALSE) {
 }
 
 
+#' @param sobj Seurat object
+#' @param patient Column name for patient identifier
+#' @param treatment Column name for treatment/drug identifier
+#' @param timepoint Column name for timepoint identifier
+#' @param tissue Column name for tissue identifier
+#' @param check_key Column name for the key to check
+#' @param check_values Values to check for parity
+#' @return A list containing:
+#'   \itemize{
+#'     \item `detailed`: The original metadata with added diagnostic columns.
+#'     \item `diag_table`: A one-row-per-group summary table.
+#'     \item `message`: A summary message.
+#'     \item `paired_ids`: A vector of `SegmentDisplayName`s for samples that passed the checks.
+#'   }
+#' @examples
+#' \dontrun{
+#' diagnosis_parity(sobj, patient="EMRID", treatment="drug", timepoint="pre_post", tissue="ck_str", check_key="pre_post", check_values=c("pre", "post"))
+#' }
+#' @export
+diagnosis_parity <- function(sobj,
+                                      patient=NULL, treatment=NULL, timepoint=NULL, tissue=NULL,   # 문자열 컬럼명 허용
+                                      check_key, check_values) {
+  # 동적 진단 열 이름: "pre","post" -> "n_pre","n_post"
+  safe_counts_names <- paste0("n_", make.names(check_values, unique = TRUE))
+  
+  make_unique_id <- function(meta, patient=NULL, treatment=NULL, timepoint=NULL, tissue=NULL, check_key=NULL) {
+    # unique_id를 만들 때 쓸 후보
+    cols <- c(patient, treatment, timepoint, tissue)
+  
+    # check_key가 들어있으면 제외
+    cols <- cols[!cols %in% check_key]
+  
+    # NULL 제거
+    cols <- cols[!sapply(cols, is.null)]
+  
+    # 조합
+    if (length(cols) == 0) {
+      meta$unique_id <- seq_len(nrow(meta))  # 전부 NULL이면 그냥 row별 고유 번호
+    } else {
+      meta <- meta %>%
+        mutate(across(all_of(cols), ~ tidyr::replace_na(as.character(.x), ""))) %>%
+        mutate(unique_id = do.call(paste0, .[cols]))
+    }
+    meta
+  }
+  
+  meta <- sobj@meta.data %>%
+    make_unique_id(patient=patient,
+                 treatment=treatment,
+                 timepoint=timepoint,
+                 tissue=tissue,
+                 check_key=check_key) %>%
+    mutate(
+      .val_chr  = as.character(.data[[check_key]])
+    )
+
+  # unique_id별 전체 개수
+  totals <- meta %>% count(unique_id, name = "total_n")
+
+  # 선택값 카운트 (없어도 0으로 생성되도록 complete + pivot_wider)
+  counts_sel <- meta %>%
+    mutate(.val_chr = factor(.val_chr, levels = check_values)) %>%
+    count(unique_id, .val_chr) %>%
+    complete(unique_id, .val_chr, fill = list(n = 0)) %>%
+    pivot_wider(names_from = .val_chr, values_from = n, values_fill = 0)
+
+  # pivot에서 특정 값 컬럼 자체가 안 생긴 경우 대비해서 강제 추가
+  for (v in check_values) {
+    if (!hasName(counts_sel, v)) counts_sel[[v]] <- 0L
+  }
+
+  # 읽기 쉬운 이름으로 통일: pre -> n_pre, post -> n_post ...
+  counts_sel <- counts_sel %>%
+    rename_with(~ paste0("n_", make.names(.x, unique = TRUE)),
+                .cols = all_of(check_values))
+
+  # 진단 테이블 계산 (rowwise 없이)
+  diag_table <- totals %>%
+    left_join(counts_sel, by = "unique_id") %>%
+    mutate(across(c(total_n, all_of(safe_counts_names)),
+                  ~ replace_na(.x, 0))) %>%
+    mutate(
+      # 선택값 합계
+      n_selected = purrr::reduce(across(all_of(safe_counts_names)), `+`),
+      # 모든 선택값이 최소 1개 이상인가?
+      has_all    = if_all(all_of(safe_counts_names), ~ .x > 0),
+      # 선택값들의 개수가 모두 동일한가? (pre==post==... 형태)
+      parity_eq  = pmap_lgl(across(all_of(safe_counts_names)),
+                            ~ { v <- c(...); length(unique(v)) == 1 }),
+      # 기타 값 개수
+      n_other    = total_n - n_selected,
+      # 최종 통과 조건(원래 의도 유지)
+      ok         = has_all & parity_eq & n_other == 0
+    ) %>%
+    dplyr::select(unique_id, total_n, all_of(safe_counts_names),
+           n_selected, n_other, has_all, parity_eq, ok)
+
+  # 원본 롱형 테이블에 진단 열 조인
+  detailed <- meta %>% left_join(diag_table, by = "unique_id")
+
+  # 실패 id 메시지
+  no_pass_ids <- diag_table %>% filter(!ok) %>% pull(unique_id)
+  msg <- if (length(no_pass_ids) == 0) {
+    "✅ All groups passed parity & exclusivity checks."
+  } else {
+    sprintf("checkout %s", paste(no_pass_ids, collapse = ", "))
+  }
+  message(msg)
+  message("View($detailed)")
+  message("enter View(sobj$diag_table) to check which row has the problem")
+  ok_id=detailed%>%
+    filter(ok)%>%
+    pull(SegmentDisplayName)
+  
+  list(
+    detailed    = detailed,    # 원본 행 + n_pre/n_post/... + ok 등
+    diag_table  = diag_table,  # id별 한 줄 요약
+    message     = msg,
+    paired_ids = ok_id
+  )
+}

@@ -1456,7 +1456,7 @@ cdf_multi <- function(
 scatter_smooth_colored <- function(object,
                                      feature,
                                      group.by   = "sample_no",
-                                     x_var      = "nih_change",
+                                     x_var      = "numeric_value",
                                      transpose  = FALSE,
                                      color_by   = NULL,
                                      palette    = NULL,

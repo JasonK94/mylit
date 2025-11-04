@@ -768,296 +768,731 @@ run_spearman_pseudobulk <- function(sobj, ordinal_var, patient_col, assay = "RNA
 }
 
 
-
-
-.fetch_plot_data <- function(data, features, sample_col = NULL, group.by = NULL, split.by = NULL, 
-                             assay = NULL, layer = "data") {
-  
-  `%||%` <- rlang::`%||%`
-  
-  # 1. Seurat 객체 처리
-  if (inherits(data, "Seurat")) {
-    sobj <- data
-    meta_cols <- names(sobj@meta.data)
+scatter_smooth_colored3 <- function(object,
+                                   feature,
+                                   group.by   = "sample_no",
+                                   x_var      = "nih_change",
+                                   transpose  = FALSE,
+                                   color_by   = NULL,
+                                   split.by   = NULL,
+                                   palette    = NULL,
+                                   transparency    = TRUE,
+                                   transparency_desc = FALSE,
+                                   fitted_line = c("linear", "loess", "lasso", NULL)) {
+    fitted_line <- match.arg(fitted_line)
+    stopifnot(is.character(feature), length(feature) == 1)
     
-    meta_features <- intersect(features, meta_cols)
-    assay_features <- setdiff(features, meta_cols)
+    # 1. Build per‑cell tibble ------------------------------------------------
     
-    # 필요한 모든 컬럼 정의
-    grouping_cols <- unique(c(sample_col, group.by, split.by))
-    grouping_cols <- grouping_cols[!is.null(grouping_cols)]
+    if (inherits(object, "Seurat")) {
+        expr_vec <- Seurat::FetchData(object, vars = feature)[, 1]
+        meta_df  <- tibble::as_tibble(object@meta.data)
+        cell_df  <- dplyr::mutate(meta_df, !!feature := expr_vec)
+    } else {
+        cell_df <- tibble::as_tibble(object)
+        if (!feature %in% names(cell_df))
+            stop("In data.frame mode the column '", feature, "' must exist.")
+    }
     
-    vars_to_fetch <- unique(c(grouping_cols, meta_features, assay_features))
-    vars_to_fetch <- vars_to_fetch[vars_to_fetch %in% c(meta_cols, rownames(sobj[[assay %||% DefaultAssay(sobj)]]))] # 존재하는 것만
+    for (col in c(group.by, x_var, color_by, split.by)) {
+        if (!is.null(col) && !col %in% names(cell_df))
+            stop("Column '", col, "' not found in data.")
+    }
     
-    # 데이터 추출
-    fetched_df <- data.frame(matrix(ncol = 0, nrow = ncol(sobj)))
-    rownames(fetched_df) <- colnames(sobj)
+    if (!is.null(split.by)) {
+        if (is.numeric(cell_df[[split.by]])) {
+            stop("`split.by` column '", split.by, "' must be categorical (character or factor), not numeric.")
+        }
+        cell_df[[split.by]] <- as.factor(cell_df[[split.by]])
+    }
     
-    if (length(vars_to_fetch) > 0) {
-        if (length(assay_features) > 0) {
-          assay_to_use <- assay %||% DefaultAssay(sobj)
-          fetched_df <- FetchData(sobj, vars = vars_to_fetch, assay = assay_to_use, layer = layer)
+    
+    # 2. Aggregate by group ---------------------------------------------------
+    
+    is_color_numeric <- if (!is.null(color_by)) {
+        is.numeric(cell_df[[color_by]])
+    } else {
+        FALSE
+    }
+    
+    agg_df <- cell_df %>%
+        dplyr::group_by(.data[[group.by]]) %>%
+        dplyr::summarise(
+            avg_expr = mean(.data[[feature]], na.rm = TRUE),
+            x_val    = mean(.data[[x_var]], na.rm = TRUE),
+            colour   = if (!is.null(color_by)) {
+                if (is_color_numeric) {
+                    mean(.data[[color_by]], na.rm = TRUE)
+                } else {
+                    dplyr::first(.data[[color_by]], na_rm = TRUE)
+                }
+            } else {
+                NA
+            },
+            split_col = if (!is.null(split.by)) {
+                dplyr::first(.data[[split.by]], na_rm = TRUE)
+            } else {
+                NA
+            },
+            .groups  = "drop"
+        )
+    
+    
+    # 3. Aesthetics -----------------------------------------------------------
+    
+    x_col <- if (transpose) "avg_expr" else "x_val"
+    y_col <- if (transpose) "x_val"   else "avg_expr"
+    
+    p <- ggplot2::ggplot(agg_df, ggplot2::aes(x = .data[[x_col]], y = .data[[y_col]]))
+    
+    if (!is.null(split.by)) {
+        if (!is.null(color_by)) {
+            warning("`color_by` argument is ignored when `split.by` is provided.")
+        }
+        p <- p + ggplot2::geom_point(ggplot2::aes(colour = .data[["split_col"]]), size = 3)
+        
+        pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$split_col))), "Set1")
+        p <- p + ggplot2::scale_colour_manual(values = pal, name = split.by)
+        
+    } else if (!is.null(color_by)) {
+        if (is.numeric(cell_df[[color_by]])) {
+            p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour,
+                                                      alpha  = colour), size = 3)
+            alpha_range <- if (transparency_desc) c(1, 0.2) else c(0.2, 1)
+            if (transparency) {
+                p <- p + ggplot2::scale_alpha(range = alpha_range, guide = "none")
+            } else {
+                p <- p + ggplot2::guides(alpha = "none")
+            }
+            pal <- if (is.null(palette)) viridisLite::viridis(256) else palette
+            p <- p + ggplot2::scale_colour_gradientn(colours = pal, name = color_by)
         } else {
-          fetched_df <- FetchData(sobj, vars = vars_to_fetch)
+            p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour), size = 3)
+            pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$colour))), "Set1")
+            p <- p + ggplot2::scale_colour_manual(values = pal, name = color_by)
         }
     } else {
-       warning("가져올 유효한 피처나 메타데이터가 없습니다.")
-       return(data.frame())
-    }
-
-  # 2. 데이터 프레임 처리
-  } else if (is.data.frame(data)) {
-    fetched_df <- data
-    req_cols <- unique(c(features, sample_col, group.by, split.by))
-    req_cols <- req_cols[!is.null(req_cols)]
-    
-    missing_cols <- setdiff(req_cols, names(fetched_df))
-    if (length(missing_cols) > 0) {
-      stop("데이터 프레임에 다음 컬럼이 없습니다: ", paste(missing_cols, collapse=", "))
-    }
-  } else {
-    stop("`data` 인수는 Seurat 객체 또는 data.frame이어야 합니다.")
-  }
-  
-  return(fetched_df)
-}
-
-#' 세포 단위 피처 발현 박스플롯 (plot_gene_boxplot 스타일)
-#'
-#' @param data Seurat 객체 또는 data.frame
-#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
-#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
-#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
-#' @param idents 'group.by'에서 포함할 특정 값들
-#' @param assay Seurat 객체용 assay
-#' @param layer Seurat 객체용 layer
-#' @param ncol 플롯 컬럼 수
-#' @param pt.size 점 크기 (0이면 숨김)
-#' @param violin 바이올린 플롯 오버레이
-#' @param add_stats 통계 검정 추가 (ggpubr::stat_compare_means)
-#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE, method = "t.test")
-#'
-#' @return ggplot 객체
-#' @export
-mybox_cell <- function(data, 
-                                      features, 
-                                      group.by, 
-                                      split.by, 
-                                      idents = NULL, 
-                                      assay = NULL, 
-                                      layer = "data",
-                                      ncol = 3, 
-                                      pt.size = 0.2, 
-                                      violin = FALSE,
-                                      add_stats = TRUE,
-                                      ...) {
-
-  plot_df_base <- .fetch_plot_data(data, features, NULL, group.by, split.by, assay, layer)
-  
-  all_plots <- list()
-  
-  for (feature_name in features) {
-    current_df <- plot_df_base
-    
-    # 1. group.by가 NULL일 경우 "Overall"로 처리
-    group.by.internal <- group.by
-    if (is.null(group.by)) {
-      group.by.internal <- ".internal_placeholder_group"
-      current_df[[group.by.internal]] <- "Overall"
+        p <- p + ggplot2::geom_point(size = 3)
     }
     
-    # 2. idents 필터링 (mybox 로직과 동일)
-    if (!is.null(group.by) && !is.null(idents)) {
-      original_col_type <- class(current_df[[group.by.internal]])
-      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
-      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
-      
-      if (nrow(current_df) == 0) {
-         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
-         next
-      }
-      
-      if ("factor" %in% original_col_type) {
-        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
-        valid_subset_levels <- intersect(original_levels, idents)
-        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
-      } else {
-        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-      }
-    }
     
-    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-    current_df[[split.by]] <- as.factor(current_df[[split.by]])
+    # 4. Smoothing line -------------------------------------------------------
     
-    # 3. ggplot 생성 (Req 3 레이아웃)
-    p <- ggplot(current_df, aes(x = .data[[split.by]], y = .data[[feature_name]], fill = .data[[split.by]]))
-    
-    if (violin) {
-      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
-    }
-    
-    # outlier.shape=NA로 설정 (Req 2)
-    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
-    
-    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
-    if (pt.size > 0) {
-      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.3, 
-                           width = 0.2, height = 0, na.rm = TRUE)
-    }
-    
-    # 통계 추가 (ggpubr)
-    if (add_stats) {
-      # `...` 인수로 paired=TRUE 등을 받을 수 있음
-      p <- p + stat_compare_means(label = "p.format", ...) 
-    }
-    
-    # 패널(facet) 적용 및 테마 설정 (Req 3)
-    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
-      labs(title = feature_name,
-           x = split.by,
-           y = feature_name) +
-      theme_bw(base_size = 12) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(hjust = 0.5),
-            legend.position = "none") # 범례 제거
-    
-    all_plots[[feature_name]] <- p
-  }
-  
-  if (length(all_plots) == 0) {
-    message("생성된 플롯이 없습니다.")
-    return(invisible(NULL))
-  }
-  
-  return(patchwork::wrap_plots(all_plots, ncol = ncol))
-}
-#' 샘플 단위(Pseudobulk) 피처 평균 박스플롯 (mybox 로직 + plot_gene_boxplot 스타일)
-#'
-#' @param data Seurat 객체 또는 data.frame
-#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
-#' @param sample_col 샘플/환자 식별 컬럼 (필수)
-#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
-#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
-#' @param idents 'group.by'에서 포함할 특정 값들
-#' @param assay Seurat 객체용 assay
-#' @param layer Seurat 객체용 layer
-#' @param ncol 플롯 컬럼 수
-#' @param pt.size 샘플 평균 점 크기 (0이면 숨김)
-#' @param violin 바이올린 플롯 오버레이
-#' @param add_stats 통계 검정 추가 (요약된 데이터 대상)
-#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE)
-#'
-#' @return ggplot 객체
-#' @export
-mybox_pb <- function(data, 
-                                    features, 
-                                    sample_col, 
-                                    group.by, 
-                                    split.by, 
-                                    idents = NULL, 
-                                    assay = NULL, 
-                                    layer = "data",
-                                    ncol = 3, 
-                                    pt.size = 1.0, 
-                                    violin = FALSE,
-                                    add_stats = FALSE,
-                                    ...) {
-
-  if (is.null(sample_col)) {
-    stop("`sample_col` 인수는 Pseudobulk 플롯에 필수입니다.")
-  }
-
-  plot_df_base <- .fetch_plot_data(data, features, sample_col, group.by, split.by, assay, layer)
-  
-  all_plots <- list()
-  
-  for (feature_name in features) {
-    current_df <- plot_df_base
-    
-    # 1. group.by가 NULL일 경우 "Overall"로 처리
-    group.by.internal <- group.by
-    if (is.null(group.by)) {
-      group.by.internal <- ".internal_placeholder_group"
-      current_df[[group.by.internal]] <- "Overall"
-    }
-    
-    # 2. idents 필터링
-    if (!is.null(group.by) && !is.null(idents)) {
-      original_col_type <- class(current_df[[group.by.internal]])
-      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
-      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
-      
-      if (nrow(current_df) == 0) {
-         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
-         next
-      }
-      
-      if ("factor" %in% original_col_type) {
-        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
-        valid_subset_levels <- intersect(original_levels, idents)
-        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
-      } else {
-        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-      }
-    }
-    
-    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-    current_df[[split.by]] <- as.factor(current_df[[split.by]])
-    current_df[[sample_col]] <- as.factor(current_df[[sample_col]])
-    
-    # 3. *** 데이터 요약 (Aggregation) ***
-    grouping_vars <- unique(c(sample_col, group.by.internal, split.by))
-    
-    aggregated_df <- current_df %>%
-      dplyr::group_by(dplyr::across(dplyr::all_of(grouping_vars))) %>%
-      dplyr::summarise(mean_value = mean(.data[[feature_name]], na.rm = TRUE), .groups = 'drop')
-    
-    if (nrow(aggregated_df) == 0) {
-      warning(feature_name, "에서 요약 후 데이터가 없습니다. 건너뜁니다.")
-      next
-    }
-    
-    # 4. ggplot 생성 (Req 3 레이아웃)
-    p <- ggplot(aggregated_df, aes(x = .data[[split.by]], y = mean_value, fill = .data[[split.by]]))
-    
-    if (violin) {
-      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
-    }
-    
-    # outlier.shape=NA로 설정 (Req 2)
-    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
-    
-    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
-    if (pt.size > 0) {
-      # PB 플롯은 점이 샘플을 의미하므로 더 진하게 (alpha=0.7)
-      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.7, 
-                           width = 0.2, height = 0, na.rm = TRUE)
-    }
-
-    # 통계 추가 (요약된 데이터를 대상으로 함)
-    if (add_stats) {
-      # paired=TRUE를 `...`로 전달받아 샘플 페어 테스트 가능
-      p <- p + stat_compare_means(label = "p.format", ...) 
-    }
-
-    # 패널(facet) 적용 및 테마 설정 (Req 3)
-    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
-      labs(title = feature_name,
-           x = split.by,
-           y = paste("Average", feature_name)) +
-      theme_bw(base_size = 12) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(hjust = 0.5),
-            legend.position = "none") # 범례 제거
+    if (!is.null(fitted_line)) {
+        
+        if (!is.null(split.by)) {
             
-    all_plots[[feature_name]] <- p
+            # *** 수정된 부분 시작 ***
+            # `fitted_line` 인수를 `geom_smooth`가 이해하는 `method` 문자열로 변환
+            
+            method_val <- NULL # 초기화
+            
+            if (fitted_line == "linear") {
+                method_val <- "lm"
+            } else if (fitted_line == "loess") {
+                method_val <- "loess"
+            } else if (fitted_line == "lasso") {
+                warning("ggplot2::geom_smooth does not support 'lasso'. Falling back to 'lm' method.")
+                method_val <- "lm"
+            }
+            # *** 수정된 부분 끝 ***
+            
+            warning("Custom statistical annotations (p-value, equation) are disabled when `split.by` is used.")
+            
+            p <- p + ggplot2::geom_smooth(ggplot2::aes(colour = .data[["split_col"]]),
+                                          method = method_val, # "linear" 대신 "lm"이 전달됨
+                                          se = TRUE,
+                                          show.legend = FALSE) 
+            
+        } else {
+            # (원본 로직: split.by가 NULL일 때만 실행)
+            if (fitted_line == "linear") {
+                p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE, colour = "black")
+                fit <- stats::lm(agg_df[[y_col]] ~ agg_df[[x_col]])
+                coef <- round(stats::coef(fit), 3)
+                pval <- signif(summary(fit)$coefficients[2, 4], 3)
+                annot <- paste0("y = ", coef[1], " + ", coef[2], " * x\np = ", pval)
+                p <- p + ggplot2::annotate("text", x = min(agg_df[[x_col]], na.rm = TRUE),
+                                           y = max(agg_df[[y_col]], na.rm = TRUE),
+                                           label = annot, hjust = 0, vjust = 1, size = 4)
+            } else if (fitted_line == "loess") {
+                p <- p + ggplot2::geom_smooth(method = "loess", se = TRUE, colour = "black")
+            } else if (fitted_line == "lasso") {
+                if (!requireNamespace("glmnet", quietly = TRUE)) {
+                    warning("glmnet not installed; falling back to linear fit.")
+                    p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE)
+                } else {
+                    xmat <- as.matrix(agg_df[[x_col]])
+                    fit  <- glmnet::cv.glmnet(xmat, agg_df[[y_col]], alpha = 1)
+                    preds <- as.numeric(glmnet::predict.glmnet(fit$glmnet.fit, newx = xmat,
+                                                               s = fit$lambda.min))
+                    pred_df <- agg_df %>% dplyr::mutate(pred = preds)
+                    p <- p + ggplot2::geom_line(data = pred_df[order(pred_df[[x_col]]), ],
+                                                ggplot2::aes(x = .data[[x_col]], y = pred),
+                                                colour = "red", linewidth = 1)
+                }
+            }
+        }
+    }
+    
+    
+    # 5. Labels & theme -------------------------------------------------------
+    
+    p <- p + ggplot2::theme_bw() +
+        ggplot2::labs(x = if (transpose) paste("Average", feature, "expression") else x_var,
+                      y = if (transpose) x_var else paste("Average", feature, "expression"))
+    
+    p
+    return(p)
+}
+
+
+mysubset <- function(sobj, subset_condition, ...) {
+  # 1. subset_condition을 캡처하여 코드 문자열을 얻습니다.
+  # rlang::enexpr()는 인수를 실행하지 않고 (unexecuted) 표현식 그대로 캡처합니다.
+  subset_expr <- rlang::enexpr(subset_condition)
+  
+  # 2. 전체 커맨드를 텍스트로 캡처합니다.
+  # rlang::enexprs()를 사용하여 함수 호출 전체를 캡처하고, deparse()로 문자열화합니다.
+  # 예: "mysubset(a, ck == TRUE)"
+  full_command_text <- paste(
+    deparse(rlang::enexprs(sobj, subset_condition, ...)),
+    collapse = " "
+  )
+  
+  # 3. 로그 항목 생성 (시간 포함)
+  log_key <- paste0("command", format(Sys.time(), "%y%m%d:%H%M%S"))
+  
+  new_log_entry <- list(
+    command_name = "mysubset",
+    time_stamp = Sys.time(),
+    full_command = full_command_text
+  )
+  
+  # 로그는 새 객체에 기록되어야 합니다. (subset의 결과)
+  # subset은 sobj의 복사본을 반환합니다.
+  
+  # 4. 실제 subset() 함수 실행
+  # !!subset_expr은 캡처한 표현식을 subset 함수의 'subset' 인수에 전달합니다.
+  new_sobj <- subset(
+    x = sobj, 
+    subset = !!subset_expr, 
+    ...
+  )
+  
+  # 5. @commands$entity에 로그를 추가합니다. (새 객체에 추가)
+  current_logs <- if (is.null(new_sobj@commands$entity)) list() else new_sobj@commands$entity
+  
+  # 로그를 리스트 형태로 기존 로그에 append (요청하신 대로 키/값 형태를 유지하기 위해 리스트를 추가)
+  new_sobj@commands$entity <- append(
+    current_logs, 
+    setNames(list(new_log_entry), log_key)
+  )
+  
+  # 6. 새 Seurat 객체를 반환합니다.
+  return(new_sobj)
+}
+
+# LMM analysis suite -----
+# PART 1: 데이터 준비 및 설정
+
+#' 분석 설정 객체 생성
+#'
+#' 분석 파이프라인 전반에서 사용될 메타데이터의 컬럼명(변수명)을
+#' 표준화된 리스트 객체로 생성합니다.
+#'
+#' @param patient 환자 ID 컬럼명. (기본값: "patient_id")
+#' @param drug 약물 정보 컬럼명. (기본값: "drug")
+#' @param timepoint 시간점(e.g., "pre", "post") 컬럼명. (기본값: "timepoint")
+#' @param ck CK status (e.g., "CK+", "CK-") 컬럼명. (기본값: "ck_status")
+#' @param response 반응 여부(e.g., "R", "NR") 컬럼명. (기본값: "response")
+#' @param aoi AOI (Area of Interest) ID 컬럼명. (기본값: "aoi_id")
+#'
+#' @return 컬럼명 설정이 담긴 명명된 리스트(named list).
+#' @export
+#' @examples
+#' config <- create_analysis_config(patient = "Subject", drug = "Treatment")
+create_analysis_config <- function(
+  patient = "patient_id",
+  drug = "drug", 
+  timepoint = "timepoint",
+  ck = "ck_status",
+  response = "response",
+  aoi = "aoi_id"
+) {
+  list(
+    patient = patient,
+    drug = drug,
+    timepoint = timepoint,
+    ck = ck,
+    response = response,
+    aoi = aoi
+  )
+}
+
+#' GeoMx 데이터 준비 및 Seurat 객체 생성
+#'
+#' Excel/CSV 파일 또는 R 객체(matrix, data.frame)로부터 count 및 metadata를 읽어
+#' 분석을 위한 Seurat 객체를 생성합니다.
+#'
+#' @param count_file Count matrix 파일 경로 (Excel 또는 CSV).
+#' @param metadata_file Metadata 파일 경로 (Excel 또는 CSV).
+#' @param count_matrix (선택 사항) 파일 대신 사용할 count matrix 객체.
+#' @param metadata (선택 사항) 파일 대신 사용할 metadata data.frame 객체.
+#' @param config `create_analysis_config()`로 생성된 변수명 설정 리스트.
+#' @param q3_normalize Q3 정규화가 이미 수행되었는지 여부.
+#'        `TRUE` (기본값)이면 별도 정규화를 생략하고, `FALSE`이면 LogNormalize를 수행합니다.
+#'
+#' @return 전처리된 Seurat 객체. `condition_full`과 `condition_simple` 메타데이터가 추가됩니다.
+#' @importFrom Seurat CreateSeuratObject NormalizeData
+#' @importFrom openxlsx read.xlsx
+#' @export
+prepare_geomx_data <- function(count_file = NULL, 
+                             metadata_file = NULL,
+                             count_matrix = NULL,
+                             metadata = NULL,
+                             config = create_analysis_config(),
+                             q3_normalize = TRUE) {
+  
+  # 파일에서 읽기 또는 직접 입력
+  if (!is.null(count_file)) {
+    if (grepl("\\.xlsx$", count_file)) {
+      count_matrix <- openxlsx::read.xlsx(count_file, sheet = 1, rowNames = TRUE)
+    } else {
+      count_matrix <- read.csv(count_file, row.names = 1)
+    }
   }
   
-  if (length(all_plots) == 0) {
-    message("생성된 플롯이 없습니다.")
-    return(invisible(NULL))
+  if (!is.null(metadata_file)) {
+    if (grepl("\\.xlsx$", metadata_file)) {
+      metadata <- openxlsx::read.xlsx(metadata_file, sheet = 2)
+    } else {
+      metadata <- read.csv(metadata_file)
+    }
   }
   
-  return(patchwork::wrap_plots(all_plots, ncol = ncol))
+  # AOI 이름 매칭
+  rownames(metadata) <- metadata[[config$aoi]]
+  
+  # Seurat 객체 생성
+  seurat_obj <- CreateSeuratObject(
+    counts = as.matrix(count_matrix),
+    meta.data = metadata,
+    min.cells = 0,
+    min.features = 0
+  )
+  
+  # Q3 정규화는 이미 되어있다고 가정
+  if (!q3_normalize) {
+    seurat_obj <- NormalizeData(seurat_obj, normalization.method = "LogNormalize")
+  }
+  
+  # 조합 변수 생성 (빠른 스크리닝용)
+  seurat_obj$condition_full <- paste0(
+    seurat_obj@meta.data[[config$timepoint]], "_",
+    seurat_obj@meta.data[[config$drug]], "_", 
+    seurat_obj@meta.data[[config$response]]
+  )
+  
+  seurat_obj$condition_simple <- paste0(
+    seurat_obj@meta.data[[config$timepoint]], "_",
+    seurat_obj@meta.data[[config$drug]]
+  )
+  
+  return(seurat_obj)
+}
+
+# PART 2: 빠른 스크리닝 (Wilcoxon)
+
+#' 빠른 유전자 스크리닝 (Wilcoxon Test)
+#'
+#' `FindAllMarkers` (Wilcoxon rank sum test)를 사용하여 그룹 간 차등 발현 유전자를
+#' 신속하게 스크리닝합니다.
+#'
+#' @param seurat_obj Seurat 객체.
+#' @param config `create_analysis_config()`로 생성된 변수명 설정 리스트.
+#' @param comparison_type 비교할 그룹 기준. "pre_post", "drug", "response", "combined" 중 선택.
+#' @param ck_subset (선택 사항) "CK+" 또는 "CK-"를 지정하여 특정 CK status로 필터링.
+#' @param min_pct `FindAllMarkers`의 `min.pct` 파라미터. (기본값: 0.1)
+#' @param logfc_threshold `FindAllMarkers`의 `logfc.threshold` 파라미터. (기본값: 0.25)
+#' @param top_n 반환할 상위 유전자 개수. (기본값: 1000)
+#' @param use_adj `TRUE`이면 `p_val_adj` 기준, `FALSE` (기본값)이면 `p_val` 기준으로 정렬.
+#'
+#' @return 리스트:
+#' \item{markers}{`FindAllMarkers` 결과 (data.frame)}
+#' \item{top_genes}{상위 유전자 벡터}
+#' \item{seurat_obj}{필터링이 적용된 Seurat 객체 (if `ck_subset` is used)}
+#' @importFrom Seurat Idents FindAllMarkers
+#' @importFrom dplyr arrange head pull unique
+#' @importFrom rlang sym
+#' @export
+quick_screen_genes <- function(seurat_obj,
+                               config = create_analysis_config(),
+                               comparison_type = "pre_post",
+                               ck_subset = NULL,
+                               min_pct = 0.1,
+                               logfc_threshold = 0.25,
+                               top_n = 1000,
+                               use_adj = FALSE) {
+  
+  # CK 서브셋 필터링
+  if (!is.null(ck_subset)) {
+    seurat_obj <- subset(seurat_obj, 
+                         subset = !!sym(config$ck) == ck_subset)
+  }
+  
+  # 비교 그룹 설정
+  if (comparison_type == "pre_post") {
+    Idents(seurat_obj) <- seurat_obj@meta.data[[config$timepoint]]
+  } else if (comparison_type == "drug") {
+    Idents(seurat_obj) <- seurat_obj@meta.data[[config$drug]]
+  } else if (comparison_type == "response") {
+    Idents(seurat_obj) <- seurat_obj@meta.data[[config$response]]
+  } else if (comparison_type == "combined") {
+    Idents(seurat_obj) <- seurat_obj$condition_full
+  }
+  
+  # FindAllMarkers 실행
+  markers <- FindAllMarkers(
+    seurat_obj,
+    min.pct = min_pct,
+    logfc.threshold = logfc_threshold,
+    only.pos = FALSE,
+    return.thresh = 1  # 모든 유전자 반환
+  )
+  
+  # p-value 선택 및 상위 유전자 선택
+  if (use_adj) {
+    top_genes <- markers %>%
+      arrange(p_val_adj) %>%
+      head(top_n) %>%
+      pull(gene) %>%
+      unique()
+  } else {
+    top_genes <- markers %>%
+      arrange(p_val) %>%
+      head(top_n) %>%
+      pull(gene) %>%
+      unique()
+  }
+  
+  return(list(
+    markers = markers,
+    top_genes = top_genes,
+    seurat_obj = seurat_obj
+  ))
+}
+
+# PART 3: Linear Mixed Model 분석
+
+#' 단일 유전자에 대한 LMM (Linear Mixed Model) 적합
+#'
+#' (내부 헬퍼 함수) `run_lmm_multiple_genes` 내에서 단일 유전자에 대해
+#' `lmer`를 사용하여 LMM을 적합합니다.
+#'
+#' @param gene_expr 단일 유전자의 발현값 벡터 (numeric).
+#' @param metadata Seurat 객체의 `meta.data` 슬롯 (data.frame).
+#' @param config `create_analysis_config()`로 생성된 변수명 설정 리스트.
+#' @param formula_components (선택 사항) LMM 공식을 동적으로 생성하기 위한 리스트.
+#'        (e.g., `list(fixed = c("drug", "timepoint"), random = "(1|patient)")`)
+#' @param use_config_names `formula_components` 사용 시, "patient"와 같은 일반 용어를
+#'        `config$patient` (`"patient_id"`)로 자동 매핑할지 여부. (기본값: `TRUE`)
+#'
+#' @return 모델 적합 결과 리스트.
+#' \item{model}{`lmerMod` 객체}
+#' \item{effects}{계수 요약 (data.frame)}
+#' \item{anova}{ANOVA 테이블}
+#' \item{converged}{모델 수렴 여부 (logical)}
+#' \item{formula}{모델에 사용된 공식 (string)}
+#' \item{all_drugs}{데이터에 있는 모든 약물}
+#' \item{ref_drug}{모델의 참조(reference) 약물}
+#' @importFrom lme4 lmer
+#' @importFrom lmerTest anova
+#' @importFrom stats as.formula relevel
+fit_lmm_single_gene <- function(gene_expr,
+                                metadata,
+                                config = create_analysis_config(),
+                                formula_components = NULL,
+                                use_config_names = TRUE) {
+  
+  # 데이터프레임 생성
+  df <- cbind(
+    data.frame(Expression = gene_expr),
+    metadata
+  )
+  
+  # Formula 생성
+  if (is.null(formula_components)) {
+    # 기본값: config 변수명 사용
+    fixed_effects <- c(config$drug, config$timepoint, config$response)
+    interactions <- c(
+      paste(config$drug, config$timepoint, sep = ":"),
+      paste(config$drug, config$response, sep = ":"),
+      paste(config$timepoint, config$response, sep = ":"),
+      paste(config$drug, config$timepoint, config$response, sep = ":")
+    )
+    random <- paste0("(1|", config$patient, ")")
+    
+    formula_str <- paste0(
+      "Expression ~ ",
+      paste(c(fixed_effects, interactions), collapse = " + "),
+      " + ", random
+    )
+  } else {
+    # formula_components 제공 시
+    if (use_config_names) {
+      # config 매핑 사용
+      mapping <- list(
+        "patient" = config$patient,
+        "drug" = config$drug,
+        "timepoint" = config$timepoint,
+        "response" = config$response,
+        "ck" = config$ck
+      )
+      
+      # fixed effects 매핑
+      fixed_mapped <- sapply(formula_components$fixed, function(x) {
+        if (x %in% names(mapping)) mapping[[x]] else x
+      })
+      
+      # interactions 매핑
+      if (!is.null(formula_components$interactions)) {
+        interactions_mapped <- sapply(formula_components$interactions, function(x) {
+          parts <- strsplit(x, ":")[[1]]
+          mapped_parts <- sapply(parts, function(p) {
+            if (p %in% names(mapping)) mapping[[p]] else p
+          })
+          paste(mapped_parts, collapse = ":")
+        })
+      } else {
+        interactions_mapped <- NULL
+      }
+      
+      # random effects 매핑
+      random_mapped <- formula_components$random
+      for (key in names(mapping)) {
+        random_mapped <- gsub(key, mapping[[key]], random_mapped)
+      }
+      
+      formula_str <- paste0(
+        "Expression ~ ",
+        paste(c(fixed_mapped, interactions_mapped), collapse = " + "),
+        " + ", random_mapped
+      )
+    } else {
+      # 직접 사용 (매핑 없이)
+      fixed_effects <- formula_components$fixed
+      interactions <- formula_components$interactions
+      formula_str <- paste0(
+        "Expression ~ ",
+        paste(c(fixed_effects, interactions), collapse = " + "),
+        " + ", formula_components$random
+      )
+    }
+  }
+  
+  # 모델 적합
+  tryCatch({
+    # Factor 레벨 재정렬 (reference level 설정)
+    if (config$drug %in% names(df)) {
+      df[[config$drug]] <- relevel(as.factor(df[[config$drug]]), ref = levels(as.factor(df[[config$drug]]))[1])
+    }
+    if (config$response %in% names(df)) {
+      df[[config$response]] <- relevel(as.factor(df[[config$response]]), ref = levels(as.factor(df[[config$response]]))[1])
+    }
+    
+    model <- lmer(as.formula(formula_str), data = df, REML = FALSE)
+    
+    # 결과 추출
+    coef_summary <- summary(model)$coefficients
+    anova_result <- anova(model)
+    
+    # 모든 약물 대비 추출 (reference level 포함)
+    all_drugs <- unique(df[[config$drug]])
+    ref_drug <- levels(as.factor(df[[config$drug]]))[1]
+    
+    # 주요 효과 계산
+    effects <- data.frame(
+      term = rownames(coef_summary),
+      estimate = coef_summary[, "Estimate"],
+      std_error = coef_summary[, "Std. Error"],
+      t_value = coef_summary[, "t value"],
+      p_value = coef_summary[, "Pr(>|t|)"],
+      ref_drug = ref_drug
+    )
+    
+    return(list(
+      model = model,
+      effects = effects,
+      anova = anova_result,
+      converged = TRUE,
+      formula = formula_str,
+      all_drugs = all_drugs,
+      ref_drug = ref_drug
+    ))
+    
+  }, error = function(e) {
+    return(list(
+      converged = FALSE,
+      error = e$message,
+      formula = formula_str
+    ))
+  })
+}
+
+#' 다중 유전자에 대한 LMM 병렬 수행
+#'
+#' 지정된 유전자 목록에 대해 `fit_lmm_single_gene` 함수를 병렬로 실행하여
+#' LMM 분석을 수행합니다.
+#'
+#' @param seurat_obj Seurat 객체.
+#' @param genes (선택 사항) 분석할 유전자 이름 벡터.
+#'        `NULL` (기본값)인 경우, 경고와 함께 첫 100개 유전자를 사용합니다.
+#' @param config `create_analysis_config()`로 생성된 변수명 설정 리스트.
+#' @param formula_components (선택 사항) `fit_lmm_single_gene`로 전달될 LMM 공식 리스트.
+#' @param use_config_names `formula_components` 사용 시, `config` 매핑 사용 여부. (기본값: `TRUE`)
+#' @param n_cores 병렬 처리에 사용할 CPU 코어 수. (기본값: 16)
+#' @param verbose 진행 상황 메시지를 출력할지 여부. (기본값: `TRUE`)
+#'
+#' @return 리스트:
+#' \item{raw_results}{각 유전자에 대한 `fit_lmm_single_gene`의 원시 결과 리스트}
+#' \item{summary}{`summarize_lmm_results`로 요약된 전체 결과 (data.frame)}
+#' \item{converged_genes}{수렴에 성공한 유전자 수}
+#' \item{total_genes}{시도한 총 유전자 수}
+#' @importFrom Seurat GetAssayData
+#' @importFrom parallel makeCluster clusterEvalQ clusterExport parLapply stopCluster
+#' @export
+run_lmm_multiple_genes <- function(seurat_obj,
+                                 genes = NULL,
+                                 config = create_analysis_config(),
+                                 formula_components = NULL,
+                                 use_config_names = TRUE,
+                                 n_cores = 16,
+                                 verbose = TRUE) {
+  
+  if (is.null(genes)) {
+    genes <- rownames(seurat_obj)[1:100]  # 기본값: 상위 100개
+    warning("No genes specified. Using first 100 genes.")
+  }
+  
+  # 발현 매트릭스와 메타데이터 추출
+  expr_matrix <- GetAssayData(seurat_obj, slot = "data")
+  metadata <- seurat_obj@meta.data
+  
+  # 진행상황 표시
+  if (verbose) {
+    message(sprintf("Running LMM for %d genes using %d cores...", 
+                    length(genes), n_cores))
+  }
+  
+  # 병렬 처리
+  if (n_cores > 1) {
+    cl <- makeCluster(n_cores, type="PSOCK")
+    clusterEvalQ(cl, {
+      library(lme4)
+      library(lmerTest)
+    })
+    clusterExport(cl, c("fit_lmm_single_gene", "config", "metadata", 
+                        "expr_matrix", "formula_components", "use_config_names"),
+                  envir = environment())
+    
+    results <- parLapply(cl, genes, function(gene) {
+      if (gene %in% rownames(expr_matrix)) {
+        result <- fit_lmm_single_gene(
+          gene_expr = as.numeric(expr_matrix[gene, ]),
+          metadata = metadata,
+          config = config,
+          formula_components = formula_components,
+          use_config_names = use_config_names
+        )
+        result$gene <- gene
+        return(result)
+      } else {
+        return(list(gene = gene, converged = FALSE, 
+                    error = "Gene not found"))
+      }
+    })
+    
+    stopCluster(cl)
+  } else {
+    # 순차 처리
+    results <- lapply(genes, function(gene) {
+      if (verbose && which(genes == gene) %% 100 == 0) {
+        message(sprintf("  Processing gene %d/%d", 
+                        which(genes == gene), length(genes)))
+      }
+      
+      if (gene %in% rownames(expr_matrix)) {
+        result <- fit_lmm_single_gene(
+          gene_expr = as.numeric(expr_matrix[gene, ]),
+          metadata = metadata,
+          config = config,
+          formula_components = formula_components
+        )
+        result$gene <- gene
+        return(result)
+      } else {
+        return(list(gene = gene, converged = FALSE, 
+                    error = "Gene not found"))
+      }
+    })
+  }
+  
+  names(results) <- genes
+  
+  # 결과 요약
+  summary_df <- summarize_lmm_results(results, config)
+  
+  return(list(
+    raw_results = results,
+    summary = summary_df,
+    converged_genes = sum(sapply(results, function(x) x$converged)),
+    total_genes = length(genes)
+  ))
+}
+
+#' LMM 결과 요약 및 p-value 보정
+#'
+#' (내부 헬퍼 함수) `run_lmm_multiple_genes`에서 생성된 원시 결과 리스트를
+#' 하나의 요약 data.frame으로 통합하고, 용어(term)별로 p-value를 보정(BH)합니다.
+#'
+#' @param lmm_results `run_lmm_multiple_genes`의 `$raw_results` 객체 (리스트).
+#' @param config `create_analysis_config()`로 생성된 변수명 설정 리스트.
+#'
+#' @return 모든 유전자와 모든 효과(term)를 포함하는 요약 data.frame.
+#'         `p_adj` 및 `significant` 컬럼이 추가됩니다.
+#' @importFrom dplyr bind_rows group_by mutate ungroup
+#' @importFrom stats p.adjust
+summarize_lmm_results <- function(lmm_results, config) {
+  # 수렴한 모델만 처리
+  converged <- lmm_results[sapply(lmm_results, function(x) x$converged)]
+  
+  if (length(converged) == 0) {
+    warning("No models converged!")
+    return(NULL)
+  }
+  
+  # 모든 효과 수집
+  all_effects <- do.call(rbind, lapply(names(converged), function(gene) {
+    effects <- converged[[gene]]$effects
+    effects$gene <- gene
+    return(effects)
+  }))
+  
+  # p-value 보정
+  all_effects <- all_effects %>%
+    group_by(term) %>%
+    mutate(
+      p_adj = p.adjust(p_value, method = "BH"),
+      significant = p_adj < 0.05
+    ) %>%
+    ungroup()
+  
+  # Reference drug 정보 추가
+  if ("ref_drug" %in% names(converged[[1]]$effects)) {
+    ref_drugs <- unique(sapply(converged, function(x) x$ref_drug))
+    attr(all_effects, "ref_drug") <- ref_drugs[1]
+  }
+  
+  return(all_effects)
 }
