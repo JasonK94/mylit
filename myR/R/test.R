@@ -486,6 +486,7 @@ example_usage <- function() {
 }
 
 
+# analysis -----
 
 #' Seurat 객체에서 유전자별 CLMM 분석 수행 (v2: 기능 추가)
 #'
@@ -767,231 +768,214 @@ run_spearman_pseudobulk <- function(sobj, ordinal_var, patient_col, assay = "RNA
   return(spearman_results_df)
 }
 
+#' @title Limma-Dream-SVA (LDS) 파이프라인
+#' @description SVA로 숨겨진 공변량을 찾고, limma-dream으로 다중 임의 효과
+#'              (예: 환자, 배치)를 포함한 LMM을 피팅합니다.
+#'
+#' @param sobj Seurat 객체, DGEList 객체, 또는 Raw Count Matrix.
+#' @param formula (formula) 모델 포뮬러. LMM 수식(lme4)을 따릅니다.
+#'                (예: ~ response + (1|emrid) + (1|set))
+#' @param meta.data (data.frame) 메타데이터. `sobj`가 Matrix일 경우 필수.
+#' @param layer (character) Seurat 객체 사용 시, Raw Count가 저장된 layer.
+#' @param n_sv (numeric) 사용할 SV의 개수. `NULL` (기본값)일 경우,
+#'             `sv_var_cutoff`에 따라 자동으로 결정됩니다.
+#' @param sv_var_cutoff (numeric) `n_sv=NULL`일 때, SV가 설명해야 할
+#'                      *잔차 분산(residual variance)*의 누적 비율 (0 ~ 1).
+#' @param n_cores (numeric) 병렬 처리에 사용할 CPU 코어 수.
+#'
+#' @return (list) 'fit' (MArrayLM 객체), 'voom' (EList 객체),
+#'         'sva' (SVA 객체), 'final_formula' (사용된 최종 포뮬러)
+#'
+LDS <- function(sobj,
+                formula,
+                meta.data = NULL,
+                layer = "counts",
+                n_sv = NULL,
+                sv_var_cutoff = 0.5,
+                n_cores = max(1, parallel::detectCores() - 2)) {
 
-scatter_smooth_colored3 <- function(object,
-                                   feature,
-                                   group.by   = "sample_no",
-                                   x_var      = "nih_change",
-                                   transpose  = FALSE,
-                                   color_by   = NULL,
-                                   split.by   = NULL,
-                                   palette    = NULL,
-                                   transparency    = TRUE,
-                                   transparency_desc = FALSE,
-                                   fitted_line = c("linear", "loess", "lasso", NULL)) {
-    fitted_line <- match.arg(fitted_line)
-    stopifnot(is.character(feature), length(feature) == 1)
+  # --- 1. 입력값 검증 및 데이터 추출 ---
+  message("1/7: 입력 데이터 처리 중...")
+  if (inherits(sobj, "Seurat")) {
+    counts_matrix <- GetAssayData(sobj, layer = layer)
+    if (is.null(meta.data)) {
+      meta.data <- sobj@meta.data
+    }
+  } else if (inherits(sobj, "DGEList")) {
+    counts_matrix <- sobj$counts
+    if (is.null(meta.data)) {
+      meta.data <- sobj$samples
+    }
+  } else if (is.matrix(sobj) || inherits(sobj, "dgCMatrix")) {
+    counts_matrix <- sobj
+    if (is.null(meta.data)) {
+      stop("`sobj`가 Matrix일 경우, `meta.data`를 반드시 제공해야 합니다.")
+    }
+  } else {
+    stop("`sobj`는 Seurat, DGEList, 또는 Matrix여야 합니다.")
+  }
+  
+  if (ncol(counts_matrix) != nrow(meta.data)) {
+    stop("Count matrix의 열 수(샘플)와 meta.data의 행 수(샘플)가 일치하지 않습니다.")
+  }
+  
+  # 병렬 백엔드 설정
+  BPPARAM_SETUP <- MulticoreParam(n_cores)
+
+  # --- 2. SVA를 위한 포뮬러 파싱 ---
+  message("2/7: 포뮬러 파싱 중...")
+  if (!requireNamespace("lme4", quietly = TRUE)) {
+    stop("LMM 포뮬러 파싱을 위해 'lme4' 패키지가 필요합니다.")
+  }
+  
+  # `formula`에서 고정 효과(Fixed Effects)만 추출
+  # SVA의 'mod' 인자 및 `filterByExpr`에 사용됨
+  fixed_effects_formula <- lme4::nobars(formula)
+  
+  if (is.null(fixed_effects_formula)) {
+     # 예: ~ (1|emrid) + (1|set) 처럼 고정 효과가 아예 없는 경우
+     fixed_effects_formula <- ~ 1 
+  }
+
+  # --- 3. DGEList 생성, 필터링, 정규화 ---
+  message("3/7: DGEList 생성 및 필터링 중...")
+  
+  # `filterByExpr`를 위한 디자인 행렬 (고정 효과 기반)
+  design_for_filter <- model.matrix(fixed_effects_formula, data = meta.data)
+  
+  dge <- DGEList(counts_matrix, samples = meta.data)
+  
+  keep_genes <- filterByExpr(dge, design = design_for_filter)
+  dge <- dge[keep_genes, , keep.lib.sizes = FALSE]
+  
+  if (sum(keep_genes) == 0) {
+    stop("모든 유전자가 필터링되었습니다. `filterByExpr` 조건을 확인하십시오.")
+  }
+  
+  dge <- calcNormFactors(dge)
+  
+  message(sprintf("... 유전자 필터링 완료: %d / %d 개 통과", 
+                  sum(keep_genes), nrow(counts_matrix)))
+
+  # --- 4. SVA 실행 (임시 voom 기반) ---
+  message("4/7: SVA 실행 (숨겨진 변동성 탐색)...")
+  
+  mod_sva <- model.matrix(fixed_effects_formula, data = meta.data)
+  mod0_sva <- model.matrix(~ 1, data = meta.data)
+  
+  # SVA는 voom 변환된 데이터에 실행
+  v_sva <- voom(dge, mod_sva, plot = FALSE)
+  
+  # 1) n.sv=NULL로 SVA를 실행하여 *최대* SV 개수 및 SV *모두* 찾기
+  # (n_sv=NULL일 때만 SVD를 수행하여 sva_obj$svd를 반환함. 
+  #  -> 이 부분이 sva 버전마다 다를 수 있어, 수동 잔차 계산이 더 안정적임)
+  sva_obj <- sva(v_sva$E, mod = mod_sva, mod0 = mod0_sva, n.sv = NULL)
+  
+  n_sv_max <- sva_obj$n.sv
+  
+  if (n_sv_max == 0) {
+    message("... SVA가 유의미한 대리 변수(SV)를 찾지 못했습니다.")
+    svs_final <- NULL
+    n_sv_final <- 0
+  } else {
+    message(sprintf("... SVA가 최대 %d개의 SV를 탐지했습니다.", n_sv_max))
     
-    # 1. Build per‑cell tibble ------------------------------------------------
-    
-    if (inherits(object, "Seurat")) {
-        expr_vec <- Seurat::FetchData(object, vars = feature)[, 1]
-        meta_df  <- tibble::as_tibble(object@meta.data)
-        cell_df  <- dplyr::mutate(meta_df, !!feature := expr_vec)
+    # 2) 사용할 SV 개수 결정
+    if (!is.null(n_sv)) {
+      # 사용자가 SV 개수 명시
+      n_sv_final <- min(n_sv, n_sv_max)
+      
     } else {
-        cell_df <- tibble::as_tibble(object)
-        if (!feature %in% names(cell_df))
-            stop("In data.frame mode the column '", feature, "' must exist.")
+      # (사용자 요청) 잔차 분산 기반으로 SV 개수 자동 결정
+      message(sprintf("... 잔차 분산의 %.0f%%를 설명하는 SV 개수 자동 탐색 중...", 
+                      sv_var_cutoff * 100))
+                      
+      # SVA가 사용한 것과 동일한 잔차(Residuals)를 수동 계산
+      # lm.fit이 (샘플 x 유전자) 형태의 t(v_sva$E)를 입력받음
+      res_matrix <- t(resid(lm.fit(mod_sva, t(v_sva$E))))
+      
+      # 잔차 행렬의 SVD (Singular Value Decomposition)
+      svd_res <- svd(res_matrix)
+      
+      # 각 SV가 설명하는 분산 비율
+      percent_var_explained <- (svd_res$d^2) / sum(svd_res$d^2)
+      cumulative_var <- cumsum(percent_var_explained)
+      
+      # Cutoff를 만족하는 최소 SV 개수 찾기
+      n_sv_auto <- which(cumulative_var >= sv_var_cutoff)[1]
+      
+      if (is.na(n_sv_auto)) { # 모든 SV를 합쳐도 cutoff 미만일 경우
+        n_sv_final <- n_sv_max
+      } else {
+        n_sv_final <- n_sv_auto
+      }
+      
+      message(sprintf("... SV %d개가 잔차 분산의 %.1f%%를 설명합니다.", 
+                      n_sv_final, cumulative_var[n_sv_final] * 100))
     }
     
-    for (col in c(group.by, x_var, color_by, split.by)) {
-        if (!is.null(col) && !col %in% names(cell_df))
-            stop("Column '", col, "' not found in data.")
+    # 3) 최종 SV 추출 및 메타데이터에 추가
+    if (n_sv_final > 0) {
+      svs_final <- sva_obj$sv[, 1:n_sv_final, drop = FALSE]
+      colnames(svs_final) <- paste0("SV", 1:n_sv_final)
+      meta.data <- cbind(meta.data, svs_final)
     }
-    
-    if (!is.null(split.by)) {
-        if (is.numeric(cell_df[[split.by]])) {
-            stop("`split.by` column '", split.by, "' must be categorical (character or factor), not numeric.")
-        }
-        cell_df[[split.by]] <- as.factor(cell_df[[split.by]])
-    }
-    
-    
-    # 2. Aggregate by group ---------------------------------------------------
-    
-    is_color_numeric <- if (!is.null(color_by)) {
-        is.numeric(cell_df[[color_by]])
-    } else {
-        FALSE
-    }
-    
-    agg_df <- cell_df %>%
-        dplyr::group_by(.data[[group.by]]) %>%
-        dplyr::summarise(
-            avg_expr = mean(.data[[feature]], na.rm = TRUE),
-            x_val    = mean(.data[[x_var]], na.rm = TRUE),
-            colour   = if (!is.null(color_by)) {
-                if (is_color_numeric) {
-                    mean(.data[[color_by]], na.rm = TRUE)
-                } else {
-                    dplyr::first(.data[[color_by]], na_rm = TRUE)
-                }
-            } else {
-                NA
-            },
-            split_col = if (!is.null(split.by)) {
-                dplyr::first(.data[[split.by]], na_rm = TRUE)
-            } else {
-                NA
-            },
-            .groups  = "drop"
-        )
-    
-    
-    # 3. Aesthetics -----------------------------------------------------------
-    
-    x_col <- if (transpose) "avg_expr" else "x_val"
-    y_col <- if (transpose) "x_val"   else "avg_expr"
-    
-    p <- ggplot2::ggplot(agg_df, ggplot2::aes(x = .data[[x_col]], y = .data[[y_col]]))
-    
-    if (!is.null(split.by)) {
-        if (!is.null(color_by)) {
-            warning("`color_by` argument is ignored when `split.by` is provided.")
-        }
-        p <- p + ggplot2::geom_point(ggplot2::aes(colour = .data[["split_col"]]), size = 3)
-        
-        pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$split_col))), "Set1")
-        p <- p + ggplot2::scale_colour_manual(values = pal, name = split.by)
-        
-    } else if (!is.null(color_by)) {
-        if (is.numeric(cell_df[[color_by]])) {
-            p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour,
-                                                      alpha  = colour), size = 3)
-            alpha_range <- if (transparency_desc) c(1, 0.2) else c(0.2, 1)
-            if (transparency) {
-                p <- p + ggplot2::scale_alpha(range = alpha_range, guide = "none")
-            } else {
-                p <- p + ggplot2::guides(alpha = "none")
-            }
-            pal <- if (is.null(palette)) viridisLite::viridis(256) else palette
-            p <- p + ggplot2::scale_colour_gradientn(colours = pal, name = color_by)
-        } else {
-            p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour), size = 3)
-            pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$colour))), "Set1")
-            p <- p + ggplot2::scale_colour_manual(values = pal, name = color_by)
-        }
-    } else {
-        p <- p + ggplot2::geom_point(size = 3)
-    }
-    
-    
-    # 4. Smoothing line -------------------------------------------------------
-    
-    if (!is.null(fitted_line)) {
-        
-        if (!is.null(split.by)) {
-            
-            # *** 수정된 부분 시작 ***
-            # `fitted_line` 인수를 `geom_smooth`가 이해하는 `method` 문자열로 변환
-            
-            method_val <- NULL # 초기화
-            
-            if (fitted_line == "linear") {
-                method_val <- "lm"
-            } else if (fitted_line == "loess") {
-                method_val <- "loess"
-            } else if (fitted_line == "lasso") {
-                warning("ggplot2::geom_smooth does not support 'lasso'. Falling back to 'lm' method.")
-                method_val <- "lm"
-            }
-            # *** 수정된 부분 끝 ***
-            
-            warning("Custom statistical annotations (p-value, equation) are disabled when `split.by` is used.")
-            
-            p <- p + ggplot2::geom_smooth(ggplot2::aes(colour = .data[["split_col"]]),
-                                          method = method_val, # "linear" 대신 "lm"이 전달됨
-                                          se = TRUE,
-                                          show.legend = FALSE) 
-            
-        } else {
-            # (원본 로직: split.by가 NULL일 때만 실행)
-            if (fitted_line == "linear") {
-                p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE, colour = "black")
-                fit <- stats::lm(agg_df[[y_col]] ~ agg_df[[x_col]])
-                coef <- round(stats::coef(fit), 3)
-                pval <- signif(summary(fit)$coefficients[2, 4], 3)
-                annot <- paste0("y = ", coef[1], " + ", coef[2], " * x\np = ", pval)
-                p <- p + ggplot2::annotate("text", x = min(agg_df[[x_col]], na.rm = TRUE),
-                                           y = max(agg_df[[y_col]], na.rm = TRUE),
-                                           label = annot, hjust = 0, vjust = 1, size = 4)
-            } else if (fitted_line == "loess") {
-                p <- p + ggplot2::geom_smooth(method = "loess", se = TRUE, colour = "black")
-            } else if (fitted_line == "lasso") {
-                if (!requireNamespace("glmnet", quietly = TRUE)) {
-                    warning("glmnet not installed; falling back to linear fit.")
-                    p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE)
-                } else {
-                    xmat <- as.matrix(agg_df[[x_col]])
-                    fit  <- glmnet::cv.glmnet(xmat, agg_df[[y_col]], alpha = 1)
-                    preds <- as.numeric(glmnet::predict.glmnet(fit$glmnet.fit, newx = xmat,
-                                                               s = fit$lambda.min))
-                    pred_df <- agg_df %>% dplyr::mutate(pred = preds)
-                    p <- p + ggplot2::geom_line(data = pred_df[order(pred_df[[x_col]]), ],
-                                                ggplot2::aes(x = .data[[x_col]], y = pred),
-                                                colour = "red", linewidth = 1)
-                }
-            }
-        }
-    }
-    
-    
-    # 5. Labels & theme -------------------------------------------------------
-    
-    p <- p + ggplot2::theme_bw() +
-        ggplot2::labs(x = if (transpose) paste("Average", feature, "expression") else x_var,
-                      y = if (transpose) x_var else paste("Average", feature, "expression"))
-    
-    p
-    return(p)
+  }
+
+  # --- 5. 최종 포뮬러 생성 ---
+  message("5/7: 최종 모델 포뮬러 생성 중...")
+  
+  original_formula_str <- paste(deparse(formula), collapse = "")
+  
+  if (n_sv_final > 0) {
+    sv_str <- paste(colnames(svs_final), collapse = " + ")
+    # 포뮬러에 SV 추가
+    final_formula_str <- paste(original_formula_str, sv_str, sep = " + ")
+  } else {
+    final_formula_str <- original_formula_str
+  }
+  
+  final_formula <- as.formula(final_formula_str)
+  message(sprintf("... 최종 포뮬러: %s", final_formula_str))
+
+  # --- 6. limma-dream 파이프라인 실행 ---
+  message(sprintf("6/7: limma-dream 실행 (Core: %d개)...", n_cores))
+  
+  # 1) 유효 가중치 계산 (voomWithDreamWeights)
+  v_dream <- voomWithDreamWeights(
+    dge, 
+    final_formula, 
+    meta.data, 
+    BPPARAM = BPPARAM_SETUP
+  )
+  
+  # 2) LMM 피팅 (dream)
+  fit_dream <- dream(
+    v_dream, 
+    final_formula, 
+    meta.data, 
+    BPPARAM = BPPARAM_SETUP
+  )
+  
+  # 3) Empirical Bayes 조정
+  fit_ebayes <- eBayes(fit_dream)
+  
+  message("7/7: 분석 완료.")
+
+  # --- 7. 결과 반환 ---
+  return(list(
+    fit = fit_ebayes,       # 최종 MArrayLM 객체 (topTable 사용 가능)
+    voom = v_dream,         # 가중치가 포함된 EList 객체
+    sva_obj = sva_obj,      # 원본 SVA 객체
+    svs_used = svs_final,   # 모델에 실제 사용된 SV 매트릭스
+    final_formula = final_formula, # 최종 사용된 포뮬러
+    dge = dge               # 필터링/정규화된 DGEList
+  ))
 }
 
 
-mysubset <- function(sobj, subset_condition, ...) {
-  # 1. subset_condition을 캡처하여 코드 문자열을 얻습니다.
-  # rlang::enexpr()는 인수를 실행하지 않고 (unexecuted) 표현식 그대로 캡처합니다.
-  subset_expr <- rlang::enexpr(subset_condition)
-  
-  # 2. 전체 커맨드를 텍스트로 캡처합니다.
-  # rlang::enexprs()를 사용하여 함수 호출 전체를 캡처하고, deparse()로 문자열화합니다.
-  # 예: "mysubset(a, ck == TRUE)"
-  full_command_text <- paste(
-    deparse(rlang::enexprs(sobj, subset_condition, ...)),
-    collapse = " "
-  )
-  
-  # 3. 로그 항목 생성 (시간 포함)
-  log_key <- paste0("command", format(Sys.time(), "%y%m%d:%H%M%S"))
-  
-  new_log_entry <- list(
-    command_name = "mysubset",
-    time_stamp = Sys.time(),
-    full_command = full_command_text
-  )
-  
-  # 로그는 새 객체에 기록되어야 합니다. (subset의 결과)
-  # subset은 sobj의 복사본을 반환합니다.
-  
-  # 4. 실제 subset() 함수 실행
-  # !!subset_expr은 캡처한 표현식을 subset 함수의 'subset' 인수에 전달합니다.
-  new_sobj <- subset(
-    x = sobj, 
-    subset = !!subset_expr, 
-    ...
-  )
-  
-  # 5. @commands$entity에 로그를 추가합니다. (새 객체에 추가)
-  current_logs <- if (is.null(new_sobj@commands$entity)) list() else new_sobj@commands$entity
-  
-  # 로그를 리스트 형태로 기존 로그에 append (요청하신 대로 키/값 형태를 유지하기 위해 리스트를 추가)
-  new_sobj@commands$entity <- append(
-    current_logs, 
-    setNames(list(new_log_entry), log_key)
-  )
-  
-  # 6. 새 Seurat 객체를 반환합니다.
-  return(new_sobj)
-}
+
+
 
 # LMM analysis suite -----
 # PART 1: 데이터 준비 및 설정
@@ -1494,4 +1478,617 @@ summarize_lmm_results <- function(lmm_results, config) {
   }
   
   return(all_effects)
+}
+
+
+# validation tools -----
+
+#' Validate Seurat Object
+#'
+#' Checks if the input is a valid Seurat object with expected components.
+#'
+#' @param obj Object to validate
+#' @param assay Optional assay name to check for
+#' @param reduction Optional reduction name to check for
+#' @param min_cells Minimum number of cells required
+#' @param min_features Minimum number of features required
+#'
+#' @return TRUE if valid, stops with error message otherwise
+#' @keywords internal
+#' @export
+validate_seurat <- function(obj, 
+                            assay = NULL, 
+                            reduction = NULL,
+                            min_cells = 0,
+                            min_features = 0) {
+  
+  # Check if it's a Seurat object
+  if (!inherits(obj, "Seurat")) {
+    stop("Input must be a Seurat object. Current class: ", 
+         paste(class(obj), collapse = ", "))
+  }
+  
+  # Check cell count
+  n_cells <- ncol(obj)
+  if (n_cells < min_cells) {
+    stop("Seurat object has ", n_cells, " cells, but ", min_cells, " required")
+  }
+  
+  # Check feature count
+  n_features <- nrow(obj)
+  if (n_features < min_features) {
+    stop("Seurat object has ", n_features, " features, but ", min_features, " required")
+  }
+  
+  # Check assay if specified
+  if (!is.null(assay)) {
+    available_assays <- Seurat::Assays(obj)
+    if (!assay %in% available_assays) {
+      stop("Assay '", assay, "' not found. Available assays: ", 
+           paste(available_assays, collapse = ", "))
+    }
+  }
+  
+  # Check reduction if specified
+  if (!is.null(reduction)) {
+    available_reductions <- names(obj@reductions)
+    if (!reduction %in% available_reductions) {
+      # Try case-insensitive match
+      matched_reduction <- available_reductions[tolower(available_reductions) == tolower(reduction)]
+      if (length(matched_reduction) == 1) {
+        message("Note: Using case-insensitive match: '", matched_reduction, "' for '", reduction, "'")
+        return(TRUE)
+      }
+      stop("Reduction '", reduction, "' not found. Available reductions: ", 
+           paste(available_reductions, collapse = ", "))
+    }
+  }
+  
+  return(TRUE)
+}
+
+#' Validate Metadata Column
+#'
+#' Checks if a metadata column exists and optionally validates its type.
+#'
+#' @param obj Seurat object or data frame
+#' @param column_name Column name to validate
+#' @param required_type Optional required type ("numeric", "factor", "character")
+#' @param allow_na Whether NA values are allowed
+#'
+#' @return TRUE if valid, stops with error message otherwise
+#' @keywords internal
+#' @export
+validate_metadata_column <- function(obj, 
+                                     column_name, 
+                                     required_type = NULL,
+                                     allow_na = TRUE) {
+  
+  # Get metadata
+  if (inherits(obj, "Seurat")) {
+    metadata <- obj@meta.data
+  } else if (is.data.frame(obj)) {
+    metadata <- obj
+  } else {
+    stop("Input must be a Seurat object or data frame")
+  }
+  
+  # Check if column exists
+  if (!column_name %in% colnames(metadata)) {
+    stop("Column '", column_name, "' not found in metadata. Available columns: ",
+         paste(head(colnames(metadata), 10), collapse = ", "),
+         if (ncol(metadata) > 10) "..." else "")
+  }
+  
+  column_data <- metadata[[column_name]]
+  
+  # Check for NA values if not allowed
+  if (!allow_na && any(is.na(column_data))) {
+    n_na <- sum(is.na(column_data))
+    stop("Column '", column_name, "' contains ", n_na, " NA values, but NA not allowed")
+  }
+  
+  # Check type if specified
+  if (!is.null(required_type)) {
+    is_correct_type <- switch(
+      required_type,
+      "numeric" = is.numeric(column_data),
+      "factor" = is.factor(column_data),
+      "character" = is.character(column_data),
+      stop("Unknown required_type: ", required_type)
+    )
+    
+    if (!is_correct_type) {
+      stop("Column '", column_name, "' must be of type '", required_type, 
+           "', but is: ", paste(class(column_data), collapse = ", "))
+    }
+  }
+  
+  return(TRUE)
+}
+
+#' Validate Gene List
+#'
+#' Checks if genes exist in the object and optionally filters to valid genes.
+#'
+#' @param obj Seurat object or character vector of available genes
+#' @param genes Character vector of genes to validate
+#' @param min_present Minimum number of genes that must be present (default: all)
+#' @param assay Assay to check genes in (for Seurat objects)
+#' @param warn_missing Whether to warn about missing genes
+#'
+#' @return Character vector of valid genes present in the object
+#' @keywords internal
+#' @export
+validate_genes <- function(obj, 
+                          genes, 
+                          min_present = NULL,
+                          assay = NULL,
+                          warn_missing = TRUE) {
+  
+  if (!is.character(genes) || length(genes) == 0) {
+    stop("genes must be a non-empty character vector")
+  }
+  
+  # Get available genes
+  if (inherits(obj, "Seurat")) {
+    if (is.null(assay)) {
+      assay <- Seurat::DefaultAssay(obj)
+    }
+    available_genes <- rownames(obj[[assay]])
+  } else if (is.character(obj)) {
+    available_genes <- obj
+  } else {
+    stop("obj must be a Seurat object or character vector of gene names")
+  }
+  
+  # Find present and missing genes
+  genes_present <- intersect(genes, available_genes)
+  genes_missing <- setdiff(genes, available_genes)
+  
+  # Set default minimum
+  if (is.null(min_present)) {
+    min_present <- length(genes)
+  }
+  
+  # Check if enough genes are present
+  if (length(genes_present) < min_present) {
+    stop("Only ", length(genes_present), " of ", length(genes), 
+         " genes found, but ", min_present, " required. ",
+         "First missing genes: ", 
+         paste(head(genes_missing, 5), collapse = ", "),
+         if (length(genes_missing) > 5) "..." else "")
+  }
+  
+  # Warn about missing genes if requested
+  if (warn_missing && length(genes_missing) > 0) {
+    warning("Genes not found (", length(genes_missing), "/", length(genes), "): ",
+            paste(head(genes_missing, 10), collapse = ", "),
+            if (length(genes_missing) > 10) "..." else "")
+  }
+  
+  return(genes_present)
+}
+
+#' Validate Numeric Range
+#'
+#' Checks if a numeric parameter is within acceptable range.
+#'
+#' @param value Numeric value to validate
+#' @param param_name Name of parameter (for error messages)
+#' @param min Minimum allowed value (inclusive)
+#' @param max Maximum allowed value (inclusive)
+#' @param allow_na Whether NA is allowed
+#'
+#' @return TRUE if valid, stops with error message otherwise
+#' @keywords internal
+#' @export
+validate_numeric_range <- function(value, 
+                                   param_name, 
+                                   min = -Inf, 
+                                   max = Inf,
+                                   allow_na = FALSE) {
+  
+  # Check for NA
+  if (is.na(value)) {
+    if (allow_na) {
+      return(TRUE)
+    } else {
+      stop(param_name, " cannot be NA")
+    }
+  }
+  
+  # Check if numeric
+  if (!is.numeric(value) || length(value) != 1) {
+    stop(param_name, " must be a single numeric value")
+  }
+  
+  # Check range
+  if (value < min || value > max) {
+    stop(param_name, " must be between ", min, " and ", max, 
+         ", but is: ", value)
+  }
+  
+  return(TRUE)
+}
+
+#' Validate Choice
+#'
+#' Validates that a value is one of allowed choices (like match.arg but more informative).
+#'
+#' @param value Value to validate
+#' @param param_name Name of parameter (for error messages)
+#' @param choices Vector of allowed values
+#' @param multiple Whether multiple choices are allowed
+#'
+#' @return The validated value (or values if multiple=TRUE)
+#' @keywords internal
+#' @export
+validate_choice <- function(value, param_name, choices, multiple = FALSE) {
+  
+  if (is.null(value)) {
+    stop(param_name, " cannot be NULL")
+  }
+  
+  if (multiple) {
+    if (!all(value %in% choices)) {
+      invalid <- setdiff(value, choices)
+      stop(param_name, " contains invalid choices: ", 
+           paste(invalid, collapse = ", "),
+           ". Allowed choices: ", 
+           paste(choices, collapse = ", "))
+    }
+  } else {
+    if (length(value) != 1) {
+      stop(param_name, " must be a single value, not ", length(value))
+    }
+    if (!value %in% choices) {
+      stop(param_name, " must be one of: ", 
+           paste(choices, collapse = ", "),
+           ". Got: ", value)
+    }
+  }
+  
+  return(value)
+}
+
+#' Validate File Path
+#'
+#' Checks if a file path exists and optionally validates extension.
+#'
+#' @param path File path to validate
+#' @param must_exist Whether file must already exist
+#' @param extensions Optional vector of allowed extensions (e.g., c("csv", "txt"))
+#' @param type Type of path ("file" or "directory")
+#'
+#' @return Normalized path if valid, stops with error otherwise
+#' @keywords internal
+#' @export
+validate_path <- function(path, 
+                         must_exist = TRUE, 
+                         extensions = NULL,
+                         type = c("file", "directory")) {
+  
+  type <- match.arg(type)
+  
+  if (!is.character(path) || length(path) != 1) {
+    stop("path must be a single character string")
+  }
+  
+  # Check existence if required
+  if (must_exist) {
+    if (type == "file") {
+      if (!file.exists(path)) {
+        stop("File not found: ", path)
+      }
+      if (dir.exists(path)) {
+        stop("Expected a file but got a directory: ", path)
+      }
+    } else if (type == "directory") {
+      if (!dir.exists(path)) {
+        stop("Directory not found: ", path)
+      }
+    }
+  }
+  
+  # Check extension if specified
+  if (!is.null(extensions) && type == "file") {
+    file_ext <- tools::file_ext(path)
+    if (!file_ext %in% extensions) {
+      stop("File extension must be one of: ", 
+           paste(extensions, collapse = ", "),
+           ". Got: ", file_ext)
+    }
+  }
+  
+  # Return normalized path
+  return(normalizePath(path, mustWork = must_exist))
+}
+
+#' Create Informative Error Message
+#'
+#' Helper to create consistent, informative error messages.
+#'
+#' @param context Context where error occurred (e.g., function name)
+#' @param message Main error message
+#' @param suggestion Optional suggestion for fixing the error
+#'
+#' @return Formatted error message
+#' @keywords internal
+#' @export
+create_error_message <- function(context, message, suggestion = NULL) {
+  msg <- paste0("[", context, "] ", message)
+  if (!is.null(suggestion)) {
+    msg <- paste0(msg, "\nSuggestion: ", suggestion)
+  }
+  return(msg)
+}
+
+#' Check Package Dependencies
+#'
+#' Checks if required packages are installed and optionally loads them.
+#'
+#' @param packages Character vector of package names
+#' @param load Whether to load the packages (default: FALSE)
+#'
+#' @return TRUE if all packages available, stops with error otherwise
+#' @keywords internal
+#' @export
+check_packages <- function(packages, load = FALSE) {
+  
+  missing <- character(0)
+  
+  for (pkg in packages) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      missing <- c(missing, pkg)
+    } else if (load) {
+      library(pkg, character.only = TRUE)
+    }
+  }
+  
+  if (length(missing) > 0) {
+    stop("Required packages not installed: ", 
+         paste(missing, collapse = ", "),
+         "\nInstall with: install.packages(c('", 
+         paste(missing, collapse = "', '"), "'))")
+  }
+  
+  return(TRUE)
+}
+
+
+# plots -----
+
+scatter_smooth_colored3 <- function(object,
+                                   feature,
+                                   group.by   = "sample_no",
+                                   x_var      = "nih_change",
+                                   transpose  = FALSE,
+                                   color_by   = NULL,
+                                   split.by   = NULL,
+                                   palette    = NULL,
+                                   transparency    = TRUE,
+                                   transparency_desc = FALSE,
+                                   fitted_line = c("linear", "loess", "lasso", NULL)) {
+    fitted_line <- match.arg(fitted_line)
+    stopifnot(is.character(feature), length(feature) == 1)
+    
+    # 1. Build per‑cell tibble ------------------------------------------------
+    
+    if (inherits(object, "Seurat")) {
+        expr_vec <- Seurat::FetchData(object, vars = feature)[, 1]
+        meta_df  <- tibble::as_tibble(object@meta.data)
+        cell_df  <- dplyr::mutate(meta_df, !!feature := expr_vec)
+    } else {
+        cell_df <- tibble::as_tibble(object)
+        if (!feature %in% names(cell_df))
+            stop("In data.frame mode the column '", feature, "' must exist.")
+    }
+    
+    for (col in c(group.by, x_var, color_by, split.by)) {
+        if (!is.null(col) && !col %in% names(cell_df))
+            stop("Column '", col, "' not found in data.")
+    }
+    
+    if (!is.null(split.by)) {
+        if (is.numeric(cell_df[[split.by]])) {
+            stop("`split.by` column '", split.by, "' must be categorical (character or factor), not numeric.")
+        }
+        cell_df[[split.by]] <- as.factor(cell_df[[split.by]])
+    }
+    
+    
+    # 2. Aggregate by group ---------------------------------------------------
+    
+    is_color_numeric <- if (!is.null(color_by)) {
+        is.numeric(cell_df[[color_by]])
+    } else {
+        FALSE
+    }
+    
+    agg_df <- cell_df %>%
+        dplyr::group_by(.data[[group.by]]) %>%
+        dplyr::summarise(
+            avg_expr = mean(.data[[feature]], na.rm = TRUE),
+            x_val    = mean(.data[[x_var]], na.rm = TRUE),
+            colour   = if (!is.null(color_by)) {
+                if (is_color_numeric) {
+                    mean(.data[[color_by]], na.rm = TRUE)
+                } else {
+                    dplyr::first(.data[[color_by]], na_rm = TRUE)
+                }
+            } else {
+                NA
+            },
+            split_col = if (!is.null(split.by)) {
+                dplyr::first(.data[[split.by]], na_rm = TRUE)
+            } else {
+                NA
+            },
+            .groups  = "drop"
+        )
+    
+    
+    # 3. Aesthetics -----------------------------------------------------------
+    
+    x_col <- if (transpose) "avg_expr" else "x_val"
+    y_col <- if (transpose) "x_val"   else "avg_expr"
+    
+    p <- ggplot2::ggplot(agg_df, ggplot2::aes(x = .data[[x_col]], y = .data[[y_col]]))
+    
+    if (!is.null(split.by)) {
+        if (!is.null(color_by)) {
+            warning("`color_by` argument is ignored when `split.by` is provided.")
+        }
+        p <- p + ggplot2::geom_point(ggplot2::aes(colour = .data[["split_col"]]), size = 3)
+        
+        pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$split_col))), "Set1")
+        p <- p + ggplot2::scale_colour_manual(values = pal, name = split.by)
+        
+    } else if (!is.null(color_by)) {
+        if (is.numeric(cell_df[[color_by]])) {
+            p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour,
+                                                      alpha  = colour), size = 3)
+            alpha_range <- if (transparency_desc) c(1, 0.2) else c(0.2, 1)
+            if (transparency) {
+                p <- p + ggplot2::scale_alpha(range = alpha_range, guide = "none")
+            } else {
+                p <- p + ggplot2::guides(alpha = "none")
+            }
+            pal <- if (is.null(palette)) viridisLite::viridis(256) else palette
+            p <- p + ggplot2::scale_colour_gradientn(colours = pal, name = color_by)
+        } else {
+            p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour), size = 3)
+            pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$colour))), "Set1")
+            p <- p + ggplot2::scale_colour_manual(values = pal, name = color_by)
+        }
+    } else {
+        p <- p + ggplot2::geom_point(size = 3)
+    }
+    
+    
+    # 4. Smoothing line -------------------------------------------------------
+    
+    if (!is.null(fitted_line)) {
+        
+        if (!is.null(split.by)) {
+            
+            # *** 수정된 부분 시작 ***
+            # `fitted_line` 인수를 `geom_smooth`가 이해하는 `method` 문자열로 변환
+            
+            method_val <- NULL # 초기화
+            
+            if (fitted_line == "linear") {
+                method_val <- "lm"
+            } else if (fitted_line == "loess") {
+                method_val <- "loess"
+            } else if (fitted_line == "lasso") {
+                warning("ggplot2::geom_smooth does not support 'lasso'. Falling back to 'lm' method.")
+                method_val <- "lm"
+            }
+            # *** 수정된 부분 끝 ***
+            
+            warning("Custom statistical annotations (p-value, equation) are disabled when `split.by` is used.")
+            
+            p <- p + ggplot2::geom_smooth(ggplot2::aes(colour = .data[["split_col"]]),
+                                          method = method_val, # "linear" 대신 "lm"이 전달됨
+                                          se = TRUE,
+                                          show.legend = FALSE) 
+            
+        } else {
+            # (원본 로직: split.by가 NULL일 때만 실행)
+            if (fitted_line == "linear") {
+                p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE, colour = "black")
+                fit <- stats::lm(agg_df[[y_col]] ~ agg_df[[x_col]])
+                coef <- round(stats::coef(fit), 3)
+                pval <- signif(summary(fit)$coefficients[2, 4], 3)
+                annot <- paste0("y = ", coef[1], " + ", coef[2], " * x\np = ", pval)
+                p <- p + ggplot2::annotate("text", x = min(agg_df[[x_col]], na.rm = TRUE),
+                                           y = max(agg_df[[y_col]], na.rm = TRUE),
+                                           label = annot, hjust = 0, vjust = 1, size = 4)
+            } else if (fitted_line == "loess") {
+                p <- p + ggplot2::geom_smooth(method = "loess", se = TRUE, colour = "black")
+            } else if (fitted_line == "lasso") {
+                if (!requireNamespace("glmnet", quietly = TRUE)) {
+                    warning("glmnet not installed; falling back to linear fit.")
+                    p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE)
+                } else {
+                    xmat <- as.matrix(agg_df[[x_col]])
+                    fit  <- glmnet::cv.glmnet(xmat, agg_df[[y_col]], alpha = 1)
+                    preds <- as.numeric(glmnet::predict.glmnet(fit$glmnet.fit, newx = xmat,
+                                                               s = fit$lambda.min))
+                    pred_df <- agg_df %>% dplyr::mutate(pred = preds)
+                    p <- p + ggplot2::geom_line(data = pred_df[order(pred_df[[x_col]]), ],
+                                                ggplot2::aes(x = .data[[x_col]], y = pred),
+                                                colour = "red", linewidth = 1)
+                }
+            }
+        }
+    }
+    
+    
+    # 5. Labels & theme -------------------------------------------------------
+    
+    p <- p + ggplot2::theme_bw() +
+        ggplot2::labs(x = if (transpose) paste("Average", feature, "expression") else x_var,
+                      y = if (transpose) x_var else paste("Average", feature, "expression"))
+    
+    p
+    return(p)
+}
+
+plot_volcano <- function(lmm_summary,
+                         x_col="estimate",
+                         y_col="p_value",
+                         filter_col="term",
+                        filter_pattern = NULL,
+                        title = "Volcano Plot",
+                        effect_threshold = 0.5,
+                        p_threshold = 0.05,
+                        resize_x=TRUE,
+                        resize_y=TRUE) {
+  #ver2: generalized
+  plot_data <- lmm_summary
+  
+  if (!is.null(filter_pattern)) {
+    plot_data <- plot_data %>%
+      filter(grepl(filter_pattern, term))
+  }
+  if (!is.null(x_col)){plot_data=plot_data%>%mutate(effect_size= !!sym(x_col))}
+  if (!is.null(y_col)){plot_data=plot_data%>%mutate(p_value= !!sym(y_col))}
+
+  # plot label definition
+  x_label="Effect Size"
+  y_label="Significance"
+  
+  # plot resizing
+  if(resize_x){xlim_val=quantile(abs(plot_data$effect_size),0.95,na.rm=TRUE)}
+  if(resize_y){ylim_val=quantile(abs(plot_data$effect_size),0.95,na.rm=TRUE)}
+  
+  # gene significance label arrange
+  plot_data <- plot_data %>%
+    mutate(
+      log_p = -log10(p_value),
+      category = case_when(
+        abs(effect_size) > effect_threshold & p_value < p_threshold ~ "Significant",
+        abs(effect_size) > effect_threshold ~ "Large effect",
+        p_value  < p_threshold ~ "Small effect",
+        TRUE ~ "Not significant"
+      )
+    )
+  ggplot(plot_data, aes(x = effect_size, y = log_p, color = category)) +
+    geom_point(alpha = 0.6) +
+    geom_hline(yintercept = -log10(p_threshold), 
+               linetype = "dashed", color = "gray") +
+    geom_vline(xintercept = c(-effect_threshold, effect_threshold), 
+               linetype = "dashed", color = "gray") +
+    scale_color_manual(values = c("Significant" = "red",
+                                 "Large effect" = "orange", 
+                                 "Small effect" = "blue",
+                                 "Not significant" = "gray")) +
+    labs(title = title,
+         x = x_label,
+         y = y_label) +
+    theme_bw()+
+    coord_cartesian(xlim = c(-xlim_val, xlim_val))
 }
