@@ -990,7 +990,8 @@ LDS <- function(sobj,
 #'
 #' @return (nebula) NEBULA 실행 결과 객체
 #'
-NEBULA <- function(sobj,
+#' @export 
+runNEBULA <- function(sobj,
                                 layer = "counts",
                                 fixed_effects = c("target_col", "celltype_col"),
                                 covar_effects = c("batch_col"),
@@ -1082,6 +1083,7 @@ NEBULA <- function(sobj,
   # [수정] 함수는 결과를 'return' 해야 함
   return(re_nebula)
 }
+
 
 
 
@@ -1589,7 +1591,7 @@ summarize_lmm_results <- function(lmm_results, config) {
 }
 
 
-# validation tools -----
+# validation tools (not using) -----
 
 #' Validate Seurat Object
 #'
