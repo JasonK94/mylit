@@ -1,4 +1,5 @@
 
+
 #' @title NEBULA 파이프라인 함수
 #' @description Seurat 객체를 받아 NA 처리, 데이터 정렬, NEBULA GLMM을 실행.
 #'              Modeling에서, y~NB(mu,phi)이며, log(mu)=log(o)+BX+random effect 에서 "o"는 offset, random effect는 patient_col, X는 fixed effects와 covar_effects.

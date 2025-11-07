@@ -1,3 +1,5 @@
+
+
 # NOTE: Package dependencies should be declared in DESCRIPTION, not with library() calls
 
 linear_seurat <- function(sobj, 
@@ -1084,7 +1086,341 @@ runNEBULA <- function(sobj,
   return(re_nebula)
 }
 
+#' @title MAST 파이프라인 함수
+#'
+#' @description [수정] Seurat -> SCE로 변환하여 MAST를 실행
+#'
+#' @param sobj (Seurat) Seurat 객체
+#' @param formula (formula or character) lme4 문법의 포뮬러
+#' @param min_cells_expr (numeric) 유전자 필터링 기준 (최소 발현 세포 수)
+#' @param n_cores (numeric) 병렬 처리 코어 수
+#' @param lrt_variable (character) LRT 검정을 수행할 변수명 (예: "type")
+#'
+#' @export
+runMAST <- function(sobj,
+                    formula,
+                    min_cells_expr = 10,
+                    n_cores = 4,
+                    lrt_variable = NULL) {
+  
+  if (!requireNamespace("MAST", quietly = TRUE)) stop("MAST 패키지가 필요합니다.")
+  if (!requireNamespace("SingleCellExperiment", quietly = TRUE)) stop("SCE 패키지가 필요합니다.")
+  if (is.null(lrt_variable)) stop("'lrt_variable' 인자 (예: 'g3')를 지정해야 합니다.")
+  
+  if (is.character(formula)) {
+    formula_obj <- as.formula(formula)
+  } else if (inherits(formula, "formula")) {
+    formula_obj <- formula
+  } else {
+    stop("'formula'는 문자열 또는 formula 객체여야 합니다.")
+  }
+  
+  # --- 1. SCA 객체 생성 및 정규화 ---
+  message("1/5: Seurat -> SingleCellExperiment(SCE) 객체 변환 중...")
+  
+  # [수정] MAST Problem 1 해결: FromSeurat 대신 as.SingleCellExperiment 사용
+  sca <- as.SingleCellExperiment(sobj)
+  
+  # --- 2. 유전자 필터링 ---
+  message(sprintf("2/5: 유전자 필터링 (min %d cells)...", min_cells_expr))
+  # freq()는 발현 비율 (0~1)을 반환
+  keep_genes <- (MAST::freq(sca) * ncol(sca)) >= min_cells_expr
+  sca_filtered <- sca[keep_genes, ]
+  message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(sca)))
 
+  # --- 3. 정규화 (MAST는 log2cpm 사용) ---
+  message("3/5: Log2(CPM+1) 정규화 중...")
+  SummarizedExperiment::assay(sca_filtered, "logcpm") <- MAST::cpm(sca_filtered, log = TRUE)
+  
+  # --- 4. zlm (Hurdle LMM) 실행 ---
+  message(sprintf("4/5: MAST::zlm 실행 (Cores: %d). 시간이 오래 걸릴 수 있습니다...", n_cores))
+  
+  zfit <- MAST::zlm(formula_obj, 
+                    sca = sca_filtered, 
+                    method = "glmer", 
+                    parallel = TRUE,
+                    nCores = n_cores)
+  
+  # --- 5. LRT 결과 요약 ---
+  message(sprintf("5/5: LRT 검정 수행 (변수: %s)...", lrt_variable))
+  summary_res <- summary(zfit, doLRT = lrt_variable)
+  summary_dt <- summary_res$datatable
+  
+  results_df <- merge(
+      summary_dt[component == 'H', .(primerid, `Pr(>Chisq)`)], # Hurdle (logistic)
+      summary_dt[component == 'logcpm', .(primerid, coef, ci.hi, ci.lo)], # Continuous
+      by = 'primerid'
+  )
+  colnames(results_df)[2] <- "p_value_hurdle"
+  results_df <- results_df[order(p_value_hurdle), ]
+  
+  message("MAST 분석 완료.")
+  return(results_df)
+}
+
+
+#' @title Muscat (Pseudo-bulking) 파이프라인 함수 (V5 - prepData 사용)
+#'
+#' @description prepData를 사용하여 SCE 객체를 포맷하고, pbDS로 GLM(edgeR/DESeq2) 실행
+#' @note 이 함수는 'pbDS'의 한계로 인해 혼합 효과(Random Effects/block)를 지원하지 않습니다.
+#'
+#' @param sobj (Seurat) Seurat 객체
+#' @param cluster_id (character) 세포 유형 컬럼명
+#' @param sample_id (character) 환자/샘플 ID 컬럼명
+#' @param group_id (character) 비교할 그룹 컬럼명
+#' @param formula_str (character) 포뮬러 (예: "~ 0 + group + set")
+#'                 'group' 키워드는 'group_id'로 자동 변환됩니다.
+#' @param contrast (character) Contrast (예: "groupA-groupB")
+#' @param method (character) "edgeR", "DESeq2", "limma-trend", "limma-voom" (block 없음)
+#'
+#' @export
+runMUSCAT <- function(
+  sobj,
+  cluster_id = "seurat_clusters",
+  sample_id  = "hos_no",
+  group_id   = "type",
+  batch_id   = NULL,                 # ex) "exp_batch"
+  contrast   = NULL,                 # ex) "IS - SAH"
+  method     = "edgeR",
+  pb_min_cells = 3,
+  filter_genes = c("none","genes","both","edgeR"),
+  keep_clusters = NULL,
+  cluster_label_map = NULL
+){
+  if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
+  filter_genes <- match.arg(filter_genes)
+
+  # deps
+  req <- c("Seurat","muscat","SingleCellExperiment","SummarizedExperiment","S4Vectors","limma","dplyr")
+  miss <- req[!vapply(req, requireNamespace, logical(1), quietly=TRUE)]
+  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse=", "))
+
+  # 1) Seurat -> SCE, prepSCE
+  sce <- Seurat::as.SingleCellExperiment(sobj)
+  sce <- muscat::prepSCE(sce, kid = cluster_id, sid = sample_id, gid = group_id)
+
+  # factor 보장
+  sce$cluster_id <- droplevels(factor(SummarizedExperiment::colData(sce)$cluster_id))
+  sce$sample_id  <- droplevels(factor(SummarizedExperiment::colData(sce)$sample_id))
+  sce$group_id   <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
+  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
+    sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
+  }
+
+  # 2) Pseudobulk
+  pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
+
+  # (선택) 특정 클러스터만
+  if (!is.null(keep_clusters)) {
+    keep_clusters <- as.character(keep_clusters)
+    pb <- pb[names(SummarizedExperiment::assays(pb)) %in% keep_clusters]
+    if (length(SummarizedExperiment::assays(pb)) == 0L) stop("keep_clusters에 해당하는 클러스터가 없습니다.")
+  }
+
+  # 2-1) pb 메타 보강 (sample_id / group_id / batch)
+  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
+
+  # sample_id 없으면 assay의 colnames로 복구
+  if (!"sample_id" %in% names(pb_meta)) {
+    first_assay <- names(SummarizedExperiment::assays(pb))[1]
+    sid_guess <- colnames(SummarizedExperiment::assays(pb)[[first_assay]])
+    if (is.null(sid_guess)) stop("pb에 sample_id가 없습니다.")
+    pb_meta$sample_id <- sid_guess
+    rownames(pb_meta) <- pb_meta$sample_id
+    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta)
+  }
+
+  # sce에서 (sample_id -> group_id / batch) map
+  sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
+  map_cols <- c("sample_id","group_id")
+  if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
+  sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
+
+  # pb에 group_id / batch 보강
+  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
+  need_fix <- (!"group_id" %in% names(pb_meta)) ||
+              (length(unique(pb_meta$group_id)) < 2) ||
+              (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
+  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
+    pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
+    if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
+      pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
+      pb_meta2$group_id.x <- NULL; pb_meta2$group_id.y <- NULL
+    }
+    rownames(pb_meta2) <- rownames(pb_meta)
+    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta2)
+  }
+
+  # factor화
+  pb$sample_id <- droplevels(factor(SummarizedExperiment::colData(pb)$sample_id))
+  pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
+  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
+    pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
+  }
+
+  # 3) contrast 그룹만 자동 subset
+  extract_groups <- function(contrast_str, levels_available){
+    z <- gsub("\\s+", "", contrast_str)
+    toks <- unique(gsub("^group(_id)?", "", unlist(strsplit(z, "[^A-Za-z0-9_]+"))))
+    toks <- toks[nchar(toks) > 0]
+    keep <- intersect(toks, levels_available)
+    if (length(keep) < 1) {
+      g2 <- levels_available[vapply(levels_available, function(g) grepl(g, z), logical(1))]
+      keep <- unique(g2)
+    }
+    keep
+  }
+  grp_lvls <- levels(SummarizedExperiment::colData(pb)$group_id)
+  tg <- extract_groups(contrast, grp_lvls)
+  if (length(tg) < 2) stop(sprintf("contrast에서 추출한 그룹이 부족합니다. contrast='%s', 사용가능레벨=%s",
+                                   contrast, paste(grp_lvls, collapse=", ")))
+
+  keep_idx <- SummarizedExperiment::colData(pb)$group_id %in% tg
+  pb_sub <- pb[, keep_idx]
+  pb_sub$group_id <- droplevels(factor(SummarizedExperiment::colData(pb_sub)$group_id))
+
+  # **sce도 동일 기준으로 subset (resDS용 필수)**
+  sce_sub <- sce[, sce$sample_id %in% SummarizedExperiment::colData(pb_sub)$sample_id &
+                    sce$group_id  %in% tg]
+  sce_sub$cluster_id <- droplevels(factor(sce_sub$cluster_id))
+  sce_sub$sample_id  <- droplevels(factor(sce_sub$sample_id))
+  sce_sub$group_id   <- droplevels(factor(sce_sub$group_id))
+  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
+    sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
+  }
+
+  # 4) design/contrast (batch는 'batch'로 복사해서 사용)
+  pb_sub$group <- pb_sub$group_id
+  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb_sub))) {
+    pb_sub$batch <- droplevels(factor(SummarizedExperiment::colData(pb_sub)[[batch_id]]))
+    design <- stats::model.matrix(~ 0 + group + batch,
+                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
+  } else {
+    design <- stats::model.matrix(~ 0 + group,
+                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
+  }
+
+  fix_contrast <- function(contrast_str, design_cols){
+    z <- gsub("\\s+", "", contrast_str)
+    toks <- unlist(strsplit(z, "([+\\-])", perl=TRUE))
+    ops  <- unlist(regmatches(z, gregexpr("([+\\-])", z, perl=TRUE)))
+    rebuild <- function(tok){
+      tok <- gsub("^group(_id)?", "group", tok)
+      if (!grepl("^group", tok)) tok <- paste0("group", tok)
+      tok
+    }
+    toks2 <- vapply(toks, rebuild, character(1))
+    out <- toks2[1]; if (length(ops)) for (i in seq_along(ops)) out <- paste0(out, ops[i], toks2[i+1])
+    out
+  }
+  contrast_fixed <- fix_contrast(contrast, colnames(design))
+  contrast_matrix <- limma::makeContrasts(contrasts = contrast_fixed, levels = design)
+
+  # 5) pbDS
+  res <- muscat::pbDS(
+    pb_sub,
+    design    = design,
+    method    = method,
+    contrast  = contrast_matrix,
+    min_cells = pb_min_cells,
+    filter    = filter_genes,
+    verbose   = TRUE
+  )
+
+  # 6) 결과 평탄화: **sce_sub가 먼저, res가 다음**
+  combined <- muscat::resDS(sce_sub, res)
+
+  # cluster_id 정리 + 라벨
+  if ("cluster" %in% names(combined) && !"cluster_id" %in% names(combined)) {
+    combined$cluster_id <- combined$cluster
+  }
+  if (!"cluster_id" %in% names(combined)) stop("resDS 결과에 'cluster_id'가 없습니다.")
+  if (!is.null(cluster_label_map)) {
+    combined$cluster_label <- cluster_label_map[as.character(combined$cluster_id)]
+    combined$cluster_label[is.na(combined$cluster_label)] <- as.character(combined$cluster_id)
+  } else {
+    combined$cluster_label <- as.character(combined$cluster_id)
+  }
+
+  # 7) 요약 헬퍼
+  .pick_cols_for <- function(tab, contrast_fixed) {
+    cstr <- gsub("\\s+", "", contrast_fixed)
+    patt <- paste0("(^|\\.)", gsub("([+\\-])", "\\\\\\1", cstr), "$")
+
+    # 1) 접미사 있는 형태 먼저 시도
+    logfc <- grep("^logFC(\\.|_)?", names(tab), value=TRUE); logfc <- logfc[grep(patt, logfc)]
+    padj  <- grep("^(p_adj(\\.loc|\\.glb)?|FDR)(\\.|_)?", names(tab), value=TRUE); padj <- padj[grep(patt, padj)]
+    pcol  <- grep("^(p_val|PValue)(\\.|_)?", names(tab), value=TRUE); pcol <- pcol[grep(patt, pcol)]
+
+    # 2) 접미사 매칭 실패 시 기본 컬럼으로 폴백
+    if (!length(logfc) && "logFC" %in% names(tab)) logfc <- "logFC"
+    if (!length(pcol)  && "p_val" %in% names(tab)) pcol  <- "p_val"
+    if (!length(padj)) {
+      if ("p_adj.loc" %in% names(tab))      padj <- "p_adj.loc"
+      else if ("p_adj.glb" %in% names(tab)) padj <- "p_adj.glb"
+      else if ("FDR" %in% names(tab))       padj <- "FDR"
+    }
+
+    if (!length(logfc) || !length(padj)) {
+      stop("결과 테이블에서 logFC/adj.p 컬럼을 찾지 못했습니다. resDS 출력 컬럼명을 확인하세요.")
+    }
+    list(logfc = logfc[1], padj = padj[1], p = if (length(pcol)) pcol[1] else NULL)
+  }
+
+  # --- [REPLACE] 클러스터별 Top-N
+  top_by_cluster <- function(n=25){
+    tab_use <- combined
+    # contrast 컬럼이 있으면 현재 contrast만 사용
+    if ("contrast" %in% names(tab_use)) {
+      target <- gsub("\\s+", "", contrast_fixed)
+      tab_use <- tab_use[gsub("\\s+", "", tab_use$contrast) == target, , drop=FALSE]
+    }
+    cols <- .pick_cols_for(tab_use, contrast_fixed)
+
+    tab_use |>
+      dplyr::mutate(
+        logFC_view = .data[[cols$logfc]],
+        padj_view  = .data[[cols$padj]],
+        p_view     = if (!is.null(cols$p)) .data[[cols$p]] else NA_real_
+      ) |>
+      dplyr::arrange(padj_view) |>
+      dplyr::group_by(cluster_label) |>
+      dplyr::slice_head(n = n) |>
+      dplyr::ungroup()
+  }
+
+  # --- [REPLACE] 전체 Top-N
+  top_overall <- function(n=100){
+    tab_use <- combined
+    if ("contrast" %in% names(tab_use)) {
+      target <- gsub("\\s+", "", contrast_fixed)
+      tab_use <- tab_use[gsub("\\s+", "", tab_use$contrast) == target, , drop=FALSE]
+    }
+    cols <- .pick_cols_for(tab_use, contrast_fixed)
+
+    tab_use |>
+      dplyr::mutate(
+        logFC_view = .data[[cols$logfc]],
+        padj_view  = .data[[cols$padj]],
+        p_view     = if (!is.null(cols$p)) .data[[cols$p]] else NA_real_
+      ) |>
+      dplyr::arrange(padj_view) |>
+      dplyr::slice_head(n = n)
+  }
+
+  list(
+    sce        = sce,
+    sce_sub    = sce_sub,
+    pb         = pb,
+    pb_sub     = pb_sub,
+    design     = design,
+    contrast_fixed = contrast_fixed,
+    res_raw    = res,
+    combined   = combined,
+    top_by_cluster = top_by_cluster,
+    top_overall    = top_overall
+  )
+}
 
 
 # LMM analysis suite -----
