@@ -26,11 +26,19 @@ __pycache__/
 
 # 기타
 *.log
+ipynb/
 ipynb/output/
 ipynb/temporary/
 
 # new rmd files; .../로 하면 그 하위파일을 재귀적으로 무시하는데, .../*로 하면, 직속 파일만 무시한다.
 rmd/myR/inst/extdata/NicheNetData
+rmd/
 
 # Environment variables
 .env
+
+# data
+*.rds
+*/data/*
+projects/
+trash/
