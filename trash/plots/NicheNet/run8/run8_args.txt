@@ -1,9 +1,0 @@
-run_nichenet_analysis_legacy(seurat_obj = is, species = c("human"), 
-    sender_celltypes = c("CD4_T_Cell", "Monocyte_Macrophage", 
-        "B_Cell_Lineage", "NK_Cell", "Dendritic_Cell", "Treg", 
-        "CD8_T_Cell", "T_Cell_Differentiated"), receiver_celltype = "Monocyte_Macrophage", 
-    assay_name = "SCT", cluster_col = "annotation2_big", receiver_DE_ident1 = "2", 
-    receiver_DE_ident2 = NULL, receiver_DE_group_by = "group3", 
-    nichenet_data_dir = "/data/kjc1/projects/NicheNet", nichenet_data_name = "NicheNetData", 
-    output_dir = "/data/kjc1/mylit/plots/NicheNet/", run_circos = TRUE, 
-    run_signaling_path_inference = TRUE, verbose = TRUE)

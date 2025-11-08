@@ -1,5 +1,0 @@
-Circos Legend (Sender Cell Type for Ligands):
-B_Cell_Lineage (Ligands): Color #E41A1C
-Monocyte_Macrophage (Ligands): Color #377EB8
-NK_Cell (Ligands): Color #4DAF4A
-Receptor: Color #66C2A5
