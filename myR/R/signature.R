@@ -468,7 +468,8 @@ add_signature_enrichit <- function(seurat_obj,
                                       layer = "data",
                                       ...) {
   # ... (이전 버전과 동일한 유전자 목록 로드 부분) ...
-  if (is.character(gene_source) && file.exists(gene_source)) {
+  if (is.character(gene_source) && length(gene_source) == 1 && file.exists(gene_source)) {
+     # 파일 경로일 때만 이 분기
     ext <- tools::file_ext(gene_source)
     gene_list_raw <- switch(ext,
                             xlsx = read_xlsx(gene_source, sheet = sheet_name)%>% pull(gene_col),
@@ -1157,6 +1158,48 @@ score_signature <- function(expr_data, signature, normalize=TRUE) {
   return(scores)
 }
 
+# Helper function to score new data with signature (ver.2)
+#' @export
+score_signature <- function(expr_data, signature, normalize=TRUE) {
+  # version2: as.matrix 제거,
+  genes <- signature$genes
+  weights <- signature$weights
+  
+  # === 1. 표현 행렬 추출 (SPARSE 유지) ===
+  if (inherits(expr_data, "Seurat")) {
+    if (!requireNamespace("Seurat", quietly = TRUE)) {
+      stop("Seurat package required.")
+    }
+    # as.matrix() 호출 제거!
+    expr_mat <- Seurat::GetAssayData(expr_data, layer="data")
+  } else {
+    # 이미 행렬(희소 또는 조밀)이라고 가정
+    expr_mat <- expr_data
+  }
+  
+  # === 2. 유전자 필터링 ===
+  available_genes <- intersect(genes, rownames(expr_mat))
+  
+  if (length(available_genes) == 0) {
+    stop("None of the signature genes found in data")
+  }
+  if (length(available_genes) < length(genes)) {
+    warning(sprintf("%d/%d signature genes not found in data", 
+                    length(genes) - length(available_genes), length(genes)))
+  }
+  
+  # === 3. 스코어 계산 (희소 행렬에서도 잘 작동) ===
+  weights <- weights[available_genes]
+  
+  # drop=FALSE는 1개 유전자만 선택되어도 행렬 구조를 유지시킴
+  scores <- colSums(expr_mat[available_genes, , drop=FALSE] * weights)
+  
+  if (normalize) {
+    scores <- scale(scores)[,1]
+  }
+  
+  return(scores)
+}
 
 #' Print Method for Gene Signature Objects
 #'

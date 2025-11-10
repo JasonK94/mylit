@@ -129,378 +129,368 @@ diagnosis_parity <- function(sobj,
   )
 }
 
+#' @title 분석 입력값 검증 헬퍼 함수
+#' @description 통계 분석/모델링에 사용될 데이터, 메타데이터, 변수, 포뮬러, 방법론을 검증합니다.
+#'
+#' @param data 기본 데이터 객체 (data.frame, matrix, Seurat 등).
+#' @param metadata 메타데이터 (data.frame). NULL일 경우 `data`에서 추출을 시도합니다.
+#' @param target_vars 분석 대상 변수 (캐릭터 벡터).
+#' @param control_vars 통제 변수 (캐릭터 벡터).
+#' @param formula 분석에 사용될 포뮬러 (formula 또는 character).
+#' @param method 분석 방법론 (character, 예: "lm", "wilcoxon", "random forest").
+#' @param auto_correct_vars (logical) TRUE일 경우, 문자형(character) 변수를 팩터(factor)로 자동 변환합니다.
+#' @param auto_correct_formula (logical) TRUE일 경우, `method`에 맞게 포뮬러 수정을 시도합니다 (예: ML에 랜덤 이펙트 제거).
+#' @param na_action (character) 'report'(기본값)는 NA를 보고만 하고, 'remove_rows'는 `target_vars`, `control_vars`에 
+#'                  지정된 변수들에 NA가 있는 행을 제거한 `metadata_clean`을 반환합니다.
+#'
+#' @return 검증이 완료되고 (필요시) 수정된 `metadata`, `formula` 및 (na_action='remove_rows'인 경우) 
+#'         NA가 제거된 `metadata_clean`을 포함하는 리스트(list).
+#' @examples
+#' \dontrun{
+#' # ... (이전 예제 코드와 동일) ...
+#'
+#' # 3. NA 제거 옵션 테스트
+#' validated_na_removed <- validate_analysis_inputs(
+#'   data = sim_data,
+#'   target_vars = "target",
+#'   control_vars = c("group", "age", "sex"), # 'age'에 NA가 있음
+#'   formula = "target ~ group + age + sex",
+#'   method = "lm",
+#'   na_action = "remove_rows"
+#' )
+#'
+#' # 원본 메타데이터 행 개수
+#' # nrow(validated_na_removed$metadata) 
+#' # NA 제거된 메타데이터 행 개수
+#' # nrow(validated_na_removed$metadata_clean)
+#' }
+validate_analysis_inputs <- function(data, metadata = NULL,
+                                     target_vars = NULL, control_vars = NULL,
+                                     formula = NULL, method = NULL,
+                                     auto_correct_vars = FALSE,
+                                     auto_correct_formula = FALSE,
+                                     na_action = c("report", "remove_rows")) {
+  
+  na_action <- match.arg(na_action) # 파라미터 기본값 매칭
 
-#' Validate Seurat Object
-#'
-#' Checks if the input is a valid Seurat object with expected components.
-#'
-#' @param obj Object to validate
-#' @param assay Optional assay name to check for
-#' @param reduction Optional reduction name to check for
-#' @param min_cells Minimum number of cells required
-#' @param min_features Minimum number of features required
-#'
-#' @return TRUE if valid, stops with error message otherwise
-#' @keywords internal
-#' @export
-validate_seurat <- function(obj, 
-                            assay = NULL, 
-                            reduction = NULL,
-                            min_cells = 0,
-                            min_features = 0) {
-  
-  # Check if it's a Seurat object
-  if (!inherits(obj, "Seurat")) {
-    stop("Input must be a Seurat object. Current class: ", 
-         paste(class(obj), collapse = ", "))
-  }
-  
-  # Check cell count
-  n_cells <- ncol(obj)
-  if (n_cells < min_cells) {
-    stop("Seurat object has ", n_cells, " cells, but ", min_cells, " required")
-  }
-  
-  # Check feature count
-  n_features <- nrow(obj)
-  if (n_features < min_features) {
-    stop("Seurat object has ", n_features, " features, but ", min_features, " required")
-  }
-  
-  # Check assay if specified
-  if (!is.null(assay)) {
-    available_assays <- Seurat::Assays(obj)
-    if (!assay %in% available_assays) {
-      stop("Assay '", assay, "' not found. Available assays: ", 
-           paste(available_assays, collapse = ", "))
-    }
-  }
-  
-  # Check reduction if specified
-  if (!is.null(reduction)) {
-    available_reductions <- names(obj@reductions)
-    if (!reduction %in% available_reductions) {
-      # Try case-insensitive match
-      matched_reduction <- available_reductions[tolower(available_reductions) == tolower(reduction)]
-      if (length(matched_reduction) == 1) {
-        message("Note: Using case-insensitive match: '", matched_reduction, "' for '", reduction, "'")
-        return(TRUE)
-      }
-      stop("Reduction '", reduction, "' not found. Available reductions: ", 
-           paste(available_reductions, collapse = ", "))
-    }
-  }
-  
-  return(TRUE)
-}
+  message("--- 시작: 입력값 검증 리포트 ---")
 
-#' Validate Metadata Column
-#'
-#' Checks if a metadata column exists and optionally validates its type.
-#'
-#' @param obj Seurat object or data frame
-#' @param column_name Column name to validate
-#' @param required_type Optional required type ("numeric", "factor", "character")
-#' @param allow_na Whether NA values are allowed
-#'
-#' @return TRUE if valid, stops with error message otherwise
-#' @keywords internal
-#' @export
-validate_metadata_column <- function(obj, 
-                                     column_name, 
-                                     required_type = NULL,
-                                     allow_na = TRUE) {
+  # --- 0. 초기 설정 및 반환 객체 준비 ---
+  validated_output <- list(
+    # data = data, # [수정] 원본 데이터 반환 제거 (낭비)
+    metadata = NULL, # 수정된 메타데이터가 여기에 할당됨
+    formula = NULL,  # 수정된 포뮬러가 여기에 할당됨
+    metadata_clean = NULL, # NA가 제거된 메타데이터가 여기에 할당됨
+    report = list() # 검증 메시지를 저장할 리스트
+  )
   
-  # Get metadata
-  if (inherits(obj, "Seurat")) {
-    metadata <- obj@meta.data
-  } else if (is.data.frame(obj)) {
-    metadata <- obj
+  is_seurat <- inherits(data, "Seurat")
+  data_obs <- 0 # 관측치 개수 (행)
+  
+  # --- 1. Data 객체 검증 ---
+  message("\n1. Data 객체:")
+  if (is_seurat) {
+    if (!requireNamespace("SeuratObject", quietly = TRUE)) {
+      message("  - ERROR: Seurat 객체를 다루려면 'SeuratObject' 패키지가 필요합니다.")
+      return(invisible(NULL))
+    }
+    data_obs <- nrow(data@meta.data)
+    message(paste0("  - Type: Seurat Object (", data_obs, " cells, ", nrow(data), " features)"))
+  } else if (is.data.frame(data)) {
+    data_obs <- nrow(data)
+    message(paste0("  - Type: data.frame (", data_obs, " obs, ", ncol(data), " vars)"))
+  } else if (is.matrix(data)) {
+    data_obs <- nrow(data)
+    message(paste0("  - Type: matrix (", data_obs, " rows, ", ncol(data), " cols)"))
+    message("  - Warning: matrix의 경우, metadata를 명시적으로 제공해야 합니다.")
   } else {
-    stop("Input must be a Seurat object or data frame")
+    message(paste0("  - Type: ", class(data)[1], " (지원되지 않거나 확인 필요)"))
+    try(data_obs <- nrow(data), silent = TRUE)
   }
   
-  # Check if column exists
-  if (!column_name %in% colnames(metadata)) {
-    stop("Column '", column_name, "' not found in metadata. Available columns: ",
-         paste(head(colnames(metadata), 10), collapse = ", "),
-         if (ncol(metadata) > 10) "..." else "")
+  if (data_obs == 0) {
+    message("  - ERROR: 데이터의 관측치 개수(행)를 확인할 수 없습니다.")
+    return(invisible(NULL))
   }
-  
-  column_data <- metadata[[column_name]]
-  
-  # Check for NA values if not allowed
-  if (!allow_na && any(is.na(column_data))) {
-    n_na <- sum(is.na(column_data))
-    stop("Column '", column_name, "' contains ", n_na, " NA values, but NA not allowed")
-  }
-  
-  # Check type if specified
-  if (!is.null(required_type)) {
-    is_correct_type <- switch(
-      required_type,
-      "numeric" = is.numeric(column_data),
-      "factor" = is.factor(column_data),
-      "character" = is.character(column_data),
-      stop("Unknown required_type: ", required_type)
-    )
-    
-    if (!is_correct_type) {
-      stop("Column '", column_name, "' must be of type '", required_type, 
-           "', but is: ", paste(class(column_data), collapse = ", "))
-    }
-  }
-  
-  return(TRUE)
-}
 
-#' Validate Gene List
-#'
-#' Checks if genes exist in the object and optionally filters to valid genes.
-#'
-#' @param obj Seurat object or character vector of available genes
-#' @param genes Character vector of genes to validate
-#' @param min_present Minimum number of genes that must be present (default: all)
-#' @param assay Assay to check genes in (for Seurat objects)
-#' @param warn_missing Whether to warn about missing genes
-#'
-#' @return Character vector of valid genes present in the object
-#' @keywords internal
-#' @export
-validate_genes <- function(obj, 
-                          genes, 
-                          min_present = NULL,
-                          assay = NULL,
-                          warn_missing = TRUE) {
+  # --- 2. Metadata 객체 준비 및 검증 ---
+  message("\n2. Metadata 객체:")
   
-  if (!is.character(genes) || length(genes) == 0) {
-    stop("genes must be a non-empty character vector")
-  }
+  internal_metadata <- NULL # 함수 내부에서 사용할 메타데이터
   
-  # Get available genes
-  if (inherits(obj, "Seurat")) {
-    if (is.null(assay)) {
-      assay <- Seurat::DefaultAssay(obj)
-    }
-    available_genes <- rownames(obj[[assay]])
-  } else if (is.character(obj)) {
-    available_genes <- obj
-  } else {
-    stop("obj must be a Seurat object or character vector of gene names")
-  }
-  
-  # Find present and missing genes
-  genes_present <- intersect(genes, available_genes)
-  genes_missing <- setdiff(genes, available_genes)
-  
-  # Set default minimum
-  if (is.null(min_present)) {
-    min_present <- length(genes)
-  }
-  
-  # Check if enough genes are present
-  if (length(genes_present) < min_present) {
-    stop("Only ", length(genes_present), " of ", length(genes), 
-         " genes found, but ", min_present, " required. ",
-         "First missing genes: ", 
-         paste(head(genes_missing, 5), collapse = ", "),
-         if (length(genes_missing) > 5) "..." else "")
-  }
-  
-  # Warn about missing genes if requested
-  if (warn_missing && length(genes_missing) > 0) {
-    warning("Genes not found (", length(genes_missing), "/", length(genes), "): ",
-            paste(head(genes_missing, 10), collapse = ", "),
-            if (length(genes_missing) > 10) "..." else "")
-  }
-  
-  return(genes_present)
-}
-
-#' Validate Numeric Range
-#'
-#' Checks if a numeric parameter is within acceptable range.
-#'
-#' @param value Numeric value to validate
-#' @param param_name Name of parameter (for error messages)
-#' @param min Minimum allowed value (inclusive)
-#' @param max Maximum allowed value (inclusive)
-#' @param allow_na Whether NA is allowed
-#'
-#' @return TRUE if valid, stops with error message otherwise
-#' @keywords internal
-#' @export
-validate_numeric_range <- function(value, 
-                                   param_name, 
-                                   min = -Inf, 
-                                   max = Inf,
-                                   allow_na = FALSE) {
-  
-  # Check for NA
-  if (is.na(value)) {
-    if (allow_na) {
-      return(TRUE)
+  if (is.null(metadata)) {
+    message("  - `metadata`가 NULL입니다. `data`에서 추출을 시도합니다.")
+    if (is_seurat) {
+      internal_metadata <- data@meta.data
+      message("  - `data@meta.data`를 메타데이터로 사용합니다.")
+    } else if (is.data.frame(data)) {
+      internal_metadata <- data
+      message("  - `data` 자체를 메타데이터로 사용합니다.")
     } else {
-      stop(param_name, " cannot be NA")
-    }
-  }
-  
-  # Check if numeric
-  if (!is.numeric(value) || length(value) != 1) {
-    stop(param_name, " must be a single numeric value")
-  }
-  
-  # Check range
-  if (value < min || value > max) {
-    stop(param_name, " must be between ", min, " and ", max, 
-         ", but is: ", value)
-  }
-  
-  return(TRUE)
-}
-
-#' Validate Choice
-#'
-#' Validates that a value is one of allowed choices (like match.arg but more informative).
-#'
-#' @param value Value to validate
-#' @param param_name Name of parameter (for error messages)
-#' @param choices Vector of allowed values
-#' @param multiple Whether multiple choices are allowed
-#'
-#' @return The validated value (or values if multiple=TRUE)
-#' @keywords internal
-#' @export
-validate_choice <- function(value, param_name, choices, multiple = FALSE) {
-  
-  if (is.null(value)) {
-    stop(param_name, " cannot be NULL")
-  }
-  
-  if (multiple) {
-    if (!all(value %in% choices)) {
-      invalid <- setdiff(value, choices)
-      stop(param_name, " contains invalid choices: ", 
-           paste(invalid, collapse = ", "),
-           ". Allowed choices: ", 
-           paste(choices, collapse = ", "))
+      message("  - ERROR: `data`가 data.frame이 아니므로 메타데이터를 자동 추출할 수 없습니다. `metadata`를 제공해주세요.")
+      return(invisible(NULL))
     }
   } else {
-    if (length(value) != 1) {
-      stop(param_name, " must be a single value, not ", length(value))
+    if (!is.data.frame(metadata)) {
+      message("  - ERROR: `metadata`는 data.frame이어야 합니다.")
+      return(invisible(NULL))
     }
-    if (!value %in% choices) {
-      stop(param_name, " must be one of: ", 
-           paste(choices, collapse = ", "),
-           ". Got: ", value)
-    }
+    internal_metadata <- metadata
+    message("  - 제공된 `metadata`를 사용합니다.")
   }
-  
-  return(value)
-}
 
-#' Validate File Path
-#'
-#' Checks if a file path exists and optionally validates extension.
-#'
-#' @param path File path to validate
-#' @param must_exist Whether file must already exist
-#' @param extensions Optional vector of allowed extensions (e.g., c("csv", "txt"))
-#' @param type Type of path ("file" or "directory")
-#'
-#' @return Normalized path if valid, stops with error otherwise
-#' @keywords internal
-#' @export
-validate_path <- function(path, 
-                         must_exist = TRUE, 
-                         extensions = NULL,
-                         type = c("file", "directory")) {
+  # 메타데이터 기본 검증
+  message("  - Metadata Dim: ", nrow(internal_metadata), " rows, ", ncol(internal_metadata), " cols")
   
-  type <- match.arg(type)
-  
-  if (!is.character(path) || length(path) != 1) {
-    stop("path must be a single character string")
+  # 데이터-메타데이터 관측치 일치 여부
+  if (nrow(internal_metadata) != data_obs) {
+    message(paste0(
+      "  - FATAL ERROR: 데이터 관측치 개수 (", data_obs, 
+      ")와 메타데이터 행 개수 (", nrow(internal_metadata), ")가 일치하지 않습니다."
+    ))
+    return(invisible(NULL))
   }
   
-  # Check existence if required
-  if (must_exist) {
-    if (type == "file") {
-      if (!file.exists(path)) {
-        stop("File not found: ", path)
+  # 메타데이터 개요 (str)
+  str_capture <- utils::capture.output(utils::str(internal_metadata))
+  message("  - Structure (상위 6줄): \n", paste("    ", str_capture[1:min(6, length(str_capture))], collapse = "\n"))
+  
+  # 결측치 (NA) 확인 (변수별)
+  # [수정] NA 리포트 형식 변경
+  meta_na_counts <- colSums(is.na(internal_metadata))
+  na_cols_with_counts <- meta_na_counts[meta_na_counts > 0]
+  
+  if (length(na_cols_with_counts) > 0) {
+    message("  - WARNING: 결측치(NA)가 발견된 컬럼:")
+    # Create a formatted string for each column
+    na_report_lines <- paste0(
+      "    ... ", names(na_cols_with_counts), " : ", 
+      na_cols_with_counts, "개"
+    )
+    # Print all lines
+    message(paste(na_report_lines, collapse = "\n"))
+  } else {
+    message("  - 결측치(NA): 없음 (Good)")
+  }
+  
+  # --- 3. 변수 (target_vars, control_vars) 검증 ---
+  message("\n3. 변수 검증 (in Metadata):")
+  all_vars <- unique(c(target_vars, control_vars))
+  
+  if (length(all_vars) == 0) {
+    message("  - 검증할 변수가 지정되지 않았습니다.")
+  } else {
+    meta_names <- names(internal_metadata)
+    
+    for (var in all_vars) {
+      if (!var %in% meta_names) {
+        message(paste0("  - ERROR: '", var, "' 변수가 메타데이터에 존재하지 않습니다."))
+      } else {
+        var_class <- class(internal_metadata[[var]])[1]
+        var_na_count <- sum(is.na(internal_metadata[[var]]))
+        
+        message(paste0("  - '", var, "': 발견 (Type: ", var_class, ", NAs: ", var_na_count, ")"))
+        
+        # 문자형 변수 처리
+        if (var_class == "character") {
+          if (auto_correct_vars) {
+            internal_metadata[[var]] <- as.factor(internal_metadata[[var]])
+            message(paste0("    ... (auto_correct) '", var, "'를 factor로 변환했습니다."))
+          } else {
+            message(paste0("    ... WARNING: '", var, "'는 character입니다. 모델링 전 factor 변환을 권장합니다."))
+          }
+        }
+        
+        # 팩터 레벨 개수 확인
+        if (is.factor(internal_metadata[[var]])) {
+          level_count <- length(levels(internal_metadata[[var]]))
+          if (level_count > 50 && level_count > data_obs / 10) {
+             message(paste0("    ... WARNING: '", var, "' 팩터의 레벨 개수 (", level_count, ")가 관측치에 비해 많습니다. (Overfitting 위험)"))
+          }
+        }
       }
-      if (dir.exists(path)) {
-        stop("Expected a file but got a directory: ", path)
+    }
+  }
+  
+  # --- [신규] 3b. NA 처리 (na_action) ---
+  if (na_action == "remove_rows") {
+    if (length(all_vars) > 0) {
+      # all_vars에 지정된 컬럼들에서 NA가 없는 행만 선택
+      rows_to_keep <- stats::complete.cases(internal_metadata[, all_vars, drop = FALSE])
+      cleaned_metadata <- internal_metadata[rows_to_keep, ]
+      
+      removed_count <- nrow(internal_metadata) - nrow(cleaned_metadata)
+      if (removed_count > 0) {
+         message(paste0(
+           "\n  - (na_action) '", paste(all_vars, collapse=","), "' 변수 기준 NA ", 
+           removed_count, "개 행 제거됨. (metadata_clean에 저장)"
+         ))
       }
-    } else if (type == "directory") {
-      if (!dir.exists(path)) {
-        stop("Directory not found: ", path)
+      validated_output$metadata_clean <- cleaned_metadata
+    } else {
+       message("\n  - (na_action) 'remove_rows'를 선택했으나, `target_vars` 또는 `control_vars`가 지정되지 않아 NA 제거를 스킵합니다.")
+       validated_output$metadata_clean <- internal_metadata
+    }
+  } else {
+    # na_action == "report" (default)
+    # NA 제거 안 함, 원본(수정됐을 수 있는) 메타데이터를 clean으로 간주
+    validated_output$metadata_clean <- internal_metadata
+  }
+  
+  # --- 4. 포뮬러 (Formula) 검증 ---
+  message("\n4. 포뮬러 검증:")
+  internal_formula <- formula
+  
+  if (is.null(internal_formula)) {
+    message("  - 포뮬러가 제공되지 않았습니다.")
+  } else {
+    # 문자열일 경우 포뮬러로 변환
+    if (is.character(internal_formula)) {
+      tryCatch(
+        { internal_formula <- as.formula(internal_formula) },
+        error = function(e) {
+          message(paste0("  - ERROR: '", internal_formula, "'는 유효한 포뮬러가 아닙니다. (", e$message, ")"))
+          internal_formula <<- NULL
+        }
+      )
+    }
+    
+    if (inherits(internal_formula, "formula")) {
+      message(paste0("  - Formula: ", deparse1(internal_formula)))
+      
+      # 포뮬러 변수들이 메타데이터에 있는지 확인
+      formula_vars <- all.vars(internal_formula)
+      missing_vars <- setdiff(formula_vars, names(internal_metadata))
+      if (length(missing_vars) > 0) {
+        message(paste0("  - ERROR: 포뮬러 변수 '", paste(missing_vars, collapse = ", "), "'가 메타데이터에 없습니다."))
+      }
+      
+      # 포뮬러 복잡성 (항 개수 vs 관측치)
+      term_labels <- attr(terms(internal_formula), "term.labels")
+      num_terms <- length(term_labels)
+      message(paste0("  - Terms (", num_terms, "개): ", paste(term_labels, collapse = ", ")))
+      
+      # [수정] NA 제거시 관측치 개수 재계산
+      effective_obs <- ifelse(na_action == "remove_rows", nrow(validated_output$metadata_clean), data_obs)
+      if (effective_obs < num_terms * 10) {
+         message(paste0(
+            "  - WARNING: 유효 관측치 개수 (", effective_obs, ") 대비 포뮬러 항 (", num_terms, 
+            ")이 너무 많습니다. (10:1 비율 권장, 현재: ", round(effective_obs / num_terms, 1), ":1) Overfitting 위험."
+         ))
+      }
+      
+      # 포뮬러 구조 분석 (랜덤 이펙트, 상호작용 등)
+      formula_str <- deparse1(internal_formula)
+      has_random <- grepl("\\|", formula_str)
+      has_nested <- grepl("/", formula_str)
+      has_interaction <- grepl(":", formula_str) || grepl("\\*", formula_str)
+      
+      if (has_random) {
+        message("  - 구조: Random effects (예: (1|var)) 발견. lme4, glmmTMB, GAM 등 Mixed model에서 지원됩니다.")
+      }
+      if (has_nested) {
+        message("  - 구조: Nested random effects (예: (1|var1/var2)) 발견. lme4 등에서 지원됩니다.")
+      }
+      if (has_interaction) {
+        message("  - 구조: Interaction effects (예: var1:var2) 발견.")
       }
     }
   }
+
+  # --- 5. 방법론 (Method) 호환성 검증 ---
+  message("\n5. 방법론(Method) 호환성:")
   
-  # Check extension if specified
-  if (!is.null(extensions) && type == "file") {
-    file_ext <- tools::file_ext(path)
-    if (!file_ext %in% extensions) {
-      stop("File extension must be one of: ", 
-           paste(extensions, collapse = ", "),
-           ". Got: ", file_ext)
-    }
+  # [수정] 다중 method 지원
+  if (is.null(method) || length(method) == 0) {
+    message("  - `method`가 지정되지 않았습니다.")
+  } else {
+    
+    # 여러 메소드를 루프로 순회
+    for (m in method) {
+      current_method <- tolower(m)
+      message(paste0("\n  --- 검증 (Method: '", current_method, "') ---"))
+      
+      # 5a. ML 계열 (Random Forest, XGBoost, SVM 등)
+      if (current_method %in% c("random forest", "rf", "xgboost", "svm", "lasso")) {
+        message("  - 타입: Machine Learning / Regularized Regression")
+        if (has_random) {
+          message("  - WARNING: ML/Lasso 모델은 (1|var) 같은 랜덤 이펙트 포뮬러를 직접 지원하지 않습니다.")
+          if (auto_correct_formula) {
+            # lme4::findbars를 사용하여 랜덤 이펙트만 제거 시도
+            if (requireNamespace("lme4", quietly = TRUE)) {
+              # lme4::nobars()를 사용하여 랜덤 이펙트 항 제거
+              fixed_formula <- lme4::nobars(internal_formula)
+              if (!is.null(fixed_formula)) {
+                internal_formula <- fixed_formula # internal_formula를 직접 수정
+                message(paste0("    ... (auto_correct) 포뮬러에서 랜덤 이펙트 항을 제거했습니다: ", deparse1(internal_formula)))
+                # 포뮬러가 변경되었으므로 has_random 플래그도 업데이트
+                has_random <- FALSE 
+              } else {
+                 message("    ... (auto_correct) 랜덤 이펙트 항 제거에 실패했습니다. (포뮬러가 너무 복잡할 수 있음)")
+              }
+            } else {
+              message("    ... (auto_correct) 포뮬러 수정을 위해 'lme4' 패키지가 필요합니다.")
+            }
+          } else {
+            message("    ... `auto_correct_formula = TRUE`로 설정하여 랜덤 이펙트 항을 자동으로 제거할 수 있습니다.")
+          }
+        }
+      }
+      
+      # 5b. 전통적 통계 검정 (wilcoxon, t.test, limma)
+      else if (current_method %in% c("wilcoxon", "t.test", "limma")) {
+        message("  - 타입: 통계적 가설 검정")
+        if (has_random && current_method != "limma") {
+          message(paste0("  - WARNING: '", current_method, "'는 랜덤 이펙트를 지원하지 않습니다."))
+        }
+        if (current_method == "limma" && has_random) {
+           message("  - INFO: 'limma'는 `duplicateCorrelation()`을 통해 랜덤 이펙트(반복측정)를 처리할 수 있습니다.")
+        }
+         if (num_terms > 3) { # num_terms는 포뮬러에서 계산됨
+           message("  - WARNING: '", current_method, "'는 보통 'target ~ group' 형태의 간단한 포뮬러를 사용합니다.")
+         }
+      }
+      
+      # 5c. 기본 선형 모델 (lm, glm)
+      else if (current_method %in% c("lm", "glm")) {
+         message("  - 타입: (일반) 선형 모델")
+         if (has_random) {
+           message("  - ERROR: 'lm'/'glm'은 랜덤 이펙트를 지원하지 않습니다. 'lme4' 패키지의 `lmer`/`glmer`를 사용해야 합니다.")
+         }
+      }
+      
+      # 5d. 혼합 효과 모델 (lmer, glmer, lme, gam)
+      else if (current_method %in% c("lmer", "glmer", "lme", "lme4", "gam", "gamm")) {
+         message("  - 타입: 혼합 효과 / 일반화 가법 모델 (Mixed / GAM)")
+         if (has_random) {
+           message("  - INFO: 랜덤 이펙트를 지원하는 모델입니다. (Good)")
+         } else {
+           message("  - INFO: 랜덤 이펙트가 없지만, 'lm'/'glm'/'gam'으로도 분석 가능할 수 있습니다.")
+         }
+      }
+      
+      # 5e. 차원 축소 (PCA)
+      else if (current_method %in% c("pca", "pca_loadings")) {
+         message("  - 타입: 차원 축소")
+         message("  - INFO: 'pca'는 보통 포뮬러를 사용하지 않으며 (혹은 `~.` 사용), 숫자형 데이터(matrix)가 필요합니다.")
+      }
+      
+      else {
+        message(paste0("  - '", current_method, "'는 알 수 없거나 검증 로직에 없는 방법론입니다."))
+      }
+    } # end for method loop
   }
+
+  message("\n--- 종료: 검증 리포트 ---")
+
+  # --- 6. 결과 반환 ---
+  # auto_correct_vars가 적용된 internal_metadata를 반환 리스트에 할당
+  validated_output$metadata <- internal_metadata
+  # auto_correct_formula가 적용된 internal_formula를 반환 리스트에 할당
+  validated_output$formula <- internal_formula
   
-  # Return normalized path
-  return(normalizePath(path, mustWork = must_exist))
+  # metadata_clean은 위에서 (Section 3b) 이미 할당됨
+  
+  # 사용자가 이 리스트를 받아 후속 작업에 사용해야 함
+  return(invisible(validated_output))
 }
-
-#' Create Informative Error Message
-#'
-#' Helper to create consistent, informative error messages.
-#'
-#' @param context Context where error occurred (e.g., function name)
-#' @param message Main error message
-#' @param suggestion Optional suggestion for fixing the error
-#'
-#' @return Formatted error message
-#' @keywords internal
-#' @export
-create_error_message <- function(context, message, suggestion = NULL) {
-  msg <- paste0("[", context, "] ", message)
-  if (!is.null(suggestion)) {
-    msg <- paste0(msg, "\nSuggestion: ", suggestion)
-  }
-  return(msg)
-}
-
-#' Check Package Dependencies
-#'
-#' Checks if required packages are installed and optionally loads them.
-#'
-#' @param packages Character vector of package names
-#' @param load Whether to load the packages (default: FALSE)
-#'
-#' @return TRUE if all packages available, stops with error otherwise
-#' @keywords internal
-#' @export
-check_packages <- function(packages, load = FALSE) {
-  
-  missing <- character(0)
-  
-  for (pkg in packages) {
-    if (!requireNamespace(pkg, quietly = TRUE)) {
-      missing <- c(missing, pkg)
-    } else if (load) {
-      library(pkg, character.only = TRUE)
-    }
-  }
-  
-  if (length(missing) > 0) {
-    stop("Required packages not installed: ", 
-         paste(missing, collapse = ", "),
-         "\nInstall with: install.packages(c('", 
-         paste(missing, collapse = "', '"), "'))")
-  }
-  
-  return(TRUE)
-}
-
-

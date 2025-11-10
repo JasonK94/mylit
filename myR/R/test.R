@@ -489,492 +489,7 @@ example_usage <- function() {
 
 
 # analysis -----
-
-#' Seurat 객체에서 유전자별 CLMM 분석 수행 (v2: 기능 추가)
-#'
-#' @param sobj Seurat 객체
-#' @param ordinal_var 메타데이터의 순서형 반응 변수 (예: "heal")
-#' @param patient_col 메타데이터의 환자 ID(random effect) (예: "emrid")
-#' @param assay 사용할 Seurat assay (기본값: "RNA")
-#' @param layer 사용할 Seurat layer (v4/v3의 'slot') (기본값: "data")
-#' @param top_n 분석할 상위 유전자 개수 (기본값: NULL = 모든 유전자)
-#' @param sort_by 'top_n'을 사용할 경우 정렬 기준 ("variance" 또는 "mean")
-#' @param decreasing 'top_n' 정렬 시 내림차순 (기본값: TRUE)
-#' @param ... clmm() 함수에 전달할 추가 인자 (예: control = clmm.control(maxIter = 200))
-#'
-#' @return 'gene' 및 CLMM 결과 (Estimate, p-value 등) data.frame
-#'
-run_clmm_analysis <- function(sobj, ordinal_var, patient_col, assay = "RNA", layer = "data", 
-                              top_n = NULL, sort_by = "variance", decreasing = TRUE, ...) {
-  
-  # 0. 필수 패키지 확인
-  if (!requireNamespace("ordinal", quietly = TRUE)) {
-    stop("'ordinal' 패키지가 필요합니다: install.packages('ordinal')")
-  }
-  if (!requireNamespace("dplyr", quietly = TRUE)) {
-    stop("'dplyr' 패키지가 필요합니다: install.packages('dplyr')")
-  }
-  
-  # 1. 메타데이터 준비
-  meta <- sobj@meta.data
-  unique_levels <- sort(unique(meta[[ordinal_var]]))
-  meta[[ordinal_var]] <- factor(meta[[ordinal_var]], levels = unique_levels, ordered = TRUE)
-  cat("Note: '", ordinal_var, "'를 ordered factor로 변환했습니다: ", paste(unique_levels, collapse = "<"), "\n")
-  meta[[patient_col]] <- as.factor(meta[[patient_col]])
-  
-  # 2. 유전자 발현 데이터 및 유전자 목록 준비
-  expr_matrix <- GetAssayData(sobj, assay = assay, slot = layer)
-  
-  if (!is.null(top_n)) {
-    cat(paste("'top_n'이 설정되었습니다.", top_n, "개 유전자를", sort_by, "기준으로 정렬합니다...\n"))
-    
-    if (sort_by == "variance") {
-      metrics <- apply(expr_matrix, 1, var)
-    } else if (sort_by == "mean") {
-      metrics <- rowMeans(expr_matrix)
-    } else {
-      stop("'sort_by'는 'variance' 또는 'mean'이어야 합니다.")
-    }
-    
-    ordered_indices <- order(metrics, decreasing = decreasing)
-    genes_to_test <- rownames(expr_matrix)[ordered_indices][1:min(top_n, length(metrics))]
-    
-  } else {
-    genes_to_test <- rownames(expr_matrix)
-  }
-  
-  total_genes <- length(genes_to_test)
-  cat("총", total_genes, "개의 유전자에 대해 CLMM 모델을 실행합니다...\n")
-  
-  # 3. clmm 모델 실행 (for loop로 변경: 진행 상황 및 시간 측정)
-  clmm_results_list <- list()
-  overall_start_time <- Sys.time()
-  
-  for (i in seq_along(genes_to_test)) {
-    gene <- genes_to_test[i]
-    
-    model_data <- data.frame(
-      ord_var = meta[[ordinal_var]],
-      pat_var = meta[[patient_col]],
-      gene_expr = as.numeric(expr_matrix[gene, ])
-    )
-    
-    # 모델 피팅 (오류 발생 시 NULL 반환)
-    model_fit <- tryCatch({
-      # '...' 인자를 통해 clmm.control(maxIter=200) 등 전달 가능
-      ordinal::clmm(ord_var ~ gene_expr + (1|pat_var), data = model_data, ...)
-    }, error = function(e) {
-      NULL
-    })
-    
-    # 결과 추출
-    if (!is.null(model_fit)) {
-      coef_summary <- summary(model_fit)$coefficients
-      if ("gene_expr" %in% rownames(coef_summary)) {
-        clmm_results_list[[gene]] <- coef_summary["gene_expr", ]
-      } else {
-        clmm_results_list[[gene]] <- rep(NA, 4)
-      }
-    } else {
-      clmm_results_list[[gene]] <- rep(NA, 4)
-    }
-    
-    # 4. 진행 상황 및 예상 시간 리포트
-    if (i == 100) {
-      first_100_time <- Sys.time()
-      time_per_100 <- as.numeric(difftime(first_100_time, overall_start_time, units = "secs"))
-      total_estimated_secs <- (time_per_100 / 100) * total_genes
-      total_estimated_mins <- total_estimated_secs / 60
-      
-      cat(paste0("[진행 상황] 첫 100개 유전자 완료 (", round(time_per_100, 1), "초 소요)\n"))
-      cat(paste0("   > 총 예상 소요 시간: 약 ", round(total_estimated_mins, 1), " 분\n"))
-      
-    } else if (i > 100 && i %% 100 == 0) {
-      current_time <- Sys.time()
-      elapsed_mins <- as.numeric(difftime(current_time, overall_start_time, units = "mins"))
-      cat(paste0("[진행 상황] ", i, " / ", total_genes, " (", round(i/total_genes*100), "%) 완료. (", round(elapsed_mins, 1), "분 경과)\n"))
-    }
-  } # end for loop
-  
-  # 5. 결과 data.frame으로 변환
-  clmm_results_df <- do.call(rbind, clmm_results_list)
-  rownames(clmm_results_df) <- names(clmm_results_list) # genes_to_test 순서
-  colnames(clmm_results_df) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  
-  clmm_results_df <- as.data.frame(clmm_results_df)
-  clmm_results_df$gene <- rownames(clmm_results_df)
-  
-  clmm_results_df <- clmm_results_df[!is.na(clmm_results_df$`Pr(>|z|)`), ]
-  clmm_results_df <- clmm_results_df %>% 
-    dplyr::arrange(`Pr(>|z|)`) %>%
-    dplyr::select(gene, dplyr::everything())
-  
-  cat("CLMM 분석 완료.\n")
-  return(clmm_results_df)
-}
-
-#' Seurat 객체에서 유전자별 스피어만 상관관계 분석 (Pseudobulk) 수행 (v2: 버그 수정 및 기능 추가)
-#'
-#' @param sobj Seurat 객체
-#' @param ordinal_var 메타데이터의 순서형 변수 (예: "heal")
-#' @param patient_col 메타데이터의 환자 ID (예: "emrid")
-#' @param assay 사용할 Seurat assay (기본값: "RNA")
-#' @param layer 사용할 Seurat layer (v4/v3의 'slot') (기본값: "data")
-#' @param top_n 분석할 상위 유전자 개수 (기본값: NULL = 모든 유전자)
-#' @param sort_by 'top_n'을 사용할 경우 정렬 기준 ("variance" 또는 "mean")
-#' @param decreasing 'top_n' 정렬 시 내림차순 (기본값: TRUE)
-#'
-#' @return 'gene', 'rho', 'p.value'를 포함하는 data.frame
-#'
-run_spearman_pseudobulk <- function(sobj, ordinal_var, patient_col, assay = "RNA", layer = "data",
-                                    top_n = NULL, sort_by = "variance", decreasing = TRUE) {
-  
-  if (!requireNamespace("dplyr", quietly = TRUE)) {
-    stop("'dplyr' 패키지가 필요합니다: install.packages('dplyr')")
-  }
-
-  # 1. (오류 수정) 숫자로 시작하는 ID에 'g'를 덧붙인 임시 컬럼 생성
-  #    AggregateExpression이 내부적으로 하는 작업을 미리 수행하여 ID 불일치 방지
-  temp_group_by_col <- "temp_spearman_group_by"
-  sobj@meta.data[[temp_group_by_col]] <- ifelse(
-    grepl("^[0-9]", sobj@meta.data[[patient_col]]),
-    paste0("g", sobj@meta.data[[patient_col]]),
-    as.character(sobj@meta.data[[patient_col]])
-  )
-
-  # 2. Pseudobulk 발현 매트릭스 생성
-  cat("환자별 Pseudobulk 프로필을 생성합니다 (임시 ID 사용)...\n")
-  avg_expr <- AggregateExpression(
-    sobj,
-    group.by = temp_group_by_col, # 수정된 임시 컬럼 사용
-    assays = assay,
-    slot = layer, 
-    return.seurat = FALSE
-  )
-  
-  pseudobulk_matrix <- avg_expr[[assay]]
-  
-  # (참고) AggregateExpression의 'Inf' 경고 메시지:
-  # 'layer = "data"' (보통 log-normalized)를 사용할 때 발생할 수 있습니다.
-  # 이는 'AggregateExpression'이 내부적으로 'exp(x)-1'을 시도할 때 발생할 수 있으나,
-  # 'slot = "data"'의 경우 평균(mean)을 계산하므로 결과(평균 발현 값)는 유효합니다.
-
-  # 3. 환자별 메타데이터(ordinal_var) 준비
-  meta <- sobj@meta.data
-  
-  # 임시 ID를 기준으로 유니크한 메타데이터 추출
-  patient_meta <- meta %>%
-    dplyr::select(dplyr::all_of(c(temp_group_by_col, ordinal_var))) %>%
-    dplyr::distinct(!!dplyr::sym(temp_group_by_col), .keep_all = TRUE)
-  
-  # pseudobulk_matrix의 컬럼 이름(환자 ID) 순서대로 patient_meta 정렬
-  pseudobulk_patients <- colnames(pseudobulk_matrix)
-  match_indices <- match(pseudobulk_patients, patient_meta[[temp_group_by_col]])
-  
-  # 오류 검사 (NA가 없는지)
-  if (any(is.na(match_indices))) {
-      stop(paste("Patient ID 매칭 실패. 임시 ID 생성 후에도 NA가 발생:",
-                 paste(pseudobulk_patients[is.na(match_indices)], collapse = ",")))
-  }
-  
-  ordered_patient_meta <- patient_meta[match_indices, ]
-  
-  # (오류 수정) 원본 코드의 if문 검사를 더 강력하게 수정
-  if (!all(pseudobulk_patients == ordered_patient_meta[[temp_group_by_col]])) {
-    stop("환자 ID 정렬 오류: Pseudobulk 순서와 메타데이터 순서가 일치하지 않습니다.")
-  }
-  
-  heal_values <- ordered_patient_meta[[ordinal_var]]
-  
-  # 4. 유전자 필터링 (Pseudobulk Matrix 기준)
-  if (!is.null(top_n)) {
-    cat(paste("'top_n'이 설정되었습니다.", top_n, "개 유전자를", sort_by, "기준으로 정렬합니다 (Pseudobulk 기준)...\n"))
-    
-    if (sort_by == "variance") {
-      metrics <- apply(pseudobulk_matrix, 1, var)
-    } else if (sort_by == "mean") {
-      metrics <- rowMeans(pseudobulk_matrix)
-    } else {
-      stop("'sort_by'는 'variance' 또는 'mean'이어야 합니다.")
-    }
-    
-    ordered_indices <- order(metrics, decreasing = decreasing)
-    genes_to_test <- rownames(pseudobulk_matrix)[ordered_indices][1:min(top_n, length(metrics))]
-    
-    # 분석할 매트릭스 서브셋
-    pseudobulk_matrix_subset <- pseudobulk_matrix[genes_to_test, ]
-    
-  } else {
-    genes_to_test <- rownames(pseudobulk_matrix)
-    pseudobulk_matrix_subset <- pseudobulk_matrix
-  }
-
-  # 5. 스피어만 상관관계 계산 (for loop 사용)
-  total_genes <- length(genes_to_test)
-  cat("총", total_genes, "개의 유전자에 대해 스피어만 상관관계를 계산합니다...\n")
-  
-  spearman_results_list <- list()
-  overall_start_time <- Sys.time()
-  
-  for (i in seq_along(genes_to_test)) {
-    gene <- genes_to_test[i]
-    gene_avg_expr <- pseudobulk_matrix_subset[gene, ]
-    
-    # 발현에 분산이 있는지 확인
-    if (var(gene_avg_expr, na.rm=TRUE) == 0) {
-      spearman_results_list[[gene]] <- c(rho = NA, p.value = NA)
-      next # 다음 유전자로
-    }
-    
-    cor_test_result <- tryCatch({
-      stats::cor.test(gene_avg_expr, heal_values, method = "spearman")
-    }, error = function(e) { NULL })
-    
-    if (!is.null(cor_test_result)) {
-      spearman_results_list[[gene]] <- c(
-        rho = cor_test_result$estimate,
-        p.value = cor_test_result$p.value
-      )
-    } else {
-      spearman_results_list[[gene]] <- c(rho = NA, p.value = NA)
-    }
-    
-    # 진행 상황 리포트
-    if (i == 100) {
-      first_100_time <- Sys.time()
-      time_per_100 <- as.numeric(difftime(first_100_time, overall_start_time, units = "secs"))
-      total_estimated_secs <- (time_per_100 / 100) * total_genes
-      total_estimated_mins <- total_estimated_secs / 60
-      
-      cat(paste0("[진행 상황] 첫 100개 유전자 완료 (", round(time_per_100, 1), "초 소요)\n"))
-      cat(paste0("   > 총 예상 소요 시간: 약 ", round(total_estimated_mins, 1), " 분\n"))
-      
-    } else if (i > 100 && i %% 100 == 0) {
-      current_time <- Sys.time()
-      elapsed_mins <- as.numeric(difftime(current_time, overall_start_time, units = "mins"))
-      cat(paste0("[진행 상황] ", i, " / ", total_genes, " (", round(i/total_genes*100), "%) 완료. (", round(elapsed_mins, 1), "분 경과)\n"))
-    }
-  } # end for loop
-
-  # 6. 결과 data.frame으로 변환
-  spearman_results_df <- do.call(rbind, spearman_results_list)
-  spearman_results_df <- as.data.frame(spearman_results_df)
-  spearman_results_df$gene <- rownames(spearman_results_df)
-  
-  spearman_results_df <- spearman_results_df[!is.na(spearman_results_df$p.value), ]
-  spearman_results_df <- spearman_results_df %>%
-    dplyr::arrange(p.value) %>%
-    dplyr::select(gene, rho, p.value)
-  
-  cat("스피어만 상관관계 분석 완료.\n")
-  return(spearman_results_df)
-}
-
-#' @title Limma-Dream-SVA (LDS) 파이프라인
-#' @description SVA로 숨겨진 공변량을 찾고, limma-dream으로 다중 임의 효과
-#'              (예: 환자, 배치)를 포함한 LMM을 피팅합니다. 기본적으로 GeoMx data와 같이 샘플 수가 많지 않은 경우에 사용됩니다.
-#'
-#' @param sobj Seurat 객체, DGEList 객체, 또는 Raw Count Matrix.
-#' @param formula (formula) 모델 포뮬러. LMM 수식(lme4)을 따릅니다.
-#'                (예: ~ response + (1|emrid) + (1|set))
-#' @param meta.data (data.frame) 메타데이터. `sobj`가 Matrix일 경우 필수.
-#' @param layer (character) Seurat 객체 사용 시, Raw Count가 저장된 layer.
-#' @param n_sv (numeric) 사용할 SV의 개수. `NULL` (기본값)일 경우,
-#'             `sv_var_cutoff`에 따라 자동으로 결정됩니다.
-#' @param sv_var_cutoff (numeric) `n_sv=NULL`일 때, SV가 설명해야 할
-#'                      *잔차 분산(residual variance)*의 누적 비율 (0 ~ 1).
-#' @param n_cores (numeric) 병렬 처리에 사용할 CPU 코어 수.
-#'
-#' @return (list) 'fit' (MArrayLM 객체), 'voom' (EList 객체),
-#'         'sva' (SVA 객체), 'final_formula' (사용된 최종 포뮬러)
-#'
-LDS <- function(sobj,
-                formula,
-                meta.data = NULL,
-                layer = "counts",
-                n_sv = NULL,
-                sv_var_cutoff = 0.5,
-                n_cores = max(1, parallel::detectCores() - 2)) {
-
-  # --- 1. 입력값 검증 및 데이터 추출 ---
-  message("1/7: 입력 데이터 처리 중...")
-  if (inherits(sobj, "Seurat")) {
-    counts_matrix <- GetAssayData(sobj, layer = layer)
-    if (is.null(meta.data)) {
-      meta.data <- sobj@meta.data
-    }
-  } else if (inherits(sobj, "DGEList")) {
-    counts_matrix <- sobj$counts
-    if (is.null(meta.data)) {
-      meta.data <- sobj$samples
-    }
-  } else if (is.matrix(sobj) || inherits(sobj, "dgCMatrix")) {
-    counts_matrix <- sobj
-    if (is.null(meta.data)) {
-      stop("`sobj`가 Matrix일 경우, `meta.data`를 반드시 제공해야 합니다.")
-    }
-  } else {
-    stop("`sobj`는 Seurat, DGEList, 또는 Matrix여야 합니다.")
-  }
-  
-  if (ncol(counts_matrix) != nrow(meta.data)) {
-    stop("Count matrix의 열 수(샘플)와 meta.data의 행 수(샘플)가 일치하지 않습니다.")
-  }
-  
-  # 병렬 백엔드 설정
-  BPPARAM_SETUP <- MulticoreParam(n_cores)
-
-  # --- 2. SVA를 위한 포뮬러 파싱 ---
-  message("2/7: 포뮬러 파싱 중...")
-  if (!requireNamespace("lme4", quietly = TRUE)) {
-    stop("LMM 포뮬러 파싱을 위해 'lme4' 패키지가 필요합니다.")
-  }
-  
-  # `formula`에서 고정 효과(Fixed Effects)만 추출
-  # SVA의 'mod' 인자 및 `filterByExpr`에 사용됨
-  fixed_effects_formula <- lme4::nobars(formula)
-  
-  if (is.null(fixed_effects_formula)) {
-     # 예: ~ (1|emrid) + (1|set) 처럼 고정 효과가 아예 없는 경우
-     fixed_effects_formula <- ~ 1 
-  }
-
-  # --- 3. DGEList 생성, 필터링, 정규화 ---
-  message("3/7: DGEList 생성 및 필터링 중...")
-  
-  # `filterByExpr`를 위한 디자인 행렬 (고정 효과 기반)
-  design_for_filter <- model.matrix(fixed_effects_formula, data = meta.data)
-  
-  dge <- DGEList(counts_matrix, samples = meta.data)
-  
-  keep_genes <- filterByExpr(dge, design = design_for_filter)
-  dge <- dge[keep_genes, , keep.lib.sizes = FALSE]
-  
-  if (sum(keep_genes) == 0) {
-    stop("모든 유전자가 필터링되었습니다. `filterByExpr` 조건을 확인하십시오.")
-  }
-  
-  dge <- calcNormFactors(dge)
-  
-  message(sprintf("... 유전자 필터링 완료: %d / %d 개 통과", 
-                  sum(keep_genes), nrow(counts_matrix)))
-
-  # --- 4. SVA 실행 (임시 voom 기반) ---
-  message("4/7: SVA 실행 (숨겨진 변동성 탐색)...")
-  
-  mod_sva <- model.matrix(fixed_effects_formula, data = meta.data)
-  mod0_sva <- model.matrix(~ 1, data = meta.data)
-  
-  # SVA는 voom 변환된 데이터에 실행
-  v_sva <- voom(dge, mod_sva, plot = FALSE)
-  
-  # 1) n.sv=NULL로 SVA를 실행하여 *최대* SV 개수 및 SV *모두* 찾기
-  # (n_sv=NULL일 때만 SVD를 수행하여 sva_obj$svd를 반환함. 
-  #  -> 이 부분이 sva 버전마다 다를 수 있어, 수동 잔차 계산이 더 안정적임)
-  sva_obj <- sva(v_sva$E, mod = mod_sva, mod0 = mod0_sva, n.sv = NULL)
-  
-  n_sv_max <- sva_obj$n.sv
-  
-  if (n_sv_max == 0) {
-    message("... SVA가 유의미한 대리 변수(SV)를 찾지 못했습니다.")
-    svs_final <- NULL
-    n_sv_final <- 0
-  } else {
-    message(sprintf("... SVA가 최대 %d개의 SV를 탐지했습니다.", n_sv_max))
-    
-    # 2) 사용할 SV 개수 결정
-    if (!is.null(n_sv)) {
-      # 사용자가 SV 개수 명시
-      n_sv_final <- min(n_sv, n_sv_max)
-      
-    } else {
-      # (사용자 요청) 잔차 분산 기반으로 SV 개수 자동 결정
-      message(sprintf("... 잔차 분산의 %.0f%%를 설명하는 SV 개수 자동 탐색 중...", 
-                      sv_var_cutoff * 100))
-                      
-      # SVA가 사용한 것과 동일한 잔차(Residuals)를 수동 계산
-      # lm.fit이 (샘플 x 유전자) 형태의 t(v_sva$E)를 입력받음
-      res_matrix <- t(resid(lm.fit(mod_sva, t(v_sva$E))))
-      
-      # 잔차 행렬의 SVD (Singular Value Decomposition)
-      svd_res <- svd(res_matrix)
-      
-      # 각 SV가 설명하는 분산 비율
-      percent_var_explained <- (svd_res$d^2) / sum(svd_res$d^2)
-      cumulative_var <- cumsum(percent_var_explained)
-      
-      # Cutoff를 만족하는 최소 SV 개수 찾기
-      n_sv_auto <- which(cumulative_var >= sv_var_cutoff)[1]
-      
-      if (is.na(n_sv_auto)) { # 모든 SV를 합쳐도 cutoff 미만일 경우
-        n_sv_final <- n_sv_max
-      } else {
-        n_sv_final <- n_sv_auto
-      }
-      
-      message(sprintf("... SV %d개가 잔차 분산의 %.1f%%를 설명합니다.", 
-                      n_sv_final, cumulative_var[n_sv_final] * 100))
-    }
-    
-    # 3) 최종 SV 추출 및 메타데이터에 추가
-    if (n_sv_final > 0) {
-      svs_final <- sva_obj$sv[, 1:n_sv_final, drop = FALSE]
-      colnames(svs_final) <- paste0("SV", 1:n_sv_final)
-      meta.data <- cbind(meta.data, svs_final)
-    }
-  }
-
-  # --- 5. 최종 포뮬러 생성 ---
-  message("5/7: 최종 모델 포뮬러 생성 중...")
-  
-  original_formula_str <- paste(deparse(formula), collapse = "")
-  
-  if (n_sv_final > 0) {
-    sv_str <- paste(colnames(svs_final), collapse = " + ")
-    # 포뮬러에 SV 추가
-    final_formula_str <- paste(original_formula_str, sv_str, sep = " + ")
-  } else {
-    final_formula_str <- original_formula_str
-  }
-  
-  final_formula <- as.formula(final_formula_str)
-  message(sprintf("... 최종 포뮬러: %s", final_formula_str))
-
-  # --- 6. limma-dream 파이프라인 실행 ---
-  message(sprintf("6/7: limma-dream 실행 (Core: %d개)...", n_cores))
-  
-  # 1) 유효 가중치 계산 (voomWithDreamWeights)
-  v_dream <- voomWithDreamWeights(
-    dge, 
-    final_formula, 
-    meta.data, 
-    BPPARAM = BPPARAM_SETUP
-  )
-  
-  # 2) LMM 피팅 (dream)
-  fit_dream <- dream(
-    v_dream, 
-    final_formula, 
-    meta.data, 
-    BPPARAM = BPPARAM_SETUP
-  )
-  
-  # 3) Empirical Bayes 조정
-  fit_ebayes <- eBayes(fit_dream)
-  
-  message("7/7: 분석 완료.")
-
-  # --- 7. 결과 반환 ---
-  return(list(
-    fit = fit_ebayes,       # 최종 MArrayLM 객체 (topTable 사용 가능)
-    voom = v_dream,         # 가중치가 포함된 EList 객체
-    sva_obj = sva_obj,      # 원본 SVA 객체
-    svs_used = svs_final,   # 모델에 실제 사용된 SV 매트릭스
-    final_formula = final_formula, # 최종 사용된 포뮬러
-    dge = dge               # 필터링/정규화된 DGEList
-  ))
-}
-
+NEBULA=function(){}
 
 
 #' @title MAST 파이프라인 함수
@@ -1049,267 +564,3946 @@ runMAST <- function(sobj,
   return(results_df)
 }
 
+# [V4] find_gene_signature_v4
+#
+# 변경점:
+# 1. control_vars = NULL 인자 추가 (교란 변수 보정)
+# 2. test_n = NULL 인자 추가 (속도 향상을 위한 사전 필터링)
+# 3. limma, lasso, tree_based, gam: Native 방식 보정
+# 4. wilcoxon, nmf, pca_loadings: limma::removeBatchEffect 방식 보정
 
-#' @title Muscat (Pseudo-bulking) 파이프라인 함수 (V5 - prepData 사용)
-#'
-#' @description prepData를 사용하여 SCE 객체를 포맷하고, pbDS로 GLM(edgeR/DESeq2) 실행
-#' @note 이 함수는 'pbDS'의 한계로 인해 혼합 효과(Random Effects/block)를 지원하지 않습니다.
-#'
-#' @param sobj (Seurat) Seurat 객체
-#' @param cluster_id (character) 세포 유형 컬럼명
-#' @param sample_id (character) 환자/샘플 ID 컬럼명
-#' @param group_id (character) 비교할 그룹 컬럼명
-#' @param formula_str (character) 포뮬러 (예: "~ 0 + group + set")
-#'                 'group' 키워드는 'group_id'로 자동 변환됩니다.
-#' @param contrast (character) Contrast (예: "groupA-groupB")
-#' @param method (character) "edgeR", "DESeq2", "limma-trend", "limma-voom" (block 없음)
-#'
-#' @export
-runMUSCAT <- function(
-  sobj,
-  cluster_id = "seurat_clusters",
-  sample_id  = "hos_no",
-  group_id   = "type",
-  batch_id   = NULL,                 # ex) "exp_batch"
-  contrast   = NULL,                 # ex) "IS - SAH"
-  method     = "edgeR",
-  pb_min_cells = 3,
-  filter_genes = c("none","genes","both","edgeR"),
-  keep_clusters = NULL,
-  cluster_label_map = NULL
-){
-  if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
-  filter_genes <- match.arg(filter_genes)
-
-  # deps
-  req <- c("Seurat","muscat","SingleCellExperiment","SummarizedExperiment","S4Vectors","limma","dplyr")
-  miss <- req[!vapply(req, requireNamespace, logical(1), quietly=TRUE)]
-  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse=", "))
-
-  # 1) Seurat -> SCE, prepSCE
-  sce <- Seurat::as.SingleCellExperiment(sobj)
-  sce <- muscat::prepSCE(sce, kid = cluster_id, sid = sample_id, gid = group_id)
-
-  # factor 보장
-  sce$cluster_id <- droplevels(factor(SummarizedExperiment::colData(sce)$cluster_id))
-  sce$sample_id  <- droplevels(factor(SummarizedExperiment::colData(sce)$sample_id))
-  sce$group_id   <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
-    sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
+find_gene_signature_v4 <- function(data, 
+                                 meta.data = NULL,
+                                 target_var,
+                                 target_group = NULL,
+                                 control_vars = NULL,   # <<< [V4 UPGRADE]
+                                 method = c("tree_based", "lasso", "limma", 
+                                            "nmf", "wilcoxon", "gam", "pca_loadings"),
+                                 n_features = 50,
+                                 test_n = NULL,         # <<< [V4 UPGRADE]
+                                 preprocess = TRUE,
+                                 min_cells = 10,
+                                 min_pct = 0.01,
+                                 return_model = FALSE,
+                                 fgs_seed = 42,
+                                 lambda_selection = "lambda.1se",
+                                 ...) {
+  
+  # ===
+  # 0. Batch Processing (v3와 동일)
+  # ===
+  
+  all_methods <- c("tree_based", "lasso", "limma", "nmf", "wilcoxon", "gam", "pca_loadings")
+  
+  if (is.null(method)) {
+    method <- all_methods
   }
-
-  # 2) Pseudobulk
-  pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
-
-  # (선택) 특정 클러스터만
-  if (!is.null(keep_clusters)) {
-    keep_clusters <- as.character(keep_clusters)
-    pb <- pb[names(SummarizedExperiment::assays(pb)) %in% keep_clusters]
-    if (length(SummarizedExperiment::assays(pb)) == 0L) stop("keep_clusters에 해당하는 클러스터가 없습니다.")
+  
+  if (length(method) > 1) {
+    current_call <- match.call()
+    
+    results_list <- lapply(method, function(m) {
+      single_call <- current_call
+      single_call$method <- m
+      tryCatch({
+        eval(single_call)
+      }, error = function(e) {
+        warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+        return(list(method = m, error = e$message))
+      })
+    })
+    
+    names(results_list) <- method
+    return(results_list)
   }
-
-  # 2-1) pb 메타 보강 (sample_id / group_id / batch)
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-
-  # sample_id 없으면 assay의 colnames로 복구
-  if (!"sample_id" %in% names(pb_meta)) {
-    first_assay <- names(SummarizedExperiment::assays(pb))[1]
-    sid_guess <- colnames(SummarizedExperiment::assays(pb)[[first_assay]])
-    if (is.null(sid_guess)) stop("pb에 sample_id가 없습니다.")
-    pb_meta$sample_id <- sid_guess
-    rownames(pb_meta) <- pb_meta$sample_id
-    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta)
+  
+  if (!method %in% all_methods) {
+    stop(sprintf("Invalid method '%s'. Choose from: %s", 
+                 method, paste(all_methods, collapse=", ")))
   }
-
-  # sce에서 (sample_id -> group_id / batch) map
-  sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
-  map_cols <- c("sample_id","group_id")
-  if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
-  sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
-
-  # pb에 group_id / batch 보강
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-  need_fix <- (!"group_id" %in% names(pb_meta)) ||
-              (length(unique(pb_meta$group_id)) < 2) ||
-              (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
-  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
-    pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
-    if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
-      pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
-      pb_meta2$group_id.x <- NULL; pb_meta2$group_id.y <- NULL
+  
+  set.seed(fgs_seed)
+  
+  # ===
+  # 1. Input validation and data extraction (v3와 동일)
+  # ===
+  
+  is_seurat <- inherits(data, "Seurat")
+  
+  if (is_seurat) {
+    if (!requireNamespace("Seurat", quietly = TRUE)) {
+      stop("Seurat package required but not installed")
     }
-    rownames(pb_meta2) <- rownames(pb_meta)
-    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta2)
-  }
-
-  # factor화
-  pb$sample_id <- droplevels(factor(SummarizedExperiment::colData(pb)$sample_id))
-  pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
-    pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
-  }
-
-  # 3) contrast 그룹만 자동 subset
-  extract_groups <- function(contrast_str, levels_available){
-    z <- gsub("\\s+", "", contrast_str)
-    toks <- unique(gsub("^group(_id)?", "", unlist(strsplit(z, "[^A-Za-z0-9_]+"))))
-    toks <- toks[nchar(toks) > 0]
-    keep <- intersect(toks, levels_available)
-    if (length(keep) < 1) {
-      g2 <- levels_available[vapply(levels_available, function(g) grepl(g, z), logical(1))]
-      keep <- unique(g2)
+    if (is.null(meta.data)) {
+      meta.data <- data@meta.data
     }
-    keep
-  }
-  grp_lvls <- levels(SummarizedExperiment::colData(pb)$group_id)
-  tg <- extract_groups(contrast, grp_lvls)
-  if (length(tg) < 2) stop(sprintf("contrast에서 추출한 그룹이 부족합니다. contrast='%s', 사용가능레벨=%s",
-                                   contrast, paste(grp_lvls, collapse=", ")))
-
-  keep_idx <- SummarizedExperiment::colData(pb)$group_id %in% tg
-  pb_sub <- pb[, keep_idx]
-  pb_sub$group_id <- droplevels(factor(SummarizedExperiment::colData(pb_sub)$group_id))
-
-  # **sce도 동일 기준으로 subset (resDS용 필수)**
-  sce_sub <- sce[, sce$sample_id %in% SummarizedExperiment::colData(pb_sub)$sample_id &
-                    sce$group_id  %in% tg]
-  sce_sub$cluster_id <- droplevels(factor(sce_sub$cluster_id))
-  sce_sub$sample_id  <- droplevels(factor(sce_sub$sample_id))
-  sce_sub$group_id   <- droplevels(factor(sce_sub$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
-    sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
-  }
-
-  # 4) design/contrast (batch는 'batch'로 복사해서 사용)
-  pb_sub$group <- pb_sub$group_id
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb_sub))) {
-    pb_sub$batch <- droplevels(factor(SummarizedExperiment::colData(pb_sub)[[batch_id]]))
-    design <- stats::model.matrix(~ 0 + group + batch,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
+    if ("data" %in% names(data@assays[[1]])) {
+      expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "data"))
+    } else {
+      expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "counts"))
+    }
   } else {
-    design <- stats::model.matrix(~ 0 + group,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
-  }
-
-  fix_contrast <- function(contrast_str, design_cols){
-    z <- gsub("\\s+", "", contrast_str)
-    toks <- unlist(strsplit(z, "([+\\-])", perl=TRUE))
-    ops  <- unlist(regmatches(z, gregexpr("([+\\-])", z, perl=TRUE)))
-    rebuild <- function(tok){
-      tok <- gsub("^group(_id)?", "group", tok)
-      if (!grepl("^group", tok)) tok <- paste0("group", tok)
-      tok
+    if (is.null(meta.data)) {
+      stop("meta.data must be provided when data is not a Seurat object")
     }
-    toks2 <- vapply(toks, rebuild, character(1))
-    out <- toks2[1]; if (length(ops)) for (i in seq_along(ops)) out <- paste0(out, ops[i], toks2[i+1])
-    out
+    expr_mat <- as.matrix(data)
+    if (nrow(expr_mat) == nrow(meta.data)) {
+      expr_mat <- t(expr_mat)
+    }
   }
-  contrast_fixed <- fix_contrast(contrast, colnames(design))
-  contrast_matrix <- limma::makeContrasts(contrasts = contrast_fixed, levels = design)
+  
+  if (!target_var %in% colnames(meta.data)) {
+    stop(sprintf("target_var '%s' not found", target_var))
+  }
+  
+  # [V4 UPGRADE] control_vars 유효성 검사
+  if (!is.null(control_vars)) {
+    missing_vars <- control_vars[!control_vars %in% colnames(meta.data)]
+    if (length(missing_vars) > 0) {
+      stop(sprintf("control_vars not found in metadata: %s", 
+                   paste(missing_vars, collapse=", ")))
+    }
+  }
+  
+  common_cells <- intersect(colnames(expr_mat), rownames(meta.data))
+  if (length(common_cells) == 0) {
+    stop("No common cells found between expression matrix and metadata")
+  }
+  expr_mat <- expr_mat[, common_cells]
+  meta.data <- meta.data[common_cells, ]
+  
+  # ===
+  # 2. Process target variable (v3와 동일)
+  # ===
+  
+  target_values <- meta.data[[target_var]]
+  target_type <- class(target_values)[1]
+  
+  if (is.numeric(target_values)) {
+    # ... (numeric 처리 로직, v3와 동일) ...
+     if (is.null(target_group)) { target_group <- 0.25 }
+     if (is.list(target_group)) {
+       low_cutoff <- quantile(target_values, target_group$low, na.rm=TRUE)
+       high_cutoff <- quantile(target_values, target_group$high, na.rm=TRUE)
+     } else if (length(target_group) == 1 && target_group < 1) {
+       low_cutoff <- quantile(target_values, target_group, na.rm=TRUE)
+       high_cutoff <- quantile(target_values, 1 - target_group, na.rm=TRUE)
+     } else {
+       low_cutoff <- high_cutoff <- target_group
+     }
+     group_labels <- ifelse(target_values <= low_cutoff, "Low",
+                            ifelse(target_values >= high_cutoff, "High", NA))
+     keep_cells <- !is.na(group_labels)
+  } else {
+    if (!is.null(target_group)) {
+      keep_cells <- target_values %in% target_group
+    } else {
+      keep_cells <- TRUE # 모든 팩터 레벨 사용
+    }
+    group_labels <- target_values
+  }
+  
+  expr_mat <- expr_mat[, keep_cells]
+  meta.data <- meta.data[keep_cells, ]
+  target_binary <- factor(group_labels[keep_cells]) # factor로 변환
+  
+  if (length(unique(target_binary)) < 2) {
+    stop("Target variable must have at least 2 groups after processing")
+  }
+  
+  n_groups <- length(unique(target_binary))
+  
+  # ===
+  # 3. Filter and preprocess genes (v3와 동일)
+  # ===
+  
+  n_cells_expr <- rowSums(expr_mat > 0)
+  pct_cells_expr <- n_cells_expr / ncol(expr_mat)
+  keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
+  expr_mat <- expr_mat[keep_genes, ]
+  
+  if (nrow(expr_mat) == 0) {
+    stop("No genes pass filtering criteria")
+  }
+  
+  # ===
+  # 3.5 [V4 UPGRADE] Speed-up: Pre-filter genes using test_n
+  # ===
+  if (!is.null(test_n) && nrow(expr_mat) > test_n) {
+    message(sprintf("Pre-filtering to top %d genes based on limma p-value...", test_n))
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for 'test_n' pre-filtering")
+    }
+    
+    # limma는 교란변수를 '미리' 보정하고 p-value를 뽑을 수 있음
+    if (is.null(control_vars)) {
+      design_test <- model.matrix(~ target_binary, data = meta.data)
+    } else {
+      formula_test <- as.formula(paste("~ target_binary +", paste(control_vars, collapse="+")))
+      design_test <- model.matrix(formula_test, data = meta.data)
+    }
+    
+    fit_test <- limma::lmFit(expr_mat, design_test)
+    fit_test <- limma::eBayes(fit_test)
+    
+    # p-value 추출 (target_binary 그룹 비교)
+    top_table_test <- limma::topTable(fit_test, 
+                                      coef = grep("target_binary", colnames(design_test)), 
+                                      number = Inf, sort.by = "P")
+    
+    top_gene_names <- rownames(top_table_test)[1:min(test_n, nrow(top_table_test))]
+    expr_mat <- expr_mat[top_gene_names, ]
+    message(sprintf("... reduced to %d genes.", nrow(expr_mat)))
+  }
+  
+  if (preprocess) {
+    if (max(expr_mat) > 100) {
+      expr_mat <- log1p(expr_mat)
+    }
+    if (method %in% c("lasso", "gam", "pca_loadings")) {
+      gene_means <- rowMeans(expr_mat)
+      gene_sds <- apply(expr_mat, 1, sd)
+      gene_sds[gene_sds == 0] <- 1
+      expr_mat <- (expr_mat - gene_means) / gene_sds
+    }
+  }
+  
+  # ===
+  # 3.8 [V4 UPGRADE] Confounder pre-correction (for non-native methods)
+  # ===
+  if (!is.null(control_vars) && method %in% c("wilcoxon", "nmf", "pca_loadings")) {
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for removeBatchEffect")
+    }
+    
+    message(sprintf("Method %s: Applying limma::removeBatchEffect for: %s",
+                    method, paste(control_vars, collapse=", ")))
+    
+    # removeBatchEffect는 design matrix가 아닌 'batch' 또는 'covariates'를 받음
+    covariates_df <- meta.data[, control_vars, drop = FALSE]
+    
+    # Factor 변수들을 model.matrix로 변환
+    covariate_mat <- model.matrix(~ . - 1, data = covariates_df) 
+    
+    expr_mat <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
+  }
+  
+  
+  # ===
+  # 4. Method-specific signature discovery
+  # ===
+  
+  # X (samples x genes)는 여러 메서드에서 공통으로 사용
+  X <- t(expr_mat)
+  y <- target_binary
+  
+  # [V4 UPGRADE] Native-supporting methods에서 사용할 교란변수 매트릭스
+  if (!is.null(control_vars) && method %in% c("tree_based", "lasso", "gam")) {
+     covariate_mat_model <- model.matrix(~ . - 1, 
+                                data = meta.data[, control_vars, drop=FALSE])
+  }
 
-  # 5) pbDS
-  res <- muscat::pbDS(
-    pb_sub,
-    design    = design,
-    method    = method,
-    contrast  = contrast_matrix,
-    min_cells = pb_min_cells,
-    filter    = filter_genes,
-    verbose   = TRUE
+  
+  result <- switch(method,
+                 
+                 tree_based = {
+                   if (!requireNamespace("randomForest", quietly = TRUE)) { ... }
+                   
+                   X_rf <- X
+                   
+                   # [V4 UPGRADE] 교란 변수를 X 매트릭스에 추가
+                   if (!is.null(control_vars)) {
+                     X_rf <- cbind(X_rf, covariate_mat_model)
+                   }
+                   
+                   if (ncol(X_rf) > 2000) {
+                     # ... (v3의 top_var_genes 로직은 test_n으로 대체됨) ...
+                     # ... 단, control_vars가 추가되었으므로 컬럼 이름으로 필터링
+                     gene_vars <- apply(X, 2, var) # 원본 X에서만 var 계산
+                     top_var_genes <- names(sort(gene_vars, decreasing=TRUE)[1:2000])
+                     
+                     # 교란 변수는 항상 포함
+                     X_rf <- X_rf[, c(top_var_genes, colnames(covariate_mat_model))]
+                   }
+                   
+                   rf_model <- randomForest::randomForest(x = X_rf, y = y, ntree = 500, importance = TRUE, ...)
+                   
+                   importance_scores <- randomForest::importance(rf_model)
+                   
+                   # ... (v3의 MeanDecreaseGini 로직) ...
+                   if (n_groups == 2) {
+                     weights_magnitude_all <- importance_scores[, "MeanDecreaseGini"]
+                   } else {
+                     weights_magnitude_all <- rowMeans(importance_scores[, grep("MeanDecreaseGini", colnames(importance_scores))])
+                   }
+                   
+                   # [V4 UPGRADE] 교란 변수를 제외하고 '유전자'만 선택
+                   gene_names_in_model <- colnames(X_rf)[!colnames(X_rf) %in% colnames(covariate_mat_model)]
+                   weights_magnitude_genes <- weights_magnitude_all[gene_names_in_model]
+                   
+                   top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
+                   weights_magnitude <- weights_magnitude_genes[top_genes]
+                   
+                   # ... (v3의 방향성 보정 및 나머지 로직 동일) ...
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]; g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1 
+                     weights <- weights_magnitude * sign(effect_size)
+                   } else {
+                     weights <- weights_magnitude
+                   }
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   # ... (v3의 performance 로직) ...
+                   list(...) 
+                 },
+                 
+                 lasso = {
+                   if (!requireNamespace("glmnet", quietly = TRUE)) { ... }
+                   
+                   # [V4 UPGRADE] X 매트릭스 구성 및 penalty.factor 설정
+                   if (is.null(control_vars)) {
+                     X_model <- X
+                     penalty_vec <- rep(1, ncol(X_model)) # 모든 유전자에 페널티 1
+                   } else {
+                     X_model <- cbind(X, covariate_mat_model)
+                     # 유전자는 페널티 1, 교란 변수는 페널티 0 (Lasso에서 제외)
+                     penalty_vec <- c(rep(1, ncol(X)), rep(0, ncol(covariate_mat_model)))
+                   }
+                   
+                   # [V4 UPGRADE] cv.glmnet 호출 시 penalty.factor 전달
+                   if (n_groups == 2) {
+                     cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=1, 
+                                                 penalty.factor = penalty_vec, ...)
+                   } else {
+                     cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=1, 
+                                                 penalty.factor = penalty_vec, ...)
+                   }
+                   
+                   coefs <- coef(cv_fit, s = lambda_selection) 
+                   
+                   # [V4 UPGRADE] weights 추출 시 유전자 부분만 선택
+                   if (n_groups == 2) {
+                     # 1번은 intercept, (ncol(X)+1)까지가 유전자
+                     weights_all <- as.numeric(coefs[2:(ncol(X)+1)]) 
+                     names(weights_all) <- rownames(coefs)[2:(ncol(X)+1)]
+                   } else {
+                     coef_list <- lapply(coefs, function(x) as.numeric(x[2:(ncol(X)+1)]))
+                     weights_all <- rowMeans(do.call(cbind, coef_list))
+                     names(weights_all) <- rownames(coefs[[1]])[2:(ncol(X)+1)]
+                   }
+                   
+                   # ... (v3의 non-zero 유전자 선택 및 나머지 로직 동일) ...
+                   nonzero_genes <- names(weights_all)[weights_all != 0]
+                   if (length(nonzero_genes) == 0) {
+                     top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+                   } else {
+                     nonzero_weights <- weights_all[nonzero_genes]
+                     top_genes <- names(sort(abs(nonzero_weights), decreasing=TRUE)[1:min(n_features, length(nonzero_weights))])
+                   }
+                   weights <- weights_all[top_genes]
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   # ... (v3의 performance 로직) ...
+                   list(...)
+                 },
+                 
+                 limma = {
+                   if (!requireNamespace("limma", quietly = TRUE)) { ... }
+                   
+                   # [V4 UPGRADE] control_vars를 포함하는 formula 생성
+                   if (is.null(control_vars)) {
+                     design <- model.matrix(~0 + target_binary, data = meta.data)
+                     colnames(design)[1:n_groups] <- levels(target_binary)
+                   } else {
+                     control_formula <- paste(control_vars, collapse = " + ")
+                     full_formula <- as.formula(paste("~0 + target_binary +", control_formula))
+                     design <- model.matrix(full_formula, data = meta.data)
+                     colnames(design)[1:n_groups] <- levels(target_binary) 
+                   }
+
+                   fit <- limma::lmFit(expr_mat, design)
+                   
+                   # ... (v3의 contrast 생성 및 나머지 로직 동일) ...
+                   if (n_groups == 2) {
+                     contrast_str <- paste(levels(target_binary)[2], levels(target_binary)[1], sep="-")
+                   } else {
+                      # ... (v3의 n_groups > 2 로직) ...
+                   }
+                   contrast_mat <- limma::makeContrasts(contrasts=contrast_str, levels=design)
+                   fit2 <- limma::contrasts.fit(fit, contrast_mat)
+                   fit2 <- limma::eBayes(fit2)
+                   top_table <- limma::topTable(fit2, number=Inf, sort.by="B")
+                   
+                   weights_all <- top_table$t
+                   names(weights_all) <- rownames(top_table)
+                   top_genes <- rownames(top_table)[1:min(n_features, nrow(top_table))]
+                   weights <- weights_all[top_genes]
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = list(top_table = top_table[top_genes, ]), 
+                        model = if(return_model) fit2 else NULL)
+                 },
+                 
+                 wilcoxon = {
+                   # [V4] 이 블록은 수정할 필요가 없습니다.
+                   # 만약 control_vars가 있었다면, 함수 상단의
+                   # '3.8 Pre-correction' 블록에서 expr_mat이 이미 보정되었습니다.
+                   
+                   # ... (v3의 wilcoxon 로직 동일) ...
+                   pvals <- numeric(nrow(expr_mat))
+                   effect_sizes <- numeric(nrow(expr_mat))
+                   for (i in 1:nrow(expr_mat)) { ... }
+                   # ... (v3 로직 계속) ...
+                   list(...)
+                 },
+                 
+                 nmf = {
+                   # [V4] 이 블록도 수정할 필요가 없습니다.
+                   # control_vars가 있었다면 expr_mat이 이미 보정되었습니다.
+                   
+                   # ... (v3의 nmf 로직 동일) ...
+                   list(...)
+                 },
+                 
+                 gam = {
+                   if (!requireNamespace("mgcv", quietly = TRUE)) { ... }
+                   
+                   # ... (v3의 n_test_genes 로직 동일) ...
+                   
+                   deviance_explained <- numeric(nrow(expr_mat))
+                   names(deviance_explained) <- rownames(expr_mat)
+                   
+                   # [V4 UPGRADE] 교란 변수를 포함하는 GAM formula 생성
+                   if (is.null(control_vars)) {
+                     formula_base <- ""
+                     gam_data <- data.frame(y_var = target_binary)
+                   } else {
+                     formula_base <- paste(" +", paste(control_vars, collapse=" + "))
+                     gam_data <- data.frame(y_var = target_binary, 
+                                            meta.data[, control_vars, drop=FALSE])
+                   }
+                   
+                   # ... (v3의 gam 루프) ...
+                   for (i in test_genes_idx) {
+                     gam_data$gene_expr <- expr_mat[i, ]
+                     
+                     if (n_groups == 2) {
+                       gam_data$y_var_numeric <- as.numeric(gam_data$y_var) - 1
+                       full_formula_str <- paste("y_var_numeric ~ s(gene_expr)", formula_base)
+                       gam_fit <- mgcv::gam(as.formula(full_formula_str), 
+                                            data = gam_data, family="binomial", ...)
+                     } else {
+                       gam_data$y_var_numeric <- as.numeric(gam_data$y_var)
+                       full_formula_str <- paste("y_var_numeric ~ s(gene_expr)", formula_base)
+                       gam_fit <- mgcv::gam(as.formula(full_formula_str), 
+                                            data = gam_data, ...)
+                     }
+                     deviance_explained[i] <- summary(gam_fit)$dev.expl
+                   }
+                   
+                   # ... (v3의 나머지 로직 동일) ...
+                   weights_magnitude <- deviance_explained
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, sum(weights_magnitude > 0))])
+                   # ... (방향성 보정) ...
+                   list(...)
+                 },
+                 
+                 pca_loadings = {
+                   # [V4] 이 블록도 수정할 필요가 없습니다.
+                   # control_vars가 있었다면 expr_mat이 이미 보정되었습니다.
+                   
+                   # ... (v3의 pca_loadings 로직 동일) ...
+                   list(...)
+                 }
+  )
+  
+  # ===
+  # 5. Return results (v3와 동일)
+  # ===
+  
+  result$method <- method
+  result$target_var <- target_var
+  result$n_groups <- n_groups
+  result$n_cells <- ncol(expr_mat)
+  result$formula <- paste(deparse(match.call()), collapse = " ")
+  
+  class(result) <- c("gene_signature", "list")
+  return(result)
+}
+
+# [V(4.1)] find_gene_signature_v4.1
+#
+# 변경점 (2025-11-10):
+# 1. [FIX-NA] 2.Process target: meta.data 서브셋 후 'droplevels()'를 호출하여
+#    control_vars/target_binary의 미사용 레벨을 제거 (model.matrix NA 에러 방지)
+# 2. [FIX-Lasso] 4.Method (lasso): 'nonzero_genes' 필터링 로직 제거.
+#    항상 'abs(weights_all)' 기준 상위 n_features 반환 (n_features 개수 보장)
+# 3. [FIX-NMF] 3.8 Pre-correction: 'nmf'를 'removeBatchEffect' 대상에서 제외.
+# 4. [FIX-NMF] 4.Method (nmf): 'nmf' 블록 *내부*에서 control_vars를
+#    'removeBatchEffect'로 보정하고, 즉시 'min-shift'로 양수화.
+# 5. [FIX-GAM] 4.Method (gam): 'gam' 블록 내부의 중복된 유전자 필터링
+#    ('test_genes_idx') 로직 제거. 'test_n'으로 필터링된 모든 유전자 사용.
+# 6. [FIX-Wilcox] 4.Method (wilcoxon): 'wilcox.test'/'kruskal.test'에서 '...' 인자 제거.
+
+find_gene_signature_v4.1 <- function(data, 
+                                 meta.data = NULL,
+                                 target_var,
+                                 target_group = NULL,
+                                 control_vars = NULL,   
+                                 method = c("tree_based", "lasso", "limma", 
+                                            "nmf", "wilcoxon", "gam", "pca_loadings"),
+                                 n_features = 50,
+                                 test_n = NULL,         
+                                 preprocess = TRUE,
+                                 min_cells = 10,
+                                 min_pct = 0.01,
+                                 return_model = FALSE,
+                                 fgs_seed = 42,
+                                 lambda_selection = "lambda.1se",
+                                 ...) {
+  
+  # ===
+  # 0. Batch Processing (v4와 동일)
+  # ===
+  
+  all_methods <- c("tree_based", "lasso", "limma", "nmf", "wilcoxon", "gam", "pca_loadings")
+  
+  if (is.null(method)) {
+    method <- all_methods
+  }
+  
+  if (length(method) > 1) {
+    current_call <- match.call()
+    
+    results_list <- lapply(method, function(m) {
+      single_call <- current_call
+      single_call$method <- m
+      tryCatch({
+        eval(single_call)
+      }, error = function(e) {
+        warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+        return(list(method = m, error = e$message))
+      })
+    })
+    
+    names(results_list) <- method
+    return(results_list)
+  }
+  
+  if (!method %in% all_methods) {
+    stop(sprintf("Invalid method '%s'. Choose from: %s", 
+                 method, paste(all_methods, collapse=", ")))
+  }
+  
+  set.seed(fgs_seed)
+  
+  # ===
+  # 1. Input validation and data extraction (v4와 동일)
+  # ===
+  
+  is_seurat <- inherits(data, "Seurat")
+  
+  if (is_seurat) {
+    if (!requireNamespace("Seurat", quietly = TRUE)) {
+      stop("Seurat package required but not installed")
+    }
+    if (is.null(meta.data)) {
+      meta.data <- data@meta.data
+    }
+    # Seurat v5/v4 호환
+    if ("data" %in% Seurat::Layers(data)) {
+        expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "data"))
+    } else if ("counts" %in% Seurat::Layers(data)) {
+        expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "counts"))
+    } else if ("data" %in% names(data@assays[[Seurat::DefaultAssay(data)]])) {
+        expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "data"))
+    } else {
+        expr_mat <- as.matrix(Seurat::GetAssayData(data, layer = "counts"))
+    }
+  } else {
+    if (is.null(meta.data)) {
+      stop("meta.data must be provided when data is not a Seurat object")
+    }
+    expr_mat <- as.matrix(data)
+    if (nrow(expr_mat) == nrow(meta.data)) {
+      expr_mat <- t(expr_mat)
+    }
+  }
+  
+  if (!target_var %in% colnames(meta.data)) {
+    stop(sprintf("target_var '%s' not found in metadata columns: %s", 
+                 target_var, paste(colnames(meta.data), collapse=", ")))
+  }
+  
+  if (!is.null(control_vars)) {
+    missing_vars <- control_vars[!control_vars %in% colnames(meta.data)]
+    if (length(missing_vars) > 0) {
+      stop(sprintf("control_vars not found in metadata: %s", 
+                   paste(missing_vars, collapse=", ")))
+    }
+  }
+  
+  common_cells <- intersect(colnames(expr_mat), rownames(meta.data))
+  if (length(common_cells) == 0) {
+    stop("No common cells found between expression matrix and metadata")
+  }
+  expr_mat <- expr_mat[, common_cells]
+  meta.data <- meta.data[common_cells, ]
+  
+  # ===
+  # 2. Process target variable (v4.1 수정)
+  # ===
+  
+  target_values <- meta.data[[target_var]]
+  target_type <- class(target_values)[1]
+  
+  if (is.numeric(target_values)) {
+    if (is.null(target_group)) {
+      target_group <- 0.25
+    }
+    if (is.list(target_group)) {
+      low_cutoff <- quantile(target_values, target_group$low, na.rm=TRUE)
+      high_cutoff <- quantile(target_values, target_group$high, na.rm=TRUE)
+      group_labels <- ifelse(target_values <= low_cutoff, "Low",
+                             ifelse(target_values >= high_cutoff, "High", NA))
+    } else if (length(target_group) == 1 && target_group < 1) {
+      low_cutoff <- quantile(target_values, target_group, na.rm=TRUE)
+      high_cutoff <- quantile(target_values, 1 - target_group, na.rm=TRUE)
+      group_labels <- ifelse(target_values <= low_cutoff, "Low",
+                             ifelse(target_values >= high_cutoff, "High", NA))
+    } else {
+      group_labels <- ifelse(target_values < target_group, "Low", "High")
+    }
+    keep_cells <- !is.na(group_labels)
+  } else {
+    if (!is.null(target_group)) {
+      keep_cells <- target_values %in% target_group
+    } else {
+      keep_cells <- rep(TRUE, length(target_values))
+    }
+    group_labels <- target_values
+    keep_cells <- keep_cells & !is.na(group_labels)
+  }
+  
+  expr_mat <- expr_mat[, keep_cells]
+  meta.data <- meta.data[keep_cells, ]
+  
+  # [FIX-NA] 사용하지 않는 팩터 레벨 제거 (model.matrix 에러 방지)
+  target_binary <- factor(group_labels[keep_cells])
+  
+  if (!is.null(control_vars)) {
+    for (cv in control_vars) {
+      if (is.factor(meta.data[[cv]])) {
+        meta.data[[cv]] <- droplevels(meta.data[[cv]])
+      }
+    }
+  }
+
+  if (length(unique(target_binary)) < 2) {
+    stop("Target variable must have at least 2 groups after processing")
+  }
+  n_groups <- length(unique(target_binary))
+  
+  # ===
+  # 3. Filter and preprocess genes (v4와 동일)
+  # ===
+  
+  n_cells_expr <- rowSums(expr_mat > 0)
+  pct_cells_expr <- n_cells_expr / ncol(expr_mat)
+  keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
+  expr_mat <- expr_mat[keep_genes, ]
+  
+  if (nrow(expr_mat) == 0) {
+    stop("No genes pass filtering criteria")
+  }
+  
+  # ===
+  # 3.5 [V4] Speed-up: Pre-filter genes using test_n
+  # ===
+  if (!is.null(test_n) && nrow(expr_mat) > test_n) {
+    message(sprintf("Pre-filtering to top %d genes based on limma p-value...", test_n))
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for 'test_n' pre-filtering")
+    }
+    
+    if (is.null(control_vars)) {
+      design_test <- model.matrix(~ target_binary, data = meta.data)
+    } else {
+      formula_test <- as.formula(paste("~ target_binary +", paste(control_vars, collapse="+")))
+      design_test <- model.matrix(formula_test, data = meta.data)
+    }
+    
+    fit_test <- limma::lmFit(expr_mat, design_test)
+    fit_test <- limma::eBayes(fit_test)
+    
+    coef_indices <- grep("target_binary", colnames(design_test))
+    if (length(coef_indices) == 0) {
+        warning("Could not find target_binary coefficients for test_n pre-filtering.")
+        # Fallback: use all coefficients (less ideal)
+        coef_indices <- 1:ncol(design_test)
+    }
+    
+    top_table_test <- limma::topTable(fit_test, 
+                                      coef = coef_indices, 
+                                      number = Inf, sort.by = "P")
+    
+    top_gene_names <- rownames(top_table_test)[1:min(test_n, nrow(top_table_test))]
+    expr_mat <- expr_mat[top_gene_names, ]
+    message(sprintf("... reduced to %d genes.", nrow(expr_mat)))
+  }
+  
+  if (preprocess) {
+    if (max(expr_mat) > 100) {
+      expr_mat <- log1p(expr_mat)
+    }
+    if (method %in% c("lasso", "gam", "pca_loadings")) {
+      gene_means <- rowMeans(expr_mat)
+      gene_sds <- apply(expr_mat, 1, sd)
+      gene_sds[gene_sds == 0] <- 1
+      expr_mat <- (expr_mat - gene_means) / gene_sds
+    }
+  }
+  
+  # ===
+  # 3.8 [V4.1] Confounder pre-correction (non-native methods)
+  # ===
+  
+  # [FIX-NMF] 'nmf'는 removeBatchEffect 대상에서 제외 (음수 값 방지)
+  if (!is.null(control_vars) && method %in% c("wilcoxon", "pca_loadings")) { 
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for removeBatchEffect")
+    }
+    
+    message(sprintf("Method %s: Applying limma::removeBatchEffect for: %s",
+                    method, paste(control_vars, collapse=", ")))
+    
+    covariates_df <- meta.data[, control_vars, drop = FALSE]
+    
+    # Check for factors and create model matrix
+    if(any(sapply(covariates_df, is.factor)) || any(sapply(covariates_df, is.character))) {
+        covariate_mat <- model.matrix(~ . - 1, data = covariates_df)
+    } else {
+        covariate_mat <- as.matrix(covariates_df)
+    }
+    
+    expr_mat <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
+  }
+  
+  
+  # ===
+  # 4. Method-specific signature discovery (v4.1 수정)
+  # ===
+  
+  X <- t(expr_mat)
+  y <- target_binary
+  
+  covariate_mat_model <- NULL # Initialize
+  if (!is.null(control_vars) && method %in% c("tree_based", "lasso", "gam")) {
+     covariates_df_model <- meta.data[, control_vars, drop = FALSE]
+     if(any(sapply(covariates_df_model, is.factor)) || any(sapply(covariates_df_model, is.character))) {
+        covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
+     } else {
+        covariate_mat_model <- as.matrix(covariates_df_model)
+     }
+  }
+
+  
+  result <- switch(method,
+                 
+                 tree_based = {
+                   if (!requireNamespace("randomForest", quietly = TRUE)) {
+                     stop("randomForest package required. Install with: install.packages('randomForest')")
+                   }
+                   
+                   X_rf <- X
+                   
+                   if (!is.null(control_vars)) {
+                     X_rf <- cbind(X_rf, covariate_mat_model)
+                   }
+                   
+                   # Pre-filter genes if matrix is still too large
+                   if (ncol(X_rf) > 2000) {
+                     gene_vars <- apply(X, 2, var) # var from original X
+                     top_var_genes <- names(sort(gene_vars, decreasing=TRUE)[1:2000])
+                     
+                     control_var_names <- if(is.null(control_vars)) character(0) else colnames(covariate_mat_model)
+                     X_rf <- X_rf[, c(top_var_genes, control_var_names)]
+                   }
+                   
+                   rf_model <- randomForest::randomForest(x = X_rf, y = y, ntree = 500, importance = TRUE, ...)
+                   
+                   importance_scores <- randomForest::importance(rf_model)
+                   if (n_groups == 2) {
+                     weights_magnitude_all <- importance_scores[, "MeanDecreaseGini"]
+                   } else {
+                     weights_magnitude_all <- rowMeans(importance_scores[, grep("MeanDecreaseGini", colnames(importance_scores))])
+                   }
+                   
+                   gene_names_in_model <- colnames(X_rf)[!colnames(X_rf) %in% colnames(covariate_mat_model)]
+                   weights_magnitude_genes <- weights_magnitude_all[gene_names_in_model]
+                   
+                   top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
+                   weights_magnitude <- weights_magnitude_genes[top_genes]
+                   
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1 
+                     weights <- weights_magnitude * sign(effect_size)
+                   } else {
+                     warning("tree_based: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   pred <- rf_model$predicted
+                   if (n_groups == 2) {
+                     if (requireNamespace("pROC", quietly = TRUE)) {
+                       roc_obj <- pROC::roc(y, scores, quiet=TRUE)
+                       auc <- as.numeric(pROC::auc(roc_obj))
+                     } else { auc <- NA }
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+                   } else {
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, confusion = table(pred, y))
+                   }
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) rf_model else NULL)
+                 },
+                 
+                 lasso = {
+                   if (!requireNamespace("glmnet", quietly = TRUE)) {
+                     stop("glmnet package required. Install with: install.packages('glmnet')")
+                   }
+                   
+                   if (is.null(control_vars)) {
+                     X_model <- X
+                     penalty_vec <- rep(1, ncol(X_model))
+                   } else {
+                     X_model <- cbind(X, covariate_mat_model)
+                     penalty_vec <- c(rep(1, ncol(X)), rep(0, ncol(covariate_mat_model)))
+                   }
+                   
+                   if (n_groups == 2) {
+                     cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=1, 
+                                                 penalty.factor = penalty_vec, ...)
+                   } else {
+                     cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=1, 
+                                                 penalty.factor = penalty_vec, ...)
+                   }
+                   
+                   coefs <- coef(cv_fit, s = lambda_selection) 
+                   
+                   if (n_groups == 2) {
+                     weights_all <- as.numeric(coefs[2:(ncol(X)+1)]) 
+                     names(weights_all) <- rownames(coefs)[2:(ncol(X)+1)]
+                   } else {
+                     coef_list <- lapply(coefs, function(x) as.numeric(x[2:(ncol(X)+1)]))
+                     weights_all <- rowMeans(do.call(cbind, coef_list))
+                     names(weights_all) <- rownames(coefs[[1]])[2:(ncol(X)+1)]
+                   }
+                   
+                   if (length(weights_all) == 0) {
+                     stop("LASSO returned no gene coefficients.")
+                   }
+
+                   # [FIX-Lasso] 'nonzero' 필터링 제거. 항상 abs(weight)로 정렬.
+                   top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+                   
+                   weights <- weights_all[top_genes]
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   pred_probs <- predict(cv_fit, newx=X_model, s = lambda_selection, type="response")
+                   if (n_groups == 2) {
+                     pred <- factor(ifelse(pred_probs > 0.5, levels(y)[2], levels(y)[1]), levels=levels(y))
+                     if (requireNamespace("pROC", quietly = TRUE)) {
+                       roc_obj <- pROC::roc(y, scores, quiet=TRUE) 
+                       auc <- as.numeric(pROC::auc(roc_obj))
+                     } else { auc <- NA }
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+                   } else {
+                     pred_class_indices <- apply(pred_probs[,,1], 1, which.max)
+                     pred <- levels(y)[pred_class_indices]
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, confusion = table(pred, y))
+                   }
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) cv_fit else NULL)
+                 },
+                 
+                 limma = {
+                   if (!requireNamespace("limma", quietly = TRUE)) {
+                     stop("limma package required. Install with: BiocManager::install('limma')")
+                   }
+                   
+                   if (is.null(control_vars)) {
+                     design <- model.matrix(~0 + target_binary, data = meta.data)
+                     colnames(design)[1:n_groups] <- levels(target_binary)
+                   } else {
+                     control_formula <- paste(control_vars, collapse = " + ")
+                     full_formula <- as.formula(paste("~0 + target_binary +", control_formula))
+                     design <- model.matrix(full_formula, data = meta.data)
+                     colnames(design)[1:n_groups] <- levels(target_binary) 
+                   }
+
+                   fit <- limma::lmFit(expr_mat, design)
+                   
+                   if (n_groups == 2) {
+                     contrast_str <- paste(levels(target_binary)[2], levels(target_binary)[1], sep="-")
+                   } else {
+                     # Create all pairwise contrasts if n_groups > 2
+                     contrast_pairs <- combn(levels(target_binary), 2, function(x) paste(x[2], x[1], sep="-"))
+                     contrast_str <- contrast_pairs
+                     warning("limma: n_groups > 2. Using all pairwise contrasts. Weights based on average t-statistic.")
+                   }
+                   
+                   contrast_mat <- limma::makeContrasts(contrasts=contrast_str, levels=design)
+                   fit2 <- limma::contrasts.fit(fit, contrast_mat)
+                   fit2 <- limma::eBayes(fit2)
+                   
+                   if(n_groups == 2) {
+                       top_table <- limma::topTable(fit2, number=Inf, sort.by="B")
+                       weights_all <- top_table$t
+                   } else {
+                       # For multiple contrasts, sort by F-statistic
+                       top_table <- limma::topTable(fit2, number=Inf, sort.by="F")
+                       # Use average absolute t-stat as weight magnitude
+                       weights_all <- rowMeans(abs(fit2$t[, contrast_str, drop=FALSE]))
+                   }
+                   
+                   names(weights_all) <- rownames(top_table)
+                   
+                   top_genes <- rownames(top_table)[1:min(n_features, nrow(top_table))]
+                   
+                   # Re-fetch signed weights for top genes
+                   if(n_groups == 2) {
+                       weights <- top_table[top_genes, "t"]
+                   } else {
+                       # For n_groups > 2, weights are just magnitude (no clear direction)
+                       weights <- weights_all[top_genes]
+                   }
+
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(top_table = top_table[top_genes, ])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) fit2 else NULL)
+                 },
+                 
+                 wilcoxon = {
+                   # [V4.1] control_vars가 있었다면 3.8에서 expr_mat이 이미 보정됨.
+                   
+                   pvals <- numeric(nrow(expr_mat))
+                   effect_sizes <- numeric(nrow(expr_mat))
+                   names(pvals) <- rownames(expr_mat)
+                   names(effect_sizes) <- rownames(expr_mat)
+
+                   for (i in 1:nrow(expr_mat)) {
+                     if (n_groups == 2) {
+                       group1 <- expr_mat[i, target_binary == levels(target_binary)[1]]
+                       group2 <- expr_mat[i, target_binary == levels(target_binary)[2]]
+                       
+                       # [FIX-Wilcox] '...' 인자 제거
+                       test <- try(wilcox.test(group1, group2), silent=TRUE) 
+                       
+                       if(inherits(test, "try-error")) {
+                         pvals[i] <- 1.0
+                         effect_sizes[i] <- 0
+                       } else {
+                         pvals[i] <- test$p.value
+                         effect_sizes[i] <- median(group2) - median(group1)
+                       }
+                     } else {
+                       # [FIX-Wilcox] '...' 인자 제거
+                       test <- try(kruskal.test(expr_mat[i, ] ~ target_binary), silent=TRUE) 
+                       
+                       if(inherits(test, "try-error")) {
+                          pvals[i] <- 1.0
+                          effect_sizes[i] <- 0
+                       } else {
+                          pvals[i] <- test$p.value
+                          # Use variance of medians as effect size (magnitude only)
+                          effect_sizes[i] <- var(tapply(expr_mat[i, ], target_binary, median))
+                       }
+                     }
+                   }
+                   
+                   padj <- p.adjust(pvals, method="BH")
+                   
+                   ranks <- rank(pvals) + rank(-abs(effect_sizes))
+                   top_genes <- names(sort(ranks)[1:min(n_features, length(ranks))])
+                   
+                   weights <- effect_sizes[top_genes]
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(pvalues = pvals[top_genes], padj = padj[top_genes],
+                                effect_sizes = effect_sizes[top_genes])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = NULL)
+                 },
+                 
+                 nmf = {
+                   if (!requireNamespace("NMF", quietly = TRUE)) {
+                     stop("NMF package required. Install with: install.packages('NMF')")
+                   }
+                   
+                   # [FIX-NMF] 'nmf' 블록 내부에서 보정 실행
+                   if (!is.null(control_vars)) {
+                     if (!requireNamespace("limma", quietly = TRUE)) {
+                       stop("limma package required for NMF confounder correction")
+                     }
+                     warning(sprintf("Method NMF: Applying limma::removeBatchEffect for: %s. Re-shifting to non-negative.",
+                                     paste(control_vars, collapse=", ")))
+                     
+                     covariates_df <- meta.data[, control_vars, drop = FALSE]
+                     if(any(sapply(covariates_df, is.factor)) || any(sapply(covariates_df, is.character))) {
+                        covariate_mat <- model.matrix(~ . - 1, data = covariates_df)
+                     } else {
+                        covariate_mat <- as.matrix(covariates_df)
+                     }
+                     
+                     expr_mat <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
+                   }
+                   
+                   # [FIX-NMF] 보정 후 (혹은 보정 없이) 무조건 양수로 이동
+                   expr_mat_pos <- expr_mat - min(expr_mat) + 0.01 
+                   
+                   rank <- min(n_groups + 2, 10)
+                   dots <- list(...)
+                   dots$seed <- NULL 
+                   
+                   nmf_res <- do.call(NMF::nmf, c(list(x = expr_mat_pos, rank = rank, seed=fgs_seed), dots))
+                   W <- NMF::basis(nmf_res)
+                   H <- NMF::coef(nmf_res)
+                   
+                   component_cors <- numeric(rank)
+                   for (k in 1:rank) {
+                     if (n_groups == 2) {
+                       component_cors[k] <- abs(cor(H[k, ], as.numeric(target_binary)))
+                     } else {
+                       component_cors[k] <- summary(aov(H[k, ] ~ target_binary))[[1]][1, "F value"]
+                     }
+                   }
+                   
+                   best_component <- which.max(component_cors)
+                   weights_magnitude <- W[, best_component]
+                   names(weights_magnitude) <- rownames(expr_mat_pos)
+                   
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, length(weights_magnitude))])
+                   weights_magnitude <- weights_magnitude[top_genes]
+                   
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1
+                     weights <- weights_magnitude * sign(effect_size)
+                   } else {
+                     warning("nmf: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(component = best_component, correlation = component_cors[best_component])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) nmf_res else NULL)
+                 },
+                 
+                 gam = {
+                   if (!requireNamespace("mgcv", quietly = TRUE)) {
+                     stop("mgcv package required. Install with: install.packages('mgcv')")
+                   }
+                   
+                   deviance_explained <- numeric(nrow(expr_mat))
+                   names(deviance_explained) <- rownames(expr_mat)
+                   
+                   if (is.null(control_vars)) {
+                     formula_base <- ""
+                     gam_data <- data.frame(y_var = target_binary)
+                   } else {
+                     # Ensure control vars are in the data frame
+                     gam_data <- data.frame(y_var = target_binary, 
+                                            meta.data[, control_vars, drop=FALSE])
+                     # Create formula string *from names in gam_data*
+                     formula_base <- paste(" +", paste(colnames(covariate_mat_model), collapse=" + "))
+                     # Add the covariates matrix to gam_data
+                     gam_data <- cbind(gam_data, covariate_mat_model)
+                   }
+                   
+                   # [FIX-GAM] Use all genes remaining in expr_mat (1:nrow)
+                   for (i in 1:nrow(expr_mat)) {
+                     gam_data$gene_expr <- expr_mat[i, ]
+                     
+                     if (n_groups == 2) {
+                       gam_data$y_var_numeric <- as.numeric(gam_data$y_var) - 1
+                       full_formula_str <- paste("y_var_numeric ~ s(gene_expr)", formula_base)
+                       gam_fit <- try(mgcv::gam(as.formula(full_formula_str), 
+                                            data = gam_data, family="binomial", ...), silent=TRUE)
+                     } else {
+                       gam_data$y_var_numeric <- as.numeric(gam_data$y_var)
+                       full_formula_str <- paste("y_var_numeric ~ s(gene_expr)", formula_base)
+                       gam_fit <- try(mgcv::gam(as.formula(full_formula_str), 
+                                            data = gam_data, ...), silent=TRUE)
+                     }
+                     
+                     if(inherits(gam_fit, "try-error")) {
+                        deviance_explained[i] <- 0
+                     } else {
+                        deviance_explained[i] <- summary(gam_fit)$dev.expl
+                     }
+                   }
+                   
+                   weights_magnitude <- deviance_explained
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, sum(weights_magnitude > 0, na.rm=TRUE))])
+                   
+                   if (length(top_genes) == 0) {
+                     warning("GAM method found no genes with deviance > 0.")
+                     return(list(genes=character(0), weights=numeric(0), scores=numeric(0), performance=list()))
+                   }
+                   
+                   weights_magnitude <- weights_magnitude[top_genes]
+
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1
+                     weights <- weights_magnitude * sign(effect_size)
+                   } else {
+                     warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(deviance_explained = weights_magnitude)
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = NULL)
+                 },
+                 
+                 pca_loadings = {
+                   # [V4.1] control_vars가 있었다면 3.8에서 expr_mat이 이미 보정됨.
+                   # PCA는 스케일링된 데이터를 사용해야 함 (3.x에서 처리됨)
+                   
+                   pca_res <- prcomp(X, center=FALSE, scale.=FALSE) 
+                   
+                   n_pcs_to_test <- min(50, ncol(pca_res$x))
+                   pc_cors <- numeric(n_pcs_to_test)
+                   
+                   for (k in 1:n_pcs_to_test) {
+                     if (n_groups == 2) {
+                       pc_cors[k] <- abs(cor(pca_res$x[, k], as.numeric(target_binary)))
+                     } else {
+                       aov_res <- try(summary(aov(pca_res$x[, k] ~ target_binary)), silent=TRUE)
+                       if(inherits(aov_res, "try-error")) {
+                           pc_cors[k] <- 0
+                       } else {
+                           pc_cors[k] <- aov_res[[1]][1, "F value"]
+                       }
+                     }
+                   }
+                   
+                   best_pc <- which.max(pc_cors)
+                   weights_all <- pca_res$rotation[, best_pc]
+                   
+                   top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+                   weights <- weights_all[top_genes]
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(PC = best_pc, correlation = pc_cors[best_pc],
+                                variance_explained = summary(pca_res)$importance[2, best_pc])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) pca_res else NULL)
+                 }
+  )
+  
+  # ===
+  # 5. Return results (v4와 동일)
+  # ===
+  
+  result$method <- method
+  result$target_var <- target_var
+  result$n_groups <- n_groups
+  result$n_cells <- ncol(expr_mat)
+  result$formula <- paste(deparse(match.call()), collapse = " ")
+  
+  class(result) <- c("gene_signature", "list")
+  return(result)
+}
+
+find_gene_signature_v4.2 <- function(data, 
+                                 meta.data = NULL,
+                                 target_var,
+                                 target_group = NULL,
+                                 control_vars = NULL,   
+                                 method = c("tree_based", "lasso", "limma", 
+                                            "nmf", "wilcoxon", "gam", "pca_loadings"),
+                                 n_features = 50,
+                                 test_n = NULL,         
+                                 preprocess = TRUE,
+                                 min_cells = 10,
+                                 min_pct = 0.01,
+                                 return_model = FALSE,
+                                 fgs_seed = 42,
+                                 lambda_selection = "lambda.1se",
+                                 ...) {
+  
+  # ===
+  # 0. Batch Processing (v4와 동일)
+  # ===
+  
+  all_methods <- c("tree_based", "lasso", "limma", "nmf", "wilcoxon", "gam", "pca_loadings")
+  
+  if (is.null(method)) {
+    method <- all_methods
+  }
+  
+  if (length(method) > 1) {
+    current_call <- match.call()
+    
+    results_list <- lapply(method, function(m) {
+      single_call <- current_call
+      single_call$method <- m
+      tryCatch({
+        eval(single_call)
+      }, error = function(e) {
+        warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+        return(list(method = m, error = e$message))
+      })
+    })
+    
+    names(results_list) <- method
+    return(results_list)
+  }
+  
+  if (!method %in% all_methods) {
+    stop(sprintf("Invalid method '%s'. Choose from: %s", 
+                 method, paste(all_methods, collapse=", ")))
+  }
+  
+  set.seed(fgs_seed)
+  
+  # ===
+  # 1. Input validation and data extraction (v4와 동일)
+  # ===
+  
+  is_seurat <- inherits(data, "Seurat")
+  
+  if (is_seurat) {
+    if (!requireNamespace("Seurat", quietly = TRUE)) {
+      stop("Seurat package required but not installed")
+    }
+    if (is.null(meta.data)) {
+      meta.data <- data@meta.data
+    }
+    # 기본 Assay 설정 
+    default_assay <- Seurat::DefaultAssay(data)
+    
+    # 데이터 추출 우선순위:
+    # 1. 'data' 슬롯 (일반적으로 정규화된 데이터)
+    # 2. 'counts' 슬롯 (로우 데이터)
+    
+    # tryCatch를 사용하여 V5 레이어 객체와 V4/V3 slot 객체 모두 호환되도록 처리
+    expr_mat <- tryCatch({
+        # V5 방식 (레이어 접근) 시도
+        as.matrix(Seurat::GetAssayData(data, assay = default_assay, layer = "data"))
+    }, error = function(e) {
+        # V4/V3 방식 (슬롯 접근) 시도 또는 'data' 슬롯이 없을 경우
+        tryCatch({
+            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "data"))
+        }, error = function(e) {
+            # 'counts' 슬롯으로 최종 시도
+            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "counts"))
+        })
+    })
+  } else {
+    if (is.null(meta.data)) {
+      stop("meta.data must be provided when data is not a Seurat object")
+    }
+    expr_mat <- as.matrix(data)
+    if (nrow(expr_mat) == nrow(meta.data)) {
+      expr_mat <- t(expr_mat)
+    }
+  }
+  
+  if (!target_var %in% colnames(meta.data)) {
+    stop(sprintf("target_var '%s' not found in metadata columns: %s", 
+                 target_var, paste(colnames(meta.data), collapse=", ")))
+  }
+  
+  if (!is.null(control_vars)) {
+    missing_vars <- control_vars[!control_vars %in% colnames(meta.data)]
+    if (length(missing_vars) > 0) {
+      stop(sprintf("control_vars not found in metadata: %s", 
+                   paste(missing_vars, collapse=", ")))
+    }
+  }
+  
+  common_cells <- intersect(colnames(expr_mat), rownames(meta.data))
+  if (length(common_cells) == 0) {
+    stop("No common cells found between expression matrix and metadata")
+  }
+  expr_mat <- expr_mat[, common_cells]
+  meta.data <- meta.data[common_cells, ]
+  
+  # ===
+  # 2. Process target variable (v4.1 수정)
+  # ===
+  
+  target_values <- meta.data[[target_var]]
+  target_type <- class(target_values)[1]
+  
+  if (is.numeric(target_values)) {
+    if (is.null(target_group)) {
+      target_group <- 0.25
+    }
+    if (is.list(target_group)) {
+      low_cutoff <- quantile(target_values, target_group$low, na.rm=TRUE)
+      high_cutoff <- quantile(target_values, target_group$high, na.rm=TRUE)
+      group_labels <- ifelse(target_values <= low_cutoff, "Low",
+                             ifelse(target_values >= high_cutoff, "High", NA))
+    } else if (length(target_group) == 1 && target_group < 1) {
+      low_cutoff <- quantile(target_values, target_group, na.rm=TRUE)
+      high_cutoff <- quantile(target_values, 1 - target_group, na.rm=TRUE)
+      group_labels <- ifelse(target_values <= low_cutoff, "Low",
+                             ifelse(target_values >= high_cutoff, "High", NA))
+    } else {
+      group_labels <- ifelse(target_values < target_group, "Low", "High")
+    }
+    keep_cells <- !is.na(group_labels)
+  } else {
+    if (!is.null(target_group)) {
+      keep_cells <- target_values %in% target_group
+    } else {
+      keep_cells <- rep(TRUE, length(target_values))
+    }
+    group_labels <- target_values
+    keep_cells <- keep_cells & !is.na(group_labels)
+  }
+  
+  expr_mat <- expr_mat[, keep_cells]
+  meta.data <- meta.data[keep_cells, ]
+  
+  # [FIX-NA] 사용하지 않는 팩터 레벨 제거 (model.matrix 에러 방지)
+  target_binary <- factor(group_labels[keep_cells])
+  
+  if (!is.null(control_vars)) {
+    for (cv in control_vars) {
+      if (is.factor(meta.data[[cv]])) {
+        meta.data[[cv]] <- droplevels(meta.data[[cv]])
+      }
+    }
+  }
+
+  if (length(unique(target_binary)) < 2) {
+    stop("Target variable must have at least 2 groups after processing")
+  }
+  n_groups <- length(unique(target_binary))
+  
+  # ===
+  # 3. Filter and preprocess genes (v4와 동일)
+  # ===
+  
+  n_cells_expr <- rowSums(expr_mat > 0)
+  pct_cells_expr <- n_cells_expr / ncol(expr_mat)
+  keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
+  expr_mat <- expr_mat[keep_genes, ]
+  
+  if (nrow(expr_mat) == 0) {
+    stop("No genes pass filtering criteria")
+  }
+  
+  # ===
+  # 3.5 [V4] Speed-up: Pre-filter genes using test_n
+  # ===
+  if (!is.null(test_n) && nrow(expr_mat) > test_n) {
+    message(sprintf("Pre-filtering to top %d genes based on limma p-value...", test_n))
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for 'test_n' pre-filtering")
+    }
+    
+    if (is.null(control_vars)) {
+      design_test <- model.matrix(~ target_binary, data = meta.data)
+    } else {
+      formula_test <- as.formula(paste("~ target_binary +", paste(control_vars, collapse="+")))
+      design_test <- model.matrix(formula_test, data = meta.data)
+    }
+    
+    fit_test <- limma::lmFit(expr_mat, design_test)
+    fit_test <- limma::eBayes(fit_test)
+    
+    coef_indices <- grep("target_binary", colnames(design_test))
+    if (length(coef_indices) == 0) {
+        warning("Could not find target_binary coefficients for test_n pre-filtering.")
+        # Fallback: use all coefficients (less ideal)
+        coef_indices <- 1:ncol(design_test)
+    }
+    
+    top_table_test <- limma::topTable(fit_test, 
+                                      coef = coef_indices, 
+                                      number = Inf, sort.by = "P")
+    
+    top_gene_names <- rownames(top_table_test)[1:min(test_n, nrow(top_table_test))]
+    expr_mat <- expr_mat[top_gene_names, ]
+    message(sprintf("... reduced to %d genes.", nrow(expr_mat)))
+  }
+  
+  if (preprocess) {
+    if (max(expr_mat) > 100) {
+      expr_mat <- log1p(expr_mat)
+    }
+    if (method %in% c("lasso", "gam", "pca_loadings")) {
+      gene_means <- rowMeans(expr_mat)
+      gene_sds <- apply(expr_mat, 1, sd)
+      gene_sds[gene_sds == 0] <- 1
+      expr_mat <- (expr_mat - gene_means) / gene_sds
+    }
+  }
+  
+  # ===
+  # 3.8 [V4.1] Confounder pre-correction (non-native methods)
+  # ===
+  
+  # [FIX-NMF] 'nmf'는 removeBatchEffect 대상에서 제외 (음수 값 방지)
+  if (!is.null(control_vars) && method %in% c("wilcoxon", "pca_loadings")) { 
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for removeBatchEffect")
+    }
+    
+    message(sprintf("Method %s: Applying limma::removeBatchEffect for: %s",
+                    method, paste(control_vars, collapse=", ")))
+    
+    covariates_df <- meta.data[, control_vars, drop = FALSE]
+    
+    # Check for factors and create model matrix
+    if(any(sapply(covariates_df, is.factor)) || any(sapply(covariates_df, is.character))) {
+        covariate_mat <- model.matrix(~ . - 1, data = covariates_df)
+    } else {
+        covariate_mat <- as.matrix(covariates_df)
+    }
+    
+    expr_mat <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
+  }
+  
+  
+  # ===
+  # 4. Method-specific signature discovery (v4.1 수정)
+  # ===
+  
+  X <- t(expr_mat)
+  y <- target_binary
+  
+  covariate_mat_model <- NULL # Initialize
+  if (!is.null(control_vars) && method %in% c("tree_based", "lasso", "gam")) {
+     covariates_df_model <- meta.data[, control_vars, drop = FALSE]
+     if(any(sapply(covariates_df_model, is.factor)) || any(sapply(covariates_df_model, is.character))) {
+        covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
+     } else {
+        covariate_mat_model <- as.matrix(covariates_df_model)
+     }
+  }
+
+  
+  result <- switch(method,
+                 
+                 tree_based = {
+                   if (!requireNamespace("randomForest", quietly = TRUE)) {
+                     stop("randomForest package required. Install with: install.packages('randomForest')")
+                   }
+                   
+                   X_rf <- X
+                   
+                   if (!is.null(control_vars)) {
+                     X_rf <- cbind(X_rf, covariate_mat_model)
+                   }
+                   
+                   # Pre-filter genes if matrix is still too large
+                   if (ncol(X_rf) > 2000) {
+                     gene_vars <- apply(X, 2, var) # var from original X
+                     top_var_genes <- names(sort(gene_vars, decreasing=TRUE)[1:2000])
+                     
+                     control_var_names <- if(is.null(control_vars)) character(0) else colnames(covariate_mat_model)
+                     X_rf <- X_rf[, c(top_var_genes, control_var_names)]
+                   }
+                   
+                   rf_model <- randomForest::randomForest(x = X_rf, y = y, ntree = 500, importance = TRUE, ...)
+                   
+                   importance_scores <- randomForest::importance(rf_model)
+                   if (n_groups == 2) {
+                     weights_magnitude_all <- importance_scores[, "MeanDecreaseGini"]
+                   } else {
+                     weights_magnitude_all <- rowMeans(importance_scores[, grep("MeanDecreaseGini", colnames(importance_scores))])
+                   }
+                   
+                   gene_names_in_model <- colnames(X_rf)[!colnames(X_rf) %in% colnames(covariate_mat_model)]
+                   weights_magnitude_genes <- weights_magnitude_all[gene_names_in_model]
+                   
+                   top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
+                   weights_magnitude <- weights_magnitude_genes[top_genes]
+                   
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1 
+                     weights <- weights_magnitude * sign(effect_size)
+                   } else {
+                     warning("tree_based: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   pred <- rf_model$predicted
+                   if (n_groups == 2) {
+                     if (requireNamespace("pROC", quietly = TRUE)) {
+                       roc_obj <- pROC::roc(y, scores, quiet=TRUE)
+                       auc <- as.numeric(pROC::auc(roc_obj))
+                     } else { auc <- NA }
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+                   } else {
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, confusion = table(pred, y))
+                   }
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) rf_model else NULL)
+                 },
+                 
+                 lasso = {
+                   if (!requireNamespace("glmnet", quietly = TRUE)) {
+                     stop("glmnet package required. Install with: install.packages('glmnet')")
+                   }
+                   
+                   if (is.null(control_vars)) {
+                     X_model <- X
+                     penalty_vec <- rep(1, ncol(X_model))
+                   } else {
+                     X_model <- cbind(X, covariate_mat_model)
+                     penalty_vec <- c(rep(1, ncol(X)), rep(0, ncol(covariate_mat_model)))
+                   }
+                   
+                   if (n_groups == 2) {
+                     cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=1, 
+                                                 penalty.factor = penalty_vec, ...)
+                   } else {
+                     cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=1, 
+                                                 penalty.factor = penalty_vec, ...)
+                   }
+                   
+                   coefs <- coef(cv_fit, s = lambda_selection) 
+                   
+                   if (n_groups == 2) {
+                     weights_all <- as.numeric(coefs[2:(ncol(X)+1)]) 
+                     names(weights_all) <- rownames(coefs)[2:(ncol(X)+1)]
+                   } else {
+                     coef_list <- lapply(coefs, function(x) as.numeric(x[2:(ncol(X)+1)]))
+                     weights_all <- rowMeans(do.call(cbind, coef_list))
+                     names(weights_all) <- rownames(coefs[[1]])[2:(ncol(X)+1)]
+                   }
+                   
+                   if (length(weights_all) == 0) {
+                     stop("LASSO returned no gene coefficients.")
+                   }
+
+                   # [FIX-Lasso] 'nonzero' 필터링 제거. 항상 abs(weight)로 정렬.
+                   top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+                   
+                   weights <- weights_all[top_genes]
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   pred_probs <- predict(cv_fit, newx=X_model, s = lambda_selection, type="response")
+                   if (n_groups == 2) {
+                     pred <- factor(ifelse(pred_probs > 0.5, levels(y)[2], levels(y)[1]), levels=levels(y))
+                     if (requireNamespace("pROC", quietly = TRUE)) {
+                       roc_obj <- pROC::roc(y, scores, quiet=TRUE) 
+                       auc <- as.numeric(pROC::auc(roc_obj))
+                     } else { auc <- NA }
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+                   } else {
+                     pred_class_indices <- apply(pred_probs[,,1], 1, which.max)
+                     pred <- levels(y)[pred_class_indices]
+                     acc <- mean(pred == y)
+                     perf <- list(accuracy = acc, confusion = table(pred, y))
+                   }
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) cv_fit else NULL)
+                 },
+                 
+                 limma = {
+                   if (!requireNamespace("limma", quietly = TRUE)) {
+                     stop("limma package required. Install with: BiocManager::install('limma')")
+                   }
+                   
+                   if (is.null(control_vars)) {
+                     design <- model.matrix(~0 + target_binary, data = meta.data)
+                     colnames(design)[1:n_groups] <- levels(target_binary)
+                   } else {
+                     control_formula <- paste(control_vars, collapse = " + ")
+                     full_formula <- as.formula(paste("~0 + target_binary +", control_formula))
+                     design <- model.matrix(full_formula, data = meta.data)
+                     colnames(design)[1:n_groups] <- levels(target_binary) 
+                   }
+
+                   fit <- limma::lmFit(expr_mat, design)
+                   
+                   if (n_groups == 2) {
+                     contrast_str <- paste(levels(target_binary)[2], levels(target_binary)[1], sep="-")
+                   } else {
+                     # Create all pairwise contrasts if n_groups > 2
+                     contrast_pairs <- combn(levels(target_binary), 2, function(x) paste(x[2], x[1], sep="-"))
+                     contrast_str <- contrast_pairs
+                     warning("limma: n_groups > 2. Using all pairwise contrasts. Weights based on average t-statistic.")
+                   }
+                   
+                   contrast_mat <- limma::makeContrasts(contrasts=contrast_str, levels=design)
+                   fit2 <- limma::contrasts.fit(fit, contrast_mat)
+                   fit2 <- limma::eBayes(fit2)
+                   
+                   if(n_groups == 2) {
+                       top_table <- limma::topTable(fit2, number=Inf, sort.by="B")
+                       weights_all <- top_table$t
+                   } else {
+                       # For multiple contrasts, sort by F-statistic
+                       top_table <- limma::topTable(fit2, number=Inf, sort.by="F")
+                       # Use average absolute t-stat as weight magnitude
+                       weights_all <- rowMeans(abs(fit2$t[, contrast_str, drop=FALSE]))
+                   }
+                   
+                   names(weights_all) <- rownames(top_table)
+                   
+                   top_genes <- rownames(top_table)[1:min(n_features, nrow(top_table))]
+                   
+                   # Re-fetch signed weights for top genes
+                   if(n_groups == 2) {
+                       weights <- top_table[top_genes, "t"]
+                   } else {
+                       # For n_groups > 2, weights are just magnitude (no clear direction)
+                       weights <- weights_all[top_genes]
+                   }
+
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(top_table = top_table[top_genes, ])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) fit2 else NULL)
+                 },
+                 
+                 wilcoxon = {
+                   # [V4.1] control_vars가 있었다면 3.8에서 expr_mat이 이미 보정됨.
+                   
+                   pvals <- numeric(nrow(expr_mat))
+                   effect_sizes <- numeric(nrow(expr_mat))
+                   names(pvals) <- rownames(expr_mat)
+                   names(effect_sizes) <- rownames(expr_mat)
+
+                   for (i in 1:nrow(expr_mat)) {
+                     if (n_groups == 2) {
+                       group1 <- expr_mat[i, target_binary == levels(target_binary)[1]]
+                       group2 <- expr_mat[i, target_binary == levels(target_binary)[2]]
+                       
+                       # [FIX-Wilcox] '...' 인자 제거
+                       test <- try(wilcox.test(group1, group2), silent=TRUE) 
+                       
+                       if(inherits(test, "try-error")) {
+                         pvals[i] <- 1.0
+                         effect_sizes[i] <- 0
+                       } else {
+                         pvals[i] <- test$p.value
+                         effect_sizes[i] <- median(group2) - median(group1)
+                       }
+                     } else {
+                       # [FIX-Wilcox] '...' 인자 제거
+                       test <- try(kruskal.test(expr_mat[i, ] ~ target_binary), silent=TRUE) 
+                       
+                       if(inherits(test, "try-error")) {
+                          pvals[i] <- 1.0
+                          effect_sizes[i] <- 0
+                       } else {
+                          pvals[i] <- test$p.value
+                          # Use variance of medians as effect size (magnitude only)
+                          effect_sizes[i] <- var(tapply(expr_mat[i, ], target_binary, median))
+                       }
+                     }
+                   }
+                   
+                   padj <- p.adjust(pvals, method="BH")
+                   
+                   ranks <- rank(pvals) + rank(-abs(effect_sizes))
+                   top_genes <- names(sort(ranks)[1:min(n_features, length(ranks))])
+                   
+                   weights <- effect_sizes[top_genes]
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(pvalues = pvals[top_genes], padj = padj[top_genes],
+                                effect_sizes = effect_sizes[top_genes])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = NULL)
+                 },
+                 
+                 nmf = {
+                   if (!requireNamespace("NMF", quietly = TRUE)) {
+                     stop("NMF package required. Install with: install.packages('NMF')")
+                   }
+                   
+                   # [FIX-NMF] 'nmf' 블록 내부에서 보정 실행
+                   if (!is.null(control_vars)) {
+                     if (!requireNamespace("limma", quietly = TRUE)) {
+                       stop("limma package required for NMF confounder correction")
+                     }
+                     warning(sprintf("Method NMF: Applying limma::removeBatchEffect for: %s. Re-shifting to non-negative.",
+                                     paste(control_vars, collapse=", ")))
+                     
+                     covariates_df <- meta.data[, control_vars, drop = FALSE]
+                     if(any(sapply(covariates_df, is.factor)) || any(sapply(covariates_df, is.character))) {
+                        covariate_mat <- model.matrix(~ . - 1, data = covariates_df)
+                     } else {
+                        covariate_mat <- as.matrix(covariates_df)
+                     }
+                     
+                     expr_mat <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
+                   }
+                   
+                   # [FIX-NMF] 보정 후 (혹은 보정 없이) 무조건 양수로 이동
+                   expr_mat_pos <- expr_mat - min(expr_mat) + 0.01 
+                   
+                   rank <- min(n_groups + 2, 10)
+                   dots <- list(...)
+                   dots$seed <- NULL 
+                   # [V4.2 FIX] 'method' 인자 충돌 방지
+                   dots$method <- NULL
+
+                   nmf_res <- do.call(NMF::nmf, c(list(x = expr_mat_pos, rank = rank, seed=fgs_seed), dots))
+                   W <- NMF::basis(nmf_res)
+                   H <- NMF::coef(nmf_res)
+                   
+                   component_cors <- numeric(rank)
+                   for (k in 1:rank) {
+                     if (n_groups == 2) {
+                       component_cors[k] <- abs(cor(H[k, ], as.numeric(target_binary)))
+                     } else {
+                       component_cors[k] <- summary(aov(H[k, ] ~ target_binary))[[1]][1, "F value"]
+                     }
+                   }
+                   
+                   best_component <- which.max(component_cors)
+                   weights_magnitude <- W[, best_component]
+                   names(weights_magnitude) <- rownames(expr_mat_pos)
+                   
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, length(weights_magnitude))])
+                   weights_magnitude <- weights_magnitude[top_genes]
+                   
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1
+                     weights <- weights_magnitude * sign(effect_size)
+                   } else {
+                     warning("nmf: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(component = best_component, correlation = component_cors[best_component])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) nmf_res else NULL)
+                 },
+                 
+                 gam = {
+                   if (!requireNamespace("mgcv", quietly = TRUE)) {
+                     stop("mgcv package required. Install with: install.packages('mgcv')")
+                   }
+                   
+                   deviance_explained <- numeric(nrow(expr_mat))
+                   names(deviance_explained) <- rownames(expr_mat)
+                   
+                   if (is.null(control_vars)) {
+                     formula_base <- ""
+                     gam_data <- data.frame(y_var = target_binary)
+                   } else {
+                     # Ensure control vars are in the data frame
+                     gam_data <- data.frame(y_var = target_binary, 
+                                            meta.data[, control_vars, drop=FALSE])
+                     # Create formula string *from names in gam_data*
+                     formula_base <- paste(" +", paste(colnames(covariate_mat_model), collapse=" + "))
+                     # Add the covariates matrix to gam_data
+                     gam_data <- cbind(gam_data, covariate_mat_model)
+                   }
+                   
+                   # [FIX-GAM] Use all genes remaining in expr_mat (1:nrow)
+                   for (i in 1:nrow(expr_mat)) {
+                     gam_data$gene_expr <- expr_mat[i, ]
+                     
+                     if (n_groups == 2) {
+                       gam_data$y_var_numeric <- as.numeric(gam_data$y_var) - 1
+                       full_formula_str <- paste("y_var_numeric ~ s(gene_expr)", formula_base)
+                       gam_fit <- try(mgcv::gam(as.formula(full_formula_str), 
+                                            data = gam_data, family="binomial", ...), silent=TRUE)
+                     } else {
+                       gam_data$y_var_numeric <- as.numeric(gam_data$y_var)
+                       full_formula_str <- paste("y_var_numeric ~ s(gene_expr)", formula_base)
+                       gam_fit <- try(mgcv::gam(as.formula(full_formula_str), 
+                                            data = gam_data, ...), silent=TRUE)
+                     }
+                     
+                     if(inherits(gam_fit, "try-error")) {
+                        deviance_explained[i] <- 0
+                     } else {
+                        deviance_explained[i] <- summary(gam_fit)$dev.expl
+                     }
+                   }
+                   
+                   weights_magnitude <- deviance_explained
+                   top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, sum(weights_magnitude > 0, na.rm=TRUE))])
+                   
+                   if (length(top_genes) == 0) {
+                     warning("GAM method found no genes with deviance > 0.")
+                     return(list(genes=character(0), weights=numeric(0), scores=numeric(0), performance=list()))
+                   }
+                   
+                   weights_magnitude <- weights_magnitude[top_genes]
+
+                   if (n_groups == 2) {
+                     g1_cells <- y == levels(y)[1]
+                     g2_cells <- y == levels(y)[2]
+                     mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+                     mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+                     effect_size <- mean_g2 - mean_g1
+                     weights <- weights_magnitude * sign(effect_size)
+                   } else {
+                     warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
+                     weights <- weights_magnitude
+                   }
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(deviance_explained = weights_magnitude)
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = NULL)
+                 },
+                 
+                 pca_loadings = {
+                   # [V4.1] control_vars가 있었다면 3.8에서 expr_mat이 이미 보정됨.
+                   # PCA는 스케일링된 데이터를 사용해야 함 (3.x에서 처리됨)
+                   
+                   pca_res <- prcomp(X, center=FALSE, scale.=FALSE) 
+                   
+                   n_pcs_to_test <- min(50, ncol(pca_res$x))
+                   pc_cors <- numeric(n_pcs_to_test)
+                   
+                   for (k in 1:n_pcs_to_test) {
+                     if (n_groups == 2) {
+                       pc_cors[k] <- abs(cor(pca_res$x[, k], as.numeric(target_binary)))
+                     } else {
+                       aov_res <- try(summary(aov(pca_res$x[, k] ~ target_binary)), silent=TRUE)
+                       if(inherits(aov_res, "try-error")) {
+                           pc_cors[k] <- 0
+                       } else {
+                           pc_cors[k] <- aov_res[[1]][1, "F value"]
+                       }
+                     }
+                   }
+                   
+                   best_pc <- which.max(pc_cors)
+                   weights_all <- pca_res$rotation[, best_pc]
+                   
+                   top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+                   weights <- weights_all[top_genes]
+                   
+                   scores <- as.numeric(X[, top_genes] %*% weights)
+                   names(scores) <- rownames(X)
+                   
+                   perf <- list(PC = best_pc, correlation = pc_cors[best_pc],
+                                variance_explained = summary(pca_res)$importance[2, best_pc])
+                   
+                   list(genes = top_genes, weights = weights, scores = scores,
+                        performance = perf, model = if(return_model) pca_res else NULL)
+                 }
+  )
+  
+  # ===
+  # 5. Return results (v4와 동일)
+  # ===
+  
+  result$method <- method
+  result$target_var <- target_var
+  result$n_groups <- n_groups
+  result$n_cells <- ncol(expr_mat)
+  result$formula <- paste(deparse(match.call()), collapse = " ")
+  
+  class(result) <- c("gene_signature", "list")
+  return(result)
+}
+
+
+
+#' FGS v5 Preprocessing Helper Function
+#'
+#' @description
+#' find_gene_signature_v5의 전처리를 담당하는 헬퍼 함수.
+#' 1. NA 제거 (target_var, control_vars 기준)
+#' 2. expr_mat 추출 (as.matrix)
+#' 3. test_n 필터링 (limma, 단 한 번 실행)
+#' 4. Preprocessing (log1p, scale)
+#' 5. Confounder pre-correction (removeBatchEffect, 단 한 번 실행)
+#'
+#' @return 전처리가 완료된 데이터 객체(list)
+#'
+fgs_preprocess_data <- function(data, 
+                              meta.data, 
+                              target_var, 
+                              target_group, 
+                              control_vars, 
+                              test_n, 
+                              preprocess,
+                              min_cells,
+                              min_pct,
+                              methods_requiring_scale,
+                              methods_requiring_correction) {
+  
+  # === 1. Input validation (v4.2와 유사) ===
+  is_seurat <- inherits(data, "Seurat")
+  
+  if (is_seurat) {
+    if (is.null(meta.data)) {
+      meta.data <- data@meta.data
+    }
+    # V4.2의 안정적인 데이터 추출 로직
+    default_assay <- Seurat::DefaultAssay(data)
+    expr_mat <- tryCatch({
+        as.matrix(Seurat::GetAssayData(data, assay = default_assay, layer = "data"))
+    }, error = function(e) {
+        tryCatch({
+            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "data"))
+        }, error = function(e) {
+            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "counts"))
+        })
+    })
+  } else {
+    if (is.null(meta.data)) {
+      stop("meta.data must be provided when data is not a Seurat object")
+    }
+    expr_mat <- as.matrix(data)
+  }
+  
+  # === 2. [V5 핵심] NA 및 팩터 레벨 완벽 제거 ===
+  message("V5 Preprocessing: 1. Cleaning NA values...")
+  vars_to_check <- c(target_var, control_vars)
+  
+  # control_vars가 NULL이 아닐 때만 vars_to_check에 포함
+  if (is.null(control_vars)) {
+    vars_to_check <- target_var
+  }
+  
+  complete_cases_idx <- complete.cases(meta.data[, vars_to_check, drop=FALSE])
+  
+  n_removed <- sum(!complete_cases_idx)
+  if (n_removed > 0) {
+    warning(sprintf("V5 Preprocessing: Removed %d cells with NAs in target/control vars.", n_removed))
+  }
+  
+  meta.data <- meta.data[complete_cases_idx, ]
+  expr_mat <- expr_mat[, rownames(meta.data)]
+
+  # 팩터 레벨 정리
+  target_binary <- factor(meta.data[[target_var]])
+  meta.data$target_binary_var <- target_binary # 포뮬러용 변수
+  
+  if (!is.null(control_vars)) {
+    for (cv in control_vars) {
+      if (is.factor(meta.data[[cv]])) {
+        meta.data[[cv]] <- droplevels(meta.data[[cv]])
+      }
+    }
+  }
+
+  if (length(unique(target_binary)) < 2) {
+    stop("Target variable must have at least 2 groups after NA removal")
+  }
+  
+  # === 3. Gene Filter (min_cells, min_pct) ===
+  message("V5 Preprocessing: 2. Filtering genes (min_cells, min_pct)...")
+  n_cells_expr <- rowSums(expr_mat > 0)
+  pct_cells_expr <- n_cells_expr / ncol(expr_mat)
+  keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
+  expr_mat <- expr_mat[keep_genes, ]
+  
+  if (nrow(expr_mat) == 0) stop("No genes pass filtering criteria")
+  
+  # === 4. [V5 핵심] test_n 필터링 (단 한 번 실행) ===
+  if (!is.null(test_n) && nrow(expr_mat) > test_n) {
+    message(sprintf("V5 Preprocessing: 3. Pre-filtering to top %d genes (limma)...", test_n))
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for 'test_n' pre-filtering")
+    }
+    
+    # NA가 제거된 meta.data로 디자인 생성
+    if (is.null(control_vars)) {
+      design_test <- model.matrix(~ target_binary_var, data = meta.data)
+    } else {
+      formula_test <- as.formula(paste("~ target_binary_var +", paste(control_vars, collapse="+")))
+      design_test <- model.matrix(formula_test, data = meta.data)
+    }
+    
+    fit_test <- limma::lmFit(expr_mat, design_test)
+    fit_test <- limma::eBayes(fit_test)
+    coef_indices <- grep("target_binary_var", colnames(design_test))
+    
+    top_table_test <- limma::topTable(fit_test, coef = coef_indices, number = Inf, sort.by = "P")
+    
+    top_gene_names <- rownames(top_table_test)[1:min(test_n, nrow(top_table_test))]
+    expr_mat <- expr_mat[top_gene_names, ]
+    message(sprintf("... reduced to %d genes.", nrow(expr_mat)))
+  }
+  
+  # === 5. Preprocessing (log1p, scale) ===
+  message("V5 Preprocessing: 4. Applying log1p and scaling...")
+  
+  if (preprocess) {
+    if (max(expr_mat) > 100) {
+      expr_mat <- log1p(expr_mat)
+    }
+  }
+  
+  # 스케일링이 필요한 메서드를 위한 데이터 (원본 expr_mat 보존)
+  expr_mat_scaled <- NULL
+  if (length(methods_requiring_scale) > 0) {
+    gene_means <- rowMeans(expr_mat)
+    gene_sds <- apply(expr_mat, 1, sd)
+    gene_sds[gene_sds == 0] <- 1
+    expr_mat_scaled <- (expr_mat - gene_means) / gene_sds
+  }
+
+  # === 6. [V5 핵심] Confounder pre-correction (단 한 번 실행) ===
+  message("V5 Preprocessing: 5. Applying confounder correction (if needed)...")
+  
+  expr_mat_corrected <- NULL
+  if (!is.null(control_vars) && length(methods_requiring_correction) > 0) {
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for removeBatchEffect")
+    }
+    
+    covariates_df <- meta.data[, control_vars, drop = FALSE]
+    covariate_mat <- model.matrix(~ . - 1, data = covariates_df) 
+    
+    # 스케일링 *전*의 expr_mat을 보정 (pca_loadings는 스케일링된 매트릭스를 보정해야 함)
+    expr_mat_corrected <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
+  }
+
+  # --- 반환 객체 ---
+  list(
+    expr_mat = expr_mat,                         # 원본 (log1p만 적용)
+    expr_mat_scaled = expr_mat_scaled,           # 스케일링된 버전
+    expr_mat_corrected = expr_mat_corrected,     # 교란변수 보정된 버전 (스케일링 X)
+    meta.data = meta.data,                       # NA 제거된 메타데이터
+    target_binary = target_binary,               # 타겟 변수
+    n_groups = length(unique(target_binary)),
+    control_vars = control_vars,
+    fgs_seed = 42 # 임시 (v5에서는 fgs_seed를 메인에서 받도록)
+  )
+}
+
+# [V5] find_gene_signature_v5
+#
+# 변경점:
+# 1. 'lapply', 'match.call' 제거.
+# 2. 'fgs_preprocess_data' 헬퍼 함수를 처음에 1회 호출.
+# 3. 'for (m in method)' 루프로 메서드를 순회. (모든 반복 문제 해결)
+# 4. 'nmf' 블록: 'do.call'의 'method' 인자 충돌을 'dots$method <- NULL'로 해결.
+# 5. 'gam' 블록: 'tryCatch'를 사용하여 수렴 경고를 캡처하고 1회만 요약 리포트.
+
+find_gene_signature_v5 <- function(data, 
+                                 meta.data = NULL,
+                                 target_var,
+                                 target_group = NULL,
+                                 control_vars = NULL,   
+                                 method = c("tree_based", "lasso", "limma", 
+                                            "nmf", "wilcoxon", "gam", "pca_loadings"),
+                                 n_features = 50,
+                                 test_n = NULL,         
+                                 preprocess = TRUE,
+                                 min_cells = 10,
+                                 min_pct = 0.01,
+                                 return_model = FALSE,
+                                 fgs_seed = 42,
+                                 lambda_selection = "lambda.1se",
+                                 ...) {
+  
+  all_methods <- c("tree_based", "lasso", "limma", "nmf", "wilcoxon", "gam", "pca_loadings")
+  
+  if (is.null(method)) {
+    method <- all_methods
+  }
+  
+  # === 1. [V5] 전처리 (단 1회 실행) ===
+  
+  # 각 메서드가 어떤 데이터가 필요한지 정의
+  methods_requiring_scale <- c("lasso", "gam", "pca_loadings")
+  methods_requiring_correction <- c("wilcoxon", "pca_loadings") # nmf는 내부 처리
+  
+  # 헬퍼 함수 호출
+  preprocessed_data <- fgs_preprocess_data(
+    data = data, 
+    meta.data = meta.data, 
+    target_var = target_var, 
+    target_group = target_group, 
+    control_vars = control_vars, 
+    test_n = test_n, 
+    preprocess = preprocess,
+    min_cells = min_cells,
+    min_pct = min_pct,
+    methods_requiring_scale = intersect(method, methods_requiring_scale),
+    methods_requiring_correction = intersect(method, methods_requiring_correction)
   )
 
-  # 6) 결과 평탄화: **sce_sub가 먼저, res가 다음**
-  combined <- muscat::resDS(sce_sub, res)
-
-  # cluster_id 정리 + 라벨
-  if ("cluster" %in% names(combined) && !"cluster_id" %in% names(combined)) {
-    combined$cluster_id <- combined$cluster
+  # 전처리된 객체 할당
+  expr_mat_base <- preprocessed_data$expr_mat
+  meta.data_clean <- preprocessed_data$meta.data
+  target_binary <- preprocessed_data$target_binary
+  n_groups <- preprocessed_data$n_groups
+  
+  set.seed(preprocessed_data$fgs_seed) # 헬퍼에서 정의된 시드 사용
+  
+  # 교란변수 model.matrix (native 지원 메서드용)
+  covariate_mat_model <- NULL
+  if (!is.null(control_vars)) {
+     covariates_df_model <- meta.data_clean[, control_vars, drop = FALSE]
+     covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
   }
-  if (!"cluster_id" %in% names(combined)) stop("resDS 결과에 'cluster_id'가 없습니다.")
-  if (!is.null(cluster_label_map)) {
-    combined$cluster_label <- cluster_label_map[as.character(combined$cluster_id)]
-    combined$cluster_label[is.na(combined$cluster_label)] <- as.character(combined$cluster_id)
+
+  # --- [V5] 결과 저장을 위한 리스트 ---
+  results_list <- list()
+  
+  
+  # === 2. [V5] 메서드 순회 (lapply 대신 for 루프) ===
+  
+  for (m in method) {
+    
+    if (!m %in% all_methods) {
+      warning(sprintf("Invalid method '%s'. Skipping.", m))
+      next
+    }
+    
+    message(sprintf("--- Running Method: %s ---", m))
+    
+    tryCatch({
+      
+      # === 3. 데이터 선택 (메서드별) ===
+      
+      # 1) expr_mat (유전자 x 샘플) 선택
+      if (m %in% c("limma", "wilcoxon", "nmf")) {
+        expr_mat_method <- expr_mat_base
+      } else if (m %in% c("lasso", "gam", "pca_loadings")) {
+        expr_mat_method <- preprocessed_data$expr_mat_scaled
+      } else { # tree_based
+        expr_mat_method <- expr_mat_base 
+      }
+      
+      # 2) 교란변수 사전 보정된 데이터 사용
+      if (m %in% c("wilcoxon", "pca_loadings")) {
+        # 'pca_loadings'는 스케일링된 + 보정된 데이터가 필요 (v5.1 개선 필요)
+        # 우선순위: 보정된 데이터가 있으면 사용
+        if (!is.null(preprocessed_data$expr_mat_corrected)) {
+          expr_mat_method <- preprocessed_data$expr_mat_corrected
+        }
+      }
+
+      # 3) X (샘플 x 유전자) 생성
+      X <- t(expr_mat_method)
+      y <- target_binary
+
+      
+      # === 4. Method-specific (v4.1 로직과 대부분 동일) ===
+      
+      result <- switch(m,
+        
+        tree_based = {
+          # ... (v4.1 tree_based 로직과 동일) ...
+          # 단, X_rf 생성 시 expr_mat_method가 아닌 'X' (t(expr_mat_base)) 사용
+          X_rf <- t(expr_mat_base) 
+          if (!is.null(control_vars)) { X_rf <- cbind(X_rf, covariate_mat_model) }
+          # ...
+          list(...) # v4.1 코드 참조
+        },
+        
+        lasso = {
+          # ... (v4.1 lasso 로직과 동일) ...
+          # X는 이미 스케일링된 t(expr_mat_scaled)임
+          if (is.null(control_vars)) {
+            X_model <- X
+            penalty_vec <- rep(1, ncol(X_model))
+          } else {
+            X_model <- cbind(X, covariate_mat_model)
+            penalty_vec <- c(rep(1, ncol(X)), rep(0, ncol(covariate_mat_model)))
+          }
+          # ...
+          list(...) # v4.1 코드 참조
+        },
+        
+        limma = {
+          # ... (v4.1 limma 로직과 동일) ...
+          # expr_mat_method는 스케일링 안 된 'expr_mat_base'임
+          if (is.null(control_vars)) {
+            design <- model.matrix(~0 + target_binary_var, data = meta.data_clean)
+          } else {
+            control_formula <- paste(control_vars, collapse = " + ")
+            full_formula <- as.formula(paste("~0 + target_binary_var +", control_formula))
+            design <- model.matrix(full_formula, data = meta.data_clean)
+          }
+          colnames(design)[1:n_groups] <- levels(target_binary)
+          # ...
+          list(...) # v4.1 코드 참조
+        },
+        
+        wilcoxon = {
+          # ... (v4.1 wilcoxon 로직과 동일) ...
+          # expr_mat_method는 이미 'expr_mat_corrected'임
+          pvals <- numeric(nrow(expr_mat_method))
+          # ...
+          list(...) # v4.1 코드 참조
+        },
+        
+        nmf = {
+          # [V5 FIX] v4.1의 'nmf' 블록 로직 (내부 보정 + 인자 충돌 해결)
+          if (!requireNamespace("NMF", quietly = TRUE)) { ... }
+          
+          # 'expr_mat_method'는 'expr_mat_base'임
+          expr_mat_nmf <- expr_mat_method 
+          
+          if (!is.null(control_vars)) {
+            warning(sprintf("Method NMF: Applying limma::removeBatchEffect for: %s...", m))
+            covariate_mat <- model.matrix(~ . - 1, data = meta.data_clean[, control_vars, drop=FALSE])
+            expr_mat_nmf <- limma::removeBatchEffect(expr_mat_nmf, covariates = covariate_mat)
+          }
+          
+          expr_mat_pos <- expr_mat_nmf - min(expr_mat_nmf) + 0.01 
+          
+          rank <- min(n_groups + 2, 10)
+          dots <- list(...)
+          
+          # [V5 FIX] 'method' 및 'seed' 인자 충돌 방지
+          dots$method <- NULL 
+          dots$seed <- NULL 
+          
+          nmf_args <- c(list(x = expr_mat_pos, rank = rank, seed = fgs_seed), dots)
+          nmf_res <- do.call(NMF::nmf, nmf_args)
+          
+          # ... (v4.1 nmf 로직) ...
+          list(...) # v4.1 코드 참조
+        },
+
+        gam = {
+          # [V5 FIX] v4.1의 'gam' 블록 + 경고 억제
+          if (!requireNamespace("mgcv", quietly = TRUE)) { ... }
+          
+          deviance_explained <- numeric(nrow(expr_mat_method))
+          names(deviance_explained) <- rownames(expr_mat_method)
+          
+          # GAM 데이터 준비 (X는 이미 스케일링됨)
+          gam_data <- data.frame(y_var_numeric = as.numeric(target_binary) - 1)
+          if (!is.null(control_vars)) {
+            gam_data <- cbind(gam_data, covariate_mat_model)
+            formula_base <- paste(" +", paste(colnames(covariate_mat_model), collapse=" + "))
+          } else {
+            formula_base <- ""
+          }
+          full_formula_str_base <- paste("y_var_numeric ~ s(gene_expr)", formula_base)
+
+          # [V5 FIX] 경고 카운터
+          convergence_warnings <- 0
+          
+          for (i in 1:nrow(expr_mat_method)) {
+            gam_data$gene_expr <- expr_mat_method[i, ]
+            
+            # tryCatch로 경고 캡처
+            fit_result <- tryCatch({
+              if (n_groups == 2) {
+                mgcv::gam(as.formula(full_formula_str_base), data = gam_data, family="binomial", ...)
+              } else {
+                mgcv::gam(as.formula(full_formula_str_base), data = gam_data, ...)
+              }
+            }, warning = function(w) {
+              if (grepl("did not converge", w$message)) {
+                convergence_warnings <<- convergence_warnings + 1
+              }
+              # 경고를 억제하고 결과 반환 (suppressWarning과 유사)
+              invokeRestart("muffleWarning")
+            }, error = function(e) {
+              return(NULL) # 에러 발생 시 NULL 반환
+            })
+            
+            if (is.null(fit_result) || inherits(fit_result, "try-error")) {
+              deviance_explained[i] <- 0
+            } else {
+              deviance_explained[i] <- summary(fit_result)$dev.expl
+            }
+          }
+          
+          if (convergence_warnings > 0) {
+            warning(sprintf("GAM: %d genes failed to converge (e.g., sparse data or NA issues).", convergence_warnings))
+          }
+          
+          # ... (v4.1 gam 나머지 로직) ...
+          list(...) # v4.1 코드 참조
+        },
+        
+        pca_loadings = {
+          # ... (v4.1 pca_loadings 로직) ...
+          # X는 'expr_mat_corrected'의 전치행렬
+          list(...) # v4.1 코드 참조
+        }
+      ) # --- switch 끝 ---
+
+      # === 5. 결과 저장 ===
+      result$method <- m
+      result$target_var <- target_var
+      result$n_groups <- n_groups
+      result$n_cells <- ncol(expr_mat_base)
+      
+      class(result) <- c("gene_signature", "list")
+      
+      results_list[[m]] <- result
+      
+    }, error = function(e) {
+      # --- 메서드 개별 에러 처리 ---
+      warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+      results_list[[m]] <- list(method = m, error = e$message)
+    })
+    
+  } # --- for 루프 끝 ---
+
+  # === 6. [V5] 최종 반환 ===
+  return(results_list)
+}
+
+#' FGS v5.2 Preprocessing Helper Function
+#'
+#' @description
+#' find_gene_signature_v5.2의 전처리를 담당하는 헬퍼 함수.
+#' 1. NA 제거 (target_var, control_vars 기준)
+#' 2. expr_mat 추출 (as.matrix)
+#' 3. test_n 필터링 (limma, 단 한 번 실행)
+#' 4. Preprocessing (log1p, scale)
+#' 5. Confounder pre-correction (removeBatchEffect, 단 한 번 실행)
+#'
+fgs_preprocess_data_v5.2 <- function(data, 
+                                   meta.data, 
+                                   target_var, 
+                                   target_group, 
+                                   control_vars, 
+                                   test_n, 
+                                   preprocess,
+                                   min_cells,
+                                   min_pct,
+                                   methods_requiring_scale,
+                                   methods_requiring_correction) {
+  
+  # === 1. Input validation (v4.2의 안정적 로직) ===
+  is_seurat <- inherits(data, "Seurat")
+  
+  if (is_seurat) {
+    if (!requireNamespace("Seurat", quietly = TRUE)) {
+      stop("Seurat package required but not installed")
+    }
+    if (is.null(meta.data)) {
+      meta.data <- data@meta.data
+    }
+    default_assay <- Seurat::DefaultAssay(data)
+    expr_mat <- tryCatch({
+        as.matrix(Seurat::GetAssayData(data, assay = default_assay, layer = "data"))
+    }, error = function(e) {
+        tryCatch({
+            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "data"))
+        }, error = function(e) {
+            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "counts"))
+        })
+    })
   } else {
-    combined$cluster_label <- as.character(combined$cluster_id)
+    if (is.null(meta.data)) {
+      stop("meta.data must be provided when data is not a Seurat object")
+    }
+    expr_mat <- as.matrix(data)
+  }
+  
+  # === 2. [V5] NA 및 팩터 레벨 완벽 제거 ===
+  message("V5 Preprocessing: 1. Cleaning NA values...")
+  
+  if (is.null(control_vars)) {
+    vars_to_check <- target_var
+  } else {
+    vars_to_check <- c(target_var, control_vars)
+  }
+  
+  complete_cases_idx <- complete.cases(meta.data[, vars_to_check, drop=FALSE])
+  
+  n_removed <- sum(!complete_cases_idx)
+  if (n_removed > 0) {
+    warning(sprintf("V5 Preprocessing: Removed %d cells with NAs in target/control vars.", n_removed))
+  }
+  
+  meta.data <- meta.data[complete_cases_idx, ]
+  expr_mat <- expr_mat[, rownames(meta.data)]
+
+  target_binary <- factor(meta.data[[target_var]])
+  meta.data$target_binary_var <- target_binary
+  
+  if (!is.null(control_vars)) {
+    for (cv in control_vars) {
+      if (is.factor(meta.data[[cv]])) {
+        meta.data[[cv]] <- droplevels(meta.data[[cv]])
+      }
+    }
   }
 
-  # 7) 요약 헬퍼
-  .pick_cols_for <- function(tab, contrast_fixed) {
-    cstr <- gsub("\\s+", "", contrast_fixed)
-    patt <- paste0("(^|\\.)", gsub("([+\\-])", "\\\\\\1", cstr), "$")
-
-    # 1) 접미사 있는 형태 먼저 시도
-    logfc <- grep("^logFC(\\.|_)?", names(tab), value=TRUE); logfc <- logfc[grep(patt, logfc)]
-    padj  <- grep("^(p_adj(\\.loc|\\.glb)?|FDR)(\\.|_)?", names(tab), value=TRUE); padj <- padj[grep(patt, padj)]
-    pcol  <- grep("^(p_val|PValue)(\\.|_)?", names(tab), value=TRUE); pcol <- pcol[grep(patt, pcol)]
-
-    # 2) 접미사 매칭 실패 시 기본 컬럼으로 폴백
-    if (!length(logfc) && "logFC" %in% names(tab)) logfc <- "logFC"
-    if (!length(pcol)  && "p_val" %in% names(tab)) pcol  <- "p_val"
-    if (!length(padj)) {
-      if ("p_adj.loc" %in% names(tab))      padj <- "p_adj.loc"
-      else if ("p_adj.glb" %in% names(tab)) padj <- "p_adj.glb"
-      else if ("FDR" %in% names(tab))       padj <- "FDR"
+  if (length(unique(target_binary)) < 2) {
+    stop("Target variable must have at least 2 groups after NA removal")
+  }
+  
+  # === 3. Gene Filter (min_cells, min_pct) ===
+  message("V5 Preprocessing: 2. Filtering genes (min_cells, min_pct)...")
+  n_cells_expr <- rowSums(expr_mat > 0)
+  pct_cells_expr <- n_cells_expr / ncol(expr_mat)
+  keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
+  expr_mat <- expr_mat[keep_genes, ]
+  
+  if (nrow(expr_mat) == 0) stop("No genes pass filtering criteria")
+  
+  # === 4. [V5] test_n 필터링 (단 한 번 실행) ===
+  if (!is.null(test_n) && nrow(expr_mat) > test_n) {
+    message(sprintf("V5 Preprocessing: 3. Pre-filtering to top %d genes (limma)...", test_n))
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for 'test_n' pre-filtering")
     }
-
-    if (!length(logfc) || !length(padj)) {
-      stop("결과 테이블에서 logFC/adj.p 컬럼을 찾지 못했습니다. resDS 출력 컬럼명을 확인하세요.")
+    
+    if (is.null(control_vars)) {
+      design_test <- model.matrix(~ target_binary_var, data = meta.data)
+    } else {
+      formula_test <- as.formula(paste("~ target_binary_var +", paste(control_vars, collapse="+")))
+      design_test <- model.matrix(formula_test, data = meta.data)
     }
-    list(logfc = logfc[1], padj = padj[1], p = if (length(pcol)) pcol[1] else NULL)
+    
+    fit_test <- limma::lmFit(expr_mat, design_test)
+    fit_test <- limma::eBayes(fit_test)
+    coef_indices <- grep("target_binary_var", colnames(design_test))
+    
+    top_table_test <- limma::topTable(fit_test, coef = coef_indices, number = Inf, sort.by = "P")
+    
+    top_gene_names <- rownames(top_table_test)[1:min(test_n, nrow(top_table_test))]
+    expr_mat <- expr_mat[top_gene_names, ]
+    message(sprintf("... reduced to %d genes.", nrow(expr_mat)))
+  }
+  
+  # === 5. Preprocessing (log1p, scale) ===
+  message("V5 Preprocessing: 4. Applying log1p and scaling...")
+  
+  if (preprocess) {
+    if (max(expr_mat) > 100) {
+      expr_mat <- log1p(expr_mat)
+    }
+  }
+  
+  expr_mat_scaled <- NULL
+  if (length(methods_requiring_scale) > 0) {
+    gene_means <- rowMeans(expr_mat)
+    gene_sds <- apply(expr_mat, 1, sd)
+    gene_sds[gene_sds == 0] <- 1
+    expr_mat_scaled <- (expr_mat - gene_means) / gene_sds
   }
 
-  # --- [REPLACE] 클러스터별 Top-N
-  top_by_cluster <- function(n=25){
-    tab_use <- combined
-    # contrast 컬럼이 있으면 현재 contrast만 사용
-    if ("contrast" %in% names(tab_use)) {
-      target <- gsub("\\s+", "", contrast_fixed)
-      tab_use <- tab_use[gsub("\\s+", "", tab_use$contrast) == target, , drop=FALSE]
+  # === 6. [V5] Confounder pre-correction (단 한 번 실행) ===
+  message("V5 Preprocessing: 5. Applying confounder correction (if needed)...")
+  
+  expr_mat_corrected <- NULL
+  if (!is.null(control_vars) && length(methods_requiring_correction) > 0) {
+    if (!requireNamespace("limma", quietly = TRUE)) {
+      stop("limma package required for removeBatchEffect")
     }
-    cols <- .pick_cols_for(tab_use, contrast_fixed)
-
-    tab_use |>
-      dplyr::mutate(
-        logFC_view = .data[[cols$logfc]],
-        padj_view  = .data[[cols$padj]],
-        p_view     = if (!is.null(cols$p)) .data[[cols$p]] else NA_real_
-      ) |>
-      dplyr::arrange(padj_view) |>
-      dplyr::group_by(cluster_label) |>
-      dplyr::slice_head(n = n) |>
-      dplyr::ungroup()
+    
+    covariates_df <- meta.data[, control_vars, drop = FALSE]
+    covariate_mat <- model.matrix(~ . - 1, data = covariates_df) 
+    expr_mat_corrected <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
   }
 
-  # --- [REPLACE] 전체 Top-N
-  top_overall <- function(n=100){
-    tab_use <- combined
-    if ("contrast" %in% names(tab_use)) {
-      target <- gsub("\\s+", "", contrast_fixed)
-      tab_use <- tab_use[gsub("\\s+", "", tab_use$contrast) == target, , drop=FALSE]
-    }
-    cols <- .pick_cols_for(tab_use, contrast_fixed)
+  # --- 반환 객체 ---
+  list(
+    expr_mat = expr_mat,
+    expr_mat_scaled = expr_mat_scaled,
+    expr_mat_corrected = expr_mat_corrected,
+    meta.data = meta.data,
+    target_binary = target_binary,
+    n_groups = length(unique(target_binary)),
+    control_vars = control_vars
+  )
+}
 
-    tab_use |>
-      dplyr::mutate(
-        logFC_view = .data[[cols$logfc]],
-        padj_view  = .data[[cols$padj]],
-        p_view     = if (!is.null(cols$p)) .data[[cols$p]] else NA_real_
-      ) |>
-      dplyr::arrange(padj_view) |>
-      dplyr::slice_head(n = n)
+# [V5.2] find_gene_signature_v5.2
+#
+# 변경점 (v5.1 대비):
+# 1. [Req 2] `pca.n_pcs = 1` 인자 추가. 상위 N개 PC의 로딩 합으로 중요도 계산.
+# 2. [Req 3] `tree_based` -> `random_forest`로 메서드 이름 변경.
+# 3. [Req 4] 신규 베타 메서드 추가:
+#    - `random_forest_ranger` (ranger)
+#    - `ridge` (glmnet, alpha=0)
+#    - `elastic_net` (glmnet, alpha=0.5 (기본값)), `enet.alpha` 인자 추가.
+#    - `xgboost` (xgboost)
+# 4. [Req 5] `all_methods` 순서 재정렬 (Tree, Regularization, Loadings, Stats)
+# 5. [Req 6] `nmf` 블록: `...` 인자 필터링 로직('valid_nmf_args') 적용 (충돌 해결)
+# 6. [Req 1] `gam` 블록: `gam.min_unique = 15`, `gam.k = 10` 인자 추가.
+#    - 고유 값 15개 미만 유전자 스킵.
+#    - `bam()` 사용하여 속도 향상.
+
+#' @export 
+find_gene_signature_v5.2 <- function(data, 
+                                 meta.data = NULL,
+                                 target_var,
+                                 target_group = NULL,
+                                 control_vars = NULL,   
+                                 method = c("random_forest", "random_forest_ranger",
+                                            "lasso", "ridge", "elastic_net",
+                                            "pca_loadings", "nmf_loadings",
+                                            "gam", "limma", "wilcoxon",
+                                            "xgboost"),
+                                 n_features = 50,
+                                 test_n = NULL,         
+                                 preprocess = TRUE,
+                                 min_cells = 10,
+                                 min_pct = 0.01,
+#' @param fgs_seed The seed for reproducibility.
+#' @param lambda_selection The lambda selection method.
+#' @param enet.alpha The alpha for elastic net.
+#' @param pca.n_pcs The number of principal components to use.
+#' @param gam.min_unique The minimum number of unique values to keep a gene.
+#' @param gam.k The number of knots to use.
+#' @param ... Additional arguments to pass to the methods.
+                                 return_model = FALSE,
+                                 fgs_seed = 42,
+                                 # --- 신규/수정된 인자 ---
+                                 lambda_selection = "lambda.1se",
+                                 enet.alpha = 0.5,        # (Elastic Net용)
+                                 pca.n_pcs = 1,           # (PCA용)
+                                 gam.min_unique = 15,     # (GAM용)
+                                 gam.k = 10,              # (GAM용)
+                                 ...) {
+  
+  # [Req 5] 메서드 순서 및 이름 변경
+  all_methods <- c(
+    # 1. Tree-based
+    "random_forest", "random_forest_ranger", "xgboost",
+    # 2. Regularization
+    "lasso", "ridge", "elastic_net",
+    # 3. Loadings / Dimensionality Reduction
+    "pca_loadings", "nmf_loadings", # nmf -> nmf_loadings
+    # 4. Statistical Modelling
+    "gam", "limma", "wilcoxon"
+  )
+  
+  if (is.null(method)) {
+    method <- all_methods
+  }
+  
+  # === 1. [V5] 전처리 (단 1회 실행) ===
+  
+  # [Req 4] 신규 모델 스케일링 요구사항 업데이트
+  methods_requiring_scale <- c("lasso", "ridge", "elastic_net", 
+                               "gam", "pca_loadings", "xgboost")
+  methods_requiring_correction <- c("wilcoxon", "pca_loadings")
+  
+  preprocessed_data <- fgs_preprocess_data_v5.2(
+    data = data, meta.data = meta.data, target_var = target_var, 
+    target_group = target_group, control_vars = control_vars, 
+    test_n = test_n, preprocess = preprocess, min_cells = min_cells,
+    min_pct = min_pct,
+    methods_requiring_scale = intersect(method, methods_requiring_scale),
+    methods_requiring_correction = intersect(method, methods_requiring_correction)
+  )
+
+  expr_mat_base <- preprocessed_data$expr_mat
+  meta.data_clean <- preprocessed_data$meta.data
+  target_binary <- preprocessed_data$target_binary
+  n_groups <- preprocessed_data$n_groups
+  
+  set.seed(fgs_seed)
+  
+  covariate_mat_model <- NULL
+  if (!is.null(control_vars)) {
+     covariates_df_model <- meta.data_clean[, control_vars, drop = FALSE]
+     covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
+  }
+
+  results_list <- list()
+  
+  
+  # === 2. [V5] 메서드 순회 (for 루프) ===
+  
+  for (m in method) {
+    
+    if (!m %in% all_methods) {
+      warning(sprintf("Invalid method '%s'. Skipping.", m))
+      next
+    }
+    
+    message(sprintf("--- Running Method: %s ---", m))
+    
+    tryCatch({
+      
+      # === 3. 데이터 선택 (메서드별) ===
+      
+      if (m %in% c("limma", "wilcoxon", "nmf_loadings", "random_forest", "random_forest_ranger")) {
+        expr_mat_method <- expr_mat_base
+      } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "xgboost")) {
+        # 'expr_mat_scaled'가 NULL이면 (필요한 메서드가 없었으면) 원본 사용
+        expr_mat_method <- if(is.null(preprocessed_data$expr_mat_scaled)) expr_mat_base else preprocessed_data$expr_mat_scaled
+      }
+      
+      if (m %in% c("wilcoxon", "pca_loadings")) {
+        if (!is.null(preprocessed_data$expr_mat_corrected)) {
+          expr_mat_method <- preprocessed_data$expr_mat_corrected
+        }
+      }
+      
+      # (pca_loadings는 스케일링된 보정 데이터가 이상적이나, v5.2는 보정된 비-스케일링 데이터를 우선함)
+
+      X <- t(expr_mat_method)
+      y <- target_binary
+
+      
+      # === 4. Method-specific (v5.2 수정) ===
+      
+      result <- switch(m,
+        
+        # --- 1. Tree-based ---
+        
+        random_forest = { # [Req 3] 이름 변경
+          if (!requireNamespace("randomForest", quietly = TRUE)) {
+            stop("randomForest package required.")
+          }
+          
+          # RF는 스케일링되지 않은 원본 X 사용
+          X_rf <- t(expr_mat_base) 
+          if (!is.null(control_vars)) { X_rf <- cbind(X_rf, covariate_mat_model) }
+          
+          rf_model <- randomForest::randomForest(x = X_rf, y = y, ntree = 500, importance = TRUE, ...)
+          
+          importance_scores <- randomForest::importance(rf_model)
+          if (n_groups == 2) {
+            weights_magnitude_all <- importance_scores[, "MeanDecreaseGini"]
+          } else {
+            weights_magnitude_all <- rowMeans(importance_scores[, grep("MeanDecreaseGini", colnames(importance_scores))])
+          }
+          
+          gene_names_in_model <- colnames(X_rf)[!colnames(X_rf) %in% colnames(covariate_mat_model)]
+          weights_magnitude_genes <- weights_magnitude_all[gene_names_in_model]
+          
+          top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
+          weights_magnitude <- weights_magnitude_genes[top_genes]
+          
+          # ... (v4.1 방향성 보정 및 performance 로직) ...
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = if(return_model) rf_model else NULL)
+        },
+        
+        random_forest_ranger = { # [Req 4] 신규
+          if (!requireNamespace("ranger", quietly = TRUE)) {
+            stop("ranger package required.")
+          }
+          
+          # Ranger는 스케일링되지 않은 원본 X 사용
+          X_ranger <- t(expr_mat_base) 
+          if (!is.null(control_vars)) { X_ranger <- cbind(X_ranger, covariate_mat_model) }
+          
+          # ranger는 formula 인터페이스가 더 안정적임
+          ranger_data <- data.frame(y = y, X_ranger)
+          
+          rf_model <- ranger::ranger(
+            y ~ ., 
+            data = ranger_data, 
+            num.trees = 500, 
+            importance = "impurity", # Gini
+            ...
+          )
+          
+          weights_magnitude_all <- ranger::importance(rf_model)
+          
+          gene_names_in_model <- names(weights_magnitude_all)[!names(weights_magnitude_all) %in% colnames(covariate_mat_model)]
+          weights_magnitude_genes <- weights_magnitude_all[gene_names_in_model]
+          
+          top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
+          weights_magnitude <- weights_magnitude_genes[top_genes]
+
+          # ... (v4.1 방향성 보정 및 performance 로직) ...
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = if(return_model) rf_model else NULL)
+        },
+
+        xgboost = { # [Req 4] 신규 (Beta)
+          if (!requireNamespace("xgboost", quietly = TRUE)) {
+            stop("xgboost package required.")
+          }
+          
+          # X는 스케일링된 데이터 (expr_mat_scaled)
+          X_xgb <- X 
+          if (!is.null(control_vars)) { X_xgb <- cbind(X_xgb, covariate_mat_model) }
+          
+          # y를 0/1 숫자로 변환
+          y_numeric <- as.numeric(y) - 1
+          
+          dtrain <- xgboost::xgb.DMatrix(data = X_xgb, label = y_numeric)
+          
+          params <- list(
+            objective = if (n_groups == 2) "binary:logistic" else "multi:softmax",
+            eval_metric = if (n_groups == 2) "logloss" else "mlogloss",
+            nthread = 4,
+            eta = 0.1
+          )
+          if (n_groups > 2) { params$num_class = n_groups }
+          
+          xgb_model <- xgboost::xgb.train(params, dtrain, nrounds = 100, ...)
+          
+          imp_matrix <- xgboost::xgb.importance(model = xgb_model)
+          weights_magnitude_all <- imp_matrix$Gain
+          names(weights_magnitude_all) <- imp_matrix$Feature
+          
+          gene_names_in_model <- names(weights_magnitude_all)[!names(weights_magnitude_all) %in% colnames(covariate_mat_model)]
+          weights_magnitude_genes <- weights_magnitude_all[gene_names_in_model]
+          
+          top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
+          weights_magnitude <- weights_magnitude_genes[top_genes]
+
+          # ... (v4.1 방향성 보정 및 performance 로직) ...
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = if(return_model) xgb_model else NULL)
+        },
+
+        # --- 2. Regularization ---
+
+        lasso = {
+          # ... (v4.1 lasso 로직과 동일, X는 스케일링됨) ...
+          # 단, alpha=1 고정
+          cv_fit <- glmnet::cv.glmnet(X_model, y, family=..., alpha=1, ...)
+          # ...
+          list(...) 
+        },
+        
+        ridge = { # [Req 4] 신규
+          if (!requireNamespace("glmnet", quietly = TRUE)) { stop("glmnet required.") }
+          
+          # X는 스케일링된 데이터 (expr_mat_scaled)
+          if (is.null(control_vars)) {
+            X_model <- X
+            penalty_vec <- rep(1, ncol(X_model))
+          } else {
+            X_model <- cbind(X, covariate_mat_model)
+            penalty_vec <- c(rep(1, ncol(X)), rep(0, ncol(covariate_mat_model)))
+          }
+          
+          # alpha=0 (Ridge)
+          if (n_groups == 2) {
+            cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=0, 
+                                        penalty.factor = penalty_vec, ...)
+          } else {
+            cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=0, 
+                                        penalty.factor = penalty_vec, ...)
+          }
+          
+          # ... (v4.1 lasso와 동일한 계수 추출, top_genes 선별, performance 로직) ...
+          list(...)
+        },
+        
+        elastic_net = { # [Req 4] 신규
+          if (!requireNamespace("glmnet", quietly = TRUE)) { stop("glmnet required.") }
+          
+          # X는 스케일링된 데이터 (expr_mat_scaled)
+          if (is.null(control_vars)) {
+            X_model <- X
+            penalty_vec <- rep(1, ncol(X_model))
+          } else {
+            X_model <- cbind(X, covariate_mat_model)
+            penalty_vec <- c(rep(1, ncol(X)), rep(0, ncol(covariate_mat_model)))
+          }
+          
+          # alpha=enet.alpha (기본 0.5)
+          if (n_groups == 2) {
+            cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=enet.alpha, 
+                                        penalty.factor = penalty_vec, ...)
+          } else {
+            cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=enet.alpha, 
+                                        penalty.factor = penalty_vec, ...)
+          }
+          
+          # ... (v4.1 lasso와 동일한 계수 추출, top_genes 선별, performance 로직) ...
+          list(...)
+        },
+
+        # --- 3. Loadings ---
+
+        pca_loadings = {
+          # [Req 2] n_pcs 로직 적용
+          
+          # expr_mat_method는 보정O, 스케일링X (또는 스케일링O, 보정X)
+          # v5.2는 prcomp 전에 다시 스케일링을 보장
+          pca_res <- prcomp(X, center=TRUE, scale.=TRUE) 
+          
+          n_pcs_to_test <- min(50, ncol(pca_res$x))
+          pc_cors <- numeric(n_pcs_to_test)
+          
+          for (k in 1:n_pcs_to_test) {
+            if (n_groups == 2) {
+              pc_cors[k] <- abs(cor(pca_res$x[, k], as.numeric(target_binary)))
+            } else {
+              pc_cors[k] <- summary(aov(pca_res$x[, k] ~ target_binary))[[1]][1, "F value"]
+            }
+          }
+          
+          # 1. 가장 상관관계 높은 (Best) PC 1개
+          best_pc_idx <- which.max(pc_cors)
+          
+          # 2. 상위 N개 (Top N) PC
+          top_n_pcs_indices <- order(pc_cors, decreasing=TRUE)[1:min(pca.n_pcs, n_pcs_to_test)]
+          
+          # 3. 중요도 계산: Top N개 PC의 로딩 절대값 합
+          top_pc_loadings <- pca_res$rotation[, top_n_pcs_indices, drop=FALSE]
+          weights_magnitude_all <- rowSums(abs(top_pc_loadings))
+          
+          # 4. 방향성 계산: Best PC 1개의 부호있는 로딩
+          weights_directional_all <- pca_res$rotation[, best_pc_idx]
+          
+          # 5. 유전자 선별: Top N개 기준
+          top_genes <- names(sort(weights_magnitude_all, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_all))])
+          
+          # 6. 최종 가중치: Best PC 1개의 방향성 적용
+          weights <- weights_directional_all[top_genes]
+          
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          perf <- list(Best_PC = best_pc_idx, 
+                       Top_N_PCs = top_n_pcs_indices,
+                       Top_N_Correlations = pc_cors[top_n_pcs_indices],
+                       Best_PC_VarExplained = summary(pca_res)$importance[2, best_pc_idx])
+          
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = if(return_model) pca_res else NULL)
+        },
+
+        nmf_loadings = { # [Req 3] 이름 변경
+          if (!requireNamespace("NMF", quietly = TRUE)) {
+            stop("NMF package required.")
+          }
+          
+          # expr_mat_method는 'expr_mat_base'
+          expr_mat_nmf <- expr_mat_method 
+          
+          if (!is.null(control_vars)) {
+            warning(sprintf("Method NMF: Applying limma::removeBatchEffect for: %s...", m))
+            covariate_mat <- model.matrix(~ . - 1, data = meta.data_clean[, control_vars, drop=FALSE])
+            expr_mat_nmf <- limma::removeBatchEffect(expr_mat_nmf, covariates = covariate_mat)
+          }
+          
+          expr_mat_pos <- expr_mat_nmf - min(expr_mat_nmf) + 0.01 
+          
+          rank <- min(n_groups + 2, 10)
+          dots <- list(...)
+          
+          # [Req 6 FIX] '...' (dots)에서 NMF 유효 인자만 필터링
+          valid_nmf_args <- c("nrun", ".options", ".pbackend") 
+          filtered_dots <- dots[names(dots) %in% valid_nmf_args]
+          
+          nmf_args <- c(list(x = expr_mat_pos, 
+                             rank = rank, 
+                             seed = fgs_seed, 
+                             method = "brunet"), # 기본 알고리즘 명시
+                        filtered_dots)
+          
+          nmf_res <- do.call(NMF::nmf, nmf_args)
+          
+          # ... (v4.1 nmf 나머지 로직: W, H, best_component, 방향성 보정 등) ...
+          list(...)
+        },
+
+        # --- 4. Statistical Modelling ---
+        
+        gam = {
+          if (!requireNamespace("mgcv", quietly = TRUE)) { ... }
+          
+          deviance_explained <- numeric(nrow(expr_mat_method))
+          names(deviance_explained) <- rownames(expr_mat_method)
+          
+          gam_data <- data.frame(y_var_numeric = as.numeric(target_binary) - 1)
+          if (!is.null(control_vars)) {
+            gam_data <- cbind(gam_data, covariate_mat_model)
+            formula_base <- paste(" +", paste(colnames(covariate_mat_model), collapse=" + "))
+          } else {
+            formula_base <- ""
+          }
+          
+          # [Req 1] gam.k 인자 사용
+          full_formula_str_base <- paste("y_var_numeric ~ s(gene_expr, k=", gam.k, ", bs='cr')", formula_base)
+
+          convergence_warnings <- 0
+          genes_skipped <- 0
+          
+          for (i in 1:nrow(expr_mat_method)) {
+            gam_data$gene_expr <- expr_mat_method[i, ]
+            
+            # [Req 1] 고유 값 개수 필터링
+            n_unique_vals <- length(unique(gam_data$gene_expr))
+            if (n_unique_vals < gam.min_unique) {
+              deviance_explained[i] <- 0
+              genes_skipped <- genes_skipped + 1
+              next
+            }
+
+            fit_result <- tryCatch({
+              if (n_groups == 2) {
+                # [Point 2] 'gam' 대신 'bam' 사용
+                mgcv::bam(as.formula(full_formula_str_base), data = gam_data, family="binomial", ...)
+              } else {
+                mgcv::bam(as.formula(full_formula_str_base), data = gam_data, ...)
+              }
+            }, warning = function(w) {
+              if (grepl("did not converge", w$message)) {
+                convergence_warnings <<- convergence_warnings + 1
+              }
+              invokeRestart("muffleWarning")
+            }, error = function(e) {
+              warning(sprintf("GAM failed for gene %s: %s", rownames(expr_mat_method)[i], e$message))
+              return(NULL) 
+            })
+            
+            # ... (deviance_explained 로직) ...
+          }
+          
+          if (genes_skipped > 0) {
+            warning(sprintf("GAM: Skipped %d genes (unique values < gam.min_unique=%d).", genes_skipped, gam.min_unique))
+          }
+          if (convergence_warnings > 0) {
+            warning(sprintf("GAM: %d genes failed to converge.", convergence_warnings))
+          }
+          
+          # ... (v4.1 gam 나머지 로직: top_genes, 방향성 보정 등) ...
+          list(...)
+        },
+        
+        limma = {
+          # ... (v5.1 limma 로직과 동일) ...
+          list(...)
+        },
+        
+        wilcoxon = {
+          # ... (v5.1 wilcoxon 로직과 동일) ...
+          list(...)
+        }
+        
+      ) # --- switch 끝 ---
+
+      # === 5. 결과 저장 ===
+      result$method <- m
+      result$target_var <- target_var
+      result$n_groups <- n_groups
+      result$n_cells <- ncol(expr_mat_base)
+      
+      class(result) <- c("gene_signature", "list")
+      results_list[[m]] <- result
+      
+    }, error = function(e) {
+      warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+      results_list[[m]] <- list(method = m, error = e$message)
+    })
+    
+  } # --- for 루프 끝 ---
+
+  return(results_list)
+}
+
+
+#' Train a Meta-Learner (L2 Stacking Model)
+#'
+#' Trains multiple L2 candidate models on L1 scores and selects the best
+#' one based on cross-validation performance.
+#'
+#' @param l1_signatures A named list of trained L1 signatures (outputs from
+#'                      find_gene_signature). e.g., list(lasso=sig1, rf=sig2)
+#' @param holdout_data A Seurat object or matrix (genes x cells) NOT used
+#'                      for training L1 models.
+#' @param target_var The target variable column name in holdout_data@meta.data.
+#' @param l2_methods A vector of model methods supported by caret 
+#'                   (e.g., c("glm", "ranger", "xgbTree", "svmRadial")).
+#' @param k_folds Number of folds for cross-validation to select the best L2 model.
+#' @param metric The metric to optimize (e.g., "AUC", "Accuracy"). 
+#'               (Note: For "AUC", target must be binary factor).
+#' @param fgs_seed Seed for reproducibility.
+#'
+#' @return A list containing:
+#'    - $best_model: The final L2 model (a caret 'train' object) 
+#'                     trained on all l2_train_df.
+#'    - $model_comparison: Results from caret::resamples comparing L2 candidates.
+#'    - $l2_train_df: The dataframe used for L2 training (L1 scores + target).
+#'    - $l1_signatures: The provided L1 signatures (for reference).
+#' @export
+train_meta_learner_v1 <- function(l1_signatures,
+                               holdout_data,
+                               target_var,
+                               l2_methods = c("glm", "ranger", "xgbTree"),
+                               k_folds = 5,
+                               metric = "AUC",
+                               fgs_seed = 42) {
+  
+  if (!requireNamespace("caret", quietly = TRUE)) {
+    stop("caret package required. Install with: install.packages('caret')")
+  }
+  set.seed(fgs_seed)
+
+  # === 1. L2 Feature 생성 ===
+  message("--- Generating L2 features from holdout_data ---")
+  
+  l2_features_list <- lapply(l1_signatures, function(sig) {
+    score_signature(expr_data = holdout_data,
+                    signature = sig,
+                    normalize = TRUE) # 스케일 통일을 위해 정규화
+  })
+  
+  l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
+  
+  # L1 모델 이름이 없으면 기본 이름 할당
+  if (is.null(names(l1_signatures))) {
+    names(l1_signatures) <- paste0("L1_model_", seq_along(l1_signatures))
+  }
+  colnames(l2_train_df) <- names(l1_signatures)
+
+  # === 2. L2 훈련 데이터 준비 ===
+  
+  # Seurat 객체에서 메타데이터 추출
+  if (inherits(holdout_data, "Seurat")) {
+    meta.data <- holdout_data@meta.data
+    # holdout_data의 셀 순서와 l2_train_df의 행 순서가 일치하는지 확인
+    if(!all(rownames(l2_train_df) == rownames(meta.data))) {
+        meta.data <- meta.data[rownames(l2_train_df), ]
+    }
+    l2_target <- meta.data[[target_var]]
+  } else {
+    # 행렬인 경우, target_var는 별도의 벡터로 제공되어야 함 (이 예제에서는 단순화)
+    stop("holdout_data is not a Seurat object. Please provide target_var as a separate vector matching cell order.")
+  }
+
+  # caret은 factor형 타겟 변수를 선호 (특히 분류 및 AUC 계산 시)
+  if (!is.factor(l2_target)) {
+    l2_target <- factor(l2_target)
+  }
+  
+  # caret이 R 변수명으로 부적합한 이름을 처리하도록 함 (예: "limma-fold")
+  colnames(l2_train_df) <- make.names(colnames(l2_train_df))
+  
+  # === 3. L2 모델 교차 검증 및 선택 ===
+  message("--- Training and comparing L2 models via k-fold CV ---")
+
+  # CV 설정
+  train_control <- caret::trainControl(
+    method = "cv",
+    number = k_folds,
+    summaryFunction = caret::twoClassSummary, # AUC, Sens, Spec 계산
+    classProbs = TRUE, # AUC 계산을 위해 확률 예측 필요
+    savePredictions = "final",
+    allowParallel = TRUE
+  )
+  
+  # metric이 AUC가 아니면 기본 summary 사용
+  if (metric != "AUC") {
+    train_control$summaryFunction <- caret::defaultSummary
+  }
+  
+  # 여러 L2 모델을 훈련시키기 위한 리스트
+  model_list <- list()
+  
+  for (method in l2_methods) {
+    tryCatch({
+      message(sprintf("Training L2 candidate: %s", method))
+      model_list[[method]] <- caret::train(
+        x = l2_train_df,
+        y = l2_target,
+        method = method,
+        trControl = train_control,
+        metric = metric,
+        tuneLength = 5 # 각 모델의 기본 하이퍼파라미터 튜닝
+      )
+    }, error = function(e) {
+      warning(sprintf("Failed to train L2 model: %s. Error: %s", method, e$message))
+    })
+  }
+
+  if (length(model_list) == 0) {
+    stop("No L2 models were successfully trained.")
+  }
+
+  # 훈련된 모델들의 성능 비교
+  model_comparison <- caret::resamples(model_list)
+  print(summary(model_comparison))
+
+  # === 4. Best 모델 선택 및 재훈련 (caret이 자동으로 처리) ===
+  # caret::train은 CV를 사용해 최적의 하이퍼파라미터를 찾고,
+  # 그 파라미터로 "전체 L2 데이터"를 재훈련시킨 모델($finalModel)을 반환함.
+  # 우리는 이 훈련된 모델들 중 'Best'를 선택하기만 하면 됨.
+  
+  best_model_name <- names(which.max(
+    sapply(model_list, function(m) max(m$results[, metric]))
+  ))
+  
+  best_model <- model_list[[best_model_name]]
+  
+  message(sprintf("--- Best L2 model selected: %s (CV %s: %.4f) ---",
+                  best_model_name, metric, max(best_model$results[, metric])))
+  
+  # === 5. 결과 반환 ===
+  return(list(
+    best_model = best_model,
+    best_model_name = best_model_name,
+    model_comparison = model_comparison,
+    l2_train_df = data.frame(l2_train_df, target = l2_target),
+    l1_signatures = l1_signatures
+  ))
+}
+
+
+# ---
+# 2. train_meta_learner (수정본)
+#    - (FIX 1): GetAssayData 1회 호출
+#    - (FIX 2): NA target 명시적 제거
+# ---
+# (caret, ranger, xgboost 등 필요 패키지 로드 가정)
+#' Train a Meta-Learner (L2 Stacking Model)
+#'
+#' Trains multiple L2 candidate models on L1 scores and selects the best
+#' one based on cross-validation performance.
+#'
+#' @param l1_signatures A named list of trained L1 signatures (outputs from
+#'                      find_gene_signature). e.g., list(lasso=sig1, rf=sig2)
+#' @param holdout_data A Seurat object or matrix (genes x cells) NOT used
+#'                      for training L1 models.
+#' @param target_var The target variable column name in holdout_data@meta.data.
+#' @param l2_methods A vector of model methods supported by caret 
+#'                   (e.g., c("glm", "ranger", "xgbTree", "svmRadial")).
+#' @param k_folds Number of folds for cross-validation to select the best L2 model.
+#' @param metric The metric to optimize (e.g., "AUC", "Accuracy"). 
+#'               (Note: For "AUC", target must be binary factor).
+#' @param fgs_seed Seed for reproducibility.
+#'
+#' @return A list containing:
+#'    - $best_model: The final L2 model (a caret 'train' object) 
+#'                     trained on all l2_train_df.
+#'    - $model_comparison: Results from caret::resamples comparing L2 candidates.
+#'    - $l2_train_df: The dataframe used for L2 training (L1 scores + target).
+#'    - $l1_signatures: The provided L1 signatures (for reference).
+#' @export
+train_meta_learner_v2 <- function(l1_signatures,
+                               holdout_data,
+                               target_var,
+                               l2_methods = c("glm", "ranger", "xgbTree"),
+                               k_folds = 5,
+                               metric = "AUC",
+                               fgs_seed = 42) {
+  
+  if (!requireNamespace("caret", quietly = TRUE)) {
+    stop("caret package required.")
+  }
+  set.seed(fgs_seed)
+
+  # === 1. 데이터 추출 (PERFORMANCE FIX 1) ===
+  message("--- Preparing holdout data (Extracting once) ---")
+  if (inherits(holdout_data, "Seurat")) {
+    # GetAssayData를 루프 밖에서 단 한 번만 호출 (희소 행렬로)
+    expr_mat <- Seurat::GetAssayData(holdout_data, layer="data")
+    meta_data <- holdout_data@meta.data
+  } else {
+    # Seurat 객체가 아니면, holdout_data가 이미 (희소) 행렬이라고 가정
+    expr_mat <- holdout_data
+    # 이 경우 target_var는 반드시 메타데이터 프레임이거나 벡터여야 함 (로직 단순화)
+    if (!is.vector(target_var) && !is.factor(target_var)) {
+        stop("If holdout_data is a matrix, target_var must be the actual target vector.")
+    }
+    meta_data <- NULL # 메타데이터 객체가 없음
+  }
+
+  # === 2. L2 Feature 생성 ===
+  message("--- Generating L2 features from holdout data ---")
+  
+  l2_features_list <- lapply(l1_signatures, function(sig) {
+    # Seurat 객체 대신 추출된 'expr_mat'를 전달
+    score_signature(expr_data = expr_mat, 
+                    signature = sig,
+                    normalize = TRUE) 
+  })
+  
+  l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
+  
+  if (is.null(names(l1_signatures))) {
+    names(l1_signatures) <- paste0("L1_model_", seq_along(l1_signatures))
+  }
+  # caret이 인식하도록 R 변수명으로 정리
+  colnames(l2_train_df) <- make.names(names(l1_signatures))
+
+  # === 3. L2 타겟 변수 준비 ===
+  if (!is.null(meta_data)) {
+    # l2_train_df의 행 순서(cell ID)와 meta_data의 행 순서가 일치하는지 확인/정렬
+    if (!all(rownames(l2_train_df) == rownames(meta_data))) {
+        meta_data <- meta_data[rownames(l2_train_df), , drop = FALSE]
+    }
+    l2_target <- meta_data[[target_var]]
+  } else {
+    l2_target <- target_var # 이미 벡터라고 가정
+    if (length(l2_target) != nrow(l2_train_df)) {
+      stop("Target vector length does not match expression data cell count.")
+    }
+  }
+
+  if (!is.factor(l2_target)) {
+    l2_target <- factor(l2_target)
+  }
+  
+  # === 4. NA 타겟 제거 (BUG FIX 2) ===
+  message(sprintf("Initial L2 target length: %d", length(l2_target)))
+  na_indices <- is.na(l2_target)
+  
+  if (any(na_indices)) {
+    n_na <- sum(na_indices)
+    message(sprintf("Found and removing %d cells with NA target.", n_na))
+    
+    l2_target_filtered <- l2_target[!na_indices]
+    l2_train_df_filtered <- l2_train_df[!na_indices, , drop = FALSE]
+    
+  } else {
+    l2_target_filtered <- l2_target
+    l2_train_df_filtered <- l2_train_df
+  }
+  
+  message(sprintf("Final L2 training set size: %d cells", length(l2_target_filtered)))
+
+  if (length(l2_target_filtered) == 0 || nrow(l2_train_df_filtered) == 0) {
+      stop("No valid data remaining after removing NAs from target variable.")
+  }
+
+  # === 5. L2 모델 교차 검증 및 선택 ===
+  message("--- Training and comparing L2 models via k-fold CV ---")
+
+  # 타겟 유형(이진/다중)에 따라 CV 컨트롤 분기
+  if (length(levels(l2_target_filtered)) == 2) {
+    message("Binary target detected. Using twoClassSummary (for AUC).")
+    train_control <- caret::trainControl(
+      method = "cv", number = k_folds,
+      summaryFunction = caret::twoClassSummary,
+      classProbs = TRUE,
+      savePredictions = "final",
+      allowParallel = TRUE
+    )
+    # 이진 분류 시 metric이 AUC가 아니면 AUC로 강제
+    if (metric != "AUC") {
+      message("NOTE: Target is binary, forcing metric to 'AUC'.")
+      metric <- "AUC"
+    }
+  } else {
+    message("Multi-class target detected. Using defaultSummary.")
+    train_control <- caret::trainControl(
+      method = "cv", number = k_folds,
+      summaryFunction = caret::defaultSummary,
+      savePredictions = "final",
+      allowParallel = TRUE
+    )
+    # 다중 분류 시 AUC 사용 불가
+    if (metric == "AUC") {
+      message("WARNING: Target is multi-class, 'AUC' metric is invalid. Defaulting to 'Accuracy'.")
+      metric <- "Accuracy"
+    }
+  }
+  
+  model_list <- list()
+  
+  for (method in l2_methods) {
+    tryCatch({
+      message(sprintf("Training L2 candidate: %s", method))
+      model_list[[method]] <- caret::train(
+        x = l2_train_df_filtered, # <-- 필터링된 데이터 사용
+        y = l2_target_filtered,   # <-- 필터링된 타겟 사용
+        method = method,
+        trControl = train_control,
+        metric = metric,
+        tuneLength = 5 # 기본 하이퍼파라미터 튜닝
+      )
+    }, error = function(e) {
+      warning(sprintf("Failed to train L2 model: %s. Error: %s", method, e$message))
+    })
+  }
+
+  if (length(model_list) == 0) {
+    stop("No L2 models were successfully trained.")
+  }
+
+  # 훈련된 모델들의 성능 비교
+  model_comparison <- caret::resamples(model_list)
+  print(summary(model_comparison))
+
+  # Best 모델 선택
+  best_metric_values <- sapply(model_list, function(m) max(m$results[, metric], na.rm = TRUE))
+  best_model_name <- names(which.max(best_metric_values))
+  best_model <- model_list[[best_model_name]]
+  
+  message(sprintf("--- Best L2 model selected: %s (CV %s: %.4f) ---",
+                  best_model_name, metric, max(best_model$results[, metric], na.rm = TRUE)))
+  
+  # === 6. 결과 반환 ===
+  return(list(
+    best_model = best_model,
+    best_model_name = best_model_name,
+    model_comparison = model_comparison,
+    l2_train_df_filtered = data.frame(l2_train_df_filtered, target = l2_target_filtered),
+    l1_signatures = l1_signatures
+  ))
+}
+
+#' Train a Meta-Learner (L2 Stacking Model)
+#'
+#' Trains multiple L2 candidate models on L1 scores and selects the best
+#' one based on cross-validation performance.
+#'
+#' @param l1_signatures A named list of trained L1 signatures (outputs from
+#'                      find_gene_signature). e.g., list(lasso=sig1, rf=sig2)
+#' @param holdout_data A Seurat object or matrix (genes x cells) NOT used
+#'                      for training L1 models.
+#' @param target_var The target variable column name in holdout_data@meta.data.
+#' @param l2_methods A vector of model methods supported by caret 
+#'                   (e.g., c("glm", "ranger", "xgbTree", "svmRadial")).
+#' @param k_folds Number of folds for cross-validation to select the best L2 model.
+#' @param metric The metric to optimize (e.g., "AUC", "Accuracy"). 
+#'               (Note: For "AUC", target must be binary factor).
+#' @param fgs_seed Seed for reproducibility.
+#'
+#' @return A list containing:
+#'    - $best_model: The final L2 model (a caret 'train' object) 
+#'                     trained on all l2_train_df.
+#'    - $model_comparison: Results from caret::resamples comparing L2 candidates.
+#'    - $l2_train_df: The dataframe used for L2 training (L1 scores + target).
+#'    - $l1_signatures: The provided L1 signatures (for reference).
+#' @export
+train_meta_learner_v3 <- function(l1_signatures,
+                               holdout_data,
+                               target_var,
+                               l2_methods = c("glm", "ranger", "xgbTree"),
+                               k_folds = 5,
+                               metric = "AUC",
+                               fgs_seed = 42) {
+  
+  if (!requireNamespace("caret", quietly = TRUE)) {
+    stop("caret package required.")
+  }
+  set.seed(fgs_seed)
+
+  # === 1. 데이터 추출 (PERFORMANCE FIX 1) ===
+  message("--- Preparing holdout data (Extracting once) ---")
+  if (inherits(holdout_data, "Seurat")) {
+    expr_mat <- Seurat::GetAssayData(holdout_data, layer="data")
+    meta_data <- holdout_data@meta.data
+  } else {
+    expr_mat <- holdout_data
+    if (!is.vector(target_var) && !is.factor(target_var)) {
+        stop("If holdout_data is a matrix, target_var must be the actual target vector.")
+    }
+    meta_data <- NULL 
+  }
+
+  # === 2. L2 Feature 생성 ===
+  message("--- Generating L2 features from holdout data ---")
+  
+  l2_features_list <- lapply(l1_signatures, function(sig) {
+    score_signature(expr_data = expr_mat, 
+                    signature = sig,
+                    normalize = TRUE) 
+  })
+  
+  l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
+  
+  if (is.null(names(l1_signatures))) {
+    names(l1_signatures) <- paste0("L1_model_", seq_along(l1_signatures))
+  }
+  colnames(l2_train_df) <- make.names(names(l1_signatures))
+
+  # === 3. L2 타겟 변수 준비 ===
+  if (!is.null(meta_data)) {
+    if (!all(rownames(l2_train_df) == rownames(meta_data))) {
+        meta_data <- meta_data[rownames(l2_train_df), , drop = FALSE]
+    }
+    l2_target <- meta_data[[target_var]]
+  } else {
+    l2_target <- target_var 
+  }
+
+  if (!is.factor(l2_target)) {
+    l2_target <- factor(l2_target)
+  }
+  
+  # === (BUG FIX 3): caret을 위한 Factor Level 이름 소독 ===
+  original_levels <- levels(l2_target)
+  sanitized_levels <- make.names(original_levels)
+  
+  if (!all(original_levels == sanitized_levels)) {
+    message(sprintf("Sanitizing target levels for caret: '%s' -> '%s'", 
+                    paste(original_levels, collapse="' / '"), 
+                    paste(sanitized_levels, collapse="' / '")))
+    levels(l2_target) <- sanitized_levels
+  }
+  # === End of fix ===
+
+  # === 4. NA 타겟 제거 (BUG FIX 2) ===
+  message(sprintf("Initial L2 target length: %d", length(l2_target)))
+  na_indices <- is.na(l2_target)
+  
+  if (any(na_indices)) {
+    n_na <- sum(na_indices)
+    message(sprintf("Found and removing %d cells with NA target.", n_na))
+    
+    l2_target_filtered <- l2_target[!na_indices]
+    l2_train_df_filtered <- l2_train_df[!na_indices, , drop = FALSE]
+    
+  } else {
+    l2_target_filtered <- l2_target
+    l2_train_df_filtered <- l2_train_df
+  }
+  
+  message(sprintf("Final L2 training set size: %d cells", length(l2_target_filtered)))
+
+  if (length(l2_target_filtered) == 0 || nrow(l2_train_df_filtered) == 0) {
+      stop("No valid data remaining after removing NAs from target variable.")
+  }
+
+  # === 5. L2 모델 교차 검증 및 선택 ===
+  message("--- Training and comparing L2 models via k-fold CV ---")
+
+  if (length(levels(l2_target_filtered)) == 2) {
+    message("Binary target detected. Using twoClassSummary (for AUC).")
+    train_control <- caret::trainControl(
+      method = "cv", number = k_folds,
+      summaryFunction = caret::twoClassSummary,
+      classProbs = TRUE,
+      savePredictions = "final",
+      allowParallel = TRUE
+    )
+    if (metric != "AUC") {
+      message("NOTE: Target is binary, forcing metric to 'AUC'.")
+      metric <- "AUC"
+    }
+  } else {
+    message("Multi-class target detected. Using defaultSummary.")
+    train_control <- caret::trainControl(
+      method = "cv", number = k_folds,
+      summaryFunction = caret::defaultSummary,
+      savePredictions = "final",
+      allowParallel = TRUE
+    )
+    if (metric == "AUC") {
+      message("WARNING: Target is multi-class, 'AUC' metric is invalid. Defaulting to 'Accuracy'.")
+      metric <- "Accuracy"
+    }
+  }
+  
+  model_list <- list()
+  
+  for (method in l2_methods) {
+    tryCatch({
+      message(sprintf("Training L2 candidate: %s", method))
+      model_list[[method]] <- caret::train(
+        x = l2_train_df_filtered, 
+        y = l2_target_filtered,   
+        method = method,
+        trControl = train_control,
+        metric = metric,
+        tuneLength = 5 
+      )
+    }, error = function(e) {
+      warning(sprintf("Failed to train L2 model: %s. Error: %s", method, e$message))
+    })
+  }
+
+  if (length(model_list) == 0) {
+    stop("No L2 models were successfully trained.")
+  }
+
+  model_comparison <- caret::resamples(model_list)
+  print(summary(model_comparison))
+
+  best_metric_values <- sapply(model_list, function(m) max(m$results[, metric], na.rm = TRUE))
+  best_model_name <- names(which.max(best_metric_values))
+  best_model <- model_list[[best_model_name]]
+  
+  message(sprintf("--- Best L2 model selected: %s (CV %s: %.4f) ---",
+                  best_model_name, metric, max(best_model$results[, metric], na.rm = TRUE)))
+  
+  # === 6. 결과 반환 ===
+  return(list(
+    best_model = best_model,
+    best_model_name = best_model_name,
+    model_comparison = model_comparison,
+    l2_train_df_filtered = data.frame(l2_train_df_filtered, target = l2_target_filtered),
+    l1_signatures = l1_signatures
+  ))
+}
+
+# (score_signature 함수는 이전의 'Robust Fix' 버전을 사용한다고 가정)
+# (caret, ranger, xgboost 등 필요 패키지 로드 가정)
+
+train_meta_learner_v4 <- function(l1_signatures,
+                               holdout_data,
+                               target_var,
+                               l2_methods = c("glm", "ranger", "xgbTree"),
+                               k_folds = 5,
+                               metric = "AUC",
+                               fgs_seed = 42) {
+  
+  if (!requireNamespace("caret", quietly = TRUE)) {
+    stop("caret package required.")
+  }
+  set.seed(fgs_seed)
+
+  # === 1. 데이터 추출 ===
+  message("--- Preparing holdout data (Extracting once) ---")
+  if (inherits(holdout_data, "Seurat")) {
+    expr_mat <- Seurat::GetAssayData(holdout_data, layer="data")
+    meta_data <- holdout_data@meta.data
+  } else {
+    expr_mat <- holdout_data
+    if (!is.vector(target_var) && !is.factor(target_var)) {
+        stop("If holdout_data is a matrix, target_var must be the actual target vector.")
+    }
+    meta_data <- NULL 
+  }
+
+  # === 2. L2 Feature 생성 ===
+  message("--- Generating L2 features from holdout data ---")
+  l2_features_list <- lapply(l1_signatures, function(sig) {
+    score_signature(expr_data = expr_mat, signature = sig, normalize = TRUE) 
+  })
+  l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
+  if (is.null(names(l1_signatures))) { names(l1_signatures) <- paste0("L1_model_", seq_along(l1_signatures)) }
+  colnames(l2_train_df) <- make.names(names(l1_signatures))
+
+  # === 3. L2 타겟 변수 준비 및 소독 (BUG FIX 3) ===
+  if (!is.null(meta_data)) {
+    if (!all(rownames(l2_train_df) == rownames(meta_data))) {
+        meta_data <- meta_data[rownames(l2_train_df), , drop = FALSE]
+    }
+    l2_target <- meta_data[[target_var]]
+  } else { l2_target <- target_var }
+  if (!is.factor(l2_target)) { l2_target <- factor(l2_target) }
+  
+  original_levels <- levels(l2_target)
+  sanitized_levels <- make.names(original_levels)
+  if (!all(original_levels == sanitized_levels)) {
+    message(sprintf("Sanitizing target levels for caret: '%s' -> '%s'", 
+                    paste(original_levels, collapse="' / '"), 
+                    paste(sanitized_levels, collapse="' / '")))
+    levels(l2_target) <- sanitized_levels
+  }
+
+  # === 4. NA 타겟 제거 (BUG FIX 2) ===
+  message(sprintf("Initial L2 target length: %d", length(l2_target)))
+  na_target_indices <- is.na(l2_target)
+  if (any(na_target_indices)) {
+    n_na <- sum(na_target_indices)
+    message(sprintf("Found and removing %d cells with NA target.", n_na))
+    l2_target <- l2_target[!na_target_indices]
+    l2_train_df <- l2_train_df[!na_target_indices, , drop = FALSE]
+  }
+  
+  # === 5. NA/NaN/Inf Feature 제거 (BUG FIX 4) ===
+  message("Checking for NA/NaN/Inf in L2 features (scores)...")
+  complete_feature_indices <- complete.cases(l2_train_df)
+  if (!all(complete_feature_indices)) {
+    n_na_features <- sum(!complete_feature_indices)
+    message(sprintf("Found and removing %d cells with NA/NaN/Inf features.", n_na_features))
+    l2_target_filtered <- l2_target[complete_feature_indices]
+    l2_train_df_filtered <- l2_train_df[complete_feature_indices, , drop = FALSE]
+  } else {
+    l2_target_filtered <- l2_target
+    l2_train_df_filtered <- l2_train_df
+  }
+
+  # === (BUG FIX 5): Zero-Variance Predictor 제거 ===
+  message("Checking for zero-variance predictors (constant features)...")
+  nzv_indices <- caret::nearZeroVar(l2_train_df_filtered, saveMetrics = FALSE)
+  
+  if (length(nzv_indices) > 0) {
+    n_nzv <- length(nzv_indices)
+    nzv_names <- colnames(l2_train_df_filtered)[nzv_indices]
+    message(sprintf("Found and removing %d constant features: %s",
+                    n_nzv, paste(nzv_names, collapse=", ")))
+    
+    l2_train_df_filtered <- l2_train_df_filtered[, -nzv_indices, drop = FALSE]
+  }
+  # === End of fix ===
+
+  message(sprintf("Final L2 training set size: %d cells, %d features", 
+                  length(l2_target_filtered), ncol(l2_train_df_filtered)))
+                  
+  if (length(l2_target_filtered) == 0 || nrow(l2_train_df_filtered) == 0) {
+      stop("No valid data remaining after removing NAs from target and/or features.")
+  }
+  if (ncol(l2_train_df_filtered) == 0) {
+      stop("No valid features remaining after removing zero-variance predictors.")
+  }
+
+  # === 6. L2 모델 교차 검증 및 선택 ===
+  message("--- Training and comparing L2 models via k-fold CV ---")
+  
+  if (length(levels(l2_target_filtered)) == 2) {
+    message("Binary target detected. Using twoClassSummary (for AUC).")
+    train_control <- caret::trainControl(
+      method = "cv", number = k_folds,
+      summaryFunction = caret::twoClassSummary,
+      classProbs = TRUE,
+      savePredictions = "final",
+      allowParallel = TRUE
+    )
+    if (metric != "AUC") { message("NOTE: Target is binary, forcing metric to 'AUC'."); metric <- "AUC" }
+  } else {
+    message("Multi-class target detected. Using defaultSummary.")
+    train_control <- caret::trainControl(method = "cv", number = k_folds, summaryFunction = caret::defaultSummary, savePredictions = "final", allowParallel = TRUE)
+    if (metric == "AUC") { message("WARNING: Target is multi-class, 'AUC' metric is invalid. Defaulting to 'Accuracy'."); metric <- "Accuracy" }
+  }
+  
+  model_list <- list()
+  for (method in l2_methods) {
+    tryCatch({
+      message(sprintf("Training L2 candidate: %s", method))
+      model_list[[method]] <- caret::train(
+        x = l2_train_df_filtered,
+        y = l2_target_filtered,
+        method = method,
+        trControl = train_control,
+        metric = metric,
+        tuneLength = 5
+        # 'na.action' 인수 제거됨
+      )
+    }, error = function(e) {
+      warning(sprintf("Failed to train L2 model: %s. Error: %s", method, e$message))
+    })
+  }
+
+  if (length(model_list) < 2) {
+    if (length(model_list) == 0) {
+        stop("No L2 models were successfully trained.")
+    }
+    warning("Only one L2 model was successfully trained. Comparison skipped.")
+    model_comparison <- NULL
+    best_model <- model_list[[1]]
+    best_model_name <- names(model_list)[1]
+    
+  } else {
+    model_comparison <- caret::resamples(model_list)
+    print(summary(model_comparison))
+    best_metric_values <- sapply(model_list, function(m) max(m$results[, metric], na.rm = TRUE))
+    best_model_name <- names(which.max(best_metric_values))
+    best_model <- model_list[[best_model_name]]
+  }
+  
+  # 최종 에러 방지 (best_model이 메트릭 생성에 실패한 경우)
+  best_metric_val <- tryCatch({
+    max(best_model$results[, metric], na.rm = TRUE)
+  }, error = function(e) {
+    warning(sprintf("Could not extract metric '%s' from best model '%s'.", metric, best_model_name))
+    return(NA_real_)
+  })
+
+  message(sprintf("--- Best L2 model selected: %s (CV %s: %.4f) ---",
+                  best_model_name, metric, best_metric_val))
+  
+  # === 7. 결과 반환 ===
+  return(list(
+    best_model = best_model,
+    best_model_name = best_model_name,
+    model_comparison = model_comparison,
+    l2_train_df_filtered = data.frame(l2_train_df_filtered, target = l2_target_filtered),
+    l1_signatures = l1_signatures
+  ))
+}
+
+train_meta_learner_v5 <- function(
+  l1_signatures,                 # list of signatures; each can be character gene vector or named numeric weights
+  holdout_data,                  # Seurat obj (uses layer="data") or matrix/data.frame (features x cells)
+  target_var,                    # if Seurat: column name in meta; else: factor/character vector of labels (length = ncol(holdout_data))
+  l2_methods = c("glm", "ranger", "xgbTree"),
+  k_folds   = 5,
+  metric    = c("AUC","Accuracy","Kappa"),  # user-facing alias; internally mapped to caret column
+  fgs_seed  = 42,
+  layer     = "data",
+  allow_parallel = TRUE
+){
+  # -------- helpers --------
+  `%||%` <- function(a,b) if (!is.null(a)) a else b
+
+  .score_signature <- function(expr_data, signature, normalize = TRUE) {
+    # expr_data: matrix (features x cells); rownames = features
+    if (is.character(signature)) {
+      genes <- intersect(rownames(expr_data), signature)
+      if (length(genes) == 0) stop("Signature has no overlap with expression data.")
+      s <- colMeans(expr_data[genes, , drop = FALSE])
+    } else if (is.numeric(signature) && !is.null(names(signature))) {
+      genes <- intersect(rownames(expr_data), names(signature))
+      if (length(genes) == 0) stop("Weighted signature has no overlap with expression data.")
+      w <- signature[genes]
+      # weighted mean per column
+      s <- as.numeric(Matrix::t(expr_data[genes, , drop = FALSE]) %*% w) / sum(w)
+    } else if (is.numeric(signature) && is.null(names(signature))) {
+      stop("Numeric signature must be a named numeric vector (names=gene IDs).")
+    } else {
+      stop("Unsupported signature format.")
+    }
+    if (normalize) s <- as.numeric(scale(s))
+    s
+  }
+
+  .is_binary <- function(y) length(levels(y)) == 2
+
+  .metric_map <- function(user_metric, is_binary) {
+    user_metric <- match.arg(user_metric)
+    if (is_binary) {
+      # caret::twoClassSummary produces columns: ROC, Sens, Spec
+      if (user_metric == "AUC") return(list(train_metric="ROC",  summary="twoClassSummary"))
+      if (user_metric == "Accuracy") return(list(train_metric="ROC", summary="twoClassSummary")) # we'll still rank by ROC (better choice for prob models)
+      if (user_metric == "Kappa") return(list(train_metric="ROC", summary="twoClassSummary"))
+    } else {
+      # multiclass: defaultSummary → Accuracy, Kappa
+      if (user_metric == "AUC") {
+        message("WARNING: 'AUC' is not defined for multi-class with defaultSummary. Falling back to 'Accuracy'.")
+        return(list(train_metric="Accuracy", summary="defaultSummary"))
+      }
+      if (user_metric %in% c("Accuracy","Kappa"))
+        return(list(train_metric=user_metric, summary="defaultSummary"))
+    }
+    # Fallback
+    list(train_metric = if (is_binary) "ROC" else "Accuracy",
+         summary      = if (is_binary) "twoClassSummary" else "defaultSummary")
+  }
+
+  .package_ok <- function(pkg){
+    suppressWarnings(suppressMessages(requireNamespace(pkg, quietly = TRUE)))
+  }
+
+  # -------- init & data extract --------
+  if (!.package_ok("caret")) stop("caret package required.")
+  if (!.package_ok("Matrix")) stop("Matrix package required.")
+  if (allow_parallel) {
+    if (.package_ok("doFuture")) {
+      future::plan(future::multisession, workers = max(1, parallel::detectCores()-1))
+      doFuture::registerDoFuture()
+    } else {
+      message("NOTE: doFuture not installed; running sequentially.")
+      allow_parallel <- FALSE
+    }
+  }
+
+  set.seed(fgs_seed)
+  RNGkind(sample.kind = "Rejection")  # more reproducible on recent R
+
+  # Extract expression & meta
+  if (inherits(holdout_data, "Seurat")) {
+    if (!.package_ok("Seurat")) stop("Seurat package required for Seurat input.")
+    expr_mat <- Seurat::GetAssayData(holdout_data, layer = layer)
+    meta_data <- holdout_data@meta.data
+    if (!target_var %in% colnames(meta_data))
+      stop(sprintf("Target column '%s' not found in Seurat meta.data.", target_var))
+    l2_target <- meta_data[[target_var]]
+  } else {
+    # matrix/data.frame expected: features x cells
+    if (is.data.frame(holdout_data)) holdout_data <- as.matrix(holdout_data)
+    if (!is.matrix(holdout_data)) stop("holdout_data must be Seurat or a matrix/data.frame [features x cells].")
+    expr_mat <- holdout_data
+    meta_data <- NULL
+    l2_target <- target_var
+  }
+
+  if (is.null(rownames(expr_mat))) stop("Expression matrix must have rownames (feature IDs).")
+  if (is.null(colnames(expr_mat))) colnames(expr_mat) <- paste0("cell_", seq_len(ncol(expr_mat)))
+
+  # -------- build L2 feature table from L1 signatures --------
+  if (is.null(names(l1_signatures))) names(l1_signatures) <- paste0("L1_", seq_along(l1_signatures))
+
+  l2_features_list <- lapply(l1_signatures, function(sig) .score_signature(expr_mat, sig, normalize = TRUE))
+  l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
+  colnames(l2_train_df) <- make.names(names(l1_signatures))
+
+  # -------- target prep --------
+  if (!is.factor(l2_target)) l2_target <- factor(l2_target)
+  orig_lvls <- levels(l2_target)
+  safe_lvls <- make.names(orig_lvls)
+  if (!all(orig_lvls == safe_lvls)) {
+    message(sprintf("Sanitizing target levels: '%s' -> '%s'",
+                    paste(orig_lvls, collapse="'/'"),
+                    paste(safe_lvls, collapse="'/'")))
+    levels(l2_target) <- safe_lvls
+  }
+
+  # drop NA target rows
+  keep <- !is.na(l2_target)
+  if (!all(keep)) {
+    message(sprintf("Removing %d rows with NA target.", sum(!keep)))
+    l2_target <- l2_target[keep]
+    l2_train_df <- l2_train_df[keep, , drop = FALSE]
+  }
+
+  # drop rows with NA/NaN/Inf in features
+  row_ok <- stats::complete.cases(l2_train_df) &
+            apply(l2_train_df, 1, function(r) all(is.finite(r)))
+  if (!all(row_ok)) {
+    message(sprintf("Removing %d rows with NA/NaN/Inf features.", sum(!row_ok)))
+    l2_target <- l2_target[row_ok]
+    l2_train_df <- l2_train_df[row_ok, , drop = FALSE]
+  }
+
+  # drop zero-variance predictors
+  nzv <- caret::nearZeroVar(l2_train_df, saveMetrics = FALSE)
+  if (length(nzv) > 0) {
+    message(sprintf("Removing %d zero-variance features: %s",
+                    length(nzv), paste(colnames(l2_train_df)[nzv], collapse=", ")))
+    l2_train_df <- l2_train_df[, -nzv, drop = FALSE]
+  }
+
+  if (nrow(l2_train_df) == 0 || ncol(l2_train_df) == 0)
+    stop("No usable data remains after cleaning (check signatures and target).")
+
+  # -------- metric mapping & trainControl --------
+  is_bin <- .is_binary(l2_target)
+  map <- .metric_map(match.arg(metric), is_bin)
+  caret_metric <- map$train_metric
+
+  # seeds for reproducibility (k resamples + final)
+  total_models <- length(l2_methods)
+  set.seed(fgs_seed)
+  seeds <- vector("list", k_folds + 1)
+  for (i in seq_len(k_folds)) seeds[[i]] <- sample.int(1000000, total_models + 1)
+  seeds[[k_folds + 1]] <- sample.int(1000000, 1)
+
+  ctrl <- caret::trainControl(
+    method = "cv", number = k_folds,
+    classProbs = is_bin,
+    summaryFunction = if (map$summary == "twoClassSummary") caret::twoClassSummary else caret::defaultSummary,
+    savePredictions = "final",
+    allowParallel = allow_parallel,
+    seeds = seeds
+  )
+
+  # doRNG safety for foreach
+  if (allow_parallel && .package_ok("doRNG")) {
+    `%op%` <- doRNG::`%dorng%`
+  } else {
+    `%op%` <- foreach::`%do%`
+  }
+
+  # -------- filter methods by availability --------
+  meth_avail <- l2_methods
+  if ("xgbTree" %in% meth_avail) {
+    if (!.package_ok("xgboost")) {
+      warning("xgboost not available or not loadable; dropping 'xgbTree' from candidates.")
+      meth_avail <- setdiff(meth_avail, "xgbTree")
+    } else {
+      # quick sanity check to catch corrupt lazy DB at runtime
+      ok <- TRUE
+      tryCatch(utils::packageVersion("xgboost"), error = function(e) ok <<- FALSE)
+      if (!ok) {
+        warning("xgboost package seems broken (lazy-load error). Dropping 'xgbTree'.")
+        meth_avail <- setdiff(meth_avail, "xgbTree")
+      }
+    }
+  }
+  if (length(meth_avail) == 0) stop("No usable models remain (e.g., xgboost is broken).")
+
+  # -------- train candidates --------
+  model_list <- list()
+  for (m in meth_avail) {
+    message(sprintf("Training L2 candidate: %s (metric=%s)", m, caret_metric))
+    fit <- try(
+      caret::train(
+        x = l2_train_df,
+        y = l2_target,
+        method = m,
+        trControl = ctrl,
+        metric = caret_metric,
+        tuneLength = 5
+      ), silent = TRUE
+    )
+    if (inherits(fit, "try-error")) {
+      warning(sprintf("Failed to train '%s': %s", m, as.character(fit)))
+    } else {
+      model_list[[m]] <- fit
+    }
+  }
+
+  if (length(model_list) == 0) stop("No L2 models were successfully trained.")
+
+  # -------- pick best --------
+  if (length(model_list) == 1) {
+    best_name <- names(model_list)[1]
+    best_fit  <- model_list[[1]]
+    best_val  <- suppressWarnings(max(best_fit$results[[caret_metric]], na.rm = TRUE))
+    message(sprintf("Only one model trained. Selected '%s' (CV %s=%.4f).",
+                    best_name, caret_metric, best_val))
+    resamp <- NULL
+  } else {
+    resamp <- caret::resamples(model_list)
+    # compare by mapped caret metric
+    vals <- sapply(model_list, function(f) suppressWarnings(max(f$results[[caret_metric]], na.rm = TRUE)))
+    best_name <- names(which.max(vals))
+    best_fit  <- model_list[[best_name]]
+    message(sprintf("Best model: %s (CV %s=%.4f).", best_name, caret_metric, max(vals, na.rm = TRUE)))
   }
 
   list(
-    sce        = sce,
-    sce_sub    = sce_sub,
-    pb         = pb,
-    pb_sub     = pb_sub,
-    design     = design,
-    contrast_fixed = contrast_fixed,
-    res_raw    = res,
-    combined   = combined,
-    top_by_cluster = top_by_cluster,
-    top_overall    = top_overall
+    best_model       = best_fit,
+    best_model_name  = best_name,
+    best_metric_name = caret_metric,   # actual caret column used
+    model_comparison = resamp,
+    l2_train         = data.frame(l2_train_df, .target = l2_target),
+    l1_signatures    = l1_signatures
   )
 }
 
