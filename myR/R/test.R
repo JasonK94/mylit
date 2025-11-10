@@ -572,6 +572,7 @@ runMAST <- function(sobj,
 # 3. limma, lasso, tree_based, gam: Native 방식 보정
 # 4. wilcoxon, nmf, pca_loadings: limma::removeBatchEffect 방식 보정
 
+#' @export
 find_gene_signature_v4 <- function(data, 
                                  meta.data = NULL,
                                  target_var,
@@ -1046,7 +1047,7 @@ find_gene_signature_v4 <- function(data,
 # 5. [FIX-GAM] 4.Method (gam): 'gam' 블록 내부의 중복된 유전자 필터링
 #    ('test_genes_idx') 로직 제거. 'test_n'으로 필터링된 모든 유전자 사용.
 # 6. [FIX-Wilcox] 4.Method (wilcoxon): 'wilcox.test'/'kruskal.test'에서 '...' 인자 제거.
-
+#' @export
 find_gene_signature_v4.1 <- function(data, 
                                  meta.data = NULL,
                                  target_var,
@@ -1758,6 +1759,7 @@ find_gene_signature_v4.1 <- function(data,
   return(result)
 }
 
+#' @export
 find_gene_signature_v4.2 <- function(data, 
                                  meta.data = NULL,
                                  target_var,
@@ -2658,6 +2660,7 @@ fgs_preprocess_data <- function(data,
 # 4. 'nmf' 블록: 'do.call'의 'method' 인자 충돌을 'dots$method <- NULL'로 해결.
 # 5. 'gam' 블록: 'tryCatch'를 사용하여 수렴 경고를 캡처하고 1회만 요약 리포트.
 
+#' @export
 find_gene_signature_v5 <- function(data, 
                                  meta.data = NULL,
                                  target_var,
@@ -2932,6 +2935,7 @@ find_gene_signature_v5 <- function(data,
 #' 4. Preprocessing (log1p, scale)
 #' 5. Confounder pre-correction (removeBatchEffect, 단 한 번 실행)
 #'
+#' @export
 fgs_preprocess_data_v5.2 <- function(data, 
                                    meta.data, 
                                    target_var, 
@@ -4267,37 +4271,78 @@ train_meta_learner_v4 <- function(l1_signatures,
   ))
 }
 
+#' @export
 train_meta_learner_v5 <- function(
-  l1_signatures,                 # list of signatures; each can be character gene vector or named numeric weights
-  holdout_data,                  # Seurat obj (uses layer="data") or matrix/data.frame (features x cells)
-  target_var,                    # if Seurat: column name in meta; else: factor/character vector of labels (length = ncol(holdout_data))
-  l2_methods = c("glm", "ranger", "xgbTree"),
+  l1_signatures,
+  holdout_data,
+  target_var,
+  l2_methods = c("glm","ranger","xgbTree"),
   k_folds   = 5,
-  metric    = c("AUC","Accuracy","Kappa"),  # user-facing alias; internally mapped to caret column
+  metric    = c("AUC","ROC","Accuracy","Kappa"),
   fgs_seed  = 42,
   layer     = "data",
   allow_parallel = TRUE
 ){
-  # -------- helpers --------
   `%||%` <- function(a,b) if (!is.null(a)) a else b
 
-  .score_signature <- function(expr_data, signature, normalize = TRUE) {
-    # expr_data: matrix (features x cells); rownames = features
-    if (is.character(signature)) {
-      genes <- intersect(rownames(expr_data), signature)
-      if (length(genes) == 0) stop("Signature has no overlap with expression data.")
-      s <- colMeans(expr_data[genes, , drop = FALSE])
-    } else if (is.numeric(signature) && !is.null(names(signature))) {
-      genes <- intersect(rownames(expr_data), names(signature))
-      if (length(genes) == 0) stop("Weighted signature has no overlap with expression data.")
-      w <- signature[genes]
-      # weighted mean per column
-      s <- as.numeric(Matrix::t(expr_data[genes, , drop = FALSE]) %*% w) / sum(w)
-    } else if (is.numeric(signature) && is.null(names(signature))) {
-      stop("Numeric signature must be a named numeric vector (names=gene IDs).")
-    } else {
-      stop("Unsupported signature format.")
+  # ---- NEW: 표준화 유틸 ----
+  as_signature <- function(sig){
+    # 문자형 유전자 벡터
+    if (is.character(sig)) return(structure(rep(1, length(sig)), names = sig))
+
+    # 이름달린 numeric (가중치)
+    if (is.numeric(sig) && !is.null(names(sig))) return(sig)
+
+    # list(up=..., down=...)
+    if (is.list(sig) && all(c("up","down") %in% names(sig))) {
+      up <- sig$up; down <- sig$down
+      stopifnot(is.character(up) || is.null(up), is.character(down) || is.null(down))
+      up   <- up   %||% character()
+      down <- down %||% character()
+      nm <- c(up, down)
+      wt <- c(rep(1, length(up)), rep(-1, length(down)))
+      return(structure(wt, names = nm))
     }
+
+    # list(genes=..., weights=...)
+    if (is.list(sig) && all(c("genes","weights") %in% names(sig))) {
+      g <- sig$genes; w <- sig$weights
+      stopifnot(is.character(g), is.numeric(w), length(g) == length(w))
+      names(w) <- g
+      return(w)
+    }
+
+    # data.frame/tibble: gene/feature + weight/w/score
+    if (is.data.frame(sig)) {
+      cn <- tolower(colnames(sig))
+      gene_col   <- which(cn %in% c("gene","genes","feature","features","symbol","id"))[1]
+      weight_col <- which(cn %in% c("weight","weights","w","score","scores","coef","coefs"))[1]
+      if (!is.na(gene_col) && !is.na(weight_col)) {
+        g <- as.character(sig[[gene_col]])
+        w <- as.numeric(sig[[weight_col]])
+        ok <- !is.na(g) & !is.na(w)
+        w  <- w[ok]; g <- g[ok]
+        names(w) <- g
+        return(w)
+      }
+    }
+
+    stop("Unsupported signature format.")
+  }
+
+  .score_signature <- function(expr_data, signature, normalize = TRUE) {
+    # signature를 표준화해 항상 "이름달린 가중치 numeric"으로 맞춘다
+    w <- as_signature(signature)
+
+    genes <- intersect(rownames(expr_data), names(w))
+    if (length(genes) == 0) stop("Signature has no overlap with expression data.")
+
+    ww <- w[genes]
+    # (표준) 가중평균
+    s <- as.numeric(Matrix::t(expr_data[genes, , drop = FALSE]) %*% ww)
+    den <- sum(abs(ww))
+    if (!is.finite(den) || den == 0) den <- length(ww)
+    s <- s / den
     if (normalize) s <- as.numeric(scale(s))
     s
   }
@@ -4307,20 +4352,17 @@ train_meta_learner_v5 <- function(
   .metric_map <- function(user_metric, is_binary) {
     user_metric <- match.arg(user_metric)
     if (is_binary) {
-      # caret::twoClassSummary produces columns: ROC, Sens, Spec
-      if (user_metric == "AUC") return(list(train_metric="ROC",  summary="twoClassSummary"))
-      if (user_metric == "Accuracy") return(list(train_metric="ROC", summary="twoClassSummary")) # we'll still rank by ROC (better choice for prob models)
-      if (user_metric == "Kappa") return(list(train_metric="ROC", summary="twoClassSummary"))
+      # caret twoClassSummary → columns: ROC, Sens, Spec
+      if (user_metric %in% c("AUC","ROC")) return(list(train_metric="ROC",  summary="twoClassSummary"))
+      if (user_metric %in% c("Accuracy","Kappa")) return(list(train_metric=user_metric, summary="twoClassSummary"))
     } else {
-      # multiclass: defaultSummary → Accuracy, Kappa
+      # 멀티클래스 → defaultSummary (Accuracy, Kappa)
       if (user_metric == "AUC") {
-        message("WARNING: 'AUC' is not defined for multi-class with defaultSummary. Falling back to 'Accuracy'.")
+        message("WARNING: 'AUC/ROC' not defined for multi-class defaultSummary. Falling back to 'Accuracy'.")
         return(list(train_metric="Accuracy", summary="defaultSummary"))
       }
-      if (user_metric %in% c("Accuracy","Kappa"))
-        return(list(train_metric=user_metric, summary="defaultSummary"))
+      return(list(train_metric=user_metric, summary="defaultSummary"))
     }
-    # Fallback
     list(train_metric = if (is_binary) "ROC" else "Accuracy",
          summary      = if (is_binary) "twoClassSummary" else "defaultSummary")
   }
@@ -4329,7 +4371,6 @@ train_meta_learner_v5 <- function(
     suppressWarnings(suppressMessages(requireNamespace(pkg, quietly = TRUE)))
   }
 
-  # -------- init & data extract --------
   if (!.package_ok("caret")) stop("caret package required.")
   if (!.package_ok("Matrix")) stop("Matrix package required.")
   if (allow_parallel) {
@@ -4343,9 +4384,9 @@ train_meta_learner_v5 <- function(
   }
 
   set.seed(fgs_seed)
-  RNGkind(sample.kind = "Rejection")  # more reproducible on recent R
+  RNGkind(sample.kind = "Rejection")
 
-  # Extract expression & meta
+  # --- 데이터 추출 ---
   if (inherits(holdout_data, "Seurat")) {
     if (!.package_ok("Seurat")) stop("Seurat package required for Seurat input.")
     expr_mat <- Seurat::GetAssayData(holdout_data, layer = layer)
@@ -4354,25 +4395,22 @@ train_meta_learner_v5 <- function(
       stop(sprintf("Target column '%s' not found in Seurat meta.data.", target_var))
     l2_target <- meta_data[[target_var]]
   } else {
-    # matrix/data.frame expected: features x cells
     if (is.data.frame(holdout_data)) holdout_data <- as.matrix(holdout_data)
     if (!is.matrix(holdout_data)) stop("holdout_data must be Seurat or a matrix/data.frame [features x cells].")
     expr_mat <- holdout_data
-    meta_data <- NULL
     l2_target <- target_var
   }
-
   if (is.null(rownames(expr_mat))) stop("Expression matrix must have rownames (feature IDs).")
   if (is.null(colnames(expr_mat))) colnames(expr_mat) <- paste0("cell_", seq_len(ncol(expr_mat)))
 
-  # -------- build L2 feature table from L1 signatures --------
+  # --- L2 특성 구성 (시그니처 점수 계산) ---
   if (is.null(names(l1_signatures))) names(l1_signatures) <- paste0("L1_", seq_along(l1_signatures))
 
   l2_features_list <- lapply(l1_signatures, function(sig) .score_signature(expr_mat, sig, normalize = TRUE))
   l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
   colnames(l2_train_df) <- make.names(names(l1_signatures))
 
-  # -------- target prep --------
+  # --- 타깃 준비/정리 ---
   if (!is.factor(l2_target)) l2_target <- factor(l2_target)
   orig_lvls <- levels(l2_target)
   safe_lvls <- make.names(orig_lvls)
@@ -4383,7 +4421,6 @@ train_meta_learner_v5 <- function(
     levels(l2_target) <- safe_lvls
   }
 
-  # drop NA target rows
   keep <- !is.na(l2_target)
   if (!all(keep)) {
     message(sprintf("Removing %d rows with NA target.", sum(!keep)))
@@ -4391,7 +4428,6 @@ train_meta_learner_v5 <- function(
     l2_train_df <- l2_train_df[keep, , drop = FALSE]
   }
 
-  # drop rows with NA/NaN/Inf in features
   row_ok <- stats::complete.cases(l2_train_df) &
             apply(l2_train_df, 1, function(r) all(is.finite(r)))
   if (!all(row_ok)) {
@@ -4400,7 +4436,6 @@ train_meta_learner_v5 <- function(
     l2_train_df <- l2_train_df[row_ok, , drop = FALSE]
   }
 
-  # drop zero-variance predictors
   nzv <- caret::nearZeroVar(l2_train_df, saveMetrics = FALSE)
   if (length(nzv) > 0) {
     message(sprintf("Removing %d zero-variance features: %s",
@@ -4411,15 +4446,14 @@ train_meta_learner_v5 <- function(
   if (nrow(l2_train_df) == 0 || ncol(l2_train_df) == 0)
     stop("No usable data remains after cleaning (check signatures and target).")
 
-  # -------- metric mapping & trainControl --------
+  # --- metric 매핑 & trainControl ---
   is_bin <- .is_binary(l2_target)
   map <- .metric_map(match.arg(metric), is_bin)
   caret_metric <- map$train_metric
 
-  # seeds for reproducibility (k resamples + final)
-  total_models <- length(l2_methods)
   set.seed(fgs_seed)
   seeds <- vector("list", k_folds + 1)
+  total_models <- length(l2_methods)
   for (i in seq_len(k_folds)) seeds[[i]] <- sample.int(1000000, total_models + 1)
   seeds[[k_folds + 1]] <- sample.int(1000000, 1)
 
@@ -4432,34 +4466,23 @@ train_meta_learner_v5 <- function(
     seeds = seeds
   )
 
-  # doRNG safety for foreach
-  if (allow_parallel && .package_ok("doRNG")) {
-    `%op%` <- doRNG::`%dorng%`
-  } else {
-    `%op%` <- foreach::`%do%`
-  }
-
-  # -------- filter methods by availability --------
-  meth_avail <- l2_methods
-  if ("xgbTree" %in% meth_avail) {
+  if ("xgbTree" %in% l2_methods) {
     if (!.package_ok("xgboost")) {
-      warning("xgboost not available or not loadable; dropping 'xgbTree' from candidates.")
-      meth_avail <- setdiff(meth_avail, "xgbTree")
+      warning("xgboost not available; dropping 'xgbTree'.")
+      l2_methods <- setdiff(l2_methods, "xgbTree")
     } else {
-      # quick sanity check to catch corrupt lazy DB at runtime
       ok <- TRUE
       tryCatch(utils::packageVersion("xgboost"), error = function(e) ok <<- FALSE)
       if (!ok) {
-        warning("xgboost package seems broken (lazy-load error). Dropping 'xgbTree'.")
-        meth_avail <- setdiff(meth_avail, "xgbTree")
+        warning("xgboost seems broken; dropping 'xgbTree'.")
+        l2_methods <- setdiff(l2_methods, "xgbTree")
       }
     }
   }
-  if (length(meth_avail) == 0) stop("No usable models remain (e.g., xgboost is broken).")
+  if (length(l2_methods) == 0) stop("No usable models remain.")
 
-  # -------- train candidates --------
   model_list <- list()
-  for (m in meth_avail) {
+  for (m in l2_methods) {
     message(sprintf("Training L2 candidate: %s (metric=%s)", m, caret_metric))
     fit <- try(
       caret::train(
@@ -4477,10 +4500,8 @@ train_meta_learner_v5 <- function(
       model_list[[m]] <- fit
     }
   }
-
   if (length(model_list) == 0) stop("No L2 models were successfully trained.")
 
-  # -------- pick best --------
   if (length(model_list) == 1) {
     best_name <- names(model_list)[1]
     best_fit  <- model_list[[1]]
@@ -4490,7 +4511,6 @@ train_meta_learner_v5 <- function(
     resamp <- NULL
   } else {
     resamp <- caret::resamples(model_list)
-    # compare by mapped caret metric
     vals <- sapply(model_list, function(f) suppressWarnings(max(f$results[[caret_metric]], na.rm = TRUE)))
     best_name <- names(which.max(vals))
     best_fit  <- model_list[[best_name]]
@@ -4500,12 +4520,13 @@ train_meta_learner_v5 <- function(
   list(
     best_model       = best_fit,
     best_model_name  = best_name,
-    best_metric_name = caret_metric,   # actual caret column used
+    best_metric_name = caret_metric,
     model_comparison = resamp,
     l2_train         = data.frame(l2_train_df, .target = l2_target),
     l1_signatures    = l1_signatures
   )
 }
+
 
 
 # LMM analysis suite -----
