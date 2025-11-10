@@ -1,21 +1,3 @@
-
-res <- milo_neighborhood_da(
-  sobj          = data_seurat,
-  target_var    = "g3",
-  batch_var     = "GEM",
-  patient_var   = "hos_no",
-  cluster_var   = "anno3.scvi",
-  # 고정/랜덤 효과를 직접 지정하고 싶다면:
-  fixed_effects  = c("g3","GEM"),
-  random_effects = c("hos_no")   # ← 지정하면 GLMM 모드로 전환
-)
-
-# 주요 결과
-head(res$da_nhood_with_cluster)
-head(res$da_by_cluster)
-
-
-
 #' Set parallel & threading profile for RStudio vs Terminal
 #' @export
 #'
@@ -4327,8 +4309,21 @@ milo_opus_final3 <- function(
     milo <- buildGraph(milo, k = k, d = ncol(G_use), reduced.dim = "GRAPH")
     milo <- makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
     
+    # ----------------------------------------------------
+    # !! [핵심 수정] 누락된 이웃 그래프 생성 단계 추가 !!
+    # ----------------------------------------------------
+    vcat("Building neighborhood graph...")
+    milo <- buildNhoodGraph(milo)
+    # ----------------------------------------------------
+
     vcat(sprintf("Created %d neighborhoods", ncol(nhoods(milo))))
     
+    # [DEBUG] 이웃 그래프가 제대로 생성되었는지 확인
+    nh_graph_dim <- dim(nhoodGraph(milo))
+    vcat(sprintf("[DEBUG] Neighborhood graph dimensions: %d x %d", nh_graph_dim[1], nh_graph_dim[2]))
+    if (nh_graph_dim[1] != ncol(nhoods(milo))) {
+        stop("Neighborhood graph dimension mismatch!")
+    }
     # ---- Get metadata ----
     milo_md <- as.data.frame(colData(milo))
     
@@ -4539,5 +4534,170 @@ vcat(sprintf("Re-expanded DA results to %d total neighborhoods", nrow(da.res)))
         da_by_cluster = cluster_summary,
         design_matrix = mm,
         sample_design = sample_design
+    ))
+}
+
+
+
+
+#' MiloR DA 분석 전체 워크플로우 래퍼
+#'
+#' @param sobj Seurat 객체
+#' @param output_dir 중간 RDS 파일을 저장할 폴더
+#' @param prefix 저장할 파일 이름의 접두사 (예: "ProjectA")
+#' @param patient_var 환자/샘플 ID 컬럼명
+#' @param cluster_var 세포 유형(클러스터) 컬럼명
+#' @param target_var DA 분석 대상 변수 (예: "Condition")
+#' @param batch_var 배치 변수 (모델에 포함)
+#' @param graph_reduction Nhood 생성용 리덕션
+#' @param layout_reduction 시각화용 리덕션 (예: "umap")
+#' @param k k-NN 파라미터
+#' @param d 리덕션 차원
+#' @param prop Nhood 생성 파라미터
+#' @param force_rerun_step (선택) 1, 2, 3, 4. 특정 단계부터 강제로 다시 실행합니다.
+#'
+#' @return DA 결과 플롯 리스트
+#'
+#' @export 
+MILO <- function(
+    sobj,
+    output_dir,
+    prefix,
+    patient_var,
+    cluster_var,
+    target_var,
+    batch_var,
+    graph_reduction,
+    layout_reduction = "umap",
+    k = 30,
+    d = 30,
+    prop = 0.1,
+    force_rerun_step = NULL
+) {
+    
+    # --- 0. 라이브러리 로드 ---
+    suppressPackageStartupMessages({
+        library(Seurat)
+        library(SingleCellExperiment)
+        library(miloR)
+        library(Matrix)
+        library(dplyr)
+        library(tibble)
+        library(patchwork)
+        library(ggplot2)
+    })
+    set.seed(1)
+    if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+    # --- 파일 경로 정의 ---
+    file_step1 <- file.path(output_dir, paste0(prefix, "_01_nhoods.qs"))
+    file_step2 <- file.path(output_dir, paste0(prefix, "_02_distances.qs"))
+    file_step3_milo <- file.path(output_dir, paste0(prefix, "_03_tested_milo.qs"))
+    file_step3_res  <- file.path(output_dir, paste0(prefix, "_03_tested_results.qs"))
+
+    # --- 1단계: Nhood 생성 ---
+    if (!is.null(force_rerun_step) && force_rerun_step <= 1 || !file.exists(file_step1)) {
+        message("1단계: Milo 객체 생성 시작...")
+        sobj@meta.data[[patient_var]] <- as.character(sobj@meta.data[[patient_var]])
+        sobj@meta.data[[target_var]]  <- as.character(sobj@meta.data[[target_var]])
+        sobj@meta.data[[batch_var]]   <- as.character(sobj@meta.data[[batch_var]])
+        sobj@meta.data[[cluster_var]] <- as.character(sobj@meta.data[[cluster_var]])
+
+        G_emb <- Embeddings(sobj, reduction = graph_reduction)
+        G_use <- G_emb[, seq_len(d), drop = FALSE]
+        sce <- as.SingleCellExperiment(sobj, assay = DefaultAssay(sobj))
+        reducedDim(sce, "GRAPH") <- as.matrix(G_use)
+        
+        milo <- Milo(sce)
+        milo <- buildGraph(milo, k = k, d = d, reduced.dim = "GRAPH")
+        milo <- makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
+        
+        qs::qsave(milo, file_step1)
+        message("1단계 완료 및 저장.")
+    } else {
+        message("1단계 파일 로드 중...")
+        milo <- qs::qread(file_step1)
+    }
+
+    # --- 2단계: Nhood 거리 계산 (병목) ---
+    if (!is.null(force_rerun_step) && force_rerun_step <= 2 || !file.exists(file_step2)) {
+        message("2단계: Nhood 거리 계산 시작...")
+        milo <- calcNhoodDistance(milo, d = d)
+        qs::qsave(milo, file_step2)
+        message("2단계 완료 및 저장.")
+    } else {
+        message("2단계 파일 로드 중...")
+        milo <- qs::qread(file_step2)
+    }
+
+    # --- 3단계: DA 테스트 ---
+    if (!is.null(force_rerun_step) && force_rerun_step <= 3 || 
+        !file.exists(file_step3_milo) || !file.exists(file_step3_res)) {
+        
+        message("3단계: 카운트 집계 및 DA 테스트 시작...")
+        
+        # 3.1 카운트
+        milo <- countCells(milo, 
+                           samples = patient_var, 
+                           meta.data = as.data.frame(colData(milo)))
+        
+        # 3.2 디자인
+        patient_info <- as.data.frame(colData(milo))[, c(patient_var, target_var, batch_var)] %>%
+            distinct()
+        rownames(patient_info) <- patient_info[[patient_var]]
+        sample_design <- patient_info[colnames(nhoodCounts(milo)), , drop = FALSE]
+        sample_design[[target_var]] <- factor(sample_design[[target_var]])
+        sample_design[[batch_var]]  <- factor(sample_design[[batch_var]])
+        
+        # 3.3 DA 테스트
+        da_results <- testNhoods(milo, 
+                                 design = as.formula(paste("~", batch_var, "+", target_var)),
+                                 design.df = sample_design)
+        
+        qs::qsave(milo, file_step3_milo)
+        qs::qsave(da_results, file_step3_res)
+        message("3단계 완료 및 저장.")
+    } else {
+        message("3단계 파일 로드 중...")
+        milo       <- qs::qread(file_step3_milo)
+        da_results <- qs::qread(file_step3_res)
+    }
+
+    # --- 4단계: 시각화 ---
+    message("4단계: 시각화...")
+    
+    if (is.null(nhoodGraph(milo))) {
+        milo <- buildNhoodGraph(milo)
+    }
+    if (!("UMAP" %in% reducedDimNames(milo)) && (layout_reduction %in% Reductions(sobj))) {
+        reducedDim(milo, "UMAP") <- Embeddings(sobj, reduction = layout_reduction)
+    }
+
+    nh_mat <- miloR::nhoods(milo)
+    cell_clusters <- colData(milo)[[cluster_var]]
+    majority_cluster <- vapply(seq_len(ncol(nh_mat)), function(i) {
+        idx <- as.logical(nh_mat[, i])
+        labs <- cell_clusters[idx]
+        if (length(labs) == 0) return(NA_character_)
+        tbl <- table(labs)
+        names(tbl)[which.max(tbl)]
+    }, character(1))
+    
+    da_results$major_cluster <- majority_cluster[da_results$nhood]
+
+    p_da_graph <- plotNhoodGraphDA(milo, da_results, alpha = 0.1) + 
+        ggtitle(paste(prefix, "DA Results (logFC)"))
+        
+    p_beeswarm <- plotDAbeeswarm(da_results, group.by = "major_cluster") +
+        ggtitle(paste(prefix, "DA results by Cell Type"))
+
+    message("워크플로우 완료.")
+    
+    # 최종 결과 반환
+    return(list(
+        milo_obj = milo,
+        da_results = da_results,
+        plot_da_graph = p_da_graph,
+        plot_beeswarm = p_beeswarm
     ))
 }
