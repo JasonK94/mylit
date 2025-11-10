@@ -4271,8 +4271,13 @@ train_meta_learner_v4 <- function(l1_signatures,
   ))
 }
 
+#' Train meta learner using stacked models (v6)
+#'
+#' Safely trains Level-2 meta learners from signature scores, with guarded
+#' parallel execution that defaults to sequential processing.
+#'
 #' @export
-train_meta_learner_v5 <- function(
+train_meta_learner_v6 <- function(
   l1_signatures,
   holdout_data,
   target_var,
@@ -4281,7 +4286,8 @@ train_meta_learner_v5 <- function(
   metric    = c("AUC","ROC","Accuracy","Kappa"),
   fgs_seed  = 42,
   layer     = "data",
-  allow_parallel = TRUE
+  allow_parallel = FALSE,
+  parallel_workers = NULL
 ){
   `%||%` <- function(a,b) if (!is.null(a)) a else b
 
@@ -4349,8 +4355,9 @@ train_meta_learner_v5 <- function(
 
   .is_binary <- function(y) length(levels(y)) == 2
 
+  metric_choices <- c("AUC", "ROC", "Accuracy", "Kappa")
+
   .metric_map <- function(user_metric, is_binary) {
-    user_metric <- match.arg(user_metric)
     if (is_binary) {
       # caret twoClassSummary → columns: ROC, Sens, Spec
       if (user_metric %in% c("AUC","ROC")) return(list(train_metric="ROC",  summary="twoClassSummary"))
@@ -4373,14 +4380,52 @@ train_meta_learner_v5 <- function(
 
   if (!.package_ok("caret")) stop("caret package required.")
   if (!.package_ok("Matrix")) stop("Matrix package required.")
-  if (allow_parallel) {
-    if (.package_ok("doFuture")) {
-      future::plan(future::multisession, workers = max(1, parallel::detectCores()-1))
-      doFuture::registerDoFuture()
-    } else {
-      message("NOTE: doFuture not installed; running sequentially.")
-      allow_parallel <- FALSE
+
+  register_sequential <- function() {
+    if (.package_ok("foreach")) {
+      try(foreach::registerDoSEQ(), silent = TRUE)
     }
+  }
+
+  allow_parallel <- isTRUE(allow_parallel)
+  worker_count <- parallel_workers
+  if (is.null(worker_count)) {
+    fallback <- getOption("mylit.meta_learner.workers", 4L)
+    cores <- tryCatch(parallel::detectCores(logical = FALSE), error = function(e) NA_integer_)
+    cores <- cores %||% fallback
+    worker_count <- max(1L, min(8L, as.integer(cores)))
+  }
+
+  if (allow_parallel) {
+    if (.package_ok("future") && .package_ok("doFuture")) {
+      oplan <- future::plan()
+      on.exit({
+        try(future::plan(oplan), silent = TRUE)
+      }, add = TRUE)
+
+      message(sprintf("Enabling parallel training with %d workers (future::multisession).", worker_count))
+      tryCatch(
+        future::plan(future::multisession, workers = worker_count),
+        error = function(e) {
+          warning("Failed to configure future multisession plan: ", conditionMessage(e), call. = FALSE)
+          allow_parallel <<- FALSE
+        }
+      )
+
+      if (allow_parallel) {
+        doFuture::registerDoFuture()
+        on.exit(register_sequential(), add = TRUE)
+      } else {
+        register_sequential()
+      }
+
+    } else {
+      message("NOTE: Parallel dependencies (future/doFuture) not available; falling back to sequential execution.")
+      allow_parallel <- FALSE
+      register_sequential()
+    }
+  } else {
+    register_sequential()
   }
 
   set.seed(fgs_seed)
@@ -4448,22 +4493,16 @@ train_meta_learner_v5 <- function(
 
   # --- metric 매핑 & trainControl ---
   is_bin <- .is_binary(l2_target)
-  map <- .metric_map(match.arg(metric), is_bin)
+  metric <- match.arg(metric, metric_choices)
+  map <- .metric_map(metric, is_bin)
   caret_metric <- map$train_metric
-
-  set.seed(fgs_seed)
-  seeds <- vector("list", k_folds + 1)
-  total_models <- length(l2_methods)
-  for (i in seq_len(k_folds)) seeds[[i]] <- sample.int(1000000, total_models + 1)
-  seeds[[k_folds + 1]] <- sample.int(1000000, 1)
 
   ctrl <- caret::trainControl(
     method = "cv", number = k_folds,
     classProbs = is_bin,
     summaryFunction = if (map$summary == "twoClassSummary") caret::twoClassSummary else caret::defaultSummary,
     savePredictions = "final",
-    allowParallel = allow_parallel,
-    seeds = seeds
+    allowParallel = allow_parallel
   )
 
   if ("xgbTree" %in% l2_methods) {
@@ -4525,6 +4564,12 @@ train_meta_learner_v5 <- function(
     l2_train         = data.frame(l2_train_df, .target = l2_target),
     l1_signatures    = l1_signatures
   )
+}
+
+#' @export
+train_meta_learner_v5 <- function(...) {
+  .Deprecated("train_meta_learner_v6", package = "myR")
+  train_meta_learner_v6(...)
 }
 
 
