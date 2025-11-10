@@ -3406,3 +3406,1138 @@ milo_opus6 <- function(
         )
     ))
 }
+
+milo_opus7 <- function(
+    sobj,
+    target_var,
+    batch_var, 
+    patient_var,
+    cluster_var,
+    graph_reduction,                 
+    layout_reduction = NULL,         
+    k = 30,
+    d = NULL,                        
+    prop = 0.1,
+    fixed_effects  = NULL,
+    random_effects = NULL,
+    glmm_family    = c("nb","poisson"),
+    p_adj_method   = "BH",
+    fdr_thresh     = 0.1,
+    logfc_thresh   = 0.5,
+    seed           = 1,
+    use_future     = FALSE,
+    workers        = max(1, parallel::detectCores()-1),
+    verbose        = TRUE,
+    min_cells      = 3
+){
+    suppressPackageStartupMessages({
+        library(Seurat)
+        library(SingleCellExperiment)
+        library(miloR)
+        library(Matrix)
+        library(dplyr)
+        library(tibble)
+        library(edgeR)
+    })
+    set.seed(seed)
+    
+    vcat <- function(...) if(verbose) cat(..., "\n")
+    
+    # ---- Checks ----
+    req_cols <- c(target_var, batch_var, patient_var, cluster_var)
+    stopifnot("Required columns missing" = all(req_cols %in% colnames(sobj@meta.data)))
+    stopifnot("Graph reduction not found" = graph_reduction %in% Reductions(sobj))
+    
+    if (is.null(fixed_effects)) fixed_effects <- c(target_var, batch_var)
+    glmm_family <- match.arg(glmm_family)
+    use_glmm <- length(random_effects) > 0
+    
+    vcat("Starting Milo DA analysis...")
+    vcat("Mode:", ifelse(use_glmm, "GLMM with random effects", "edgeR fixed effects"))
+    
+    # ---- First, create the sample-level design DIRECTLY from Seurat object ----
+    vcat("Extracting sample-level information...")
+    
+    # Get unique patient-level information
+    patient_info <- sobj@meta.data[, c(patient_var, target_var, batch_var)] %>%
+        unique() %>%
+        as.data.frame()
+    
+    # Convert to appropriate types
+    patient_info[[patient_var]] <- as.character(patient_info[[patient_var]])
+    patient_info[[target_var]] <- as.character(patient_info[[target_var]])
+    patient_info[[batch_var]] <- as.character(patient_info[[batch_var]])
+    
+    vcat(sprintf("Found %d unique patients", nrow(patient_info)))
+    vcat(sprintf("Target values in data: %s", 
+                paste(sort(unique(patient_info[[target_var]])), collapse=", ")))
+    vcat(sprintf("Batch values in data: %s", 
+                paste(sort(unique(patient_info[[batch_var]])), collapse=", ")))
+    
+    # ---- Embeddings ----
+    G_emb <- Embeddings(sobj, reduction = graph_reduction)
+    if (is.null(d)) d <- ncol(G_emb)
+    d <- min(d, ncol(G_emb))
+    G_use <- G_emb[, seq_len(d), drop = FALSE]
+    
+    L_use <- NULL
+    if (!is.null(layout_reduction)) {
+        L_emb <- Embeddings(sobj, reduction = layout_reduction)
+        L_use <- L_emb
+    }
+    
+    vcat(sprintf("Using %d dimensions from %s reduction", d, graph_reduction))
+    
+    # ---- Create SCE ----
+    sce <- as.SingleCellExperiment(sobj, assay = DefaultAssay(sobj))
+    reducedDim(sce, "GRAPH") <- as.matrix(G_use)
+    if (!is.null(L_use)) reducedDim(sce, "LAYOUT") <- as.matrix(L_use)
+    
+    # ---- Build Milo ----
+    vcat("Building kNN graph and neighborhoods...")
+    milo <- Milo(sce)
+    milo <- buildGraph(milo, k = k, d = ncol(G_use), reduced.dim = "GRAPH")
+    milo <- makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
+    
+    vcat(sprintf("Created %d neighborhoods", ncol(nhoods(milo))))
+    
+    # ---- Get metadata ----
+    milo_md <- as.data.frame(colData(milo))
+    
+    # ---- Compute counts ----
+    vcat("Computing neighborhood-by-sample counts...")
+    counts <- .fast_count_cells(milo, samples = milo_md[[patient_var]])
+    H <- nrow(counts)
+    S <- ncol(counts)
+    vcat(sprintf("Count matrix: %d neighborhoods x %d samples", H, S))
+    
+    # ---- Create design matrix using patient_info ----
+    sample_ids <- colnames(counts)
+    
+    # Match the sample IDs to patient_info
+    sample_idx <- match(sample_ids, patient_info[[patient_var]])
+    
+    if (any(is.na(sample_idx))) {
+        missing <- sample_ids[is.na(sample_idx)]
+        stop(sprintf("Could not find patient info for samples: %s", 
+                    paste(missing, collapse=", ")))
+    }
+    
+    sample_design <- patient_info[sample_idx, ]
+    rownames(sample_design) <- sample_ids
+    
+    # Convert to factors
+    sample_design[[target_var]] <- factor(sample_design[[target_var]])
+    sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
+    
+    vcat(sprintf("\nSample design summary:"))
+    vcat(sprintf("  Target (%s) levels: %s", target_var,
+                paste(levels(sample_design[[target_var]]), collapse=", ")))
+    vcat(sprintf("  Batch (%s) levels: %s", batch_var,
+                paste(levels(sample_design[[batch_var]]), collapse=", ")))
+    
+    # Check design
+    design_table <- table(sample_design[[target_var]], sample_design[[batch_var]])
+    vcat("\nDesign structure (rows=target, cols=batch):")
+    print(design_table)
+    
+    # ---- Filter neighborhoods ----
+    nh_sizes <- rowSums(counts)
+    keep_nh <- nh_sizes >= min_cells
+    if (sum(!keep_nh) > 0) {
+        vcat(sprintf("Filtering %d neighborhoods with < %d cells", sum(!keep_nh), min_cells))
+    }
+    
+    # ---- Majority cluster ----
+    nh_mat <- miloR::nhoods(milo)
+    cell_clusters <- milo_md[[cluster_var]]
+    majority_cluster <- vapply(seq_len(ncol(nh_mat)), function(i) {
+        idx <- as.logical(nh_mat[, i])
+        labs <- cell_clusters[idx]
+        if (length(labs) == 0) return(NA_character_)
+        tbl <- table(labs)
+        names(tbl)[which.max(tbl)]
+    }, character(1))
+    
+    # ---- EdgeR analysis ----
+    vcat("\nRunning edgeR analysis...")
+    
+    # Check levels
+    if (nlevels(sample_design[[target_var]]) < 2) {
+        stop(sprintf("Target variable needs at least 2 levels, found: %s",
+                    paste(levels(sample_design[[target_var]]), collapse=", ")))
+    }
+    
+    # Simple design with target only (since batch is nested)
+    formula_str <- paste("~ 0 +", target_var)
+    vcat(sprintf("Using formula: %s", formula_str))
+    
+    mm <- model.matrix(as.formula(formula_str), data = sample_design)
+    vcat(sprintf("Design matrix: %d x %d", nrow(mm), ncol(mm)))
+    vcat(sprintf("Column names: %s", paste(colnames(mm), collapse=", ")))
+    
+    # EdgeR workflow
+    dge <- DGEList(counts = counts[keep_nh, , drop = FALSE])
+    dge <- calcNormFactors(dge, method = "TMM")
+    
+    vcat("Estimating dispersions...")
+    dge <- estimateDisp(dge, design = mm, robust = TRUE)
+    vcat(sprintf("Common dispersion: %.4f", dge$common.dispersion))
+    
+    vcat("Fitting GLM...")
+    fit <- glmQLFit(dge, design = mm, robust = TRUE)
+    
+    # Test contrast
+    if (ncol(mm) == 2) {
+        # Two groups - simple contrast
+        contrast_name <- paste(colnames(mm)[2], "vs", colnames(mm)[1])
+        vcat(sprintf("Testing: %s", contrast_name))
+        
+        contrast <- numeric(ncol(mm))
+        contrast[1] <- -1
+        contrast[2] <- 1
+        qlf <- glmQLFTest(fit, contrast = contrast)
+    } else {
+        # Multiple groups
+        vcat("Testing all groups")
+        qlf <- glmQLFTest(fit, coef = 2:ncol(mm))
+    }
+    
+    # Results
+    nh_idx <- which(keep_nh)
+    da.res <- tibble(
+        nhood = nh_idx,
+        logFC = qlf$table$logFC,
+        logCPM = qlf$table$logCPM,
+        F = qlf$table$F,
+        pval = qlf$table$PValue
+    )
+    
+    vcat("Computing spatial FDR...")
+    da.res <- graphSpatialFDR(milo, da.res, pvalues = "pval", indices = "nhood")
+    
+    da.res$major_cluster <- majority_cluster[da.res$nhood]
+    da.res <- da.res %>%
+        mutate(is_sig = spatialFDR < fdr_thresh & abs(logFC) > logfc_thresh) %>%
+        arrange(spatialFDR, desc(abs(logFC)))
+    
+    # Summary
+    cluster_summary <- if (sum(da.res$is_sig, na.rm = TRUE) > 0) {
+        da.res %>%
+            filter(is_sig) %>%
+            group_by(major_cluster) %>%
+            summarise(
+                n_sig_nhoods = n(),
+                mean_logFC = mean(logFC),
+                median_logFC = median(logFC),
+                min_spatialFDR = min(spatialFDR),
+                .groups = "drop"
+            ) %>%
+            arrange(desc(n_sig_nhoods))
+    } else {
+        tibble()
+    }
+    
+    vcat(sprintf("\nFound %d significant neighborhoods", sum(da.res$is_sig, na.rm = TRUE)))
+    if (nrow(cluster_summary) > 0) {
+        vcat(sprintf("Affecting %d cell types", nrow(cluster_summary)))
+    }
+    
+    return(list(
+        mode = "edgeR_fixed_effects",
+        formula = formula_str,
+        milo = milo,
+        da_nhood_with_cluster = da.res,
+        da_by_cluster = cluster_summary,
+        design_matrix = mm,
+        sample_design = sample_design
+    ))
+}
+
+.fast_count_cells <- function(milo, samples) {
+  stopifnot(inherits(milo, "Milo"))
+  X <- miloR::nhoods(milo)           # cells x H (dgCMatrix)
+  stopifnot(nrow(X) == ncol(milo))
+  
+  if (!is.factor(samples)) samples <- factor(samples)
+  
+  S <- Matrix::sparse.model.matrix(~ 0 + samples)   # cells x S
+  
+  # H x S 매트릭스 계산
+  counts_matrix <- Matrix::t(X) %*% S |> as.matrix() 
+  
+  # !! 컬럼명 오류 수정 !!
+  if (ncol(counts_matrix) == length(levels(samples))) {
+      colnames(counts_matrix) <- levels(samples)
+  } else {
+      warning("Count matrix columns do not match sample levels. Using default names.")
+  }
+
+  return(counts_matrix)
+}
+
+milo_opus_final <- function(
+    sobj,
+    target_var,
+    batch_var, 
+    patient_var,
+    cluster_var,
+    graph_reduction,              
+    layout_reduction = NULL,      
+    k = 30,
+    d = NULL,                     
+    prop = 0.1,
+    fixed_effects  = NULL,
+    random_effects = NULL,
+    glmm_family    = c("nb","poisson"),
+    p_adj_method   = "BH",
+    fdr_thresh     = 0.1,
+    logfc_thresh   = 0.5,
+    seed           = 1,
+    use_future     = FALSE,
+    workers        = max(1, parallel::detectCores()-1),
+    verbose        = TRUE,
+    min_cells      = 3
+){
+    suppressPackageStartupMessages({
+        library(Seurat)
+        library(SingleCellExperiment)
+        library(miloR)
+        library(Matrix)
+        library(dplyr)
+        library(tibble)
+        library(edgeR)
+    })
+    set.seed(seed)
+    
+    vcat <- function(...) if(verbose) cat(..., "\n")
+    
+    # ---- Checks ----
+    req_cols <- c(target_var, batch_var, patient_var, cluster_var)
+    stopifnot("Required columns missing" = all(req_cols %in% colnames(sobj@meta.data)))
+    stopifnot("Graph reduction not found" = graph_reduction %in% Reductions(sobj))
+    
+    if (is.null(fixed_effects)) fixed_effects <- c(target_var, batch_var)
+    glmm_family <- match.arg(glmm_family)
+    use_glmm <- length(random_effects) > 0
+    
+    vcat("Starting Milo DA analysis...")
+    vcat("Mode:", ifelse(use_glmm, "GLMM with random effects", "edgeR fixed effects"))
+    
+    # -------------------------------------------------------------------
+    # !! 핵심 수정 사항 (BUGFIX) !!
+    # - sce와 patient_info가 생성되기 *전*에 원본 sobj 메타데이터 타입을 통일합니다.
+    # - 이것이 ver7의 'match' 오류와 ver6의 'nlevels' 오류를 모두 해결합니다.
+    # -------------------------------------------------------------------
+    vcat("Coercing metadata columns to character in source object...")
+    sobj@meta.data[[patient_var]] <- as.character(sobj@meta.data[[patient_var]])
+    sobj@meta.data[[target_var]]  <- as.character(sobj@meta.data[[target_var]])
+    sobj@meta.data[[batch_var]]   <- as.character(sobj@meta.data[[batch_var]])
+    sobj@meta.data[[cluster_var]] <- as.character(sobj@meta.data[[cluster_var]])
+    
+    # ---- First, create the sample-level design DIRECTLY from Seurat object ----
+    vcat("Extracting sample-level information...")
+    
+    # 이제 sobj@meta.data가 이미 character이므로 patient_info는 안전합니다.
+    patient_info <- sobj@meta.data[, c(patient_var, target_var, batch_var)] %>%
+        unique() %>%
+        as.data.frame()
+    
+    vcat(sprintf("Found %d unique patients", nrow(patient_info)))
+    vcat(sprintf("Target values in data: %s", 
+                 paste(sort(unique(patient_info[[target_var]])), collapse=", ")))
+    vcat(sprintf("Batch values in data: %s", 
+                 paste(sort(unique(patient_info[[batch_var]])), collapse=", ")))
+    
+    # ---- Embeddings ----
+    G_emb <- Embeddings(sobj, reduction = graph_reduction)
+    if (is.null(d)) d <- ncol(G_emb)
+    d <- min(d, ncol(G_emb))
+    G_use <- G_emb[, seq_len(d), drop = FALSE]
+    
+    L_use <- NULL
+    if (!is.null(layout_reduction)) {
+        L_emb <- Embeddings(sobj, reduction = layout_reduction)
+        L_use <- L_emb
+    }
+    
+    vcat(sprintf("Using %d dimensions from %s reduction", d, graph_reduction))
+    
+    # ---- Create SCE ----
+    # sobj의 메타데이터가 이미 수정되었으므로, sce의 colData도 올바른 타입을 갖게 됩니다.
+    sce <- as.SingleCellExperiment(sobj, assay = DefaultAssay(sobj))
+    reducedDim(sce, "GRAPH") <- as.matrix(G_use)
+    if (!is.null(L_use)) reducedDim(sce, "LAYOUT") <- as.matrix(L_use)
+    
+    # ---- Build Milo ----
+    vcat("Building kNN graph and neighborhoods...")
+    milo <- Milo(sce)
+    milo <- buildGraph(milo, k = k, d = ncol(G_use), reduced.dim = "GRAPH")
+    milo <- makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
+    
+    vcat(sprintf("Created %d neighborhoods", ncol(nhoods(milo))))
+    
+    # ---- Get metadata ----
+    # milo_md <- as.data.frame(colData(milo)) # 이 라인은 이제 필요 없습니다.
+
+    # ---- Compute counts ----
+    vcat("Computing neighborhood-by-sample counts (using official countCells API)...")
+
+    # !! 공식 API인 countCells로 교체 !!
+    # 1. countCells는 milo 객체를 수정하고,
+    # 2. 'sample' 인자에는 컬럼 이름 (patient_var, 즉 "hos_no")을 전달합니다.
+    milo <- countCells(milo, 
+                      meta.data = as.data.frame(colData(milo)), 
+                      sample = patient_var)
+
+    # 3. 계산된 'counts'를 milo 객체에서 가져옵니다.
+    counts <- nhoodCounts(milo)
+        
+    H <- nrow(counts)
+    S <- ncol(counts)
+    vcat(sprintf("Count matrix: %d neighborhoods x %d samples", H, S))
+    
+    # ---- Create design matrix using patient_info ----
+    sample_ids <- colnames(counts)
+    
+    # -------------------------------------------------------------------
+    # !! 'match' 오류 해결 !!
+    # sample_ids (from counts < sce < sobj)와 
+    # patient_info[[patient_var]] (from sobj)가 
+    # 모두 동일한 character 소스에서 유래했으므로 매칭이 성공합니다.
+    # -------------------------------------------------------------------
+    sample_idx <- match(sample_ids, patient_info[[patient_var]])
+    
+    if (any(is.na(sample_idx))) {
+        missing <- sample_ids[is.na(sample_idx)]
+        stop(sprintf("Could not find patient info for samples: %s", 
+                     paste(missing, collapse=", ")))
+    }
+    
+    sample_design <- patient_info[sample_idx, ]
+    rownames(sample_design) <- sample_ids
+    
+    # Convert to factors
+    sample_design[[target_var]] <- factor(sample_design[[target_var]])
+    sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
+    
+    vcat(sprintf("\nSample design summary:"))
+    vcat(sprintf("  Target (%s) levels: %s", target_var,
+                 paste(levels(sample_design[[target_var]]), collapse=", ")))
+    vcat(sprintf("  Batch (%s) levels: %s", batch_var,
+                 paste(levels(sample_design[[batch_var]]), collapse=", ")))
+    
+    # Check design
+    design_table <- table(sample_design[[target_var]], sample_design[[batch_var]])
+    vcat("\nDesign structure (rows=target, cols=batch):")
+    print(design_table)
+    
+    # ---- Filter neighborhoods ----
+    nh_sizes <- rowSums(counts)
+    keep_nh <- nh_sizes >= min_cells
+    if (sum(!keep_nh) > 0) {
+        vcat(sprintf("Filtering %d neighborhoods with < %d cells", sum(!keep_nh), min_cells))
+    }
+
+    # ---- Majority cluster ----
+
+    # !! 여기(Majority cluster 섹션 상단)에 milo_md 정의를 다시 추가합니다 !!
+    milo_md <- as.data.frame(colData(milo))
+
+    nh_mat <- miloR::nhoods(milo)
+    cell_clusters <- milo_md[[cluster_var]]  # <-- 이제 'milo_md'를 찾을 수 있습니다.
+    majority_cluster <- vapply(seq_len(ncol(nh_mat)), function(i) {
+        idx <- as.logical(nh_mat[, i])
+        labs <- cell_clusters[idx]
+        if (length(labs) == 0) return(NA_character_)
+        tbl <- table(labs)
+        names(tbl)[which.max(tbl)]
+    }, character(1))
+    
+    # ---- EdgeR analysis ----
+    vcat("\nRunning edgeR analysis...")
+    
+    # -------------------------------------------------------------------
+    # !! 'nlevels' 오류 해결 !!
+    # sample_design이 patient_info로부터 올바르게 생성되었으므로,
+    # nlevels(sample_design[[target_var]])가 2 이상이 됩니다.
+    # -------------------------------------------------------------------
+    if (nlevels(sample_design[[target_var]]) < 2) {
+        stop(sprintf("Target variable '%s' must have at least 2 levels, found: %s",
+                     target_var, 
+                     paste(levels(sample_design[[target_var]]), collapse=", ")))
+    }
+    
+    # Simple design with target only (since batch is nested)
+    formula_str <- paste("~ 0 +", target_var)
+    vcat(sprintf("Using formula: %s", formula_str))
+    
+    mm <- model.matrix(as.formula(formula_str), data = sample_design)
+    vcat(sprintf("Design matrix: %d x %d", nrow(mm), ncol(mm)))
+    vcat(sprintf("Column names: %s", paste(colnames(mm), collapse=", ")))
+    
+    # EdgeR workflow
+    dge <- DGEList(counts = counts[keep_nh, , drop = FALSE])
+    dge <- calcNormFactors(dge, method = "TMM")
+    
+    vcat("Estimating dispersions...")
+    dge <- estimateDisp(dge, design = mm, robust = TRUE)
+    vcat(sprintf("Common dispersion: %.4f", dge$common.dispersion))
+    
+    vcat("Fitting GLM...")
+    fit <- glmQLFit(dge, design = mm, robust = TRUE)
+    
+    # Test contrast
+    if (ncol(mm) == 2) {
+        # Two groups - simple contrast
+        contrast_name <- paste(colnames(mm)[2], "vs", colnames(mm)[1])
+        vcat(sprintf("Testing: %s", contrast_name))
+        
+        contrast <- numeric(ncol(mm))
+        contrast[1] <- -1
+        contrast[2] <- 1
+        qlf <- glmQLFTest(fit, contrast = contrast)
+    } else {
+        # Multiple groups
+        vcat("Testing all groups")
+        qlf <- glmQLFTest(fit, coef = 2:ncol(mm))
+    }
+    
+    # Results
+    nh_idx <- which(keep_nh)
+    da.res <- tibble(
+        nhood = nh_idx,
+        logFC = qlf$table$logFC,
+        logCPM = qlf$table$logCPM,
+        F = qlf$table$F,
+        pval = qlf$table$PValue
+    )
+    
+    vcat("Computing spatial FDR...")
+    # !! k=k 와 reduced.dim="GRAPH" 를 모두 추가 !!
+    da.res <- graphSpatialFDR(milo, da.res, 
+                              pvalues = "pval", 
+                              indices = "nhood", 
+                              k = k,
+                              reduced.dim = "GRAPH")
+    
+    da.res$major_cluster <- majority_cluster[da.res$nhood]
+    da.res <- da.res %>%
+        mutate(is_sig = spatialFDR < fdr_thresh & abs(logFC) > logfc_thresh) %>%
+        arrange(spatialFDR, desc(abs(logFC)))
+    
+    # Summary
+    cluster_summary <- if (sum(da.res$is_sig, na.rm = TRUE) > 0) {
+        da.res %>%
+            filter(is_sig) %>%
+            group_by(major_cluster) %>%
+            summarise(
+                n_sig_nhoods = n(),
+                mean_logFC = mean(logFC),
+                median_logFC = median(logFC),
+                min_spatialFDR = min(spatialFDR),
+                .groups = "drop"
+            ) %>%
+            arrange(desc(n_sig_nhoods))
+    } else {
+        tibble()
+    }
+    
+    vcat(sprintf("\nFound %d significant neighborhoods", sum(da.res$is_sig, na.rm = TRUE)))
+    if (nrow(cluster_summary) > 0) {
+        vcat(sprintf("Affecting %d cell types", nrow(cluster_summary)))
+    }
+    
+    return(list(
+        mode = "edgeR_fixed_effects",
+        formula = formula_str,
+        milo = milo,
+        da_nhood_with_cluster = da.res,
+        da_by_cluster = cluster_summary,
+        design_matrix = mm,
+        sample_design = sample_design
+    ))
+}
+
+milo_opus_final2 <- function(
+    sobj,
+    target_var,
+    batch_var, 
+    patient_var,
+    cluster_var,
+    graph_reduction,              
+    layout_reduction = NULL,      
+    k = 30,
+    d = NULL,                     
+    prop = 0.1,
+    fixed_effects  = NULL,
+    random_effects = NULL,
+    glmm_family    = c("nb","poisson"),
+    p_adj_method   = "BH",
+    fdr_thresh     = 0.1,
+    logfc_thresh   = 0.5,
+    seed           = 1,
+    use_future     = FALSE,
+    workers        = max(1, parallel::detectCores()-1),
+    verbose        = TRUE,
+    min_cells      = 3
+){
+    suppressPackageStartupMessages({
+        library(Seurat)
+        library(SingleCellExperiment)
+        library(miloR)
+        library(Matrix)
+        library(dplyr)
+        library(tibble)
+        library(edgeR)
+    })
+    set.seed(seed)
+    
+    vcat <- function(...) if(verbose) cat(..., "\n")
+    
+    # ---- Checks ----
+    req_cols <- c(target_var, batch_var, patient_var, cluster_var)
+    stopifnot("Required columns missing" = all(req_cols %in% colnames(sobj@meta.data)))
+    stopifnot("Graph reduction not found" = graph_reduction %in% Reductions(sobj))
+    
+    if (is.null(fixed_effects)) fixed_effects <- c(target_var, batch_var)
+    glmm_family <- match.arg(glmm_family)
+    use_glmm <- length(random_effects) > 0
+    
+    vcat("Starting Milo DA analysis...")
+    vcat("Mode:", ifelse(use_glmm, "GLMM with random effects", "edgeR fixed effects"))
+    
+    # ---- 1. 타입 통일 ----
+    vcat("Coercing metadata columns to character in source object...")
+    sobj@meta.data[[patient_var]] <- as.character(sobj@meta.data[[patient_var]])
+    sobj@meta.data[[target_var]]  <- as.character(sobj@meta.data[[target_var]])
+    sobj@meta.data[[batch_var]]   <- as.character(sobj@meta.data[[batch_var]])
+    sobj@meta.data[[cluster_var]] <- as.character(sobj@meta.data[[cluster_var]])
+    
+    # ---- 2. 샘플 정보 생성 ----
+    vcat("Extracting sample-level information...")
+    patient_info <- sobj@meta.data[, c(patient_var, target_var, batch_var)] %>%
+        unique() %>%
+        as.data.frame()
+    
+    vcat(sprintf("Found %d unique patients", nrow(patient_info)))
+    vcat(sprintf("Target values in data: %s", 
+                 paste(sort(unique(patient_info[[target_var]])), collapse=", ")))
+    vcat(sprintf("Batch values in data: %s", 
+                 paste(sort(unique(patient_info[[batch_var]])), collapse=", ")))
+    
+    # ---- Embeddings ----
+    G_emb <- Embeddings(sobj, reduction = graph_reduction)
+    if (is.null(d)) d <- ncol(G_emb)
+    d <- min(d, ncol(G_emb))
+    G_use <- G_emb[, seq_len(d), drop = FALSE]
+    L_use <- NULL
+    if (!is.null(layout_reduction)) {
+        L_emb <- Embeddings(sobj, reduction = layout_reduction)
+        L_use <- L_emb
+    }
+    vcat(sprintf("Using %d dimensions from %s reduction", d, graph_reduction))
+    
+    # ---- Create SCE ----
+    sce <- as.SingleCellExperiment(sobj, assay = DefaultAssay(sobj))
+    reducedDim(sce, "GRAPH") <- as.matrix(G_use)
+    if (!is.null(L_use)) reducedDim(sce, "LAYOUT") <- as.matrix(L_use)
+    
+    # ---- Build Milo ----
+    vcat("Building kNN graph and neighborhoods...")
+    milo <- Milo(sce)
+    milo <- buildGraph(milo, k = k, d = ncol(G_use), reduced.dim = "GRAPH")
+    milo <- makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
+    
+    vcat(sprintf("Created %d neighborhoods", ncol(nhoods(milo))))
+    
+    # ---- Get metadata ----
+    milo_md <- as.data.frame(colData(milo))
+    
+    # ---- 3. Counts 계산 (수정된 .fast_count_cells 사용) ----
+    vcat("Computing neighborhood-by-sample counts (using fixed .fast_count_cells)...")
+    counts <- .fast_count_cells(milo, samples = milo_md[[patient_var]])
+    
+    H <- nrow(counts)
+    S <- ncol(counts)
+    vcat(sprintf("Count matrix: %d neighborhoods x %d samples", H, S))
+    
+    # ---- 4. Design Matrix 생성 (매칭 오류 해결됨) ----
+    sample_ids <- colnames(counts)
+    sample_idx <- match(sample_ids, patient_info[[patient_var]])
+    
+    if (any(is.na(sample_idx))) {
+        missing <- sample_ids[is.na(sample_idx)]
+        stop(sprintf("Could not find patient info for samples: %s", 
+                     paste(missing, collapse=", ")))
+    }
+    
+    sample_design <- patient_info[sample_idx, ]
+    rownames(sample_design) <- sample_ids
+    
+    sample_design[[target_var]] <- factor(sample_design[[target_var]])
+    sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
+    
+    vcat(sprintf("\nSample design summary:"))
+    vcat(sprintf("  Target (%s) levels: %s", target_var,
+                 paste(levels(sample_design[[target_var]]), collapse=", ")))
+    vcat(sprintf("  Batch (%s) levels: %s", batch_var,
+                 paste(levels(sample_design[[batch_var]]), collapse=", ")))
+    
+    design_table <- table(sample_design[[target_var]], sample_design[[batch_var]])
+    vcat("\nDesign structure (rows=target, cols=batch):")
+    print(design_table)
+    
+    # ---- Filter neighborhoods ----
+    nh_sizes <- rowSums(counts)
+    keep_nh <- nh_sizes >= min_cells
+    if (sum(!keep_nh) > 0) {
+        vcat(sprintf("Filtering %d neighborhoods with < %d cells", sum(!keep_nh), min_cells))
+    }
+    
+    # ---- 5. Majority cluster (milo_md 오류 수정됨) ----
+    nh_mat <- miloR::nhoods(milo)
+    cell_clusters <- milo_md[[cluster_var]]
+    majority_cluster <- vapply(seq_len(ncol(nh_mat)), function(i) {
+        idx <- as.logical(nh_mat[, i])
+        labs <- cell_clusters[idx]
+        if (length(labs) == 0) return(NA_character_)
+        tbl <- table(labs)
+        names(tbl)[which.max(tbl)]
+    }, character(1))
+    
+    # ---- EdgeR analysis ----
+    vcat("\nRunning edgeR analysis...")
+    
+    if (nlevels(sample_design[[target_var]]) < 2) {
+        stop(sprintf("Target variable '%s' must have at least 2 levels, found: %s",
+                     target_var, 
+                     paste(levels(sample_design[[target_var]]), collapse=", ")))
+    }
+    
+    formula_str <- paste("~ 0 +", target_var)
+    vcat(sprintf("Using formula: %s", formula_str))
+    
+    mm <- model.matrix(as.formula(formula_str), data = sample_design)
+    vcat(sprintf("Design matrix: %d x %d", nrow(mm), ncol(mm)))
+    vcat(sprintf("Column names: %s", paste(colnames(mm), collapse=", ")))
+    
+    dge <- DGEList(counts = counts[keep_nh, , drop = FALSE])
+    dge <- calcNormFactors(dge, method = "TMM")
+    
+    vcat("Estimating dispersions...")
+    dge <- estimateDisp(dge, design = mm, robust = TRUE)
+    vcat(sprintf("Common dispersion: %.4f", dge$common.dispersion))
+    
+    vcat("Fitting GLM...")
+    fit <- glmQLFit(dge, design = mm, robust = TRUE)
+    
+    if (ncol(mm) == 2) {
+        contrast_name <- paste(colnames(mm)[2], "vs", colnames(mm)[1])
+        vcat(sprintf("Testing: %s", contrast_name))
+        contrast <- numeric(ncol(mm)); contrast[1] <- -1; contrast[2] <- 1
+        qlf <- glmQLFTest(fit, contrast = contrast)
+    } else {
+        vcat("Testing all groups")
+        qlf <- glmQLFTest(fit, coef = 2:ncol(mm))
+    }
+    
+    nh_idx <- which(keep_nh)
+    da.res <- tibble(
+        nhood = nh_idx,
+        logFC = qlf$table$logFC,
+        logCPM = qlf$table$logCPM,
+        F = qlf$table$F,
+        pval = qlf$table$PValue
+    )
+    
+    # -------------------------------------------------------------------
+    # !! 7. [신규 수정] NA/Inf 오류 수정 !!
+    # -------------------------------------------------------------------
+    vcat(sprintf("GLM results: %d rows", nrow(da.res)))
+    da.res <- da.res %>%
+        filter(!is.na(pval) & is.finite(logFC))
+    
+    if(nrow(da.res) == 0) {
+        stop("No valid neighborhoods remained after filtering NA/Inf values. Check GLM results.")
+    }
+    vcat(sprintf("Filtered GLM results (NA/Inf removed): %d rows remain", nrow(da.res)))
+
+    # ---- 6. Spatial FDR (k=k 및 reduced.dim 오류 수정됨) ----
+    vcat("Computing spatial FDR...")
+    da.res <- graphSpatialFDR(milo, da.res, 
+                              pvalues = "pval", 
+                              indices = "nhood", 
+                              k = k,
+                              reduced.dim = "GRAPH") # <-- 모든 수정 사항 적용
+    
+    da.res$major_cluster <- majority_cluster[da.res$nhood]
+    da.res <- da.res %>%
+        mutate(is_sig = spatialFDR < fdr_thresh & abs(logFC) > logfc_thresh) %>%
+        arrange(spatialFDR, desc(abs(logFC)))
+    
+    cluster_summary <- if (sum(da.res$is_sig, na.rm = TRUE) > 0) {
+        da.res %>%
+            filter(is_sig) %>%
+            group_by(major_cluster) %>%
+            summarise(
+                n_sig_nhoods = n(),
+                mean_logFC = mean(logFC),
+                median_logFC = median(logFC),
+                min_spatialFDR = min(spatialFDR),
+                .groups = "drop"
+            ) %>%
+            arrange(desc(n_sig_nhoods))
+    } else {
+        tibble()
+    }
+    
+    vcat(sprintf("\nFound %d significant neighborhoods", sum(da.res$is_sig, na.rm = TRUE)))
+    if (nrow(cluster_summary) > 0) {
+        vcat(sprintf("Affecting %d cell types", nrow(cluster_summary)))
+    }
+    
+    return(list(
+        mode = "edgeR_fixed_effects",
+        formula = formula_str,
+        milo = milo,
+        da_nhood_with_cluster = da.res,
+        da_by_cluster = cluster_summary,
+        design_matrix = mm,
+        sample_design = sample_design
+    ))
+}
+
+#' --------------------------------------------------
+#' 1. 속도 개선을 위한 보조 함수 (컬럼명 오류 수정됨)
+#' --------------------------------------------------
+.fast_count_cells <- function(milo, samples) {
+  stopifnot(inherits(milo, "Milo"))
+  X <- miloR::nhoods(milo)           # cells x H (dgCMatrix)
+  stopifnot(nrow(X) == ncol(milo))
+  
+  if (!is.factor(samples)) samples <- factor(samples)
+  
+  S <- Matrix::sparse.model.matrix(~ 0 + samples)   # cells x S
+  
+  # H x S 매트릭스 계산
+  counts_matrix <- Matrix::t(X) %*% S |> as.matrix() 
+  
+  # !! 컬럼명 오류 수정 !!
+  if (ncol(counts_matrix) == length(levels(samples))) {
+      colnames(counts_matrix) <- levels(samples)
+  } else {
+      warning("Count matrix columns do not match sample levels. Using default names.")
+  }
+
+  return(counts_matrix)
+}
+
+
+#' --------------------------------------------------
+#' 2. 최종 Milo Opus 함수 (모든 수정 사항 통합)
+#' --------------------------------------------------
+milo_opus_final3 <- function(
+    sobj,
+    target_var,
+    batch_var, 
+    patient_var,
+    cluster_var,
+    graph_reduction,              
+    layout_reduction = NULL,      
+    k = 30,
+    d = NULL,                     
+    prop = 0.1,
+    fixed_effects  = NULL,
+    random_effects = NULL,
+    glmm_family    = c("nb","poisson"),
+    p_adj_method   = "BH",
+    fdr_thresh     = 0.1,
+    logfc_thresh   = 0.5,
+    seed           = 1,
+    use_future     = FALSE,
+    workers        = max(1, parallel::detectCores()-1),
+    verbose        = TRUE,
+    min_cells      = 3
+){
+    suppressPackageStartupMessages({
+        library(Seurat)
+        library(SingleCellExperiment)
+        library(miloR)
+        library(Matrix)
+        library(dplyr)
+        library(tibble)
+        library(edgeR)
+    })
+    set.seed(seed)
+    
+    vcat <- function(...) if(verbose) cat(..., "\n")
+    
+    # ---- Checks ----
+    req_cols <- c(target_var, batch_var, patient_var, cluster_var)
+    stopifnot("Required columns missing" = all(req_cols %in% colnames(sobj@meta.data)))
+    stopifnot("Graph reduction not found" = graph_reduction %in% Reductions(sobj))
+    
+    if (is.null(fixed_effects)) fixed_effects <- c(target_var, batch_var)
+    glmm_family <- match.arg(glmm_family)
+    use_glmm <- length(random_effects) > 0
+    
+    vcat("Starting Milo DA analysis...")
+    vcat("Mode:", ifelse(use_glmm, "GLMM with random effects", "edgeR fixed effects"))
+    
+    # ---- 1. 타입 통일 ----
+    vcat("Coercing metadata columns to character in source object...")
+    sobj@meta.data[[patient_var]] <- as.character(sobj@meta.data[[patient_var]])
+    sobj@meta.data[[target_var]]  <- as.character(sobj@meta.data[[target_var]])
+    sobj@meta.data[[batch_var]]   <- as.character(sobj@meta.data[[batch_var]])
+    sobj@meta.data[[cluster_var]] <- as.character(sobj@meta.data[[cluster_var]])
+    
+    # ---- 2. 샘플 정보 생성 ----
+    vcat("Extracting sample-level information...")
+    patient_info <- sobj@meta.data[, c(patient_var, target_var, batch_var)] %>%
+        unique() %>%
+        as.data.frame()
+    
+    vcat(sprintf("Found %d unique patients", nrow(patient_info)))
+    vcat(sprintf("Target values in data: %s", 
+                 paste(sort(unique(patient_info[[target_var]])), collapse=", ")))
+    vcat(sprintf("Batch values in data: %s", 
+                 paste(sort(unique(patient_info[[batch_var]])), collapse=", ")))
+    
+    # ---- Embeddings ----
+    G_emb <- Embeddings(sobj, reduction = graph_reduction)
+    if (is.null(d)) d <- ncol(G_emb)
+    d <- min(d, ncol(G_emb))
+    G_use <- G_emb[, seq_len(d), drop = FALSE]
+    L_use <- NULL
+    if (!is.null(layout_reduction)) {
+        L_emb <- Embeddings(sobj, reduction = layout_reduction)
+        L_use <- L_use
+    }
+    vcat(sprintf("Using %d dimensions from %s reduction", d, graph_reduction))
+    
+    # ---- Create SCE ----
+    sce <- as.SingleCellExperiment(sobj, assay = DefaultAssay(sobj))
+    reducedDim(sce, "GRAPH") <- as.matrix(G_use)
+    if (!is.null(L_use)) reducedDim(sce, "LAYOUT") <- as.matrix(L_use)
+    
+    # ---- Build Milo ----
+    vcat("Building kNN graph and neighborhoods...")
+    milo <- Milo(sce)
+    milo <- buildGraph(milo, k = k, d = ncol(G_use), reduced.dim = "GRAPH")
+    milo <- makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
+    
+    vcat(sprintf("Created %d neighborhoods", ncol(nhoods(milo))))
+    
+    # ---- Get metadata ----
+    milo_md <- as.data.frame(colData(milo))
+    
+    # ---- 3. Counts 계산 (수정된 .fast_count_cells 사용) ----
+    vcat("Computing neighborhood-by-sample counts (using fixed .fast_count_cells)...")
+    counts <- .fast_count_cells(milo, samples = milo_md[[patient_var]])
+    
+    H <- nrow(counts)
+    S <- ncol(counts)
+    vcat(sprintf("Count matrix: %d neighborhoods x %d samples", H, S))
+    
+    # ---- 4. Design Matrix 생성 (매칭 오류 해결됨) ----
+    sample_ids <- colnames(counts)
+    sample_idx <- match(sample_ids, patient_info[[patient_var]])
+    
+    if (any(is.na(sample_idx))) {
+        missing <- sample_ids[is.na(sample_idx)]
+        stop(sprintf("Could not find patient info for samples: %s", 
+                     paste(missing, collapse=", ")))
+    }
+    
+    sample_design <- patient_info[sample_idx, ]
+    rownames(sample_design) <- sample_ids
+    
+    sample_design[[target_var]] <- factor(sample_design[[target_var]])
+    sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
+    
+    vcat(sprintf("\nSample design summary:"))
+    vcat(sprintf("  Target (%s) levels: %s", target_var,
+                 paste(levels(sample_design[[target_var]]), collapse=", ")))
+    vcat(sprintf("  Batch (%s) levels: %s", batch_var,
+                 paste(levels(sample_design[[batch_var]]), collapse=", ")))
+    
+    design_table <- table(sample_design[[target_var]], sample_design[[batch_var]])
+    vcat("\nDesign structure (rows=target, cols=batch):")
+    print(design_table)
+    
+    # ---- Filter neighborhoods ----
+    nh_sizes <- rowSums(counts)
+    keep_nh <- nh_sizes >= min_cells
+    if (sum(!keep_nh) > 0) {
+        vcat(sprintf("Filtering %d neighborhoods with < %d cells", sum(!keep_nh), min_cells))
+    }
+    
+    # ---- 5. Majority cluster ----
+    nh_mat <- miloR::nhoods(milo)
+    cell_clusters <- milo_md[[cluster_var]]
+    majority_cluster <- vapply(seq_len(ncol(nh_mat)), function(i) {
+        idx <- as.logical(nh_mat[, i])
+        labs <- cell_clusters[idx]
+        if (length(labs) == 0) return(NA_character_)
+        tbl <- table(labs)
+        names(tbl)[which.max(tbl)]
+    }, character(1))
+    
+    # ---- EdgeR analysis ----
+    vcat("\nRunning edgeR analysis...")
+    
+    if (nlevels(sample_design[[target_var]]) < 2) {
+        stop(sprintf("Target variable '%s' must have at least 2 levels, found: %s",
+                     target_var, 
+                     paste(levels(sample_design[[target_var]]), collapse=", ")))
+    }
+    
+    formula_str <- paste("~ 0 +", target_var)
+    vcat(sprintf("Using formula: %s", formula_str))
+    
+    mm <- model.matrix(as.formula(formula_str), data = sample_design)
+    vcat(sprintf("Design matrix: %d x %d", nrow(mm), ncol(mm)))
+    vcat(sprintf("Column names: %s", paste(colnames(mm), collapse=", ")))
+    
+    dge <- DGEList(counts = counts[keep_nh, , drop = FALSE])
+    dge <- calcNormFactors(dge, method = "TMM")
+    
+    vcat("Estimating dispersions...")
+    dge <- estimateDisp(dge, design = mm, robust = TRUE)
+    vcat(sprintf("Common dispersion: %.4f", dge$common.dispersion))
+    
+    vcat("Fitting GLM...")
+    fit <- glmQLFit(dge, design = mm, robust = TRUE)
+    
+    if (ncol(mm) == 2) {
+        contrast_name <- paste(colnames(mm)[2], "vs", colnames(mm)[1])
+        vcat(sprintf("Testing: %s", contrast_name))
+        contrast <- numeric(ncol(mm)); contrast[1] <- -1; contrast[2] <- 1
+        qlf <- glmQLFTest(fit, contrast = contrast)
+    } else {
+        vcat("Testing all groups")
+        qlf <- glmQLFTest(fit, coef = 2:ncol(mm))
+    }
+    
+    # 1. 필터링된 이웃(M개)에 대한 결과 테이블 생성
+    nh_idx <- which(keep_nh)
+    da.res_sub <- tibble(
+      nhood = nh_idx,
+      logFC = qlf$table$logFC,
+      logCPM = qlf$table$logCPM,
+      F = qlf$table$F,
+      pval = qlf$table$PValue
+    )
+    
+    vcat(sprintf("GLM results produced %d rows", nrow(da.res_sub)))
+
+    # 2. (선택적) GLM 결과의 NA/Inf 값 필터링 (필요시)
+    #    이전 디버깅에서 모든 행이 통과했으므로, 
+    #    da.res_sub를 직접 필터링할 수 있습니다.
+    da.res_sub <- da.res_sub %>%
+       filter(
+           is.finite(logFC) &
+           is.finite(logCPM) &
+           is.finite(F) &
+           !is.na(pval)
+       )
+    
+    if(nrow(da.res_sub) == 0) {
+       stop("No valid neighborhoods remained after filtering NA/Inf/NaN values.")
+    }
+    vcat(sprintf("Filtered GLM results (non-finite removed): %d rows remain", nrow(da.res_sub)))
+
+
+    # 3. [핵심 수정] 모든 이웃(H개)을 포함하는 전체 테이블 생성
+    #    H = ncol(nhoods(milo))
+    H_total_nhoods <- ncol(nhoods(milo))
+    da.res_full <- tibble(
+        nhood = seq_len(H_total_nhoods)
+    )
+    
+    # 4. GLM 결과를 전체 테이블에 left_join
+    #    필터링된(keep_nh=FALSE) 이웃과 GLM에서 NA가 된 이웃은
+    #    logFC, pval 등이 모두 NA가 됩니다.
+    da.res <- left_join(da.res_full, da.res_sub, by = "nhood")
+    
+vcat(sprintf("Re-expanded DA results to %d total neighborhoods", nrow(da.res)))
+
+    # -------------------------------------------------------------------
+    # !! [체계적인 디버그 및 수정 블록] !!
+    # -------------------------------------------------------------------
+    
+    # [DEBUG] 1. 현재 'nhood' 컬럼의 상태 확인
+    vcat(sprintf("[DEBUG] Class of 'nhood' column before fix: %s", class(da.res$nhood)))
+    if (!is.numeric(da.res$nhood)) {
+        vcat("[DEBUG] !! WARNING !! 'nhood' is NOT numeric. This is the likely cause of the error.")
+    }
+    
+    # [FIX] 'nhood' 컬럼을 강제로 integer로 변환하여 인덱싱 오류 방지
+    # 'NAs introduced by coercion' 및 'indices out of range' 오류를 해결합니다.
+    da.res$nhood <- as.integer(da.res$nhood)
+    
+    # [DEBUG] 2. 수정한 'nhood' 컬럼의 상태 재확인
+    vcat(sprintf("[DEBUG] Class of 'nhood' column after fix: %s", class(da.res$nhood)))
+    
+    # [DEBUG] 3. 인덱스 유효성 최종 검증
+    n_milo_nhoods <- ncol(nhoods(milo))
+    vcat(sprintf("[DEBUG] Max index in da.res: %d", max(da.res$nhood, na.rm = TRUE)))
+    vcat(sprintf("[DEBUG] Total neighborhoods in milo: %d", n_milo_nhoods))
+    
+    if (any(is.na(da.res$nhood))) {
+         vcat("[DEBUG] !! CRITICAL ERROR !! 'nhood' column contains NAs after coercion.")
+         stop("Failed to create valid numeric indices for 'nhood'.")
+    }
+    if (max(da.res$nhood) > n_milo_nhoods) {
+         vcat("[DEBUG] !! CRITICAL ERROR !! Max index > total neighborhoods.")
+         stop("Index mismatch between da.res and milo object.")
+    }
+    vcat("[DEBUG] Index validation passed.")
+    # -------------------------------------------------------------------
+
+    # ---- 6. Spatial FDR (수정된 da.res 사용) ----
+    vcat("Computing spatial FDR...")
+    
+    da.res <- graphSpatialFDR(milo, da.res, 
+                              pvalues = "pval", 
+                              indices = "nhood",  # 인덱스 컬럼 지정
+                              k = k,
+                              reduced.dim = "GRAPH")
+    
+    da.res$major_cluster <- majority_cluster[da.res$nhood]
+    da.res <- da.res %>%
+        mutate(is_sig = spatialFDR < fdr_thresh & abs(logFC) > logfc_thresh) %>%
+        arrange(spatialFDR, desc(abs(logFC)))
+    
+    cluster_summary <- if (sum(da.res$is_sig, na.rm = TRUE) > 0) {
+        da.res %>%
+            filter(is_sig) %>%
+            group_by(major_cluster) %>%
+            summarise(
+                n_sig_nhoods = n(),
+                mean_logFC = mean(logFC),
+                median_logFC = median(logFC),
+                min_spatialFDR = min(spatialFDR),
+                .groups = "drop"
+            ) %>%
+            arrange(desc(n_sig_nhoods))
+    } else {
+        tibble()
+    }
+    
+    vcat(sprintf("\nFound %d significant neighborhoods", sum(da.res$is_sig, na.rm = TRUE)))
+    if (nrow(cluster_summary) > 0) {
+        vcat(sprintf("Affecting %d cell types", nrow(cluster_summary)))
+    }
+    
+    return(list(
+        mode = "edgeR_fixed_effects",
+        formula = formula_str,
+        milo = milo,
+        da_nhood_with_cluster = da.res,
+        da_by_cluster = cluster_summary,
+        design_matrix = mm,
+        sample_design = sample_design
+    ))
+}
