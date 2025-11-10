@@ -1124,43 +1124,43 @@ find_gene_signature <- function(data,
 }
 
 
-# Helper function to score new data with signature
-#' @export
-score_signature <- function(expr_data, signature, normalize=TRUE) {
-  genes <- signature$genes
-  weights <- signature$weights
+# # Helper function to score new data with signature
+# #' @export
+# score_signature1 <- function(expr_data, signature, normalize=TRUE) {
+#   genes <- signature$genes
+#   weights <- signature$weights
   
-  # Extract expression matrix
-  if (inherits(expr_data, "Seurat")) {
-    expr_mat <- as.matrix(Seurat::GetAssayData(expr_data, layer="data"))
-  } else {
-    expr_mat <- as.matrix(expr_data)
-  }
+#   # Extract expression matrix
+#   if (inherits(expr_data, "Seurat")) {
+#     expr_mat <- as.matrix(Seurat::GetAssayData(expr_data, layer="data"))
+#   } else {
+#     expr_mat <- as.matrix(expr_data)
+#   }
   
-  # Check gene availability
-  available_genes <- intersect(genes, rownames(expr_mat))
-  if (length(available_genes) == 0) {
-    stop("None of the signature genes found in data")
-  }
-  if (length(available_genes) < length(genes)) {
-    warning(sprintf("%d/%d signature genes not found in data", 
-                    length(genes) - length(available_genes), length(genes)))
-  }
+#   # Check gene availability
+#   available_genes <- intersect(genes, rownames(expr_mat))
+#   if (length(available_genes) == 0) {
+#     stop("None of the signature genes found in data")
+#   }
+#   if (length(available_genes) < length(genes)) {
+#     warning(sprintf("%d/%d signature genes not found in data", 
+#                     length(genes) - length(available_genes), length(genes)))
+#   }
   
-  # Calculate scores
-  weights <- weights[available_genes]
-  scores <- colSums(expr_mat[available_genes, , drop=FALSE] * weights)
+#   # Calculate scores
+#   weights <- weights[available_genes]
+#   scores <- colSums(expr_mat[available_genes, , drop=FALSE] * weights)
   
-  if (normalize) {
-    scores <- scale(scores)[,1]
-  }
+#   if (normalize) {
+#     scores <- scale(scores)[,1]
+#   }
   
-  return(scores)
-}
+#   return(scores)
+# }
 
 # Helper function to score new data with signature (ver.2)
 #' @export
-score_signature <- function(expr_data, signature, normalize=TRUE) {
+score_signature2 <- function(expr_data, signature, normalize=TRUE) {
   # version2: as.matrix 제거,
   genes <- signature$genes
   weights <- signature$weights

@@ -3063,3 +3063,346 @@ milo_opus5<- function(
         )
     ))
 }
+
+milo_opus6 <- function(
+    sobj,
+    target_var,
+    batch_var,
+    patient_var,
+    cluster_var,
+    graph_reduction,                 
+    layout_reduction = NULL,         
+    k = 30,
+    d = NULL,                        
+    prop = 0.1,
+    fixed_effects  = NULL,
+    random_effects = NULL,
+    glmm_family    = c("nb","poisson"),
+    p_adj_method   = "BH",
+    fdr_thresh     = 0.1,
+    logfc_thresh   = 0.5,
+    seed           = 1,
+    use_future     = FALSE,
+    workers        = max(1, parallel::detectCores()-1),
+    verbose        = TRUE,
+    min_cells      = 3
+){
+    suppressPackageStartupMessages({
+        library(Seurat)
+        library(SingleCellExperiment)
+        library(miloR)
+        library(Matrix)
+        library(dplyr)
+        library(tibble)
+        library(edgeR)
+    })
+    set.seed(seed)
+    
+    vcat <- function(...) if(verbose) cat(..., "\n")
+    
+    # ---- Initial checks ----
+    req_cols <- c(target_var, batch_var, patient_var, cluster_var)
+    stopifnot("Required columns missing" = all(req_cols %in% colnames(sobj@meta.data)))
+    stopifnot("Graph reduction not found" = graph_reduction %in% Reductions(sobj))
+    
+    if (is.null(fixed_effects)) fixed_effects <- c(target_var, batch_var)
+    glmm_family <- match.arg(glmm_family)
+    use_glmm <- length(random_effects) > 0
+    
+    vcat("Starting Milo DA analysis...")
+    vcat("Mode:", ifelse(use_glmm, "GLMM with random effects", "edgeR fixed effects"))
+    
+    # ---- Convert metadata to proper types ----
+    md <- sobj@meta.data
+    
+    # Convert to character first to preserve values, then to factor
+    md[[target_var]] <- as.character(md[[target_var]])
+    md[[batch_var]] <- as.character(md[[batch_var]])
+    md[[patient_var]] <- as.character(md[[patient_var]])
+    md[[cluster_var]] <- as.character(md[[cluster_var]])
+    
+    vcat(sprintf("Target variable (%s) unique values: %s", 
+                target_var, paste(unique(md[[target_var]]), collapse=", ")))
+    vcat(sprintf("Batch variable (%s) unique values: %s", 
+                batch_var, paste(unique(md[[batch_var]]), collapse=", ")))
+    
+    # ---- Pull embeddings ----
+    G_emb <- Embeddings(sobj, reduction = graph_reduction)
+    if (is.null(d)) d <- ncol(G_emb)
+    d <- min(d, ncol(G_emb))
+    G_use <- G_emb[, seq_len(d), drop = FALSE]
+    
+    L_use <- NULL
+    if (!is.null(layout_reduction)) {
+        L_emb <- Embeddings(sobj, reduction = layout_reduction)
+        L_use <- L_emb
+    }
+    
+    vcat(sprintf("Using %d dimensions from %s reduction", d, graph_reduction))
+    
+    # ---- Create SCE with updated metadata ----
+    sce <- as.SingleCellExperiment(sobj, assay = DefaultAssay(sobj))
+    
+    # Update colData with converted metadata
+    colData(sce)[[target_var]] <- md[[target_var]]
+    colData(sce)[[batch_var]] <- md[[batch_var]]
+    colData(sce)[[patient_var]] <- md[[patient_var]]
+    colData(sce)[[cluster_var]] <- md[[cluster_var]]
+    
+    reducedDim(sce, "GRAPH") <- as.matrix(G_use)
+    if (!is.null(L_use)) reducedDim(sce, "LAYOUT") <- as.matrix(L_use)
+    
+    # ---- Build Milo object ----
+    vcat("Building kNN graph and neighborhoods...")
+    milo <- Milo(sce)
+    milo <- buildGraph(milo, k = k, d = ncol(G_use), reduced.dim = "GRAPH")
+    milo <- makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
+    
+    vcat(sprintf("Created %d neighborhoods", ncol(nhoods(milo))))
+    
+    # ---- Get metadata from milo ----
+    milo_md <- as.data.frame(colData(milo))
+    
+    # ---- Compute counts ----
+    vcat("Computing neighborhood-by-sample counts...")
+    counts <- .fast_count_cells(milo, samples = milo_md[[patient_var]])
+    H <- nrow(counts)
+    S <- ncol(counts)
+    vcat(sprintf("Count matrix: %d neighborhoods x %d samples", H, S))
+    
+    # Filter small neighborhoods
+    nh_sizes <- rowSums(counts)
+    keep_nh <- nh_sizes >= min_cells
+    if (sum(!keep_nh) > 0) {
+        vcat(sprintf("Filtering out %d neighborhoods with < %d cells", sum(!keep_nh), min_cells))
+    }
+    
+    # ---- Get majority cluster ----
+    nh_mat <- miloR::nhoods(milo)
+    cell_clusters <- milo_md[[cluster_var]]
+    majority_cluster <- vapply(seq_len(ncol(nh_mat)), function(i) {
+        idx <- as.logical(nh_mat[, i])
+        labs <- cell_clusters[idx]
+        if (length(labs) == 0) return(NA_character_)
+        tbl <- table(labs)
+        names(tbl)[which.max(tbl)]
+    }, character(1))
+    
+    # ===== Create sample-level design matrix =====
+    vcat("Creating sample-level design matrix...")
+    
+    # Get sample IDs from count matrix
+    sample_ids <- colnames(counts)
+    
+    # Create sample metadata by aggregating cell-level data
+    sample_design <- data.frame(
+        sample_id = character(length(sample_ids)),
+        stringsAsFactors = FALSE
+    )
+    
+    # Initialize columns
+    sample_design[[target_var]] <- character(length(sample_ids))
+    sample_design[[batch_var]] <- character(length(sample_ids))
+    
+    # For each sample (patient), get their metadata
+    for (i in seq_along(sample_ids)) {
+        sid <- sample_ids[i]
+        sample_design$sample_id[i] <- sid
+        
+        # Get all cells from this patient
+        patient_cells <- which(milo_md[[patient_var]] == sid)
+        
+        if (length(patient_cells) > 0) {
+            # Get unique values for this patient
+            target_vals <- unique(milo_md[[target_var]][patient_cells])
+            batch_vals <- unique(milo_md[[batch_var]][patient_cells])
+            
+            # Should be only one value per patient (nested design)
+            sample_design[[target_var]][i] <- target_vals[1]
+            sample_design[[batch_var]][i] <- batch_vals[1]
+            
+            if (length(target_vals) > 1) {
+                warning(sprintf("Patient %s has multiple target values: %s", 
+                              sid, paste(target_vals, collapse=", ")))
+            }
+            if (length(batch_vals) > 1) {
+                warning(sprintf("Patient %s has multiple batch values: %s",
+                              sid, paste(batch_vals, collapse=", ")))
+            }
+        }
+    }
+    
+    # Convert to factors
+    sample_design[[target_var]] <- factor(sample_design[[target_var]])
+    sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
+    
+    vcat(sprintf("Target variable levels: %s", 
+                paste(levels(sample_design[[target_var]]), collapse=", ")))
+    vcat(sprintf("Batch variable levels: %s", 
+                paste(levels(sample_design[[batch_var]]), collapse=", ")))
+    vcat(sprintf("Number of samples: %d", nrow(sample_design)))
+    
+    # Check design structure
+    design_check <- table(sample_design[[target_var]], sample_design[[batch_var]])
+    vcat("Design structure (target x batch):")
+    print(design_check)
+    
+    is_nested <- all(apply(design_check > 0, 2, sum) == 1)  # Each batch in only one target
+    
+    if (is_nested) {
+        vcat("WARNING: Batches are completely nested within target groups")
+        vcat("Batch effects are confounded with target effects")
+    }
+    
+    # ===== EdgeR analysis =====
+    vcat("Running edgeR analysis...")
+    
+    rownames(sample_design) <- sample_ids
+    
+    # Check that we have at least 2 levels for target
+    if (nlevels(sample_design[[target_var]]) < 2) {
+        stop(sprintf("Target variable '%s' must have at least 2 levels, found: %s",
+                    target_var, paste(levels(sample_design[[target_var]]), collapse=", ")))
+    }
+    
+    # Build design matrix
+    design_success <- FALSE
+    mm <- NULL
+    formula_str <- ""
+    
+    # Try both factors if not nested
+    if (!is_nested && length(fixed_effects) > 1) {
+        vcat("Attempting to include both target and batch...")
+        formula_str <- paste("~", target_var, "+", batch_var)
+        
+        mm <- tryCatch({
+            model.matrix(as.formula(formula_str), data = sample_design)
+        }, error = function(e) {
+            vcat(sprintf("  Failed: %s", e$message))
+            NULL
+        })
+        
+        if (!is.null(mm) && qr(mm)$rank == ncol(mm)) {
+            design_success <- TRUE
+            vcat("  Success: Including both factors")
+        } else if (!is.null(mm)) {
+            vcat("  Design is rank-deficient")
+        }
+    }
+    
+    # Fallback to target only
+    if (!design_success) {
+        if (is_nested) {
+            vcat("Using target-only design due to nested structure")
+        } else {
+            vcat("Using target-only design")
+        }
+        
+        # Use no-intercept model for cleaner contrasts
+        formula_str <- paste("~ 0 +", target_var)
+        mm <- model.matrix(as.formula(formula_str), data = sample_design)
+        design_success <- TRUE
+    }
+    
+    vcat(sprintf("Final design: %s", formula_str))
+    vcat(sprintf("Design matrix: %d samples x %d coefficients", nrow(mm), ncol(mm)))
+    vcat(sprintf("Coefficients: %s", paste(colnames(mm), collapse=", ")))
+    
+    # EdgeR workflow
+    dge <- DGEList(counts = counts[keep_nh, , drop = FALSE])
+    dge <- calcNormFactors(dge, method = "TMM")
+    
+    # Estimate dispersions
+    vcat("Estimating dispersions...")
+    dge <- estimateDisp(dge, design = mm, robust = TRUE)
+    vcat(sprintf("Common dispersion: %.4f", dge$common.dispersion))
+    
+    # Fit model
+    vcat("Fitting GLM...")
+    fit <- glmQLFit(dge, design = mm, robust = TRUE)
+    
+    # Test for differential abundance
+    if (grepl("~ 0 \\+", formula_str)) {
+        # No intercept model - test contrast
+        target_levels <- levels(sample_design[[target_var]])
+        
+        if (length(target_levels) == 2) {
+            # Create contrast: group2 - group1
+            contrast_str <- paste0(colnames(mm)[2], " - ", colnames(mm)[1])
+            vcat(sprintf("Testing contrast: %s", contrast_str))
+            
+            contrast_vec <- numeric(ncol(mm))
+            contrast_vec[1] <- -1
+            contrast_vec[2] <- 1
+            
+            qlf <- glmQLFTest(fit, contrast = contrast_vec)
+        } else {
+            vcat("Testing all groups against baseline")
+            qlf <- glmQLFTest(fit, coef = 2:ncol(mm))
+        }
+    } else {
+        # Model with intercept
+        target_coef <- grep(target_var, colnames(mm), value = TRUE)[1]
+        vcat(sprintf("Testing coefficient: %s", target_coef))
+        qlf <- glmQLFTest(fit, coef = target_coef)
+    }
+    
+    # Build results
+    nh_idx <- which(keep_nh)
+    da.res <- tibble(
+        nhood = nh_idx,
+        logFC = qlf$table$logFC,
+        logCPM = qlf$table$logCPM,
+        F = qlf$table$F,
+        pval = qlf$table$PValue
+    )
+    
+    # Spatial FDR
+    vcat("Computing spatial FDR...")
+    da.res <- graphSpatialFDR(milo, da.res, pvalues = "pval", indices = "nhood")
+    
+    da.res$major_cluster <- majority_cluster[da.res$nhood]
+    da.res <- da.res %>%
+        mutate(is_sig = spatialFDR < fdr_thresh & abs(logFC) > logfc_thresh) %>%
+        arrange(spatialFDR, desc(abs(logFC)))
+    
+    # Cluster summary
+    cluster_summary <- if (sum(da.res$is_sig, na.rm = TRUE) > 0) {
+        da.res %>%
+            filter(is_sig) %>%
+            group_by(major_cluster) %>%
+            summarise(
+                n_sig_nhoods = n(),
+                mean_logFC = mean(logFC),
+                median_logFC = median(logFC),
+                min_spatialFDR = min(spatialFDR),
+                .groups = "drop"
+            ) %>%
+            arrange(desc(n_sig_nhoods))
+    } else {
+        tibble()
+    }
+    
+    vcat(sprintf("\nResults: %d significant neighborhoods out of %d tested",
+                sum(da.res$is_sig, na.rm = TRUE), nrow(da.res)))
+    
+    if (is_nested) {
+        vcat("\nNOTE: Batch effects could not be separated due to nested design")
+    }
+    
+    return(list(
+        mode = "edgeR_fixed_effects",
+        formula = formula_str,
+        milo = milo,
+        da_nhood_with_cluster = da.res,
+        da_by_cluster = cluster_summary,
+        design_matrix = mm,
+        sample_design = sample_design,
+        design_info = list(
+            is_nested = is_nested,
+            n_samples = S,
+            n_neighborhoods = H,
+            n_filtered = sum(!keep_nh)
+        )
+    ))
+}
