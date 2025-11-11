@@ -4572,6 +4572,144 @@ train_meta_learner_v5 <- function(...) {
   train_meta_learner_v6(...)
 }
 
+#' Derive gene-level importance from a trained meta learner
+#'
+#' Combines L2 signature importances with L1 signature weights to obtain
+#' per-gene contribution scores. When the selected meta learner is a logistic
+#' regression, signed contributions indicate whether higher gene expression
+#' increases (`> 0`) or decreases (`< 0`) the odds of the positive class.
+#' For non-linear models the magnitude is still meaningful, but signs should be
+#' interpreted cautiously because the L2 model can capture non-linear effects.
+#'
+#' @param meta_result A result list returned by [train_meta_learner_v6()].
+#' @param normalize If `TRUE`, scale contributions so that the maximum absolute
+#'   per-signature contribution is 1.
+#' @return A list with elements:
+#'   \describe{
+#'     \item{signature_importance}{Named numeric vector of L1 signature importances.}
+#'     \item{gene_importance}{Data frame with columns `signature`, `gene`,
+#'           `contribution` (signed), and `abs_contribution`.}
+#'     \item{gene_summary}{Aggregated contributions per gene across signatures.}
+#'     \item{positive_class}{Name of the positive class (usually `X2`).}
+#'     \item{model_type}{Name of the selected L2 model.}
+#'   }
+#' @export
+compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
+  if (!is.list(meta_result) ||
+      !all(c("best_model", "best_model_name", "l1_signatures", "l2_train") %in% names(meta_result))) {
+    stop("meta_result must be the object returned by train_meta_learner_v6().")
+  }
+
+  `%||%` <- function(x, y) if (!is.null(x)) x else y
+
+  model_type <- meta_result$best_model_name
+  model <- meta_result$best_model
+  sig_names <- setdiff(colnames(meta_result$l2_train), ".target")
+
+  if (length(sig_names) == 0) {
+    stop("No signature features found in l2_train.")
+  }
+
+  # helper to standardise signature definition into named numeric vector
+  standardise_signature <- function(sig) {
+    if (is.null(sig)) return(numeric(0))
+    if (is.numeric(sig) && !is.null(names(sig))) return(sig)
+    if (is.character(sig)) return(structure(rep(1, length(sig)), names = sig))
+    if (is.list(sig) && all(c("up", "down") %in% names(sig))) {
+      up <- sig$up %||% character()
+      down <- sig$down %||% character()
+      nm <- c(up, down)
+      wt <- c(rep(1, length(up)), rep(-1, length(down)))
+      names(wt) <- nm
+      return(wt)
+    }
+    if (is.list(sig) && all(c("genes", "weights") %in% names(sig))) {
+      g <- sig$genes
+      w <- sig$weights
+      if (length(g) != length(w)) stop("Signature genes/weights length mismatch.")
+      names(w) <- g
+      return(w)
+    }
+    if (is.data.frame(sig)) {
+      cn <- tolower(colnames(sig))
+      gene_col <- which(cn %in% c("gene","genes","feature","features","symbol","id"))[1]
+      weight_col <- which(cn %in% c("weight","weights","w","score","scores","coef","coefs"))[1]
+      if (!is.na(gene_col) && !is.na(weight_col)) {
+        g <- as.character(sig[[gene_col]])
+        w <- as.numeric(sig[[weight_col]])
+        ok <- !is.na(g) & !is.na(w)
+        w <- w[ok]; g <- g[ok]
+        names(w) <- g
+        return(w)
+      }
+    }
+    stop("Unsupported signature format when standardising weights.")
+  }
+
+  signature_weights <- lapply(meta_result$l1_signatures[sig_names], standardise_signature)
+
+  # obtain signature-level importance
+  signature_importance <- NULL
+  if (identical(model_type, "glm") && inherits(model$finalModel, "glm")) {
+    coefs <- stats::coef(model$finalModel)
+    coefs <- coefs[names(coefs) != "(Intercept)"]
+    signature_importance <- coefs[sig_names]
+  } else {
+    vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
+    if (!inherits(vi, "try-error")) {
+      importance_df <- vi$importance
+      if ("Overall" %in% colnames(importance_df)) {
+        signature_importance <- importance_df[sig_names, "Overall"]
+      } else if (ncol(importance_df) >= 1) {
+        signature_importance <- importance_df[sig_names, 1]
+      }
+    }
+  }
+
+  if (is.null(signature_importance)) {
+    stop("Could not derive signature importance for model type: ", model_type)
+  }
+
+  if (normalize) {
+    signature_importance <- signature_importance / (max(abs(signature_importance), na.rm = TRUE) %||% 1)
+  }
+
+  gene_tables <- lapply(sig_names, function(sig) {
+    weights <- signature_weights[[sig]]
+    if (length(weights) == 0) return(NULL)
+    contrib <- signature_importance[[sig]] * weights
+    if (normalize && any(is.finite(contrib))) {
+      denom <- max(abs(contrib), na.rm = TRUE)
+      if (is.finite(denom) && denom > 0) contrib <- contrib / denom
+    }
+    data.frame(
+      signature = sig,
+      gene = names(contrib),
+      contribution = as.numeric(contrib),
+      abs_contribution = abs(as.numeric(contrib)),
+      stringsAsFactors = FALSE
+    )
+  })
+
+  gene_importance <- do.call(rbind, gene_tables)
+  if (is.null(gene_importance) || nrow(gene_importance) == 0) {
+    stop("No gene contributions could be computed.")
+  }
+
+  gene_summary <- stats::aggregate(contribution ~ gene, data = gene_importance, sum)
+  gene_summary$abs_contribution <- abs(gene_summary$contribution)
+
+  positive_class <- tail(levels(meta_result$l2_train$.target), 1)
+
+  list(
+    signature_importance = signature_importance,
+    gene_importance = gene_importance,
+    gene_summary = gene_summary[order(-gene_summary$abs_contribution), ],
+    positive_class = positive_class,
+    model_type = model_type
+  )
+}
+
 
 
 # LMM analysis suite -----
