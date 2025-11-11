@@ -1,10 +1,11 @@
 # Project-Specific Context
 
 ## Primary Goal
-scRNAseq, GeoMx data 등에 있어서 엄밀하면서도 범용적으로 사용 가능한 툴들을 개발하고, 편의화하기 위함이다.
+Deliver a reusable R toolkit (`myR`) for single-cell RNA-seq and GeoMx spatial transcriptomics workflows.  
+The package should bundle proven analysis modules—pseudobulk DEG, pathway enrichment, pseudotime, cell–cell interaction, GeoMx preprocessing—and expose them through documented, reproducible interfaces.
 
 ## AI Model
-anything.
+Anything (focus on code reasoning, documentation drafting, and data-processing support).
 
 ---
 
@@ -14,14 +15,13 @@ anything.
 
 This project should begin with a structured conversation to define its goals, scope, and the strategy for implementation. Follow these steps:
 
-1.  **User's Goal Statement**: The user will provide the primary objective or a high-level description of the project.
+1.  **User's Goal Statement**: Gather requirements tied to `myR` features or documentation gaps.
 2.  **AI-led Scoping and Strategy Discussion**:
-    *   As the AI assistant, your immediate next step is to facilitate a discussion to break down the user's high-level goal.
-    *   Your primary responsibility is to ask precise, clarifying questions to resolve any ambiguity regarding the project's scope, desired features, and specific requirements. Do not proceed if the goal is not well-defined.
-    *   Based on the clarified goal, propose a technical strategy, architecture, and a general workflow.
-    *   Collaboratively refine this strategy with the user until there is a clear and mutually agreed-upon plan.
-3.  **Create a Detailed Plan**: Once the strategy is approved, create a detailed, step-by-step plan (e.g., a TODO list) that outlines the tasks required for execution.
-4.  **Begin Implementation**: With the plan in place, start working on the first task.
+    *   Clarify which module or document (e.g., pseudobulk, Milo, README) needs attention.
+    *   Identify relevant commits, scripts, or vignettes (`docs/functions/function_analysis.md`, `R/*.R`).
+    *   Agree on deliverables (code changes, docs, tests).
+3.  **Create a Detailed Plan**: Produce a TODO list before editing, referencing target files.
+4.  **Begin Implementation**: Execute plan incrementally, verifying results at each step.
 
 ## Evolving This Context File
 
@@ -35,11 +35,11 @@ This document is not static. It is expected to be updated and refined as we deve
 This file provides general guidelines for an AI assistant working on a coding project.
 
 ## Core Principles
-1.  **Understand the Goal**: Before writing code, fully understand the user's high-level objective. Ask clarifying questions if the goal is ambiguous.
-2.  **Plan Your Work**: For any non-trivial request, create a plan and share it. Use a TODO list to track progress and mark items as complete.
-3.  **Be Systematic**: Make one logical change at a time. Verify each change before moving to the next. Avoid making many unrelated changes in a single step.
-4.  **Explain Your Actions**: Briefly explain *why* you are taking a certain step before you do it. Provide the commands for the user to run, explaining what each one does.
-5.  **Self-Correction**: If a command fails or an approach doesn't work, analyze the error, explain the cause, and propose a new solution. Don't repeat the same mistake.
+1.  **Understand the Goal**: Tie every change back to the package roadmap (e.g., Milo enhancements, documentation sync).
+2.  **Plan Your Work**: Create and maintain TODO lists; group related doc/code updates.
+3.  **Be Systematic**: Update one module or document at a time; keep commits focused.
+4.  **Explain Your Actions**: Describe why commands or edits are required (e.g., “inspect `b260bb1` for Milo context”).
+5.  **Self-Correction**: If a command fails or findings conflict, summarize the issue and propose a revised plan.
 
 ## 🪲 Project-Specific Caveats (Learned Lessons)
 
@@ -55,9 +55,9 @@ This file provides general guidelines for an AI assistant working on a coding pr
 4.  **Error Handling**: Implement robust error handling. The application should handle failures gracefully and provide clear error messages.
 
 ## Project Management
-1.  **Version Control**: Use Git for version control. Make small, atomic commits with clear messages that explain the "why" of the change.
-2.  **Documentation**: Keep `README.md` and other documentation up-to-date. Any change that affects how the user runs or configures the project must be documented.
-3.  **Dependency Management**: Use a package manager (`package.json`, `requirements.txt`, etc.) and keep dependencies clean. Explain why a new dependency is needed before adding it.
+1.  **Version Control**: Keep documentation changes (DEVLOG/CHANGELOG) synchronized with relevant commits.
+2.  **Documentation**: `README.md` (English) and `README_Korean.md` describe capabilities; update them when modules evolve.
+3.  **Dependency Management**: Reflect dependency changes in `DESCRIPTION` and note rationale in CHANGELOG.
 
 ## Communication
 1.  **Clarity and Conciseness**: Be clear and to the point. Avoid jargon where possible.
