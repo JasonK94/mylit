@@ -13,7 +13,6 @@
 myR.Rcheck/   
 # devtools::build() 결과물
 myR_*.tar.gz
-myR/data/NicheNetData
 
 # RStudio
 .Rhistory
@@ -25,7 +24,6 @@ __pycache__/
 *.pyc
 
 # 기타
-*.log
 ipynb/
 ipynb/output/
 ipynb/temporary/
@@ -37,10 +35,29 @@ rmd/
 # Environment variables
 .env
 
-# data
-*.rds
-*/data/*
+# data, logs, outputs...
+*output*
+*plots*
 projects/
 trash/
 renv/
-st
+*renv*
+*bin
+*deprecated*
+
+*.rds
+*.log
+*.pdf
+*.png
+*.csv
+*/data/*
+*.tar.gz
+*.gz
+*.qs
+*sobj*
+*h5ad
+*h5seurat
+*loom
+*mtx
+*mtx.gz
+
