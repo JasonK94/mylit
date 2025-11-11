@@ -1,7 +1,7 @@
 # Project-Specific Context
 
 ## Primary Goal
-to develop comprehensive scRNAseq and other omics data analysis platform.
+scRNAseq, GeoMx data 등에 있어서 엄밀하면서도 범용적으로 사용 가능한 툴들을 개발하고, 편의화하기 위함이다.
 
 ## AI Model
 anything.
