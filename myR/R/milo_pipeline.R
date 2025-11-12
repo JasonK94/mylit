@@ -70,27 +70,22 @@ run_milo_pipeline <- function(
 ) {
     .milo_require_packages()
 
-    if (is.null(seurat_obj)) {
-        if (is.null(seurat_qs_path)) {
-            stop("Provide either `seurat_obj` or `seurat_qs_path`.")
+    input_seurat_obj <- seurat_obj
+    seurat_supplier <- local({
+        prepared <- NULL
+        function() {
+            if (!is.null(prepared)) return(prepared)
+            prepared <<- .milo_prepare_seurat(
+                seurat_obj = input_seurat_obj,
+                seurat_qs_path = seurat_qs_path,
+                max_cells = max_cells,
+                seed = seed,
+                verbose = verbose
+            )
+            prepared
         }
-        if (verbose) cli::cli_inform(c("Loading Seurat object from {.path {seurat_qs_path}}"))
-        seurat_obj <- qs::qread(seurat_qs_path)
-    }
-
-    if (!inherits(seurat_obj, "Seurat")) {
-        stop("`seurat_obj` must be a Seurat object.")
-    }
-
-    if (!is.null(max_cells) && max_cells > 0 && max_cells < ncol(seurat_obj)) {
-        set.seed(seed)
-        if (verbose) {
-            cli::cli_inform(c("Subsampling cells" = "{ncol(seurat_obj)} → {max_cells} for development run."))
-        }
-        keep_cells <- sample(colnames(seurat_obj), size = max_cells)
-        seurat_obj <- subset(seurat_obj, cells = keep_cells)
-    }
-
+    })
+    seurat_obj <- if (!is.null(input_seurat_obj)) seurat_supplier() else NULL
     set.seed(seed)
 
     force_flags <- .milo_normalize_force_flags(force_run)
@@ -105,8 +100,10 @@ run_milo_pipeline <- function(
         dir.create(paths$output_dir, recursive = TRUE, showWarnings = FALSE)
     }
 
-    if (verbose) cli::cli_inform(c("Preparing metadata for Milo conversion."))
-    seurat_obj <- .milo_prepare_metadata(seurat_obj, patient_var, cluster_var, target_var, batch_var)
+    if (!is.null(seurat_obj)) {
+        if (verbose) cli::cli_inform(c("Preparing metadata for Milo conversion."))
+        seurat_obj <- .milo_prepare_metadata(seurat_obj, patient_var, cluster_var, target_var, batch_var)
+    }
 
     # ---- Step 1: Build Milo object with neighbourhoods ----
     if (!force_flags["nhoods"] && save && file.exists(paths$files$nhoods)) {
@@ -116,6 +113,12 @@ run_milo_pipeline <- function(
         milo <- qs::qread(paths$files$nhoods)
     } else {
         if (verbose) cli::cli_inform(c("step" = "Building Milo neighbourhoods."))
+        seurat_obj <- seurat_supplier()
+        if (is.null(seurat_obj)) {
+            stop("Seurat object required to build Milo neighbourhoods. Provide `seurat_obj` or `seurat_qs_path`.")
+        }
+        seurat_obj <- .milo_prepare_metadata(seurat_obj, patient_var, cluster_var, target_var, batch_var)
+        environment(seurat_supplier)$prepared <- seurat_obj
         milo <- .milo_build_nhoods(
             seurat_obj = seurat_obj,
             graph_reduction = graph_reduction,
@@ -176,6 +179,11 @@ run_milo_pipeline <- function(
     plots <- NULL
     if (plotting) {
         if (verbose) cli::cli_inform(c("step" = "Preparing Milo plots."))
+        if (!"UMAP" %in% SingleCellExperiment::reducedDimNames(milo)) {
+            seurat_obj <- seurat_supplier()
+        }
+        beeswarm_alpha <- .milo_normalize_alpha(beeswarm_alpha, name = "beeswarm_alpha")
+
         plots <- .milo_plot_bundle(
             milo = milo,
             da_results = da_results,
@@ -202,7 +210,7 @@ run_milo_pipeline <- function(
 }
 
 .milo_require_packages <- function() {
-    pkgs <- c("Seurat", "SingleCellExperiment", "miloR", "Matrix", "qs", "cli", "ggplot2", "patchwork")
+    pkgs <- c("Seurat", "SingleCellExperiment", "miloR", "Matrix", "qs", "cli", "ggplot2", "patchwork", "scater")
     missing <- pkgs[!vapply(pkgs, requireNamespace, quietly = TRUE, FUN.VALUE = logical(1))]
     if (length(missing) > 0) {
         stop("Missing required packages: ", paste(missing, collapse = ", "))
@@ -308,17 +316,29 @@ run_milo_pipeline <- function(
         verbose = verbose
     )
 
+    beeswarm_payload <- .milo_prepare_beeswarm_inputs(
+        da_results = da_results,
+        preferred_metric = beeswarm_metric,
+        fallback_metric = "PValue",
+        alpha = beeswarm_alpha,
+        verbose = verbose
+    )
+
     graph_plot <- miloR::plotNhoodGraphDA(milo, da_results, alpha = alpha) +
         ggplot2::ggtitle("DA Results (logFC)")
 
     beeswarm_plot <- miloR::plotDAbeeswarm(
-        da_results,
+        beeswarm_payload$results,
         group.by = "major_cluster",
-        alpha = beeswarm_alpha
-    ) + ggplot2::ggtitle("DA Results by Cell Type")
+        alpha = beeswarm_payload$alpha
+    ) + ggplot2::ggtitle(beeswarm_payload$title)
 
-    umap_plot <- miloR::plotUMAP(milo, colour_by = "milo_metric_bin") +
-        ggplot2::scale_color_manual(values = .milo_metric_palette(fdr_labels), name = "Cell metric") +
+    umap_plot <- scater::plotReducedDim(
+        milo,
+        dimred = "UMAP",
+        colour_by = "milo_metric_bin"
+    ) +
+        ggplot2::scale_colour_manual(values = .milo_metric_palette(fdr_labels), name = "Cell metric") +
         ggplot2::ggtitle(sprintf("Cells by %s", cell_metric))
 
     combined <- patchwork::wrap_plots(umap_plot, graph_plot)
@@ -360,12 +380,24 @@ run_milo_pipeline <- function(
     metric_values[is.na(metric_values)] <- max(breaks, na.rm = TRUE)
 
     N_matrix <- miloR::nhoods(milo)
-    N_summary <- summary(N_matrix)
-    N_summary$metric <- metric_values[N_summary$j]
+    if (verbose) {
+        dims <- if (!is.null(dim(N_matrix))) paste(dim(N_matrix), collapse = " x ") else length(N_matrix)
+        cli::cli_inform(c("debug" = paste0("Computing cell-level metric from nhood matrix (class: ",
+                                           paste(class(N_matrix), collapse = ", "),
+                                           "; size: ", dims, ").")))
+    }
 
-    min_metric_per_cell <- tapply(N_summary$metric, N_summary$i, min, na.rm = TRUE)
-    cell_metric <- rep(max(breaks, na.rm = TRUE), nrow(N_matrix))
-    cell_metric[as.integer(names(min_metric_per_cell))] <- min_metric_per_cell
+    nz_idx <- Matrix::summary(N_matrix)
+    nz_idx <- data.frame(i = nz_idx$i, j = nz_idx$j, stringsAsFactors = FALSE)
+    if (nrow(nz_idx) == 0) {
+        warning("Neighbourhood matrix has no memberships; defaulting all cell metrics to max(breaks).", call. = FALSE)
+        cell_metric <- rep(max(breaks, na.rm = TRUE), nrow(N_matrix))
+    } else {
+        nz_idx$metric <- metric_values[nz_idx$j]
+        min_metric_per_cell <- tapply(nz_idx$metric, nz_idx$i, min, na.rm = TRUE)
+        cell_metric <- rep(max(breaks, na.rm = TRUE), nrow(N_matrix))
+        cell_metric[as.integer(names(min_metric_per_cell))] <- min_metric_per_cell
+    }
 
     metric_bins <- cut(
         cell_metric,
@@ -375,8 +407,8 @@ run_milo_pipeline <- function(
         include.lowest = TRUE
     )
 
-    SingleCellExperiment::colData(milo)$milo_metric_value <- cell_metric
-    SingleCellExperiment::colData(milo)$milo_metric_bin <- metric_bins
+    colData(milo)$milo_metric_value <- cell_metric
+    colData(milo)$milo_metric_bin <- metric_bins
 
     if (verbose) {
         bin_table <- table(metric_bins, useNA = "ifany")
@@ -384,6 +416,76 @@ run_milo_pipeline <- function(
         cli::cli_inform(paste("Cell metric bins:", summary_text))
     }
     milo
+}
+
+.milo_prepare_beeswarm_inputs <- function(da_results, preferred_metric, fallback_metric, alpha, verbose) {
+    preferred_metric <- match.arg(preferred_metric, c("SpatialFDR", "PValue", "logFC_percentile"))
+    fallback_metric <- match.arg(fallback_metric, c("SpatialFDR", "PValue", "logFC_percentile"))
+
+    colour_by <- preferred_metric
+    metric_vals <- da_results[[preferred_metric]]
+    metric_numeric <- is.numeric(metric_vals)
+
+    needs_fallback <- !metric_numeric ||
+        all(is.na(metric_vals)) ||
+        (preferred_metric %in% c("SpatialFDR", "PValue") && all(metric_vals >= alpha, na.rm = TRUE))
+
+    if (needs_fallback) {
+        if (verbose) {
+            cli::cli_warn(c("warning" = paste0("Beeswarm metric '", preferred_metric,
+                                               "' unsuitable (non-numeric, all NA, or all ≥ alpha). Falling back to '",
+                                               fallback_metric, "'.")))
+        }
+        if (fallback_metric == "logFC_percentile" && !"logFC_percentile" %in% names(da_results)) {
+            da_results <- .milo_prepare_metric_column(da_results, metric = "logFC_percentile")
+        }
+        colour_by <- fallback_metric
+        metric_vals <- da_results[[fallback_metric]]
+    }
+
+    list(
+        results = da_results,
+        colour_by = colour_by,
+        alpha = if (colour_by %in% c("SpatialFDR", "PValue")) alpha else 1,
+        title = if (colour_by == preferred_metric) "DA Results by Cell Type"
+        else sprintf("DA Results by Cell Type (%s fallback)", colour_by)
+    )
+}
+
+.milo_prepare_seurat <- function(seurat_obj, seurat_qs_path, max_cells, seed, verbose) {
+    if (!is.null(seurat_obj)) {
+        return(.milo_subset_seurat(seurat_obj, max_cells, seed, verbose))
+    }
+    if (!is.null(seurat_qs_path)) {
+        if (verbose) cli::cli_inform(c("Loading Seurat object from {.path {seurat_qs_path}}"))
+        sobj <- qs::qread(seurat_qs_path)
+        return(.milo_subset_seurat(sobj, max_cells, seed, verbose))
+    }
+    if (verbose) cli::cli_warn("No Seurat object or path supplied; downstream steps may rely on cached reductions.")
+    NULL
+}
+
+.milo_subset_seurat <- function(seurat_obj, max_cells, seed, verbose) {
+    if (!inherits(seurat_obj, "Seurat")) {
+        stop("`seurat_obj` must be a Seurat object.")
+    }
+    if (!is.null(max_cells) && max_cells > 0 && max_cells < ncol(seurat_obj)) {
+        set.seed(seed)
+        if (verbose) {
+            cli::cli_inform(c("Subsampling cells" = "{ncol(seurat_obj)} → {max_cells} for development run."))
+        }
+        keep_cells <- sample(colnames(seurat_obj), size = max_cells)
+        seurat_obj <- subset(seurat_obj, cells = keep_cells)
+    }
+    seurat_obj
+}
+
+.milo_normalize_alpha <- function(alpha, name) {
+    alpha_num <- suppressWarnings(as.numeric(alpha))
+    if (is.na(alpha_num)) {
+        stop(sprintf("`%s` must be numeric; received value that cannot be coerced.", name))
+    }
+    alpha_num
 }
 
 .milo_metric_palette <- function(labels) {
@@ -401,7 +503,9 @@ run_milo_pipeline <- function(
 }
 
 .milo_ensure_nhood_graph <- function(milo, verbose) {
-    if (is.null(miloR::nhoodGraph(milo))) {
+    graph_obj <- miloR::nhoodGraph(milo)
+    needs_build <- is.null(graph_obj) || (is.list(graph_obj) && length(graph_obj) == 0)
+    if (needs_build) {
         if (verbose) cli::cli_inform(c("step" = "Running buildNhoodGraph() before plotting."))
         milo <- miloR::buildNhoodGraph(milo)
     }
@@ -410,9 +514,16 @@ run_milo_pipeline <- function(
 
 .milo_attach_umap <- function(milo, seurat_obj, layout_reduction, verbose) {
     if (!"UMAP" %in% SingleCellExperiment::reducedDimNames(milo)) {
+        if (is.null(seurat_obj)) {
+            if (verbose) {
+                cli::cli_warn("Reduction 'UMAP' missing on Milo object and no Seurat object supplied; skipping UMAP attachment.")
+            }
+            return(milo)
+        }
         if (layout_reduction %in% Seurat::Reductions(seurat_obj)) {
             if (verbose) cli::cli_inform(c("step" = paste0("Attaching UMAP layout '", layout_reduction, "' to Milo object.")))
             umap_emb <- Seurat::Embeddings(seurat_obj, reduction = layout_reduction)
+            umap_emb <- as.matrix(umap_emb)
             SingleCellExperiment::reducedDim(milo, "UMAP") <- umap_emb
         } else if (verbose) {
             cli::cli_warn(paste0("Reduction '", layout_reduction, "' not found in Seurat object; UMAP plots may fail."))
@@ -441,7 +552,7 @@ run_milo_pipeline <- function(
 .milo_resolve_paths <- function(output_dir, prefix, suffix, save) {
     files <- list()
     if (!save) {
-        return(list(output_dir = output_dir, files = files))
+        return(list(output_dir = output_dir, files = files, suffix = suffix))
     }
 
     base_names <- c(
@@ -452,36 +563,40 @@ run_milo_pipeline <- function(
         plots = "04_plots.rds"
     )
 
-    resolved_suffix <- .milo_pick_suffix(output_dir, prefix, suffix, base_names)
-    suffix_str <- if (is.null(resolved_suffix)) "" else paste0("_", resolved_suffix)
+    suffix_info <- .milo_pick_suffix(output_dir, prefix, suffix, base_names)
+    suffix_str <- suffix_info$suffix_str
 
     files <- lapply(base_names, function(base) {
         file.path(output_dir, paste0(prefix, "_", .milo_strip_ext(base), suffix_str, ".", tools::file_ext(base)))
     })
 
     names(files) <- names(base_names)
-    list(output_dir = output_dir, files = files)
+    list(output_dir = output_dir, files = files, suffix = suffix_info$suffix)
 }
 
 .milo_strip_ext <- function(filename) sub(paste0(".", tools::file_ext(filename), "$"), "", filename)
 
 .milo_pick_suffix <- function(output_dir, prefix, suffix, base_names) {
-    if (!is.null(suffix)) return(as.character(suffix))
-    idx <- 0
-    repeat {
-        current_suffix <- if (idx == 0) NULL else idx
-        suffix_str <- if (is.null(current_suffix)) "" else paste0("_", current_suffix)
-        candidate_paths <- vapply(
+    make_paths <- function(sfx) {
+        suffix_str <- if (is.null(sfx) || identical(sfx, "")) "" else paste0("_", sfx)
+        vapply(
             base_names,
             function(base) {
                 file.path(output_dir, paste0(prefix, "_", .milo_strip_ext(base), suffix_str, ".", tools::file_ext(base)))
             },
             character(1)
         )
-        if (!any(file.exists(candidate_paths))) {
-            return(current_suffix)
-        }
-        idx <- idx + 1
     }
+
+    if (!is.null(suffix)) {
+        suffix_str <- if (identical(suffix, "") || is.null(suffix)) "" else paste0("_", suffix)
+        return(list(suffix = as.character(suffix), suffix_str = suffix_str, paths = make_paths(suffix)))
+    }
+
+    base_paths <- make_paths(NULL)
+    if (any(file.exists(base_paths))) {
+        return(list(suffix = NULL, suffix_str = "", paths = base_paths))
+    }
+    return(list(suffix = NULL, suffix_str = "", paths = base_paths))
 }
 

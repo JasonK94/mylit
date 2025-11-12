@@ -103,6 +103,20 @@
   - `myR/R/analysis/` 하위에 Milo 파이프라인 R 스크립트를 추가하고, Seurat → Milo 변환·검정·시각화를 함수화.
   - 제공된 `IS5_g3NA_removal_251110.qs`를 사용해 논인터랙티브 테스트를 수행하고, 경량 저장 옵션을 검토.
 
+## 2025-11-12 — Milo 파이프라인 디버깅 & 캐시 정비 (`milo` 브랜치)
+- **작성자**: GPT-5 Codex  
+- **요약**: `run_milo_pipeline()` 실행 시 빈번하게 발생하던 `nhoods`/`dimnames` 오류와 plotting 실패를 해결하고, 캐시 재활용 로직을 안정화.
+- **세부 사항**:
+  - 희소 행렬 요약 시 `Matrix::summary()`를 직접 사용해 NA 없이 최소값을 계산하고, `colData(milo)`에 안전하게 값을 기록하도록 수정.
+  - 캐시가 존재하면 단계 1~3을 즉시 스킵하고, 필요할 때만 Seurat 객체를 lazy-loading 하는 공급자 패턴을 도입.
+  - UMAP 플롯은 `scater::plotReducedDim()`으로 교체해 `miloR::plotUMAP` 의존성을 제거하고, beeswarm은 SpatialFDR이 α보다 클 때 `PValue`로 자동 전환하도록 fallback 로직 추가.
+  - `buildNhoodGraph()`가 비어 있는 그래프에 대해 항상 재실행되도록 검사하고, `.qs` 저장을 기본값으로 유지.
+- **주의사항**:
+  - 캐시된 Milo 객체에는 UMAP 좌표가 없을 수 있으므로, plotting 단계에서 Seurat 객체를 다시 불러와 `reducedDim(milo, "UMAP")`을 보강해야 한다.
+- **다음 단계**:
+  - Milo `qs` 캐시에 UMAP 좌표까지 포함시켜 plotting 시 Seurat 재로딩을 줄이는 방안을 검토.
+  - beeswarm 색상 팔레트와 보고용 그래프 템플릿을 표준화.
+
 ---
 
 ### 향후 계획

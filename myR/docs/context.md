@@ -47,6 +47,9 @@ This file provides general guidelines for an AI assistant working on a coding pr
 
 ---
 *(Add project-specific rules here as they are discovered.)*
+- Milo 파이프라인은 `nhoods(milo)` 희소 행렬을 요약할 때 계산 비용이 크다. 가능하면 `save=TRUE`로 캐시를 활용하고, 강제 재계산이 필요한 경우에만 `force_run`을 사용한다.
+- `plotNhoodGraphDA()` 실행 전에는 반드시 `buildNhoodGraph(milo)`가 수행돼야 한다. 캐시에서 읽어온 Milo 객체의 그래프 슬롯은 비어 있을 수 있으므로 재생성한다.
+- SpatialFDR이 모두 `alpha` 이상일 때 `plotDAbeeswarm()`이 실패한다. 기본 fallback 메트릭(`PValue` 등)을 준비하고, 색상 구간을 rank 기반으로 재설정할 수 있도록 한다.
 
 ## Code Quality & Style
 1.  **Clean & Readable**: Write clean, well-structured, and commented code. Follow the existing coding style of the project.
