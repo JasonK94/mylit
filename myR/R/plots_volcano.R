@@ -71,8 +71,9 @@ plot_volcano <- function(data,
     stop("data must be a data.frame")
   }
   
-  `%||%` <- rlang::`%||%`
-  label_col <- label_col %||% gene_col
+  # Helper function for NULL coalescing
+  `%||%` <- function(x, y) if (is.null(x)) y else x
+  label_col <- if (is.null(label_col)) gene_col else label_col
   
   # Filter data if pattern provided
   plot_data <- data
@@ -135,7 +136,7 @@ plot_volcano <- function(data,
     "Not significant" = "gray70"
   )
   
-  plot_colors <- colors %||% default_colors
+  plot_colors <- if (is.null(colors)) default_colors else colors
   
   # Identify top genes to label
   top_genes <- NULL
@@ -166,8 +167,8 @@ plot_volcano <- function(data,
     ggplot2::scale_color_manual(values = plot_colors, name = "Category") +
     ggplot2::labs(
       title = title,
-      x = xlab %||% "Effect Size (Estimate)",
-      y = ylab %||% "-log10(p-value)"
+      x = if (is.null(xlab)) "Effect Size (Estimate)" else xlab,
+      y = if (is.null(ylab)) "-log10(p-value)" else ylab
     ) +
     ggplot2::theme_bw(base_size = 12) +
     ggplot2::theme(

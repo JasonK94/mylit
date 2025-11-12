@@ -1,11 +1,6 @@
-#' Test Script for Standardized Plot Functions
+#' Debug Test Script for Standardized Plot Functions
 #'
-#' Tests plot functions with TXNIP gene and 3-level grouping hierarchy
-#' 
-#' Hierarchy:
-#' 1. Cell-level: cell x feature (group: anno3.scvi -> hos_no -> g3)
-#' 2. Patient-level: patient x feature (split: g3)
-#' 3. Group-level: group x feature (split: g3)
+#' Enhanced test script with better error handling and debugging
 
 # Load required libraries with error checking
 required_packages <- c("Seurat", "ggplot2", "dplyr", "patchwork", "rlang", "tidyr", "viridisLite", "RColorBrewer")
@@ -38,7 +33,7 @@ for (f in source_files) {
     source(f)
     cat("  ✓ Loaded:", basename(f), "\n")
   }, error = function(e) {
-    stop("Error loading ", f, ": ", e$message, "\nCall stack:\n", paste(capture.output(traceback()), collapse = "\n"))
+    stop("Error loading ", f, ": ", e$message)
   })
 }
 
@@ -53,17 +48,16 @@ if (length(missing_functions) > 0) {
 }
 cat("All functions loaded successfully!\n\n")
 
-# Test function
-test_plots <- function(sobj, 
-                       feature = c("nih_change", "DDIT4", "UTY", "S100B", "XIST", "HLA-B", "CCL4", "HLA-C", "TXNIP"),
-                       output_dir = "test_output",
-                       group.by = "anno3.scvi",
-                       sample_col = "hos_no",
-                       split.by = "g3") {
+# Test function with enhanced debugging
+test_plots_debug <- function(sobj, 
+                             feature = c("TXNIP", "DDIT4", "UTY", "S100B", "XIST", "HLA-B", "CCL4", "HLA-C"),
+                             output_dir = "test_output",
+                             group.by = "anno3.scvi",
+                             sample_col = "hos_no",
+                             split.by = "g3") {
   
-  if (!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-  }
+  cat("=== Starting Plot Tests ===\n")
+  cat("Input validation...\n")
   
   # Validate input
   if (!inherits(sobj, "Seurat")) {
@@ -76,12 +70,15 @@ test_plots <- function(sobj,
   if (length(missing_cols) > 0) {
     stop("Missing required columns in metadata: ", paste(missing_cols, collapse = ", "))
   }
+  cat("  ✓ All required columns present\n")
   
-  # Check features - separate genes and metadata
+  # Check features
+  cat("Checking features...\n")
   assay <- Seurat::DefaultAssay(sobj)
   available_genes <- rownames(sobj[[assay]])
   available_meta <- names(sobj@meta.data)
   
+  # Separate genes and metadata
   feature_genes <- feature[feature %in% available_genes]
   feature_meta <- feature[feature %in% available_meta]
   feature_missing <- setdiff(feature, c(available_genes, available_meta))
@@ -94,78 +91,80 @@ test_plots <- function(sobj,
     stop("No valid features found (genes or metadata)")
   }
   
-  # Use first gene for scatter plots
+  cat("  ✓ Genes found:", length(feature_genes), paste(feature_genes, collapse = ", "), "\n")
+  cat("  ✓ Metadata found:", length(feature_meta), paste(feature_meta, collapse = ", "), "\n")
+  
+  # Use first gene for scatter plots, all features for heatmaps
   test_gene <- if (length(feature_genes) > 0) feature_genes[1] else feature_meta[1]
   test_features <- c(feature_genes, feature_meta)
   
-  # Prepare numeric metadata for scatter plots (exclude test features)
+  # Prepare numeric metadata for scatter plots
   numeric_meta <- names(sobj@meta.data)[sapply(sobj@meta.data, is.numeric)]
-  numeric_meta <- setdiff(numeric_meta, test_features)
+  numeric_meta <- setdiff(numeric_meta, test_features)  # Exclude test features
   
-  cat("Testing with features:\n")
-  cat("  Genes:", length(feature_genes), paste(feature_genes, collapse = ", "), "\n")
-  cat("  Metadata:", length(feature_meta), paste(feature_meta, collapse = ", "), "\n")
-  cat("  Numeric metadata for x_var:", length(numeric_meta), "\n")
-  if (length(numeric_meta) > 0) {
-    cat("    Using:", numeric_meta[1], "\n")
+  if (length(numeric_meta) == 0) {
+    warning("No numeric metadata found for scatter plot x_var")
   }
   
-  # ============================================
-  # 1. Cell-level: cell x feature
-  # ============================================
-  cat("\n1. Cell-level plots...\n")
+  cat("  ✓ Numeric metadata for x_var:", length(numeric_meta), "\n")
   
-  # Scatter plot (if we have a numeric covariate)
-  if (length(numeric_meta) > 0) {
+  # Create output directory
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+    cat("  ✓ Created output directory:", output_dir, "\n")
+  }
+  
+  cat("\n=== Test 1: Cell-level plots ===\n")
+  
+  # 1. Cell-level scatter plot
+  if (length(numeric_meta) > 0 && length(feature_genes) > 0) {
+    cat("  Testing scatter plot (cell-level)...\n")
     tryCatch({
       p_scatter_cell <- plot_scatter(
         data = sobj,
         feature = test_gene,
         x_var = numeric_meta[1],
         group.by = group.by,
-        aggregate = FALSE,  # Cell-level
+        aggregate = FALSE,
         fitted_line = "linear"
       )
       ggsave(file.path(output_dir, "01_scatter_cell.png"), 
              p_scatter_cell, width = 10, height = 7, dpi = 300)
-      cat("  ✓ Scatter plot (cell-level) saved\n")
+      cat("    ✓ Saved: 01_scatter_cell.png\n")
     }, error = function(e) {
-      cat("  ✗ Scatter plot (cell-level) failed:", e$message, "\n")
-      if (getOption("show.error.messages", TRUE)) {
-        cat("  Stack trace:\n")
-        print(traceback())
-      }
+      cat("    ✗ Error:", e$message, "\n")
+      cat("    Stack trace:\n")
+      print(traceback())
     })
+  } else {
+    cat("    ⊘ Skipped (no numeric metadata or genes)\n")
   }
   
-  # Heatmap (genes)
+  # 2. Cell-level heatmap
+  cat("  Testing heatmap (cell-level)...\n")
   tryCatch({
     p_heatmap_cell <- plot_heatmap_genes(
       data = sobj,
-      features = test_features[1:min(5, length(test_features))],
+      features = test_features[1:min(5, length(test_features))],  # Limit to 5 features
       group.by = group.by,
-      aggregate = FALSE,  # Cell-level
+      aggregate = FALSE,
       normalize = TRUE,
       title = paste("Cell-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "02_heatmap_cell.png"), 
            p_heatmap_cell, width = 10, height = 7, dpi = 300)
-    cat("  ✓ Heatmap (cell-level) saved\n")
+    cat("    ✓ Saved: 02_heatmap_cell.png\n")
   }, error = function(e) {
-    cat("  ✗ Heatmap (cell-level) failed:", e$message, "\n")
-    if (getOption("show.error.messages", TRUE)) {
-      cat("  Stack trace:\n")
-      print(traceback())
-    }
+    cat("    ✗ Error:", e$message, "\n")
+    cat("    Stack trace:\n")
+    print(traceback())
   })
   
-  # ============================================
-  # 2. Patient-level: patient x feature (split: g3)
-  # ============================================
-  cat("\n2. Patient-level plots (aggregated by", sample_col, ")...\n")
+  cat("\n=== Test 2: Patient-level plots ===\n")
   
-  # Scatter plot
-  if (length(numeric_meta) > 0) {
+  # 3. Patient-level scatter plot
+  if (length(numeric_meta) > 0 && length(feature_genes) > 0) {
+    cat("  Testing scatter plot (patient-level)...\n")
     tryCatch({
       p_scatter_patient <- plot_scatter(
         data = sobj,
@@ -178,17 +177,18 @@ test_plots <- function(sobj,
       )
       ggsave(file.path(output_dir, "03_scatter_patient.png"), 
              p_scatter_patient, width = 12, height = 7, dpi = 300)
-      cat("  ✓ Scatter plot (patient-level) saved\n")
+      cat("    ✓ Saved: 03_scatter_patient.png\n")
     }, error = function(e) {
-      cat("  ✗ Scatter plot (patient-level) failed:", e$message, "\n")
-      if (getOption("show.error.messages", TRUE)) {
-        cat("  Stack trace:\n")
-        print(traceback())
-      }
+      cat("    ✗ Error:", e$message, "\n")
+      cat("    Stack trace:\n")
+      print(traceback())
     })
+  } else {
+    cat("    ⊘ Skipped (no numeric metadata or genes)\n")
   }
   
-  # Heatmap
+  # 4. Patient-level heatmap
+  cat("  Testing heatmap (patient-level)...\n")
   tryCatch({
     p_heatmap_patient <- plot_heatmap_genes(
       data = sobj,
@@ -202,22 +202,18 @@ test_plots <- function(sobj,
     )
     ggsave(file.path(output_dir, "04_heatmap_patient.png"), 
            p_heatmap_patient, width = 12, height = 7, dpi = 300)
-    cat("  ✓ Heatmap (patient-level) saved\n")
+    cat("    ✓ Saved: 04_heatmap_patient.png\n")
   }, error = function(e) {
-    cat("  ✗ Heatmap (patient-level) failed:", e$message, "\n")
-    if (getOption("show.error.messages", TRUE)) {
-      cat("  Stack trace:\n")
-      print(traceback())
-    }
+    cat("    ✗ Error:", e$message, "\n")
+    cat("    Stack trace:\n")
+    print(traceback())
   })
   
-  # ============================================
-  # 3. Group-level: group x feature (split: g3)
-  # ============================================
-  cat("\n3. Group-level plots (aggregated by", split.by, ")...\n")
+  cat("\n=== Test 3: Group-level plots ===\n")
   
-  # Scatter plot
-  if (length(numeric_meta) > 0) {
+  # 5. Group-level scatter plot
+  if (length(numeric_meta) > 0 && length(feature_genes) > 0) {
+    cat("  Testing scatter plot (group-level)...\n")
     tryCatch({
       p_scatter_group <- plot_scatter(
         data = sobj,
@@ -230,17 +226,18 @@ test_plots <- function(sobj,
       )
       ggsave(file.path(output_dir, "05_scatter_group.png"), 
              p_scatter_group, width = 10, height = 7, dpi = 300)
-      cat("  ✓ Scatter plot (group-level) saved\n")
+      cat("    ✓ Saved: 05_scatter_group.png\n")
     }, error = function(e) {
-      cat("  ✗ Scatter plot (group-level) failed:", e$message, "\n")
-      if (getOption("show.error.messages", TRUE)) {
-        cat("  Stack trace:\n")
-        print(traceback())
-      }
+      cat("    ✗ Error:", e$message, "\n")
+      cat("    Stack trace:\n")
+      print(traceback())
     })
+  } else {
+    cat("    ⊘ Skipped (no numeric metadata or genes)\n")
   }
   
-  # Heatmap
+  # 6. Group-level heatmap
+  cat("  Testing heatmap (group-level)...\n")
   tryCatch({
     p_heatmap_group <- plot_heatmap_genes(
       data = sobj,
@@ -253,18 +250,48 @@ test_plots <- function(sobj,
     )
     ggsave(file.path(output_dir, "06_heatmap_group.png"), 
            p_heatmap_group, width = 10, height = 7, dpi = 300)
-    cat("  ✓ Heatmap (group-level) saved\n")
+    cat("    ✓ Saved: 06_heatmap_group.png\n")
   }, error = function(e) {
-    cat("  ✗ Heatmap (group-level) failed:", e$message, "\n")
-    if (getOption("show.error.messages", TRUE)) {
-      cat("  Stack trace:\n")
-      print(traceback())
-    }
+    cat("    ✗ Error:", e$message, "\n")
+    cat("    Stack trace:\n")
+    print(traceback())
   })
   
-  cat("\nAll plots saved to:", output_dir, "\n")
+  cat("\n=== Tests Complete ===\n")
+  cat("Output directory:", output_dir, "\n")
+  cat("Generated files:\n")
+  files <- list.files(output_dir, pattern = "\\.png$", full.names = FALSE)
+  if (length(files) > 0) {
+    for (f in files) {
+      cat("  -", f, "\n")
+    }
+  } else {
+    cat("  (no files generated)\n")
+  }
 }
 
-# Usage:
-# test_plots(sobj, feature = "TXNIP", output_dir = "test_output")
+# Quick test function
+quick_test <- function(sobj) {
+  cat("Quick function availability test...\n")
+  
+  # Test .sobj_to_df
+  cat("Testing .sobj_to_df...\n")
+  tryCatch({
+    df <- .sobj_to_df(sobj, features = NULL, metadata_only = TRUE)
+    cat("  ✓ .sobj_to_df works, returned", nrow(df), "rows\n")
+  }, error = function(e) {
+    cat("  ✗ .sobj_to_df failed:", e$message, "\n")
+  })
+  
+  # Test .prepare_plot_data
+  cat("Testing .prepare_plot_data...\n")
+  tryCatch({
+    plot_df <- .prepare_plot_data(sobj, features = NULL, group.by = "anno3.scvi")
+    cat("  ✓ .prepare_plot_data works, returned", nrow(plot_df), "rows\n")
+  }, error = function(e) {
+    cat("  ✗ .prepare_plot_data failed:", e$message, "\n")
+  })
+  
+  cat("\n")
+}
 

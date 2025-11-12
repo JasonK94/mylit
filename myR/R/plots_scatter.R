@@ -57,7 +57,7 @@ plot_scatter <- function(data,
                          color_by = NULL,
                          aggregate = TRUE,
                          transpose = FALSE,
-                         fitted_line = c("linear", "loess", "lasso", NULL),
+                         fitted_line = c("linear", "loess", "lasso"),
                          palette = NULL,
                          transparency = TRUE,
                          transparency_desc = FALSE,
@@ -70,11 +70,15 @@ plot_scatter <- function(data,
                          xlab = NULL,
                          ylab = NULL) {
   
-  fitted_line <- match.arg(fitted_line)
+  # Handle fitted_line (can be NULL)
+  if (!is.null(fitted_line)) {
+    fitted_line <- match.arg(fitted_line, choices = c("linear", "loess", "lasso"))
+  }
   stopifnot(is.character(feature), length(feature) == 1)
   stopifnot(is.character(x_var), length(x_var) == 1)
   
-  `%||%` <- rlang::`%||%`
+  # Helper function for NULL coalescing
+  `%||%` <- function(x, y) if (is.null(x)) y else x
   
   # Prepare data
   if (aggregate) {
@@ -184,7 +188,7 @@ plot_scatter <- function(data,
     
     # Set palette
     n_levels <- length(unique(plot_df$split_col))
-    pal <- palette %||% RColorBrewer::brewer.pal(max(3, n_levels), "Set1")
+    pal <- if (is.null(palette)) RColorBrewer::brewer.pal(max(3, n_levels), "Set1") else palette
     if (length(pal) < n_levels) {
       pal <- grDevices::colorRampPalette(pal)(n_levels)
     }
@@ -225,7 +229,7 @@ plot_scatter <- function(data,
       )
       
       n_levels <- length(unique(plot_df$colour))
-      pal <- palette %||% RColorBrewer::brewer.pal(max(3, n_levels), "Set1")
+      pal <- if (is.null(palette)) RColorBrewer::brewer.pal(max(3, n_levels), "Set1") else palette
       if (length(pal) < n_levels) {
         pal <- grDevices::colorRampPalette(pal)(n_levels)
       }
@@ -313,22 +317,22 @@ plot_scatter <- function(data,
   }
   
   # Set labels
-  x_label <- xlab %||% if (transpose) {
-    paste("Average", feature, "expression")
+  x_label <- if (is.null(xlab)) {
+    if (transpose) paste("Average", feature, "expression") else x_var
   } else {
-    x_var
+    xlab
   }
   
-  y_label <- ylab %||% if (transpose) {
-    x_var
+  y_label <- if (is.null(ylab)) {
+    if (transpose) x_var else paste("Average", feature, "expression")
   } else {
-    paste("Average", feature, "expression")
+    ylab
   }
   
-  plot_title <- title %||% if (transpose) {
-    paste("Average", feature, "expression vs", x_var)
+  plot_title <- if (is.null(title)) {
+    if (transpose) paste("Average", feature, "expression vs", x_var) else paste(x_var, "vs Average", feature, "expression")
   } else {
-    paste(x_var, "vs Average", feature, "expression")
+    title
   }
   
   p <- p + ggplot2::theme_bw() +

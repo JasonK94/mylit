@@ -51,10 +51,10 @@ NULL
     stop("Input must be a Seurat object")
   }
   
-  `%||%` <- rlang::`%||%`
-  
-  # Get assay
-  assay <- assay %||% Seurat::DefaultAssay(sobj)
+  # Get assay (use ifnull helper)
+  if (is.null(assay)) {
+    assay <- Seurat::DefaultAssay(sobj)
+  }
   if (!assay %in% names(sobj@assays)) {
     stop("Assay '", assay, "' not found in Seurat object")
   }
@@ -121,7 +121,7 @@ NULL
       if (!match_id %in% names(metadata_df)) {
         stop("match_id '", match_id, "' not found in metadata_df")
       }
-      join_key <- result_df$.cell_id %||% rownames(result_df)
+      join_key <- if (!is.null(result_df$.cell_id)) result_df$.cell_id else rownames(result_df)
     }
     
     # Perform join
@@ -243,8 +243,6 @@ NULL
                                layer = "data",
                                metadata_df = NULL,
                                match_id = NULL) {
-  
-  `%||%` <- rlang::`%||%`
   
   # Convert Seurat to dataframe if needed
   if (inherits(data, "Seurat")) {

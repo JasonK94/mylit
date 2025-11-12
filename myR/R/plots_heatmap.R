@@ -76,7 +76,9 @@ plot_heatmap_genes <- function(data,
                                return_data = FALSE) {
   
   normalize_by <- match.arg(normalize_by)
-  `%||%` <- rlang::`%||%`
+  
+  # Helper function for NULL coalescing
+  `%||%` <- function(x, y) if (is.null(x)) y else x
   
   if (is.null(features) || length(features) == 0) {
     stop("features must be specified")
@@ -189,9 +191,9 @@ plot_heatmap_genes <- function(data,
     ) +
     ggplot2::theme_minimal() +
     ggplot2::labs(
-      title = title %||% "Normalized Gene Expression",
-      x = x_label %||% group.by,
-      y = y_label %||% "Genes"
+      title = if (is.null(title)) "Normalized Gene Expression" else title,
+      x = if (is.null(x_label)) group.by else x_label,
+      y = if (is.null(y_label)) "Genes" else y_label
     ) +
     ggplot2::theme(
       panel.background = ggplot2::element_rect(fill = "white", color = NA),
@@ -377,9 +379,9 @@ plot_heatmap_genesets <- function(data,
     ) +
     ggplot2::theme_minimal() +
     ggplot2::labs(
-      title = title %||% "Normalized Gene Set Expression",
-      x = x_label %||% group.by,
-      y = y_label %||% "Gene Set"
+      title = if (is.null(title)) "Normalized Gene Set Expression" else title,
+      x = if (is.null(x_label)) group.by else x_label,
+      y = if (is.null(y_label)) "Gene Set" else y_label
     ) +
     ggplot2::theme(
       panel.background = ggplot2::element_rect(fill = "white", color = NA),
