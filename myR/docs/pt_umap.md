@@ -8,13 +8,15 @@
 
 ### "뷰(View)"란?
 
-환자 수준의 feature를 구성하는 **독립적인 정보 소스**를 의미합니다. 현재 파이프라인은 3가지 뷰를 지원하며, 각각을 선택적으로 포함할 수 있습니다:
+환자 수준의 feature를 구성하는 **독립적인 정보 소스**를 의미합니다. 현재 파이프라인은 3가지 뷰를 지원합니다:
 
 1. **Frequency view**: 클러스터 빈도 (CLR 변환)
 2. **Signature view**: 클러스터별 top marker 유전자들의 모듈 스코어
 3. **Latent view**: 차원 축소 임베딩(예: scVI)의 클러스터별 평균
 
-각 뷰는 서로 다른 측면의 정보를 담고 있으므로, 필요에 따라 일부만 선택하거나 가중치를 조정하여 결합할 수 있습니다.
+**기본값**: `markers_df`를 제공하면 **모든 3가지 뷰를 모두 사용**합니다 (`include_frequency=TRUE`, `include_signatures=TRUE`, `include_latent=TRUE`).
+
+각 뷰는 서로 다른 측면의 정보를 담고 있으므로, 필요시 일부만 선택하거나 가중치를 조정하여 결합할 수 있습니다 (예: 특정 뷰가 노이즈가 많거나 사용 불가능한 경우).
 
 ### Feature 생성 과정
 
@@ -39,7 +41,7 @@
 ```
 셀 레벨 데이터
     ↓
-[뷰 선택] frequency / signatures / latent
+[뷰 생성] frequency + signatures + latent (기본: 모두 사용)
     ↓
 [블록 스케일링] 각 뷰를 독립적으로 Z-score 정규화
     ↓
@@ -67,8 +69,10 @@
 전체 워크플로우를 실행하는 메인 함수입니다.
 
 **파라미터:**
-- `include_frequency`, `include_signatures`, `include_latent`: 각 뷰 포함 여부 (기본값: 모두 TRUE)
-- `frequency_weight`, `signature_weight`, `latent_weight`: 각 뷰의 가중치
+- `include_frequency`, `include_signatures`, `include_latent`: 각 뷰 포함 여부
+  - 기본값: `include_frequency=TRUE`, `include_signatures=!is.null(markers_df)`, `include_latent=TRUE`
+  - 즉, `markers_df`를 제공하면 **모든 뷰를 기본적으로 사용**
+- `frequency_weight`, `signature_weight`, `latent_weight`: 각 뷰의 가중치 (기본: 1.5, 1.0, 1.0)
 - `batch_var`: 배치 보정 변수 (NULL이면 스킵)
 - `reduction`: 잠재 임베딩 reduction 이름 (기본: `"integrated.scvi"`)
 
@@ -145,10 +149,12 @@ plot_patient_umap(res$plot_df, color_by = "g3")
 plot_patient_umap(res$plot_df, color_by = "nih_change")
 ```
 
-### 뷰 선택 및 가중치 조정
+### 뷰 선택 및 가중치 조정 (고급 옵션)
+
+기본적으로는 모든 뷰를 사용하지만, 필요시 일부만 선택하거나 가중치를 조정할 수 있습니다:
 
 ```r
-# frequency 뷰만 사용
+# frequency 뷰만 사용 (예: signatures가 노이즈가 많거나 latent가 없는 경우)
 res <- patient_dimensionality_reduction(
   seurat_obj = seurat_obj,
   markers_df = markers_df,
