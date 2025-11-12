@@ -1518,55 +1518,115 @@ scatter_smooth_colored <- function(object,
   # *** 수정된 부분 끝 ***
   
   
-  # 3. Aesthetics -----------------------------------------------------------
+  # 3. Prepare plot_df for plot_embedding -----------------------------------
   
   x_col <- if (transpose) "avg_expr" else "x_val"
   y_col <- if (transpose) "x_val"   else "avg_expr"
   
-  p <- ggplot2::ggplot(agg_df, ggplot2::aes(x = .data[[x_col]], y = .data[[y_col]]))
+  # Create plot_df with proper column names using tibble
+  plot_df <- tibble::tibble(
+    !!x_col := agg_df$avg_expr,
+    !!y_col := agg_df$x_val
+  )
   
-  # Point layer with colour / alpha mapping
+  # Add color_by column if provided
   if (!is.null(color_by)) {
-    # (원본 코드)
-    # 여기서는 cell_df의 원본 열 타입을 확인하는 것이 올바릅니다.
-    # 위에서 agg_df$colour의 타입을 올바르게 생성했기 때문에
-    # 이 로직이 이제 정상적으로 작동합니다.
-    if (is.numeric(cell_df[[color_by]])) {
-      # numeric colour gradient
-      p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour,
-                                                 alpha  = colour), size = 3)
-      alpha_range <- if (transparency_desc) c(1, 0.2) else c(0.2, 1)
-      if (transparency) {
-        p <- p + ggplot2::scale_alpha(range = alpha_range, guide = "none")
+    plot_df[[color_by]] <- agg_df$colour
+  }
+  
+  # Add group.by column for reference (optional, for debugging)
+  plot_df[[group.by]] <- agg_df[[group.by]]
+  
+  # 4. Create base plot using plot_embedding or manual ----------------------
+  
+  if (!is.null(color_by)) {
+    # Use plot_embedding when color_by is provided
+    plot_args <- list(
+      plot_df = plot_df,
+      x_col = x_col,
+      y_col = y_col,
+      color_by = color_by,
+      title = if (transpose) {
+        paste("Average", feature, "expression vs", x_var)
       } else {
-        p <- p + ggplot2::guides(alpha = "none")
+        paste(x_var, "vs Average", feature, "expression")
+      },
+      point_size = 3
+    )
+    
+    # Handle palette mapping
+    if (!is.null(palette)) {
+      if (is_color_numeric) {
+        # For numeric, palette can be a viridis option name or color vector
+        if (is.character(palette) && length(palette) == 1 && 
+            palette %in% c("magma", "plasma", "inferno", "viridis", "cividis", "turbo")) {
+          plot_args$cont_palette <- palette
+        } else {
+          # Custom color vector - will override scale later
+          plot_args$cont_palette <- "viridis"  # placeholder
+          custom_palette <- palette
+        }
+      } else {
+        # For categorical, palette should be a color vector
+        plot_args$disc_palette <- "Set1"  # placeholder, will override
+        custom_palette <- palette
       }
-      pal <- if (is.null(palette)) viridisLite::viridis(256) else palette
-      p <- p + ggplot2::scale_colour_gradientn(colours = pal, name = color_by)
-    } else {
-      # categorical palette
-      # agg_df$colour가 이제 문자열이므로 ggplot이 자동으로 이산형으로 처리합니다.
-      p <- p + ggplot2::geom_point(ggplot2::aes(colour = colour), size = 3)
-      pal <- palette %||% RColorBrewer::brewer.pal(max(3, length(unique(agg_df$colour))), "Set1")
-      p <- p + ggplot2::scale_colour_manual(values = pal, name = color_by)
     }
+    
+    p <- do.call(plot_embedding, plot_args)
+    
+    # Override palette if custom palette was provided
+    if (!is.null(palette) && exists("custom_palette")) {
+      if (is_color_numeric) {
+        p <- p + ggplot2::scale_colour_gradientn(colours = custom_palette, name = color_by)
+      } else {
+        p <- p + ggplot2::scale_colour_manual(values = custom_palette, name = color_by)
+      }
+    }
+    
+    # Add transparency mapping for numeric color_by
+    if (is_color_numeric && transparency) {
+      alpha_range <- if (transparency_desc) c(1, 0.2) else c(0.2, 1)
+      # Remove existing point layer and add with alpha
+      p <- p + ggplot2::geom_point(
+        ggplot2::aes(x = .data[[x_col]], y = .data[[y_col]], 
+                     color = .data[[color_by]], alpha = .data[[color_by]]),
+        size = 3,
+        inherit.aes = FALSE
+      ) +
+        ggplot2::scale_alpha(range = alpha_range, guide = "none")
+    }
+    
   } else {
-    p <- p + ggplot2::geom_point(size = 3)
+    # No color_by: create simple scatter plot
+    p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data[[x_col]], y = .data[[y_col]])) +
+      ggplot2::geom_point(size = 3) +
+      ggplot2::theme_bw() +
+      ggplot2::labs(
+        x = if (transpose) paste("Average", feature, "expression") else x_var,
+        y = if (transpose) x_var else paste("Average", feature, "expression")
+      )
   }
   
   
-  # 4. Smoothing line -------------------------------------------------------
+  # 5. Add smoothing line ---------------------------------------------------
   
   if (!is.null(fitted_line)) {
     if (fitted_line == "linear") {
       p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE, colour = "black")
-      fit <- stats::lm(agg_df[[y_col]] ~ agg_df[[x_col]])
-      coef <- round(stats::coef(fit), 3)
-      pval <- signif(summary(fit)$coefficients[2, 4], 3)
-      annot <- paste0("y = ", coef[1], " + ", coef[2], " * x\np = ", pval)
-      p <- p + ggplot2::annotate("text", x = min(agg_df[[x_col]], na.rm = TRUE),
-                                 y = max(agg_df[[y_col]], na.rm = TRUE),
-                                 label = annot, hjust = 0, vjust = 1, size = 4)
+      fit <- tryCatch(
+        stats::lm(plot_df[[y_col]] ~ plot_df[[x_col]]),
+        error = function(e) NULL
+      )
+      if (!is.null(fit) && nrow(summary(fit)$coefficients) >= 2) {
+        coef <- round(stats::coef(fit), 3)
+        pval <- signif(summary(fit)$coefficients[2, 4], 3)
+        annot <- paste0("y = ", coef[1], " + ", coef[2], " * x\np = ", pval)
+        p <- p + ggplot2::annotate("text", 
+                                   x = min(plot_df[[x_col]], na.rm = TRUE),
+                                   y = max(plot_df[[y_col]], na.rm = TRUE),
+                                   label = annot, hjust = 0, vjust = 1, size = 4)
+      }
     } else if (fitted_line == "loess") {
       p <- p + ggplot2::geom_smooth(method = "loess", se = TRUE, colour = "black")
     } else if (fitted_line == "lasso") {
@@ -1574,11 +1634,11 @@ scatter_smooth_colored <- function(object,
         warning("glmnet not installed; falling back to linear fit.")
         p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE)
       } else {
-        xmat <- as.matrix(agg_df[[x_col]])
-        fit  <- glmnet::cv.glmnet(xmat, agg_df[[y_col]], alpha = 1)
+        xmat <- as.matrix(plot_df[[x_col]])
+        fit  <- glmnet::cv.glmnet(xmat, plot_df[[y_col]], alpha = 1)
         preds <- as.numeric(glmnet::predict.glmnet(fit$glmnet.fit, newx = xmat,
                                                    s = fit$lambda.min))
-        pred_df <- agg_df %>% dplyr::mutate(pred = preds)
+        pred_df <- plot_df %>% dplyr::mutate(pred = preds)
         p <- p + ggplot2::geom_line(data = pred_df[order(pred_df[[x_col]]), ],
                                     ggplot2::aes(x = .data[[x_col]], y = pred),
                                     colour = "red", linewidth = 1)
@@ -1587,14 +1647,18 @@ scatter_smooth_colored <- function(object,
   }
   
   
-  # 5. Labels & theme -------------------------------------------------------
+  # 6. Update labels if needed ----------------------------------------------
   
-  p <- p + ggplot2::theme_bw() +
-    ggplot2::labs(x = if (transpose) paste("Average", feature, "expression") else x_var,
-                  y = if (transpose) x_var else paste("Average", feature, "expression"),
-                  colour = color_by)
+  if (!is.null(color_by)) {
+    p <- p + ggplot2::labs(
+      x = if (transpose) paste("Average", feature, "expression") else x_var,
+      y = if (transpose) x_var else paste("Average", feature, "expression"),
+      colour = color_by
+    )
+  } else {
+    # Labels already set in step 4 for no-color case
+  }
   
-  p
   return(p)
 }
 
