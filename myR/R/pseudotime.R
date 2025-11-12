@@ -1531,3 +1531,298 @@ run_monocle3_from_seurat <- function(seurat_obj,
   if (verbose) message("Monocle3 trajectory inference completed successfully.")
   return(cds)
 }
+
+
+#' Analyze dynamic correlation between gene expression and metadata across pseudotime
+#'
+#' This function calculates correlations between gene expression and metadata variables
+#' across different pseudotime segments, allowing detection of how relationships change
+#' along the trajectory.
+#'
+#' @param cds_obj A Monocle3 cell_data_set object with pseudotime calculated.
+#' @param gene_id Character string, the gene ID to analyze.
+#' @param metadata_col Character string, the column name in colData(cds_obj) containing
+#'   the metadata variable to correlate with gene expression.
+#' @param pseudotime_method Function or character string to extract pseudotime.
+#'   Defaults to `monocle3::pseudotime`.
+#' @param n_segments Integer. Number of pseudotime segments to divide the trajectory into.
+#'   Default is 5.
+#' @param correlation_method Character string. Correlation method: "pearson" (default) or "spearman".
+#' @param min_cells_per_segment Integer. Minimum number of cells required per segment
+#'   to calculate correlation. Default is 20.
+#' @param return_segment_data Logical. If TRUE, returns data for each segment.
+#'   Default is FALSE.
+#'
+#' @return A list containing:
+#'   \itemize{
+#'     \item `gene`: The input gene ID.
+#'     \item `metadata_col`: The metadata column analyzed.
+#'     \item `overall_correlation`: Overall correlation across all cells.
+#'     \item `segment_correlations`: Data frame with correlations per segment.
+#'     \item `correlation_change`: Statistics on how correlation changes across segments.
+#'     \item `segment_data`: (if return_segment_data=TRUE) Data for each segment.
+#'   }
+#'
+#' @import monocle3
+#' @import dplyr
+#' @importFrom stats cor.test
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Assuming 'cds' is a Monocle3 object with pseudotime
+#' result <- analyze_metadata_correlation_dynamics(
+#'   cds_obj = cds,
+#'   gene_id = "DDIT4",
+#'   metadata_col = "nih_change",
+#'   n_segments = 5
+#' )
+#' 
+#' # View segment correlations
+#' print(result$segment_correlations)
+#' }
+analyze_metadata_correlation_dynamics <- function(cds_obj,
+                                                  gene_id,
+                                                  metadata_col,
+                                                  pseudotime_method = monocle3::pseudotime,
+                                                  n_segments = 5,
+                                                  correlation_method = "pearson",
+                                                  min_cells_per_segment = 20,
+                                                  return_segment_data = FALSE) {
+  
+  # --- 0. Input Validation ---
+  if (!is(cds_obj, "cell_data_set")) {
+    stop("cds_obj must be a Monocle3 cell_data_set object.", call. = FALSE)
+  }
+  
+  if (!gene_id %in% rownames(counts(cds_obj))) {
+    stop("Gene '", gene_id, "' not found in cds_obj.", call. = FALSE)
+  }
+  
+  cell_metadata <- colData(cds_obj)
+  if (!metadata_col %in% colnames(cell_metadata)) {
+    stop("Metadata column '", metadata_col, "' not found in colData(cds_obj).", call. = FALSE)
+  }
+  
+  # Extract pseudotime
+  pt_values <- tryCatch({
+    if (is.character(pseudotime_method)) {
+      eval(parse(text = pseudotime_method))(cds_obj)
+    } else if (is.function(pseudotime_method)) {
+      pseudotime_method(cds_obj)
+    } else {
+      stop("pseudotime_method must be a function or character string.", call. = FALSE)
+    }
+  }, error = function(e) {
+    stop("Could not extract pseudotime: ", e$message, call. = FALSE)
+  })
+  
+  if (all(is.infinite(pt_values)) || all(is.na(pt_values))) {
+    stop("All pseudotime values are invalid (Inf or NA).", call. = FALSE)
+  }
+  
+  # Extract gene expression
+  gene_expr <- as.numeric(counts(cds_obj)[gene_id, ])
+  names(gene_expr) <- colnames(cds_obj)
+  
+  # Extract metadata
+  metadata_values <- cell_metadata[[metadata_col]]
+  names(metadata_values) <- rownames(cell_metadata)
+  
+  # --- 1. Align data ---
+  common_cells <- Reduce(intersect, list(
+    names(pt_values),
+    names(gene_expr),
+    names(metadata_values)
+  ))
+  
+  if (length(common_cells) == 0) {
+    stop("No common cells found between pseudotime, expression, and metadata.", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[common_cells]
+  gene_expr <- gene_expr[common_cells]
+  metadata_values <- metadata_values[common_cells]
+  
+  # Filter finite values
+  valid_idx <- is.finite(pt_values) & is.finite(gene_expr) & is.finite(metadata_values)
+  if (sum(valid_idx) < min_cells_per_segment) {
+    stop("Too few cells with finite values (", sum(valid_idx), "). Need at least ", 
+         min_cells_per_segment, ".", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[valid_idx]
+  gene_expr <- gene_expr[valid_idx]
+  metadata_values <- metadata_values[valid_idx]
+  
+  # --- 2. Overall correlation ---
+  overall_cor <- tryCatch({
+    cor.test(gene_expr, metadata_values, method = correlation_method)
+  }, error = function(e) {
+    warning("Overall correlation calculation failed: ", e$message, call. = FALSE)
+    return(NULL)
+  })
+  
+  overall_correlation <- if (!is.null(overall_cor)) {
+    list(
+      estimate = overall_cor$estimate,
+      p_value = overall_cor$p.value,
+      n_cells = length(gene_expr)
+    )
+  } else {
+    list(estimate = NA_real_, p_value = NA_real_, n_cells = length(gene_expr))
+  }
+  
+  # --- 3. Divide into segments ---
+  pt_quantiles <- quantile(pt_values, probs = seq(0, 1, length.out = n_segments + 1), na.rm = TRUE)
+  pt_quantiles[1] <- -Inf  # Include minimum
+  pt_quantiles[length(pt_quantiles)] <- Inf  # Include maximum
+  
+  segment_results <- list()
+  segment_data_list <- list()
+  
+  for (i in 1:n_segments) {
+    segment_idx <- pt_values >= pt_quantiles[i] & pt_values < pt_quantiles[i + 1]
+    # Handle last segment (include boundary)
+    if (i == n_segments) {
+      segment_idx <- pt_values >= pt_quantiles[i] & pt_values <= pt_quantiles[i + 1]
+    }
+    
+    segment_pt <- pt_values[segment_idx]
+    segment_expr <- gene_expr[segment_idx]
+    segment_meta <- metadata_values[segment_idx]
+    
+    n_segment_cells <- sum(segment_idx)
+    
+    if (n_segment_cells < min_cells_per_segment) {
+      segment_results[[i]] <- list(
+        segment = i,
+        pt_range_min = pt_quantiles[i],
+        pt_range_max = pt_quantiles[i + 1],
+        n_cells = n_segment_cells,
+        correlation = NA_real_,
+        p_value = NA_real_,
+        status = "insufficient_cells"
+      )
+      next
+    }
+    
+    # Calculate correlation for this segment
+    segment_cor <- tryCatch({
+      cor.test(segment_expr, segment_meta, method = correlation_method)
+    }, error = function(e) {
+      warning("Correlation calculation failed for segment ", i, ": ", e$message, call. = FALSE)
+      return(NULL)
+    })
+    
+    if (!is.null(segment_cor)) {
+      segment_results[[i]] <- list(
+        segment = i,
+        pt_range_min = pt_quantiles[i],
+        pt_range_max = pt_quantiles[i + 1],
+        n_cells = n_segment_cells,
+        correlation = as.numeric(segment_cor$estimate),
+        p_value = segment_cor$p.value,
+        status = "success"
+      )
+      
+      if (return_segment_data) {
+        segment_data_list[[i]] <- data.frame(
+          segment = i,
+          pseudotime = segment_pt,
+          expression = segment_expr,
+          metadata = segment_meta,
+          stringsAsFactors = FALSE
+        )
+      }
+    } else {
+      segment_results[[i]] <- list(
+        segment = i,
+        pt_range_min = pt_quantiles[i],
+        pt_range_max = pt_quantiles[i + 1],
+        n_cells = n_segment_cells,
+        correlation = NA_real_,
+        p_value = NA_real_,
+        status = "correlation_failed"
+      )
+    }
+  }
+  
+  # Convert to data frame
+  segment_correlations_df <- do.call(rbind, lapply(segment_results, function(x) {
+    data.frame(
+      segment = x$segment,
+      pt_range_min = x$pt_range_min,
+      pt_range_max = x$pt_range_max,
+      n_cells = x$n_cells,
+      correlation = x$correlation,
+      p_value = x$p_value,
+      status = x$status,
+      stringsAsFactors = FALSE
+    )
+  }))
+  
+  # --- 4. Analyze correlation change ---
+  valid_segments <- segment_correlations_df$status == "success" & 
+                    !is.na(segment_correlations_df$correlation)
+  
+  correlation_change <- list()
+  
+  if (sum(valid_segments) >= 2) {
+    valid_correlations <- segment_correlations_df$correlation[valid_segments]
+    valid_segment_nums <- segment_correlations_df$segment[valid_segments]
+    
+    # Calculate change statistics
+    correlation_change <- list(
+      mean_correlation = mean(valid_correlations, na.rm = TRUE),
+      sd_correlation = sd(valid_correlations, na.rm = TRUE),
+      range_correlation = diff(range(valid_correlations, na.rm = TRUE)),
+      first_segment_cor = valid_correlations[1],
+      last_segment_cor = valid_correlations[length(valid_correlations)],
+      correlation_trend = if (length(valid_correlations) >= 2) {
+        # Simple linear trend
+        trend_model <- tryCatch({
+          lm(valid_correlations ~ valid_segment_nums)
+        }, error = function(e) NULL)
+        if (!is.null(trend_model)) {
+          list(
+            slope = coef(trend_model)[2],
+            p_value = summary(trend_model)$coefficients[2, 4]
+          )
+        } else {
+          list(slope = NA_real_, p_value = NA_real_)
+        }
+      } else {
+        list(slope = NA_real_, p_value = NA_real_)
+      },
+      n_valid_segments = sum(valid_segments)
+    )
+  } else {
+    correlation_change <- list(
+      mean_correlation = NA_real_,
+      sd_correlation = NA_real_,
+      range_correlation = NA_real_,
+      first_segment_cor = NA_real_,
+      last_segment_cor = NA_real_,
+      correlation_trend = list(slope = NA_real_, p_value = NA_real_),
+      n_valid_segments = sum(valid_segments)
+    )
+  }
+  
+  # --- 5. Return results ---
+  result <- list(
+    gene = gene_id,
+    metadata_col = metadata_col,
+    correlation_method = correlation_method,
+    n_segments = n_segments,
+    overall_correlation = overall_correlation,
+    segment_correlations = segment_correlations_df,
+    correlation_change = correlation_change
+  )
+  
+  if (return_segment_data && length(segment_data_list) > 0) {
+    result$segment_data <- do.call(rbind, segment_data_list)
+  }
+  
+  return(result)
+}
