@@ -111,26 +111,28 @@ test_plots <- function(sobj,
   }
   
   # ============================================
-  # 1. Cell-level: cell x feature
+  # 1. Cluster-level: cluster x feature (aggregated by cluster)
   # ============================================
-  cat("\n1. Cell-level plots...\n")
+  cat("\n1. Cluster-level plots (aggregated by", group.by, ")...\n")
   
   # Scatter plot (if we have a numeric covariate)
   if (length(numeric_meta) > 0) {
     tryCatch({
-      p_scatter_cell <- plot_scatter(
+      p_scatter_cluster <- plot_scatter(
         data = sobj,
         feature = test_gene,
         x_var = numeric_meta[1],
         group.by = group.by,
-        aggregate = FALSE,  # Cell-level
+        color_by = split.by,  # Color by g3 to see groups
+        aggregate = TRUE,  # Aggregate by cluster
+        aggregate_by = group.by,
         fitted_line = "linear"
       )
-      ggsave(file.path(output_dir, "01_scatter_cell.png"), 
-             p_scatter_cell, width = 10, height = 7, dpi = 300)
-      cat("  ✓ Scatter plot (cell-level) saved\n")
+      ggsave(file.path(output_dir, "01_scatter_cluster.png"), 
+             p_scatter_cluster, width = 10, height = 7, dpi = 300)
+      cat("  ✓ Scatter plot (cluster-level) saved\n")
     }, error = function(e) {
-      cat("  ✗ Scatter plot (cell-level) failed:", e$message, "\n")
+      cat("  ✗ Scatter plot (cluster-level) failed:", e$message, "\n")
       if (getOption("show.error.messages", TRUE)) {
         cat("  Stack trace:\n")
         print(traceback())
@@ -138,21 +140,23 @@ test_plots <- function(sobj,
     })
   }
   
-  # Heatmap (genes)
+  # Heatmap (genes) - normalized at gene level
   tryCatch({
-    p_heatmap_cell <- plot_heatmap_genes(
+    p_heatmap_cluster <- plot_heatmap_genes(
       data = sobj,
       features = test_features[1:min(5, length(test_features))],
       group.by = group.by,
-      aggregate = FALSE,  # Cell-level
+      aggregate = TRUE,
+      aggregate_by = group.by,
       normalize = TRUE,
-      title = paste("Cell-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
+      normalize_by = "row",  # Normalize by gene (row)
+      title = paste("Cluster-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
-    ggsave(file.path(output_dir, "02_heatmap_cell.png"), 
-           p_heatmap_cell, width = 10, height = 7, dpi = 300)
-    cat("  ✓ Heatmap (cell-level) saved\n")
+    ggsave(file.path(output_dir, "02_heatmap_cluster.png"), 
+           p_heatmap_cluster, width = 10, height = 7, dpi = 300)
+    cat("  ✓ Heatmap (cluster-level) saved\n")
   }, error = function(e) {
-    cat("  ✗ Heatmap (cell-level) failed:", e$message, "\n")
+    cat("  ✗ Heatmap (cluster-level) failed:", e$message, "\n")
     if (getOption("show.error.messages", TRUE)) {
       cat("  Stack trace:\n")
       print(traceback())
@@ -160,9 +164,9 @@ test_plots <- function(sobj,
   })
   
   # ============================================
-  # 2. Patient-level: patient x feature (split: g3)
+  # 2. Patient-level: patient x feature (split by g3)
   # ============================================
-  cat("\n2. Patient-level plots (aggregated by", sample_col, ")...\n")
+  cat("\n2. Patient-level plots (aggregated by", sample_col, ", split by", split.by, ")...\n")
   
   # Scatter plot
   if (length(numeric_meta) > 0) {
@@ -172,9 +176,9 @@ test_plots <- function(sobj,
         feature = test_gene,
         x_var = numeric_meta[1],
         group.by = sample_col,
-        split.by = split.by,
+        color_by = split.by,  # Color by g3
         aggregate = TRUE,
-        aggregate_by = c(sample_col, split.by),
+        aggregate_by = sample_col,  # Aggregate by patient only
         fitted_line = "linear"
       )
       ggsave(file.path(output_dir, "03_scatter_patient.png"), 
@@ -189,21 +193,22 @@ test_plots <- function(sobj,
     })
   }
   
-  # Heatmap
+  # Heatmap - split by g3 (g3==1 left, g3==2 right)
   tryCatch({
     p_heatmap_patient <- plot_heatmap_genes(
       data = sobj,
       features = test_features[1:min(5, length(test_features))],
       group.by = sample_col,
-      split.by = split.by,
+      split.by = split.by,  # Split by g3 for left/right panels
       aggregate = TRUE,
-      aggregate_by = sample_col,
+      aggregate_by = sample_col,  # Aggregate by patient
       normalize = TRUE,
-      title = paste("Patient-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
+      normalize_by = "row",  # Normalize by gene (row)
+      title = paste("Patient-level (split by", split.by, "):", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "04_heatmap_patient.png"), 
-           p_heatmap_patient, width = 12, height = 7, dpi = 300)
-    cat("  ✓ Heatmap (patient-level) saved\n")
+           p_heatmap_patient, width = 14, height = 7, dpi = 300)
+    cat("  ✓ Heatmap (patient-level, split by", split.by, ") saved\n")
   }, error = function(e) {
     cat("  ✗ Heatmap (patient-level) failed:", e$message, "\n")
     if (getOption("show.error.messages", TRUE)) {
@@ -213,24 +218,33 @@ test_plots <- function(sobj,
   })
   
   # ============================================
-  # 3. Group-level: group x feature (split: g3)
+  # 3. Group-level: group x feature (aggregated by g3)
   # ============================================
   cat("\n3. Group-level plots (aggregated by", split.by, ")...\n")
   
   # Scatter plot
   if (length(numeric_meta) > 0) {
     tryCatch({
-      p_scatter_group <- plot_scatter(
-        data = sobj,
-        feature = test_gene,
-        x_var = numeric_meta[1],
-        group.by = split.by,
-        aggregate = TRUE,
-        fitted_line = "linear"
-      )
-      ggsave(file.path(output_dir, "05_scatter_group.png"), 
-             p_scatter_group, width = 10, height = 7, dpi = 300)
-      cat("  ✓ Scatter plot (group-level) saved\n")
+      # Check if we have enough data points
+      group_values <- unique(sobj@meta.data[[split.by]])
+      group_values <- group_values[!is.na(group_values)]
+      
+      if (length(group_values) >= 2) {
+        p_scatter_group <- plot_scatter(
+          data = sobj,
+          feature = test_gene,
+          x_var = numeric_meta[1],
+          group.by = split.by,
+          aggregate = TRUE,
+          aggregate_by = split.by,
+          fitted_line = "linear"
+        )
+        ggsave(file.path(output_dir, "05_scatter_group.png"), 
+               p_scatter_group, width = 10, height = 7, dpi = 300)
+        cat("  ✓ Scatter plot (group-level) saved\n")
+      } else {
+        cat("  ⊘ Scatter plot (group-level) skipped: only", length(group_values), "group(s) available\n")
+      }
     }, error = function(e) {
       cat("  ✗ Scatter plot (group-level) failed:", e$message, "\n")
       if (getOption("show.error.messages", TRUE)) {
@@ -249,6 +263,7 @@ test_plots <- function(sobj,
       aggregate = TRUE,
       aggregate_by = split.by,
       normalize = TRUE,
+      normalize_by = "row",  # Normalize by gene (row)
       title = paste("Group-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "06_heatmap_group.png"), 

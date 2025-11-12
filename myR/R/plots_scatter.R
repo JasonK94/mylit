@@ -85,9 +85,18 @@ plot_scatter <- function(data,
   if (aggregate) {
     # Determine aggregation variables
     if (is.null(aggregate_by)) {
-      # Include split.by in aggregation if provided
-      aggregate_by <- unique(c(group.by, split.by))
+      # Include split.by and color_by in aggregation if provided
+      aggregate_by <- unique(c(group.by, split.by, color_by))
       aggregate_by <- aggregate_by[!is.null(aggregate_by)]
+    } else {
+      # Ensure color_by is included if specified
+      if (!is.null(color_by) && !color_by %in% aggregate_by) {
+        aggregate_by <- c(aggregate_by, color_by)
+      }
+      # Ensure split.by is included if specified
+      if (!is.null(split.by) && !split.by %in% aggregate_by) {
+        aggregate_by <- c(aggregate_by, split.by)
+      }
     }
     
     plot_df <- .prepare_data_with_aggregation(

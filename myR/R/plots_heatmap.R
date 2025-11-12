@@ -105,85 +105,168 @@ plot_heatmap_genes <- function(data,
     match_id = match_id
   )
   
-  # Reshape for heatmap
-  heatmap_matrix <- .reshape_for_heatmap(
-    plot_df = plot_df,
-    features = features,
-    row_var = group.by,
-    col_var = NULL,  # Features become columns
-    aggregate = FALSE,  # Already aggregated
-    agg_fun = agg_fun
-  )
+  # Handle split.by for faceting
+  has_split <- !is.null(split.by) && split.by %in% names(plot_df)
   
-  # Normalize if requested
-  if (normalize) {
-    if (normalize_by %in% c("row", "both")) {
-      # Normalize across groups (columns) for each gene
-      heatmap_matrix <- t(scale(t(heatmap_matrix)))
+  if (has_split) {
+    # Split data by split.by variable
+    split_values <- unique(plot_df[[split.by]])
+    split_values <- split_values[!is.na(split_values)]
+    
+    # Reshape for each split value
+    heatmap_list <- list()
+    for (split_val in split_values) {
+      plot_df_split <- plot_df[plot_df[[split.by]] == split_val, , drop = FALSE]
+      
+      heatmap_matrix <- .reshape_for_heatmap(
+        plot_df = plot_df_split,
+        features = features,
+        row_var = group.by,
+        col_var = NULL,  # Features become columns
+        aggregate = FALSE,  # Already aggregated
+        agg_fun = agg_fun
+      )
+      
+      heatmap_list[[as.character(split_val)]] <- heatmap_matrix
     }
-    if (normalize_by %in% c("column", "both")) {
-      # Normalize across genes (rows) for each group
-      heatmap_matrix <- scale(heatmap_matrix)
+    
+    # Combine matrices with split labels
+    # Create a combined data frame with split.by column
+    heatmap_df_list <- list()
+    for (split_val in names(heatmap_list)) {
+      hm <- heatmap_list[[split_val]]
+      hm_df <- as.data.frame(hm) %>%
+        tibble::rownames_to_column(var = group.by) %>%
+        tidyr::pivot_longer(
+          cols = -dplyr::all_of(group.by),
+          names_to = "Gene",
+          values_to = "Zscore"
+        )
+      hm_df[[split.by]] <- split_val
+      heatmap_df_list[[split_val]] <- hm_df
     }
-  }
-  
-  # Handle single group case
-  if (ncol(heatmap_matrix) == 1) {
-    if (normalize_by == "row") {
-      # Normalize across genes
-      heatmap_matrix <- scale(heatmap_matrix)
-    } else {
-      # Set to 0 for neutral
-      heatmap_matrix[] <- 0
+    
+    heatmap_df <- dplyr::bind_rows(heatmap_df_list)
+    
+    # Normalize across all splits (gene level normalization)
+    if (normalize) {
+      if (normalize_by %in% c("row", "both")) {
+        # Normalize by gene across all groups and splits
+        heatmap_df <- heatmap_df %>%
+          dplyr::group_by(.data[["Gene"]]) %>%
+          dplyr::mutate(
+            Zscore = scale(.data[["Zscore"]])[, 1]
+          ) %>%
+          dplyr::ungroup()
+      }
+      if (normalize_by %in% c("column", "both")) {
+        # Normalize by group within each split
+        heatmap_df <- heatmap_df %>%
+          dplyr::group_by(.data[[split.by]], .data[[group.by]]) %>%
+          dplyr::mutate(
+            Zscore = scale(.data[["Zscore"]])[, 1]
+          ) %>%
+          dplyr::ungroup()
+      }
     }
+    
+    # Set factor levels
+    all_row_names <- unique(heatmap_df[[group.by]])
+    all_col_names <- unique(heatmap_df$Gene)
+    heatmap_df[[group.by]] <- factor(heatmap_df[[group.by]], levels = all_row_names)
+    heatmap_df$Gene <- factor(heatmap_df$Gene, levels = all_col_names)
+    heatmap_df[[split.by]] <- factor(heatmap_df[[split.by]], levels = split_values)
+    
+  } else {
+    # No split.by - original logic
+    heatmap_matrix <- .reshape_for_heatmap(
+      plot_df = plot_df,
+      features = features,
+      row_var = group.by,
+      col_var = NULL,  # Features become columns
+      aggregate = FALSE,  # Already aggregated
+      agg_fun = agg_fun
+    )
+    
+    # Normalize if requested
+    if (normalize) {
+      if (normalize_by %in% c("row", "both")) {
+        # Normalize across groups (columns) for each gene
+        heatmap_matrix <- t(scale(t(heatmap_matrix)))
+      }
+      if (normalize_by %in% c("column", "both")) {
+        # Normalize across genes (rows) for each group
+        heatmap_matrix <- scale(heatmap_matrix)
+      }
+    }
+    
+    # Handle single group case
+    if (ncol(heatmap_matrix) == 1) {
+      if (normalize_by == "row") {
+        # Normalize across genes
+        heatmap_matrix <- scale(heatmap_matrix)
+      } else {
+        # Set to 0 for neutral
+        heatmap_matrix[] <- 0
+      }
+    }
+    
+    # Convert to long format for ggplot
+    heatmap_df <- as.data.frame(heatmap_matrix) %>%
+      tibble::rownames_to_column(var = group.by) %>%
+      tidyr::pivot_longer(
+        cols = -dplyr::all_of(group.by),
+        names_to = "Gene",
+        values_to = "Zscore"
+      )
+    
+    # Set factor levels to preserve order (remove duplicates)
+    unique_row_names <- unique(rownames(heatmap_matrix))
+    unique_col_names <- unique(colnames(heatmap_matrix))
+    heatmap_df[[group.by]] <- factor(heatmap_df[[group.by]], levels = unique_row_names)
+    heatmap_df$Gene <- factor(heatmap_df$Gene, levels = unique_col_names)
   }
   
-  # Cluster if requested
-  if (cluster_rows && nrow(heatmap_matrix) > 1) {
-    row_order <- hclust(dist(heatmap_matrix))$order
-    heatmap_matrix <- heatmap_matrix[row_order, , drop = FALSE]
-  }
-  
-  if (cluster_cols && ncol(heatmap_matrix) > 1) {
-    col_order <- hclust(dist(t(heatmap_matrix)))$order
-    heatmap_matrix <- heatmap_matrix[, col_order, drop = FALSE]
-  }
-  
-  # Sort row names if numeric
-  row_names <- rownames(heatmap_matrix)
-  numeric_test <- suppressWarnings(as.numeric(row_names))
-  if (!all(is.na(numeric_test)) && sum(is.na(numeric_test)) == 0) {
-    row_order <- order(numeric_test)
-    heatmap_matrix <- heatmap_matrix[row_order, , drop = FALSE]
+  # Cluster if requested (only if no split)
+  if (!has_split) {
+    if (cluster_rows && nrow(heatmap_matrix) > 1) {
+      row_order <- hclust(dist(heatmap_matrix))$order
+      heatmap_matrix <- heatmap_matrix[row_order, , drop = FALSE]
+    }
+    
+    if (cluster_cols && ncol(heatmap_matrix) > 1) {
+      col_order <- hclust(dist(t(heatmap_matrix)))$order
+      heatmap_matrix <- heatmap_matrix[, col_order, drop = FALSE]
+    }
+    
+    # Sort row names if numeric
+    row_names <- rownames(heatmap_matrix)
+    numeric_test <- suppressWarnings(as.numeric(row_names))
+    if (!all(is.na(numeric_test)) && sum(is.na(numeric_test)) == 0) {
+      row_order <- order(numeric_test)
+      heatmap_matrix <- heatmap_matrix[row_order, , drop = FALSE]
+    }
   }
   
   # Return data if requested
   if (return_data) {
-    return(as.data.frame(heatmap_matrix))
+    if (has_split) {
+      return(heatmap_df)
+    } else {
+      return(as.data.frame(heatmap_matrix))
+    }
   }
   
-  # Convert to long format for ggplot
-  heatmap_df <- as.data.frame(heatmap_matrix) %>%
-    tibble::rownames_to_column(var = group.by) %>%
-    tidyr::pivot_longer(
-      cols = -dplyr::all_of(group.by),
-      names_to = "Gene",
-      values_to = "Zscore"
-    )
-  
-  # Set factor levels to preserve order (remove duplicates)
-  unique_row_names <- unique(rownames(heatmap_matrix))
-  unique_col_names <- unique(colnames(heatmap_matrix))
-  heatmap_df[[group.by]] <- factor(heatmap_df[[group.by]], levels = unique_row_names)
-  heatmap_df$Gene <- factor(heatmap_df$Gene, levels = unique_col_names)
-  
   # Create plot
-  p <- ggplot2::ggplot(heatmap_df, ggplot2::aes(
-    x = .data[[group.by]],
-    y = .data[["Gene"]],
-    fill = .data[["Zscore"]]
-  )) +
-    ggplot2::geom_tile() +
+  if (has_split) {
+    # Faceted plot with split.by
+    p <- ggplot2::ggplot(heatmap_df, ggplot2::aes(
+      x = .data[[group.by]],
+      y = .data[["Gene"]],
+      fill = .data[["Zscore"]]
+    )) +
+      ggplot2::geom_tile() +
+      ggplot2::facet_wrap(ggplot2::vars(.data[[split.by]]), scales = "free_x", nrow = 1) +
     ggplot2::scale_fill_gradient2(
       low = if(is.null(color_palette)) "blue" else color_palette[1],
       mid = if(is.null(color_palette)) "white" else color_palette[2],
@@ -191,21 +274,53 @@ plot_heatmap_genes <- function(data,
       midpoint = 0,
       name = if(normalize) "Z-score" else "Expression"
     ) +
-    ggplot2::theme_minimal() +
-    ggplot2::labs(
-      title = if (is.null(title)) "Normalized Gene Expression" else title,
-      x = if (is.null(x_label)) group.by else x_label,
-      y = if (is.null(y_label)) "Genes" else y_label
-    ) +
-    ggplot2::theme(
-      panel.background = ggplot2::element_rect(fill = "white", color = NA),
-      plot.background = ggplot2::element_rect(fill = "white", color = NA),
-      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 12),
-      axis.text.y = ggplot2::element_text(size = 12),
-      axis.title.x = ggplot2::element_text(face = "bold", size = 14),
-      axis.title.y = ggplot2::element_text(face = "bold", size = 14),
-      plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5)
-    )
+      ggplot2::theme_minimal() +
+      ggplot2::labs(
+        title = if (is.null(title)) "Normalized Gene Expression" else title,
+        x = if (is.null(x_label)) group.by else x_label,
+        y = if (is.null(y_label)) "Genes" else y_label
+      ) +
+      ggplot2::theme(
+        panel.background = ggplot2::element_rect(fill = "white", color = NA),
+        plot.background = ggplot2::element_rect(fill = "white", color = NA),
+        axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = ggplot2::element_text(size = 12),
+        axis.title.x = ggplot2::element_text(face = "bold", size = 14),
+        axis.title.y = ggplot2::element_text(face = "bold", size = 14),
+        plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5),
+        strip.text = ggplot2::element_text(face = "bold", size = 12)
+      )
+  } else {
+    # Single plot without split
+    p <- ggplot2::ggplot(heatmap_df, ggplot2::aes(
+      x = .data[[group.by]],
+      y = .data[["Gene"]],
+      fill = .data[["Zscore"]]
+    )) +
+      ggplot2::geom_tile() +
+      ggplot2::scale_fill_gradient2(
+        low = if(is.null(color_palette)) "blue" else color_palette[1],
+        mid = if(is.null(color_palette)) "white" else color_palette[2],
+        high = if(is.null(color_palette)) "red" else color_palette[3],
+        midpoint = 0,
+        name = if(normalize) "Z-score" else "Expression"
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::labs(
+        title = if (is.null(title)) "Normalized Gene Expression" else title,
+        x = if (is.null(x_label)) group.by else x_label,
+        y = if (is.null(y_label)) "Genes" else y_label
+      ) +
+      ggplot2::theme(
+        panel.background = ggplot2::element_rect(fill = "white", color = NA),
+        plot.background = ggplot2::element_rect(fill = "white", color = NA),
+        axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = ggplot2::element_text(size = 12),
+        axis.title.x = ggplot2::element_text(face = "bold", size = 14),
+        axis.title.y = ggplot2::element_text(face = "bold", size = 14),
+        plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5)
+      )
+  }
   
   if (!show_rownames) {
     p <- p + ggplot2::theme(axis.text.y = ggplot2::element_blank())
