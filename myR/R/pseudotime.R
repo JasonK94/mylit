@@ -1244,3 +1244,290 @@ analyze_gene_dynamics_tradeSeq <- function(gene_id,
   return(list(gene = gene_id, status = "success", metrics = metrics_out,
               plot_path = plot_filepath, plot_object = plot_object))
 }
+
+
+#' Run Monocle3 trajectory inference from a Seurat object
+#'
+#' This function converts a Seurat object to a Monocle3 cell_data_set,
+#' performs preprocessing, dimensionality reduction, and trajectory inference.
+#' It provides a complete Monocle3 workflow with automatic parameter optimization.
+#'
+#' @param seurat_obj A Seurat object. Must have counts and metadata.
+#' @param counts_assay_name Character string, the name of the assay containing counts.
+#'   Default is "RNA".
+#' @param reduction_name Character string, the name of dimensionality reduction to use
+#'   from Seurat object (e.g., "pca", "umap"). If NULL, Monocle3 will compute its own.
+#'   Default is NULL.
+#' @param root_cells Optional. Character vector of cell IDs to use as root cells for
+#'   trajectory ordering. If NULL, Monocle3 will attempt to identify root cells automatically.
+#' @param root_cluster Optional. Character string or numeric value specifying a cluster
+#'   to use as root. All cells in this cluster will be used as root cells.
+#' @param gene_metadata Optional. Data frame with gene metadata (must have rownames matching
+#'   gene names). If NULL, a basic gene metadata will be created.
+#' @param preprocess_method Character string. Method for preprocessing: "PCA" (default) or "LSI".
+#' @param num_dimensions Integer. Number of dimensions for dimensionality reduction. Default is 50.
+#' @param reduction_method Character string. Method for dimensionality reduction: "UMAP" (default) or "tSNE".
+#' @param use_partition Logical. Whether to use partition-based trajectory learning. Default is TRUE.
+#' @param cluster_method Character string. Clustering method: "leiden" (default) or "louvain".
+#' @param resolution Numeric. Resolution parameter for clustering. Default is 0.0001.
+#' @param verbose Logical. Whether to print progress messages. Default is TRUE.
+#' @param ... Additional arguments to pass to Monocle3 functions.
+#'
+#' @return A Monocle3 cell_data_set object with trajectory inference results.
+#'   Returns NULL if a critical error occurs.
+#'
+#' @import monocle3
+#' @import Seurat
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Assuming 'seu' is a Seurat object
+#' cds <- run_monocle3_from_seurat(
+#'   seurat_obj = seu,
+#'   counts_assay_name = "RNA",
+#'   reduction_method = "UMAP",
+#'   root_cluster = "0"
+#' )
+#' 
+#' if (!is.null(cds)) {
+#'   print("Monocle3 analysis successful.")
+#'   # Extract pseudotime
+#'   pt <- monocle3::pseudotime(cds)
+#' }
+#' }
+run_monocle3_from_seurat <- function(seurat_obj,
+                                     counts_assay_name = "RNA",
+                                     reduction_name = NULL,
+                                     root_cells = NULL,
+                                     root_cluster = NULL,
+                                     gene_metadata = NULL,
+                                     preprocess_method = "PCA",
+                                     num_dimensions = 50,
+                                     reduction_method = "UMAP",
+                                     use_partition = TRUE,
+                                     cluster_method = "leiden",
+                                     resolution = 0.0001,
+                                     verbose = TRUE,
+                                     ...) {
+  
+  # --- 0. Load required packages ---
+  if (!requireNamespace("monocle3", quietly = TRUE)) {
+    stop("Package 'monocle3' is required. Please install it.", call. = FALSE)
+  }
+  
+  # --- 1. Input Validation ---
+  if (verbose) message("--- Step 1: Validating inputs ---")
+  if (!is(seurat_obj, "Seurat")) {
+    stop("seurat_obj must be a Seurat object.", call. = FALSE)
+  }
+  
+  # Check assay
+  available_assays <- Seurat::Assays(seurat_obj)
+  if (!counts_assay_name %in% available_assays) {
+    stop("Assay '", counts_assay_name, "' not found. Available assays: ",
+         paste(available_assays, collapse = ", "), call. = FALSE)
+  }
+  
+  # Get counts
+  if (verbose) message("Extracting counts from assay '", counts_assay_name, "'...")
+  counts_matrix <- Seurat::GetAssayData(seurat_obj, assay = counts_assay_name, slot = "counts")
+  
+  # Validate counts
+  if (is.null(counts_matrix) || nrow(counts_matrix) == 0 || ncol(counts_matrix) == 0) {
+    stop("Counts matrix is empty or NULL.", call. = FALSE)
+  }
+  
+  # Ensure counts are non-negative integers
+  if (any(counts_matrix < 0, na.rm = TRUE)) {
+    warning("Negative values found in counts. Setting to 0.", call. = FALSE)
+    counts_matrix[counts_matrix < 0] <- 0
+  }
+  
+  non_int_idx <- counts_matrix@x %% 1 != 0 & !is.na(counts_matrix@x)
+  if (any(non_int_idx)) {
+    if (verbose) message("Rounding non-integer counts to nearest integer.")
+    counts_matrix@x[non_int_idx] <- round(counts_matrix@x[non_int_idx])
+  }
+  
+  # Get cell metadata
+  cell_metadata <- seurat_obj@meta.data
+  if (is.null(rownames(cell_metadata))) {
+    rownames(cell_metadata) <- colnames(seurat_obj)
+  }
+  
+  # Align cell metadata with counts
+  common_cells <- intersect(colnames(counts_matrix), rownames(cell_metadata))
+  if (length(common_cells) == 0) {
+    stop("No common cells found between counts and metadata.", call. = FALSE)
+  }
+  if (length(common_cells) < ncol(counts_matrix) || length(common_cells) < nrow(cell_metadata)) {
+    if (verbose) message("Subsetting to ", length(common_cells), " common cells.")
+    counts_matrix <- counts_matrix[, common_cells]
+    cell_metadata <- cell_metadata[common_cells, , drop = FALSE]
+  }
+  
+  # Create gene metadata if not provided
+  if (is.null(gene_metadata)) {
+    if (verbose) message("Creating gene metadata...")
+    gene_metadata <- data.frame(
+      gene_short_name = rownames(counts_matrix),
+      row.names = rownames(counts_matrix),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    # Ensure gene metadata has correct rownames
+    if (!all(rownames(counts_matrix) %in% rownames(gene_metadata))) {
+      warning("Some genes in counts are missing from gene_metadata. Adding missing genes.", call. = FALSE)
+      missing_genes <- setdiff(rownames(counts_matrix), rownames(gene_metadata))
+      missing_df <- data.frame(
+        gene_short_name = missing_genes,
+        row.names = missing_genes,
+        stringsAsFactors = FALSE
+      )
+      if ("gene_short_name" %in% colnames(gene_metadata)) {
+        gene_metadata <- rbind(gene_metadata, missing_df)
+      } else {
+        gene_metadata <- rbind(gene_metadata, missing_df)
+        gene_metadata$gene_short_name <- rownames(gene_metadata)
+      }
+    }
+    gene_metadata <- gene_metadata[rownames(counts_matrix), , drop = FALSE]
+  }
+  
+  # --- 2. Create cell_data_set ---
+  if (verbose) message("--- Step 2: Creating Monocle3 cell_data_set ---")
+  cds <- tryCatch({
+    monocle3::new_cell_data_set(
+      expression_data = counts_matrix,
+      cell_metadata = cell_metadata,
+      gene_metadata = gene_metadata
+    )
+  }, error = function(e) {
+    stop("Failed to create cell_data_set: ", e$message, call. = FALSE)
+  })
+  
+  # --- 3. Preprocessing ---
+  if (verbose) message("--- Step 3: Preprocessing ---")
+  
+  # Estimate size factors
+  if (verbose) message("Estimating size factors...")
+  cds <- tryCatch({
+    monocle3::estimate_size_factors(cds)
+  }, error = function(e) {
+    warning("Size factor estimation failed: ", e$message, ". Continuing anyway.", call. = FALSE)
+    return(cds)
+  })
+  
+  # Preprocess (PCA or LSI)
+  if (verbose) message("Preprocessing using ", preprocess_method, "...")
+  cds <- tryCatch({
+    if (preprocess_method == "PCA") {
+      monocle3::preprocess_cds(cds, method = "PCA", num_dim = num_dimensions, verbose = verbose)
+    } else if (preprocess_method == "LSI") {
+      monocle3::preprocess_cds(cds, method = "LSI", num_dim = num_dimensions, verbose = verbose)
+    } else {
+      stop("preprocess_method must be 'PCA' or 'LSI'", call. = FALSE)
+    }
+  }, error = function(e) {
+    stop("Preprocessing failed: ", e$message, call. = FALSE)
+  })
+  
+  # --- 4. Dimensionality Reduction ---
+  if (verbose) message("--- Step 4: Dimensionality reduction ---")
+  
+  # Use existing reduction from Seurat if provided
+  if (!is.null(reduction_name) && reduction_name %in% names(seurat_obj@reductions)) {
+    if (verbose) message("Using existing reduction '", reduction_name, "' from Seurat object...")
+    reduction_data <- Seurat::Embeddings(seurat_obj, reduction = reduction_name)
+    common_cells_reduction <- intersect(rownames(reduction_data), colnames(cds))
+    if (length(common_cells_reduction) > 0) {
+      reduction_data <- reduction_data[common_cells_reduction, , drop = FALSE]
+      # Store in reducedDims
+      if (reduction_method == "UMAP") {
+        SingleCellExperiment::reducedDim(cds, "UMAP") <- reduction_data[, 1:min(ncol(reduction_data), 2)]
+      } else if (reduction_method == "tSNE") {
+        SingleCellExperiment::reducedDim(cds, "tSNE") <- reduction_data[, 1:min(ncol(reduction_data), 2)]
+      }
+      if (verbose) message("Reduction stored. Skipping Monocle3 reduction computation.")
+    } else {
+      if (verbose) message("No common cells found. Computing reduction with Monocle3...")
+      cds <- monocle3::reduce_dimension(cds, reduction_method = reduction_method, 
+                                       verbose = verbose, ...)
+    }
+  } else {
+    if (verbose) message("Computing ", reduction_method, " reduction...")
+    cds <- tryCatch({
+      monocle3::reduce_dimension(cds, reduction_method = reduction_method, 
+                                verbose = verbose, ...)
+    }, error = function(e) {
+      stop("Dimensionality reduction failed: ", e$message, call. = FALSE)
+    })
+  }
+  
+  # --- 5. Clustering ---
+  if (verbose) message("--- Step 5: Clustering ---")
+  cds <- tryCatch({
+    monocle3::cluster_cells(cds, resolution = resolution, method = cluster_method, 
+                            verbose = verbose, ...)
+  }, error = function(e) {
+    warning("Clustering failed: ", e$message, ". Continuing without clustering.", call. = FALSE)
+    return(cds)
+  })
+  
+  # --- 6. Learn Graph (Trajectory) ---
+  if (verbose) message("--- Step 6: Learning trajectory graph ---")
+  cds <- tryCatch({
+    if (use_partition) {
+      monocle3::learn_graph(cds, use_partition = TRUE, verbose = verbose, ...)
+    } else {
+      monocle3::learn_graph(cds, use_partition = FALSE, verbose = verbose, ...)
+    }
+  }, error = function(e) {
+    warning("Graph learning failed: ", e$message, ". Returning cds without trajectory.", call. = FALSE)
+    return(cds)
+  })
+  
+  # --- 7. Order Cells (Assign Pseudotime) ---
+  if (verbose) message("--- Step 7: Ordering cells and assigning pseudotime ---")
+  
+  # Determine root cells
+  final_root_cells <- NULL
+  if (!is.null(root_cells)) {
+    final_root_cells <- intersect(root_cells, colnames(cds))
+    if (length(final_root_cells) == 0) {
+      warning("None of the specified root_cells found in cds. Using automatic root detection.", call. = FALSE)
+      final_root_cells <- NULL
+    }
+  } else if (!is.null(root_cluster)) {
+    # Get cells from root cluster
+    if ("cluster" %in% colnames(monocle3::pData(cds))) {
+      cluster_col <- monocle3::pData(cds)$cluster
+      root_cluster_char <- as.character(root_cluster)
+      final_root_cells <- names(cluster_col)[cluster_col == root_cluster_char]
+      if (length(final_root_cells) == 0) {
+        warning("No cells found in root_cluster '", root_cluster, "'. Using automatic root detection.", call. = FALSE)
+        final_root_cells <- NULL
+      }
+    } else {
+      warning("No cluster information found. Using automatic root detection.", call. = FALSE)
+      final_root_cells <- NULL
+    }
+  }
+  
+  # Order cells
+  cds <- tryCatch({
+    if (!is.null(final_root_cells)) {
+      monocle3::order_cells(cds, root_cells = final_root_cells, verbose = verbose, ...)
+    } else {
+      if (verbose) message("No root cells specified. Monocle3 will attempt automatic root detection.")
+      monocle3::order_cells(cds, verbose = verbose, ...)
+    }
+  }, error = function(e) {
+    warning("Cell ordering failed: ", e$message, ". Returning cds without pseudotime.", call. = FALSE)
+    return(cds)
+  })
+  
+  if (verbose) message("Monocle3 trajectory inference completed successfully.")
+  return(cds)
+}
