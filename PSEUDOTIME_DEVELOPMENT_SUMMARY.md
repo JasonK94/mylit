@@ -44,43 +44,73 @@
 
 ## 완료된 작업
 
-1. **`run_monocle3_from_seurat()` 함수 개발** ✅
+1. **`run_monocle3_from_seurat()` 함수 개발** ✅ (커밋: 2a5c237)
    - Seurat → Monocle3 변환 로직
    - Preprocessing 파이프라인
    - Trajectory inference 자동화
 
-2. **데이터 정보 문서화** ✅
+2. **데이터 정보 문서화** ✅ (커밋: 59c816f)
    - 주요 Feature (유전자) 정보 추가
    - Metadata columns 상세 정보 추가
    - 모든 문서에 반영
 
-3. **데이터 전처리 함수 개발** ✅
+3. **데이터 전처리 함수 개발** ✅ (커밋: f8f0f06)
    - `preprocess_pseudotime_data()` 함수 작성
    - sex 변수: M, F로 변환
    - g3 변수: factor로 변환
    - 시간 변수 파싱 및 차이 계산
    - 전처리된 데이터 저장 기능
 
-4. **테스트 스크립트 작성** ✅
+4. **테스트 스크립트 작성** ✅ (커밋: 50c1596)
    - `test_preprocessing.R`: 데이터 전처리 테스트
    - `test_pseudotime_basic.R`: 기본 pseudotime 분석 테스트
 
+5. **Metadata 상관관계 동적 분석 함수** ✅ (커밋: b8fd75c)
+   - `analyze_metadata_correlation_dynamics()` 함수 구현
+   - Pseudotime 구간별 상관관계 계산
+   - 상관관계 변화 패턴 분석 (trend, range 등)
+
+6. **복잡한 패턴 탐지 함수** ✅ (커밋: edec28b)
+   - `detect_expression_patterns()` 함수 구현
+   - 증가/감소, oscillatory, bimodal, constant 패턴 탐지
+
 ## 다음 단계
 
+### 즉시 실행 가능
 1. **데이터 전처리 실행**
    ```r
-   source("test_preprocessing.R")
+   source("/home/user3/data_user3/git_repo/_wt/pseudotime/test_preprocessing.R")
    ```
 
 2. **기본 분석 테스트 실행**
    ```r
-   source("test_pseudotime_basic.R")
+   source("/home/user3/data_user3/git_repo/_wt/pseudotime/test_pseudotime_basic.R")
    ```
 
-3. **고급 분석 함수 개발**
-   - 복잡한 패턴 탐지
-   - Metadata 상관관계 동적 분석
-   - Branching analysis
+### 추가 개발 필요
+3. **Branching Analysis 함수**
+   - `analyze_branching_dynamics()` 함수 개발
+   - Branching point 탐지
+   - Branch별 gene expression 차이 분석
+
+4. **통합 워크플로우**
+   - `run_pseudotime_analysis_pipeline()` 함수 개발
+   - End-to-end 파이프라인
+   - Batch analysis 지원
+
+5. **시각화 개선**
+   - 고급 시각화 함수 추가
+   - 자동 보고서 생성
+
+## 커밋 히스토리
+
+최근 커밋들:
+- `edec28b`: feat: 복잡한 패턴 탐지 함수 추가
+- `b8fd75c`: feat: metadata 상관관계 동적 분석 함수 추가
+- `50c1596`: test: pseudotime 분석 테스트 스크립트 추가
+- `f8f0f06`: feat: 데이터 전처리 함수 추가
+- `2a5c237`: feat: Monocle3 trajectory inference 함수 추가
+- `59c816f`: docs: pseudotime 분석 개발 컨텍스트 및 계획 문서화
 
 개발 계획 문서(`PSEUDOTIME_DEVELOPMENT_PLAN.md`)를 참고하여 단계별로 진행합니다.
 
