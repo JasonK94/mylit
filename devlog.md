@@ -68,3 +68,44 @@ scRNAseq/GeoMx 데이터 플롯 함수들의 통폐합 및 표준화
 - [ ] 테스트 결과 확인 및 버그 수정
 - [ ] 기존 함수들과의 호환성 확인
 
+## 2024-12-XX: Enhanced Plot Customization Options
+
+### Completed Features
+
+1. **NA Value Handling**
+   - Added `remove_na = FALSE` option for both scatter and heatmap plots
+   - NA values are now properly handled with `na.value = "grey90"` in heatmap scales
+   - NA labels are displayed in scatter plots when `label = TRUE`
+
+2. **Normalization Control**
+   - Fixed `normalize_transpose` logic: `FALSE` = column normalization (sample/group level), `TRUE` = row normalization (gene level)
+   - Default behavior: `normalize_by = "row"` for gene-level normalization (better for group comparisons)
+
+3. **Scatter Plot Enhancements**
+   - `each_fit = TRUE`: Fit separate regression lines for each `color_by` group
+   - `show_stats = TRUE`: Display regression statistics (y, p-value) for each fit
+   - `stats_in_legend = FALSE`: Control whether stats appear in legend or as annotations
+   - `shape.group.by`: Add point shape grouping for additional visual distinction
+   - `label = TRUE`: Add group labels with automatic coloring and legend support
+   - Labels automatically use `color_by` or `split.by` for coloring when available
+   - NA values in labels are properly displayed as "NA"
+
+4. **Heatmap Enhancements**
+   - `show_group_separator = TRUE`: Add vertical dashed lines between groups
+   - Enhanced facet separation: `strip.background` with black border and reduced `panel.spacing` to clearly separate g3=1 and g3=2 panels
+   - Column normalization option via `normalize_transpose = FALSE`
+
+5. **Group-level Scatter Plot**
+   - Default `label = TRUE` for group-level plots
+   - Automatic coloring and legend for labels
+   - `each_fit = TRUE` support for separate fits per group
+
+### Testing
+- All 6 plot types successfully generated:
+  1. Cluster-level scatter (with each_fit)
+  2. Cluster-level heatmap (column normalization)
+  3. Patient-level scatter (with each_fit)
+  4. Patient-level heatmap (split by g3, column normalization, facet borders)
+  5. Group-level scatter (with labels, coloring, legend, each_fit)
+  6. Group-level heatmap (with NA removal, vertical separators)
+
