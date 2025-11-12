@@ -42,8 +42,29 @@ scRNAseq/GeoMx 데이터 플롯 함수들의 통폐합 및 표준화
 - `/data/user3/git_repo/_wt/plots`를 `plots-dev` 브랜치의 worktree로 설정
 - 메인 브랜치와 분리된 개발 환경
 
+### 2024-11-12: Boxplot 통합 및 테스트
+
+#### 완료된 작업
+- **`plots_box.R`**: Boxplot 함수 통합
+  - `plot_box()`: Cell-level 및 aggregated boxplot 통합
+  - `mybox_cell`, `mybox_pb` 기능 통합
+  - Seurat/df 지원, aggregation 지원
+
+- **배경 문제 수정**: 모든 plot 함수에 `panel.background`, `plot.background` 명시적 설정
+  - `plots_scatter.R`: theme_bw() + white background
+  - `plots_volcano.R`: theme_bw() + white background  
+  - `plots_heatmap.R`: theme_minimal() + white background
+
+- **테스트 스크립트**: `test_plots.R` 생성
+  - TXNIP 기준 테스트
+  - 3계층 grouping 지원 (cell → patient → group)
+
+- **함수 문제점 분석**: `function_issues.md` 작성
+  - `upset_gene_lists`, `vln_p`, `cmb`, `acmb`, `cml`, `cdf`, `cdf_multi` 분석
+  - 공통 문제점 및 개선 제안 정리
+
 ### 다음 단계
-- [ ] Boxplot 함수 통합 (`mybox_cell`, `mybox_pb` → `plots_box.R`)
-- [ ] 테스트 및 버그 수정
+- [ ] 실제 데이터로 테스트 실행
+- [ ] 테스트 결과 확인 및 버그 수정
 - [ ] 기존 함수들과의 호환성 확인
 
