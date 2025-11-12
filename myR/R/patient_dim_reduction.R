@@ -787,7 +787,7 @@ patient_dimensionality_reduction <- function(seurat_obj,
 #' @param plot_df Data frame containing at least `UMAP1`, `UMAP2`, and a
 #'   patient identifier column (default `hos_no`).
 #' @param color_by Column name in `plot_df` used for point colouring
-#'   (default: `"g3"`).
+#'   (default: "patient").
 #' @param label Logical; if TRUE, attempt to label points using `label_col`
 #'   (requires `ggrepel`).
 #' @param label_col Column name for point labels (default: `"hos_no"`).
@@ -796,10 +796,11 @@ patient_dimensionality_reduction <- function(seurat_obj,
 #' @return A `ggplot` object.
 #' @export
 plot_patient_umap <- function(plot_df,
-                              color_by = "g3",
+                              color_by = "patient",
                               label = FALSE,
                               label_col = "hos_no",
-                              title = NULL) {
+                              title = NULL,
+                              ...) {
   required_cols <- c("UMAP1", "UMAP2")
   missing <- setdiff(required_cols, colnames(plot_df))
   if (length(missing)) {
@@ -809,38 +810,130 @@ plot_patient_umap <- function(plot_df,
     stop("Column `", color_by, "` not found in `plot_df`.")
   }
 
-  if (is.null(title)) {
-    title <- paste("Patient UMAP coloured by", color_by)
+  if (!exists("plot_embedding", mode = "function")) {
+    stop("`plot_embedding()` not available; ensure myR plotting utilities are loaded.")
   }
 
-  p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$UMAP1, y = .data$UMAP2)) +
-    ggplot2::geom_point(ggplot2::aes(color = .data[[color_by]]), size = 2.2, alpha = 0.85) +
-    ggplot2::labs(
-      x = "UMAP1",
-      y = "UMAP2",
-      color = color_by,
-      title = title
-    ) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(
-      panel.grid = ggplot2::element_line(color = "grey90"),
-      legend.position = "right"
-    )
+  plot_embedding(
+    plot_df = plot_df,
+    x_col = "UMAP1",
+    y_col = "UMAP2",
+    color_by = color_by,
+    title = title,
+    label = label,
+    label_col = label_col,
+    ...
+  )
+}
 
-  if (label && label_col %in% colnames(plot_df)) {
-    if (!requireNamespace("ggrepel", quietly = TRUE)) {
-      warning("Package 'ggrepel' not installed; skipping labels.", call. = FALSE)
-    } else {
-      p <- p + ggrepel::geom_text_repel(
-        ggplot2::aes(label = .data[[label_col]]),
-        size = 3,
-        max.overlaps = Inf,
-        min.segment.length = 0
+#' Augment patient-level plot data with additional metadata
+#'
+#' @param plot_df Data frame returned by `patient_dimensionality_reduction()`
+#'   containing at least the identifier column given by `id`.
+#' @param metadata Metadata data frame (e.g., `is5@meta.data`).
+#' @param id Identifier column name shared between `plot_df` and `metadata`
+#'   (default: `"hos_no"`).
+#' @param add Character vector of additional column names to pull from
+#'   `metadata`.
+#' @param verbose Logical; print diagnostic messages (default TRUE).
+#'
+#' @return A list with two elements: `data` (augmented data frame) and
+#'   `report` (diagnostic information about matches, duplicates, and NA counts).
+#' @export
+augment_plot_df <- function(plot_df,
+                            metadata,
+                            id = "hos_no",
+                            add = character(),
+                            verbose = TRUE) {
+  if (!id %in% colnames(plot_df)) {
+    stop("Identifier column `", id, "` not found in `plot_df`.")
+  }
+  if (!id %in% colnames(metadata)) {
+    stop("Identifier column `", id, "` not found in `metadata`.")
+  }
+  add <- unique(add)
+  if (length(add) == 0) {
+    stop("`add` must contain at least one column name to append from metadata.")
+  }
+  missing_add <- setdiff(add, colnames(metadata))
+  if (length(missing_add)) {
+    stop("Columns not found in metadata: ", paste(missing_add, collapse = ", "))
+  }
+
+  dup_plot_ids <- unique(plot_df[[id]][duplicated(plot_df[[id]])])
+  if (length(dup_plot_ids)) {
+    stop("Duplicate identifiers found in `plot_df`: ", paste(dup_plot_ids, collapse = ", "))
+  }
+
+  meta_req <- metadata[, unique(c(id, add)), drop = FALSE]
+  meta_req[[id]] <- as.character(meta_req[[id]])
+  plot_ids <- as.character(plot_df[[id]])
+
+  meta_duplicates <- meta_req[[id]][duplicated(meta_req[[id]]) & !is.na(meta_req[[id]])]
+  if (length(meta_duplicates)) {
+    meta_conflict <- meta_req |>
+      dplyr::filter(.data[[id]] %in% meta_duplicates) |>
+      dplyr::group_by(.data[[id]]) |>
+      dplyr::summarise(
+        dplyr::across(
+          dplyr::all_of(add),
+          ~ dplyr::n_distinct(.x, na.rm = FALSE)
+        ),
+        .groups = "drop"
+      ) |>
+      dplyr::filter(dplyr::if_any(dplyr::all_of(add), ~ .x > 1))
+
+    if (nrow(meta_conflict) > 0) {
+      stop(
+        "Conflicting metadata rows detected for IDs: ",
+        paste(meta_conflict[[id]], collapse = ", "),
+        ". Ensure `add` columns are unique per ID."
       )
     }
   }
 
-  p
+  meta_clean <- meta_req |>
+    dplyr::distinct(.data[[id]], .keep_all = TRUE)
+
+  joined <- dplyr::left_join(
+    plot_df,
+    meta_clean,
+    by = id
+  )
+
+  missing_in_meta <- setdiff(plot_ids, meta_clean[[id]])
+  missing_in_plot <- setdiff(meta_clean[[id]], plot_ids)
+
+  na_counts <- sapply(add, function(col) sum(is.na(joined[[col]])))
+
+  report <- list(
+    n_plot = nrow(plot_df),
+    n_metadata = nrow(metadata),
+    missing_in_metadata = missing_in_meta,
+    missing_in_plot = missing_in_plot,
+    na_counts = na_counts,
+    duplicated_ids_in_metadata = meta_duplicates
+  )
+
+  if (isTRUE(verbose)) {
+    message("augment_plot_df(): appended ", length(add), " column(s), matched ",
+            nrow(joined) - length(missing_in_meta), " / ", nrow(plot_df), " IDs.")
+    if (length(missing_in_meta)) {
+      warning("IDs in plot_df not found in metadata: ", paste(missing_in_meta, collapse = ", "))
+    }
+    if (length(missing_in_plot)) {
+      message("IDs present in metadata but absent from plot_df: ", paste(missing_in_plot, collapse = ", "))
+    }
+    if (any(na_counts > 0)) {
+      message("Columns with NA values after join: ",
+              paste(names(na_counts[na_counts > 0]), na_counts[na_counts > 0], sep = "=", collapse = ", "))
+    }
+  }
+
+  list(
+    data = joined,
+    report = report
+  )
 }
 
 
