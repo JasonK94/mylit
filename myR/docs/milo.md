@@ -14,13 +14,14 @@ MiloR는 단일세포 RNA 시퀀싱 데이터에서 세포 유형 또는 상태�
 ### Block Method (블록 방법)
 Neighborhood 간의 비독립성을 고려하기 위한 블록 생성 방법:
 
-- **`"sample"`**: Sample ID를 기반으로 같은 sample에 속한 neighborhoods를 하나의 block으로 묶음
-  - **우선순위 1**: `patient_var` 파라미터가 제공되면 `colData(milo)`에서 직접 사용 (권장)
-  - **우선순위 2**: Cell name에서 추출
-    - 먼저 GEM well suffix (`-1`, `-2` 등)를 제거
+- **`"sample"`**: Block ID를 기반으로 같은 block에 속한 neighborhoods를 하나의 block으로 묶음
+  - **우선순위 1**: `block_var` 파라미터가 제공되면 `colData(milo)`에서 직접 사용 (권장)
+    - 예: `patient_var`, `batch_var`, `GEM`, `set` 등
+  - **우선순위 2**: Cell name에서 추출 (fallback)
     - `S\d+$` 패턴 (예: "S1", "S2") 또는 처음 8자, 또는 첫 separator 이전 부분 추출
-  - 각 neighborhood에 가장 많은 세포를 포함하는 sample을 할당
-  - Sample-level 구조를 보존하여 permutation test의 타당성 확보
+    - **주의**: GEM well suffix (`-1`, `-2` 등)는 제거하지 않음 (중복 방지)
+  - 각 neighborhood에 가장 많은 세포를 포함하는 block을 할당
+  - Block-level 구조를 보존하여 permutation test의 타당성 확보
 
 - **`"community"`**: nhoodGraph의 community detection (Louvain 알고리즘)을 사용하여 그래프 구조상 연결된 neighborhoods를 block으로 묶음
   - Sample 정보가 없거나 추출이 불가능한 경우 사용
@@ -125,7 +126,7 @@ result <- run_milo_pipeline(
 | `test_methods` | 실행할 검정 방법 | `c("permutation", "neff")` |
 | `n_perm` | Permutation test 반복 횟수 | `2000` |
 | `max_nhoods` | 다운샘플링할 최대 neighborhood 수 | `NULL` |
-| `patient_var` | `colData(milo)`의 patient/sample ID 컬럼명 (권장) | `NULL` |
+| `block_var` | `colData(milo)`의 block ID 컬럼명 (예: `patient_var`, `batch_var`, `GEM`, `set`) | `NULL` |
 | `seed` | 난수 시드 | `1` |
 | `verbose` | 진행 메시지 출력 여부 | `TRUE` |
 
@@ -142,18 +143,27 @@ result <- run_milo_pipeline(
 #### 사용 예시
 
 ```r
-# 기본 사용 (permutation + neff, patient_var 사용 권장)
+# 기본 사용 (permutation + neff, block_var 사용 권장)
 cluster_bias <- test_cluster_logfc_bias(
     da_results = da_results,
     milo = milo,
     cluster_col = "major_cluster",
     block_method = "sample",
-    patient_var = "patient_id",  # colData에서 직접 사용 (권장)
+    block_var = "patient_id",  # 또는 "batch_var", "GEM", "set" 등
     test_methods = c("permutation", "neff"),
     n_perm = 2000
 )
 
-# patient_var 없이 cell name에서 추출 (fallback)
+# batch_var 사용 예시
+cluster_bias_batch <- test_cluster_logfc_bias(
+    da_results = da_results,
+    milo = milo,
+    block_method = "sample",
+    block_var = "GEM",  # GEM well 기준으로 blocking
+    test_methods = c("permutation", "neff")
+)
+
+# block_var 없이 cell name에서 추출 (fallback)
 cluster_bias_auto <- test_cluster_logfc_bias(
     da_results = da_results,
     milo = milo,
