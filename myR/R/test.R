@@ -3884,6 +3884,240 @@ find_gene_signature_v5.2 <- function(data,
   return(results_list)
 }
 
+#' @export
+find_gene_signature_v5.3 <- function(data, 
+                                 meta.data = NULL,
+                                 target_var,
+                                 target_group = NULL,
+                                 control_vars = NULL,   
+                                 method = c("random_forest", "random_forest_ranger",
+                                            "lasso", "ridge", "elastic_net",
+                                            "pca_loadings", "nmf_loadings",
+                                            "gam", "limma", "wilcoxon",
+                                            "xgboost"),
+                                 n_features = 50,
+                                 test_n = NULL,         
+                                 preprocess = TRUE,
+                                 min_cells = 10,
+                                 min_pct = 0.01,
+                                 return_model = FALSE,
+                                 fgs_seed = 42,
+                                 lambda_selection = "lambda.1se",
+                                 enet.alpha = 0.5,
+                                 pca.n_pcs = 1,
+                                 gam.min_unique = 15,
+                                 gam.k = NULL,  # v5.3: NULL이면 동적 k 사용
+                                 gam.k_dynamic_factor = 5,  # v5.3: 동적 k 계산 시 사용 (n_unique_vals / factor)
+                                 ...) {
+  
+  # v5.3은 v5.2와 동일하지만 gam 부분만 동적 k를 사용
+  # v5.2를 호출하되, gam 메서드일 때만 동적 k를 적용
+  
+  all_methods <- c(
+    "random_forest", "random_forest_ranger", "xgboost",
+    "lasso", "ridge", "elastic_net",
+    "pca_loadings", "nmf_loadings",
+    "gam", "limma", "wilcoxon"
+  )
+  
+  if (is.null(method)) {
+    method <- all_methods
+  }
+  
+  # gam 메서드가 포함되어 있고 gam.k가 NULL이면 동적 k를 사용
+  use_dynamic_k <- "gam" %in% method && is.null(gam.k)
+  
+  if (use_dynamic_k) {
+    # v5.3: gam에 동적 k 적용을 위해 직접 구현
+    # v5.2의 전처리 함수 재사용
+    methods_requiring_scale <- c("lasso", "ridge", "elastic_net", 
+                                 "gam", "pca_loadings", "xgboost")
+    methods_requiring_correction <- c("wilcoxon", "pca_loadings")
+    
+    preprocessed_data <- fgs_preprocess_data_v5.2(
+      data = data, meta.data = meta.data, target_var = target_var, 
+      target_group = target_group, control_vars = control_vars, 
+      test_n = test_n, preprocess = preprocess, min_cells = min_cells,
+      min_pct = min_pct,
+      methods_requiring_scale = intersect(method, methods_requiring_scale),
+      methods_requiring_correction = intersect(method, methods_requiring_correction)
+    )
+    
+    expr_mat_base <- preprocessed_data$expr_mat
+    meta.data_clean <- preprocessed_data$meta.data
+    target_binary <- preprocessed_data$target_binary
+    n_groups <- preprocessed_data$n_groups
+    
+    set.seed(fgs_seed)
+    
+    covariate_mat_model <- NULL
+    if (!is.null(control_vars)) {
+       covariates_df_model <- meta.data_clean[, control_vars, drop = FALSE]
+       covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
+    }
+    
+    results_list <- list()
+    
+    for (m in method) {
+      if (!m %in% all_methods) {
+        warning(sprintf("Invalid method '%s'. Skipping.", m))
+        next
+      }
+      
+      message(sprintf("--- Running Method: %s ---", m))
+      
+      tryCatch({
+        if (m %in% c("limma", "wilcoxon", "nmf_loadings", "random_forest", "random_forest_ranger")) {
+          expr_mat_method <- expr_mat_base
+        } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "xgboost")) {
+          expr_mat_method <- if(is.null(preprocessed_data$expr_mat_scaled)) expr_mat_base else preprocessed_data$expr_mat_scaled
+        }
+        
+        if (m %in% c("wilcoxon", "pca_loadings")) {
+          if (!is.null(preprocessed_data$expr_mat_corrected)) {
+            expr_mat_method <- preprocessed_data$expr_mat_corrected
+          }
+        }
+        
+        X <- t(expr_mat_method)
+        y <- target_binary
+        
+        if (m == "gam") {
+          # v5.3: 동적 k 적용
+          if (!requireNamespace("mgcv", quietly = TRUE)) {
+            stop("mgcv package required.")
+          }
+          
+          deviance_explained <- numeric(nrow(expr_mat_method))
+          names(deviance_explained) <- rownames(expr_mat_method)
+          
+          gam_data <- data.frame(y_var_numeric = as.numeric(target_binary) - 1)
+          if (!is.null(control_vars)) {
+            gam_data <- cbind(gam_data, covariate_mat_model)
+            formula_base <- paste(" +", paste(colnames(covariate_mat_model), collapse=" + "))
+          } else {
+            formula_base <- ""
+          }
+          
+          convergence_warnings <- 0
+          genes_skipped <- 0
+          genes_with_dynamic_k <- 0
+          
+          for (i in 1:nrow(expr_mat_method)) {
+            gam_data$gene_expr <- expr_mat_method[i, ]
+            
+            n_unique_vals <- length(unique(gam_data$gene_expr))
+            
+            # v5.3: unique value threshold 먼저 적용
+            if (n_unique_vals < gam.min_unique) {
+              deviance_explained[i] <- 0
+              genes_skipped <- genes_skipped + 1
+              next
+            }
+            
+            # v5.3: 동적 k 계산
+            k_dynamic <- max(3, min(10, floor(n_unique_vals / gam.k_dynamic_factor)))
+            if (k_dynamic != 10) genes_with_dynamic_k <- genes_with_dynamic_k + 1
+            
+            full_formula_str <- paste("y_var_numeric ~ s(gene_expr, k=", k_dynamic, ", bs='cr')", formula_base)
+            
+            fit_result <- tryCatch({
+              if (n_groups == 2) {
+                mgcv::bam(as.formula(full_formula_str), data = gam_data, family="binomial", ...)
+              } else {
+                mgcv::bam(as.formula(full_formula_str), data = gam_data, ...)
+              }
+            }, warning = function(w) {
+              if (grepl("did not converge", w$message)) {
+                convergence_warnings <<- convergence_warnings + 1
+              }
+              invokeRestart("muffleWarning")
+            }, error = function(e) {
+              warning(sprintf("GAM failed for gene %s: %s", rownames(expr_mat_method)[i], e$message))
+              return(NULL) 
+            })
+            
+            if (is.null(fit_result)) {
+              deviance_explained[i] <- 0
+            } else {
+              deviance_explained[i] <- summary(fit_result)$dev.expl
+            }
+          }
+          
+          if (genes_skipped > 0) {
+            warning(sprintf("GAM: Skipped %d genes (unique values < gam.min_unique=%d).", genes_skipped, gam.min_unique))
+          }
+          if (convergence_warnings > 0) {
+            warning(sprintf("GAM: %d genes failed to converge.", convergence_warnings))
+          }
+          if (genes_with_dynamic_k > 0) {
+            message(sprintf("GAM: Applied dynamic k for %d genes (k < 10).", genes_with_dynamic_k))
+          }
+          
+          weights_magnitude <- deviance_explained
+          top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, sum(weights_magnitude > 0, na.rm=TRUE))])
+          
+          if (length(top_genes) == 0) {
+            warning("GAM method found no genes with deviance > 0.")
+            result <- list(genes=character(0), weights=numeric(0), scores=numeric(0), performance=list())
+          } else {
+            weights_magnitude <- weights_magnitude[top_genes]
+            
+            if (n_groups == 2) {
+              g1_cells <- y == levels(y)[1]
+              g2_cells <- y == levels(y)[2]
+              mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+              mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+              effect_size <- mean_g2 - mean_g1
+              weights <- weights_magnitude * sign(effect_size)
+            } else {
+              warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
+              weights <- weights_magnitude
+            }
+            
+            scores <- as.numeric(X[, top_genes] %*% weights)
+            names(scores) <- rownames(X)
+            
+            perf <- list(deviance_explained = weights_magnitude)
+            
+            result <- list(genes = top_genes, weights = weights, scores = scores,
+                         performance = perf, model = NULL)
+          }
+        } else {
+          # gam이 아닌 다른 메서드는 v5.2를 호출
+          v52_call <- match.call()
+          v52_call[[1]] <- as.name("find_gene_signature_v5.2")
+          v52_call$gam.k <- if (is.null(gam.k)) 10 else gam.k
+          v52_call$gam.k_dynamic_factor <- NULL
+          v52_call$method <- m
+          result <- eval(v52_call)
+          result <- result[[m]]
+        }
+        
+        result$method <- m
+        result$target_var <- target_var
+        result$n_groups <- n_groups
+        result$n_cells <- ncol(expr_mat_base)
+        
+        class(result) <- c("gene_signature", "list")
+        results_list[[m]] <- result
+        
+      }, error = function(e) {
+        warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+        results_list[[m]] <- list(method = m, error = e$message)
+      })
+    }
+    
+    return(results_list)
+  } else {
+    # gam.k가 지정되어 있으면 v5.2를 그대로 사용
+    v52_call <- match.call()
+    v52_call[[1]] <- as.name("find_gene_signature_v5.2")
+    v52_call$gam.k_dynamic_factor <- NULL
+    return(eval(v52_call))
+  }
+}
+
 
 #' Train a Meta-Learner (L2 Stacking Model)
 #'

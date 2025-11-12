@@ -56,10 +56,38 @@ runMAST_v1 <- function(sobj,
   }
   
   # --- 1. SCA 객체 생성 및 정규화 ---
-  message("1/5: Seurat -> SingleCellExperiment(SCE) 객체 변환 중...")
+  message("1/5: Seurat -> SingleCellAssay(SCA) 객체 변환 중...")
   
-  # [수정] MAST Problem 1 해결: FromSeurat 대신 as.SingleCellExperiment 사용
-  sca <- as.SingleCellExperiment(sobj)
+  # MAST requires SingleCellAssay, not SingleCellExperiment
+  # Convert via SingleCellExperiment then to SCA using SceToSingleCellAssay
+  sce <- Seurat::as.SingleCellExperiment(sobj)
+  
+  # Use MAST::SceToSingleCellAssay for conversion
+  sca <- tryCatch({
+    MAST::SceToSingleCellAssay(sce)
+  }, error = function(e) {
+    # Fallback: use FromMatrix if SceToSingleCellAssay fails
+    warning("SceToSingleCellAssay failed, trying FromMatrix...")
+    counts_mat <- SummarizedExperiment::assay(sce, "counts")
+    if (is.null(counts_mat) || nrow(counts_mat) == 0) {
+      assay_names <- SummarizedExperiment::assayNames(sce)
+      if (length(assay_names) > 0) {
+        counts_mat <- SummarizedExperiment::assay(sce, assay_names[1])
+      } else {
+        stop("No counts matrix found in Seurat object")
+      }
+    }
+    if (inherits(counts_mat, "sparseMatrix")) {
+      counts_mat <- as.matrix(counts_mat)
+    }
+    cdata <- SummarizedExperiment::colData(sce)
+    fdata <- SummarizedExperiment::rowData(sce)
+    if (nrow(fdata) == 0 || !"primerid" %in% colnames(fdata)) {
+      fdata <- S4Vectors::DataFrame(primerid = rownames(counts_mat))
+      rownames(fdata) <- rownames(counts_mat)
+    }
+    MAST::FromMatrix(exprsArray = counts_mat, cData = cdata, fData = fdata, check_sanity = FALSE)
+  })
   
   # --- 2. 유전자 필터링 ---
   message(sprintf("2/5: 유전자 필터링 (min %d cells)...", min_cells_expr))
@@ -208,13 +236,32 @@ runNEBULA_v1 <- function(sobj,
   
   # --- 5. NEBULA 실행 ---
   message("5/6: NEBULA 실행 중 (NBLMM)...")
-  re_nebula <- nebula::nebula(
-    count = data_grouped$count,
-    id = data_grouped$id,
-    pred = data_grouped$pred,
-    offset = data_grouped$offset,
-    model = "NBLMM" # lme4::glmer.nb와 유사한 Lognormal random effect 권장
-  )
+  # Add stability options to prevent convergence issues
+  re_nebula <- tryCatch({
+    nebula::nebula(
+      count = data_grouped$count,
+      id = data_grouped$id,
+      pred = data_grouped$pred,
+      offset = data_grouped$offset,
+      model = "NBLMM", # lme4::glmer.nb와 유사한 Lognormal random effect 권장
+      method = "HL" # Use HL (Hessian-Laplace) method for stability
+    )
+  }, error = function(e) {
+    # If HL fails, try with fewer genes or different method
+    warning("NEBULA with HL method failed, trying with default settings...")
+    tryCatch({
+      nebula::nebula(
+        count = data_grouped$count,
+        id = data_grouped$id,
+        pred = data_grouped$pred,
+        offset = data_grouped$offset,
+        model = "NBLMM"
+      )
+    }, error = function(e2) {
+      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", 
+                   conditionMessage(e2)))
+    })
+  })
   
   # --- 6. 결과 반환 ---
   message("6/6: 분석 완료.")

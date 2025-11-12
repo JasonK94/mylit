@@ -1780,3 +1780,41 @@ find_gene_signature_v3 <- function(data,
   class(result) <- c("gene_signature", "list")
   return(result)
 }
+
+# ============================================================================
+# Find Gene Signature (FGS) Functions - v5.2 and v5.3
+# ============================================================================
+# These are aliases for find_gene_signature_v5.2 and find_gene_signature_v5.3
+# defined in test.R. They support both single-cell and pseudobulk data.
+# ============================================================================
+
+#' Find Gene Signature v5.2 (FGS_v5.2)
+#'
+#' @description
+#' Alias for \code{find_gene_signature_v5.2}. A comprehensive gene signature
+#' discovery function supporting multiple methods (tree-based, regularization,
+#' dimensionality reduction, statistical modeling). Supports both single-cell
+#' and pseudobulk data.
+#'
+#' @param ... All arguments passed to \code{find_gene_signature_v5.2}
+#' @return See \code{find_gene_signature_v5.2}
+#' @seealso \code{\link{find_gene_signature_v5.2}}, \code{\link{FGS_v5.3}}
+#' @export
+FGS_v5.2 <- function(...) {
+  find_gene_signature_v5.2(...)
+}
+
+#' Find Gene Signature v5.3 (FGS_v5.3)
+#'
+#' @description
+#' Alias for \code{find_gene_signature_v5.3}. Enhanced version of v5.2 with
+#' dynamic k adjustment for GAM based on unique value counts. Supports both
+#' single-cell and pseudobulk data.
+#'
+#' @param ... All arguments passed to \code{find_gene_signature_v5.3}
+#' @return See \code{find_gene_signature_v5.3}
+#' @seealso \code{\link{find_gene_signature_v5.3}}, \code{\link{FGS_v5.2}}
+#' @export
+FGS_v5.3 <- function(...) {
+  find_gene_signature_v5.3(...)
+}
