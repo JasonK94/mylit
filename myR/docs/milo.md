@@ -14,8 +14,11 @@ MiloR는 단일세포 RNA 시퀀싱 데이터에서 세포 유형 또는 상태�
 ### Block Method (블록 방법)
 Neighborhood 간의 비독립성을 고려하기 위한 블록 생성 방법:
 
-- **`"sample"`**: Cell name에서 sample ID를 추출하여 같은 sample에 속한 neighborhoods를 하나의 block으로 묶음
-  - Cell name에서 `S\d+$` 패턴 또는 처음 8자를 추출
+- **`"sample"`**: Sample ID를 기반으로 같은 sample에 속한 neighborhoods를 하나의 block으로 묶음
+  - **우선순위 1**: `patient_var` 파라미터가 제공되면 `colData(milo)`에서 직접 사용 (권장)
+  - **우선순위 2**: Cell name에서 추출
+    - 먼저 GEM well suffix (`-1`, `-2` 등)를 제거
+    - `S\d+$` 패턴 (예: "S1", "S2") 또는 처음 8자, 또는 첫 separator 이전 부분 추출
   - 각 neighborhood에 가장 많은 세포를 포함하는 sample을 할당
   - Sample-level 구조를 보존하여 permutation test의 타당성 확보
 
@@ -122,6 +125,7 @@ result <- run_milo_pipeline(
 | `test_methods` | 실행할 검정 방법 | `c("permutation", "neff")` |
 | `n_perm` | Permutation test 반복 횟수 | `2000` |
 | `max_nhoods` | 다운샘플링할 최대 neighborhood 수 | `NULL` |
+| `patient_var` | `colData(milo)`의 patient/sample ID 컬럼명 (권장) | `NULL` |
 | `seed` | 난수 시드 | `1` |
 | `verbose` | 진행 메시지 출력 여부 | `TRUE` |
 
@@ -138,14 +142,23 @@ result <- run_milo_pipeline(
 #### 사용 예시
 
 ```r
-# 기본 사용 (permutation + neff)
+# 기본 사용 (permutation + neff, patient_var 사용 권장)
 cluster_bias <- test_cluster_logfc_bias(
     da_results = da_results,
     milo = milo,
     cluster_col = "major_cluster",
     block_method = "sample",
+    patient_var = "patient_id",  # colData에서 직접 사용 (권장)
     test_methods = c("permutation", "neff"),
     n_perm = 2000
+)
+
+# patient_var 없이 cell name에서 추출 (fallback)
+cluster_bias_auto <- test_cluster_logfc_bias(
+    da_results = da_results,
+    milo = milo,
+    block_method = "sample",  # cell name에서 자동 추출 시도
+    test_methods = c("permutation", "neff")
 )
 
 # 다운샘플링으로 빠른 테스트

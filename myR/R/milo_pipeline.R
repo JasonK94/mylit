@@ -614,6 +614,7 @@ run_milo_pipeline <- function(
 #' @param test_methods Character vector; which tests to run: `"permutation"`, `"neff"`, `"lmm"`, `"ashr"`.
 #' @param n_perm Integer; number of permutations for block permutation test (default: 2000).
 #' @param max_nhoods Optional integer; if provided, randomly sample this many neighborhoods for faster testing.
+#' @param patient_var Optional character; column name in `colData(milo)` containing patient/sample IDs. If provided, this is used instead of extracting from cell names.
 #' @param seed Integer; random seed for reproducibility (default: 1).
 #' @param verbose Logical; emit progress messages.
 #'
@@ -637,6 +638,7 @@ test_cluster_logfc_bias <- function(
     test_methods = c("permutation", "neff"),
     n_perm = 2000L,
     max_nhoods = NULL,
+    patient_var = NULL,
     seed = 1L,
     verbose = TRUE
 ) {
@@ -657,21 +659,58 @@ test_cluster_logfc_bias <- function(
 
     # Restore or create block variable
     if (block_method == "sample") {
-        # Get cell information from nhoods matrix (cells × nhoods)
-        W <- miloR::nhoods(milo)
-        cells <- rownames(W)
-        if (is.null(cells)) {
-            cells <- rownames(SingleCellExperiment::colData(milo))
+        sample_id <- NULL
+        
+        # Method 1: Use patient_var from colData if provided (preferred)
+        if (!is.null(patient_var) && patient_var %in% names(SingleCellExperiment::colData(milo))) {
+            cell_meta <- as.data.frame(SingleCellExperiment::colData(milo))
+            cell_sample_id <- as.character(cell_meta[[patient_var]])
+            names(cell_sample_id) <- rownames(cell_meta)
+            
+            W <- miloR::nhoods(milo)
+            cells <- rownames(W)
+            if (is.null(cells)) {
+                cells <- rownames(SingleCellExperiment::colData(milo))
+            }
+            sample_id <- cell_sample_id[cells]
+            
+            if (any(is.na(sample_id)) || length(unique(sample_id)) < 2) {
+                if (verbose) cli::cli_warn("patient_var has insufficient unique values; falling back to cell name extraction.")
+                sample_id <- NULL
+            }
         }
-        sample_id <- stringr::str_extract(cells, "S\\d+$")
-        if (all(is.na(sample_id))) {
-            sample_id <- substr(cells, 1, 8)
+        
+        # Method 2: Extract from cell names (fallback)
+        if (is.null(sample_id) || all(is.na(sample_id))) {
+            W <- miloR::nhoods(milo)
+            cells <- rownames(W)
+            if (is.null(cells)) {
+                cells <- rownames(SingleCellExperiment::colData(milo))
+            }
+            
+            # Try to extract sample ID from cell names
+            # First, remove GEM well suffix (e.g., "-1", "-2") if present
+            cells_clean <- sub("-\\d+$", "", cells)
+            
+            # Try pattern "S\\d+$" (e.g., "S1", "S2")
+            sample_id <- stringr::str_extract(cells_clean, "S\\d+$")
+            if (all(is.na(sample_id))) {
+                # Try first 8 characters (common in some naming schemes)
+                sample_id <- substr(cells_clean, 1, 8)
+            }
+            if (all(is.na(sample_id))) {
+                # Last resort: use first part before any separator
+                sample_id <- sub("[-_].*$", "", cells_clean)
+            }
         }
+        
+        # Validate extracted sample IDs
         if (all(is.na(sample_id)) || length(unique(sample_id)) < 2) {
-            if (verbose) cli::cli_warn("Could not extract sample_id from cell names; falling back to community blocks.")
+            if (verbose) cli::cli_warn("Could not extract sample_id from cell names or metadata; falling back to community blocks.")
             block_method <- "community"
         } else {
             S <- Matrix::sparse.model.matrix(~0 + factor(sample_id))
+            W <- miloR::nhoods(milo)
             # S is cells × samples, W is cells × nhoods
             # t(S) is samples × cells, so t(S) %*% W is samples × nhoods
             C_samp <- Matrix::t(S) %*% W
