@@ -97,6 +97,8 @@
   - `context_Korean.md`에 Milo 분석 시 필수 전처리(`buildNhoodGraph`)와 `nhoods(milo)` 슬롯 명명 이슈, `plotDAbeeswarm` 파라미터 가이드를 교훈으로 추가.
   - 저장 단계별 `force_run` 플래그와 자동 suffix 증분 규칙을 포함하는 런너 구조를 구상.
   - plotting 단계는 독립 함수로 분리하되, 기본 파이프라인에서 실행 여부를 인자로 제어하도록 설계.
+- **주의사항**:
+  - Milo 파이프라인 개발·테스트는 `st/` 경로에서 `start.R`로 `renv` 환경을 활성화한 뒤 진행해야 한다. 루트에서 R을 실행하면 필수 패키지가 로드되지 않아 오류가 재현된다.
 - **다음 단계**:
   - `myR/R/analysis/` 하위에 Milo 파이프라인 R 스크립트를 추가하고, Seurat → Milo 변환·검정·시각화를 함수화.
   - 제공된 `IS5_g3NA_removal_251110.qs`를 사용해 논인터랙티브 테스트를 수행하고, 경량 저장 옵션을 검토.
