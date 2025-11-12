@@ -1598,7 +1598,101 @@ scatter_smooth_colored <- function(object,
   return(p)
 }
 
+#' @export
+plot_embedding <- function(
+  plot_df,
+  x_col = "UMAP1",
+  y_col = "UMAP2",
+  color_by,
+  title = NULL,
+  # 점 스타일
+  point_size = 2.5,
+  point_alpha = 0.9,
+  shape = 16,
+  # 라벨
+  label = FALSE,
+  label_col = NULL,
+  label_size = 3,
+  # 연속형 팔레트 옵션
+  cont_palette = "magma",     # "magma","plasma","inferno","viridis","cividis","turbo"
+  cont_limits = NULL,
+  cont_midpoint = NULL,       # 중심값 옵션
+  # 이산형 팔레트 옵션
+  disc_palette = "OkabeIto",  # "OkabeIto","Set1","Set2","Paired","Dark2"
+  na_color = "grey80"
+) {
+  # --- 필수 컬럼 확인 ---
+  need <- c(x_col, y_col, color_by)
+  miss <- setdiff(need, colnames(plot_df))
+  if (length(miss)) stop("Missing columns in `plot_df`: ", paste(miss, collapse = ", "))
 
+  if (is.null(title)) title <- paste("Embedding colored by", color_by)
+
+  v <- plot_df[[color_by]]
+  is_cont <- is.numeric(v) || is.integer(v)
+  if (!is_cont && is.character(v)) plot_df[[color_by]] <- factor(v)
+
+  p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data[[x_col]], y = .data[[y_col]])) +
+    ggplot2::geom_point(
+      ggplot2::aes(color = .data[[color_by]]),
+      size = point_size, alpha = point_alpha, shape = shape
+    ) +
+    ggplot2::labs(x = x_col, y = y_col, color = color_by, title = title) +
+    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(panel.grid = ggplot2::element_line(color = "grey90"),
+                   legend.position = "right")
+
+  # --- 스케일 ---
+  if (is_cont) {
+    if (is.null(cont_midpoint)) {
+      p <- p + viridis::scale_color_viridis(
+        option = cont_palette, na.value = na_color, limits = cont_limits
+      )
+    } else {
+      p <- p + ggplot2::scale_color_gradient2(
+        low = viridisLite::viridis(3, option = cont_palette)[1],
+        mid = viridisLite::viridis(3, option = cont_palette)[2],
+        high = viridisLite::viridis(3, option = cont_palette)[3],
+        midpoint = cont_midpoint,
+        na.value = na_color,
+        name = color_by,
+        limits = cont_limits
+      )
+    }
+  } else {
+    lv <- length(levels(factor(plot_df[[color_by]])))
+    cols <- switch(
+      disc_palette,
+      "OkabeIto" = c("#000000","#E69F00","#56B4E9","#009E73",
+                     "#F0E442","#0072B2","#D55E00","#CC79A7","#999999"),
+      "Set1" = RColorBrewer::brewer.pal(9, "Set1"),
+      "Set2" = RColorBrewer::brewer.pal(8, "Set2"),
+      "Paired" = RColorBrewer::brewer.pal(12, "Paired"),
+      "Dark2" = RColorBrewer::brewer.pal(8, "Dark2"),
+      stop("Unknown disc_palette: choose one of OkabeIto, Set1, Set2, Paired, Dark2")
+    )
+    cols <- rep(cols, length.out = lv)
+    p <- p + ggplot2::scale_color_manual(values = cols, na.value = na_color)
+  }
+
+  # --- 라벨 ---
+  if (label) {
+    if (is.null(label_col) || !label_col %in% colnames(plot_df)) {
+      warning("`label=TRUE` but `label_col` missing. Skipping labels.", call. = FALSE)
+    } else if (requireNamespace("ggrepel", quietly = TRUE)) {
+      p <- p + ggrepel::geom_text_repel(
+        ggplot2::aes(label = .data[[label_col]]),
+        size = label_size, max.overlaps = Inf, min.segment.length = 0
+      )
+    } else {
+      p <- p + ggplot2::geom_text(
+        ggplot2::aes(label = .data[[label_col]]), size = label_size
+      )
+    }
+  }
+
+  p
+}
 
 
 
