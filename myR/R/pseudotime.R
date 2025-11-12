@@ -1826,3 +1826,305 @@ analyze_metadata_correlation_dynamics <- function(cds_obj,
   
   return(result)
 }
+
+
+#' Detect complex expression patterns along pseudotime
+#'
+#' This function identifies various expression patterns (increasing, decreasing,
+#' oscillatory, bimodal) along pseudotime using statistical methods.
+#'
+#' @param cds_obj A Monocle3 cell_data_set object with pseudotime calculated.
+#' @param gene_id Character string, the gene ID to analyze.
+#' @param pseudotime_method Function or character string to extract pseudotime.
+#'   Defaults to `monocle3::pseudotime`.
+#' @param pattern_types Character vector. Patterns to detect: "increasing", "decreasing",
+#'   "oscillatory", "bimodal", "constant". Default is all patterns.
+#' @param min_cells_for_analysis Integer. Minimum number of cells required.
+#'   Default is 30.
+#' @param oscillatory_threshold Numeric. Threshold for oscillatory pattern detection
+#'   (based on Fourier analysis). Default is 0.3.
+#' @param bimodal_threshold Numeric. Threshold for bimodal pattern detection
+#'   (based on dip test). Default is 0.05.
+#'
+#' @return A list containing:
+#'   \itemize{
+#'     \item `gene`: The input gene ID.
+#'     \item `detected_patterns`: Character vector of detected patterns.
+#'     \item `pattern_scores`: Scores for each pattern type.
+#'     \item `pattern_details`: Detailed statistics for each pattern.
+#'   }
+#'
+#' @import monocle3
+#' @import mgcv
+#' @importFrom stats cor.test lm dip.test
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Detect patterns for a gene
+#' patterns <- detect_expression_patterns(
+#'   cds_obj = cds,
+#'   gene_id = "DDIT4"
+#' )
+#' 
+#' # View detected patterns
+#' print(patterns$detected_patterns)
+#' }
+detect_expression_patterns <- function(cds_obj,
+                                       gene_id,
+                                       pseudotime_method = monocle3::pseudotime,
+                                       pattern_types = c("increasing", "decreasing", 
+                                                        "oscillatory", "bimodal", "constant"),
+                                       min_cells_for_analysis = 30,
+                                       oscillatory_threshold = 0.3,
+                                       bimodal_threshold = 0.05) {
+  
+  # --- 0. Input Validation ---
+  if (!is(cds_obj, "cell_data_set")) {
+    stop("cds_obj must be a Monocle3 cell_data_set object.", call. = FALSE)
+  }
+  
+  if (!gene_id %in% rownames(counts(cds_obj))) {
+    stop("Gene '", gene_id, "' not found in cds_obj.", call. = FALSE)
+  }
+  
+  pattern_types <- match.arg(pattern_types, 
+                            c("increasing", "decreasing", "oscillatory", "bimodal", "constant"),
+                            several.ok = TRUE)
+  
+  # Extract pseudotime
+  pt_values <- tryCatch({
+    if (is.character(pseudotime_method)) {
+      eval(parse(text = pseudotime_method))(cds_obj)
+    } else if (is.function(pseudotime_method)) {
+      pseudotime_method(cds_obj)
+    } else {
+      stop("pseudotime_method must be a function or character string.", call. = FALSE)
+    }
+  }, error = function(e) {
+    stop("Could not extract pseudotime: ", e$message, call. = FALSE)
+  })
+  
+  # Extract gene expression
+  gene_expr <- as.numeric(counts(cds_obj)[gene_id, ])
+  names(gene_expr) <- colnames(cds_obj)
+  
+  # Align data
+  common_cells <- intersect(names(pt_values), names(gene_expr))
+  if (length(common_cells) < min_cells_for_analysis) {
+    stop("Too few cells (", length(common_cells), "). Need at least ", 
+         min_cells_for_analysis, ".", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[common_cells]
+  gene_expr <- gene_expr[common_cells]
+  
+  # Filter finite values
+  valid_idx <- is.finite(pt_values) & is.finite(gene_expr)
+  if (sum(valid_idx) < min_cells_for_analysis) {
+    stop("Too few cells with finite values (", sum(valid_idx), ").", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[valid_idx]
+  gene_expr <- gene_expr[valid_idx]
+  
+  # Order by pseudotime
+  order_idx <- order(pt_values)
+  pt_values <- pt_values[order_idx]
+  gene_expr <- gene_expr[order_idx]
+  
+  # --- 1. Initialize results ---
+  pattern_scores <- list()
+  pattern_details <- list()
+  detected_patterns <- character(0)
+  
+  # --- 2. Increasing/Decreasing patterns ---
+  if ("increasing" %in% pattern_types || "decreasing" %in% pattern_types) {
+    # Fit linear model
+    linear_model <- tryCatch({
+      lm(gene_expr ~ pt_values)
+    }, error = function(e) NULL)
+    
+    if (!is.null(linear_model)) {
+      slope <- coef(linear_model)[2]
+      slope_pval <- summary(linear_model)$coefficients[2, 4]
+      r_squared <- summary(linear_model)$r.squared
+      
+      pattern_details$linear_trend <- list(
+        slope = slope,
+        p_value = slope_pval,
+        r_squared = r_squared
+      )
+      
+      if ("increasing" %in% pattern_types) {
+        increasing_score <- if (slope > 0 && slope_pval < 0.05) {
+          abs(slope) * r_squared
+        } else {
+          0
+        }
+        pattern_scores$increasing <- increasing_score
+        
+        if (increasing_score > 0.1) {
+          detected_patterns <- c(detected_patterns, "increasing")
+        }
+      }
+      
+      if ("decreasing" %in% pattern_types) {
+        decreasing_score <- if (slope < 0 && slope_pval < 0.05) {
+          abs(slope) * r_squared
+        } else {
+          0
+        }
+        pattern_scores$decreasing <- decreasing_score
+        
+        if (decreasing_score > 0.1) {
+          detected_patterns <- c(detected_patterns, "decreasing")
+        }
+      }
+    }
+  }
+  
+  # --- 3. Oscillatory pattern (Fourier analysis) ---
+  if ("oscillatory" %in% pattern_types) {
+    # Detrend the data first
+    if (exists("linear_model") && !is.null(linear_model)) {
+      detrended_expr <- residuals(linear_model)
+    } else {
+      detrended_expr <- gene_expr - mean(gene_expr)
+    }
+    
+    # Simple Fourier analysis
+    # Look for periodic patterns
+    n <- length(detrended_expr)
+    if (n >= 10) {
+      # Use FFT to detect periodicity
+      fft_result <- fft(detrended_expr)
+      power_spectrum <- Mod(fft_result)^2
+      
+      # Focus on low frequencies (periodic patterns)
+      # Exclude DC component (first element)
+      low_freq_power <- mean(power_spectrum[2:min(10, length(power_spectrum))])
+      total_power <- sum(power_spectrum[-1])
+      
+      oscillatory_score <- if (total_power > 0) {
+        low_freq_power / total_power
+      } else {
+        0
+      }
+      
+      pattern_scores$oscillatory <- oscillatory_score
+      pattern_details$oscillatory <- list(
+        low_freq_power = low_freq_power,
+        total_power = total_power,
+        score = oscillatory_score
+      )
+      
+      if (oscillatory_score > oscillatory_threshold) {
+        detected_patterns <- c(detected_patterns, "oscillatory")
+      }
+    } else {
+      pattern_scores$oscillatory <- 0
+      pattern_details$oscillatory <- list(score = 0, note = "insufficient_data")
+    }
+  }
+  
+  # --- 4. Bimodal pattern (dip test) ---
+  if ("bimodal" %in% pattern_types) {
+    # Test for bimodality using dip test
+    if (requireNamespace("diptest", quietly = TRUE)) {
+      dip_result <- tryCatch({
+        diptest::dip.test(gene_expr)
+      }, error = function(e) NULL)
+      
+      if (!is.null(dip_result)) {
+        dip_statistic <- dip_result$statistic
+        dip_pvalue <- dip_result$p.value
+        
+        bimodal_score <- if (dip_pvalue < bimodal_threshold) {
+          1 - dip_pvalue
+        } else {
+          0
+        }
+        
+        pattern_scores$bimodal <- bimodal_score
+        pattern_details$bimodal <- list(
+          dip_statistic = dip_statistic,
+          p_value = dip_pvalue,
+          score = bimodal_score
+        )
+        
+        if (bimodal_score > 0.5) {
+          detected_patterns <- c(detected_patterns, "bimodal")
+        }
+      } else {
+        pattern_scores$bimodal <- 0
+        pattern_details$bimodal <- list(score = 0, note = "test_failed")
+      }
+    } else {
+      # Fallback: simple variance-based heuristic
+      expr_var <- var(gene_expr, na.rm = TRUE)
+      expr_mean <- mean(gene_expr, na.rm = TRUE)
+      cv <- if (expr_mean > 0) sqrt(expr_var) / expr_mean else 0
+      
+      # High coefficient of variation might indicate bimodality
+      bimodal_score <- if (cv > 1.0) {
+        min(1.0, cv / 2.0)
+      } else {
+        0
+      }
+      
+      pattern_scores$bimodal <- bimodal_score
+      pattern_details$bimodal <- list(
+        coefficient_of_variation = cv,
+        score = bimodal_score,
+        note = "diptest_not_available"
+      )
+      
+      if (bimodal_score > 0.5) {
+        detected_patterns <- c(detected_patterns, "bimodal")
+      }
+    }
+  }
+  
+  # --- 5. Constant pattern ---
+  if ("constant" %in% pattern_types) {
+    # Test for constant expression (low variance relative to mean)
+    expr_var <- var(gene_expr, na.rm = TRUE)
+    expr_mean <- mean(gene_expr, na.rm = TRUE)
+    
+    # Coefficient of variation
+    cv <- if (expr_mean > 0) sqrt(expr_var) / expr_mean else 0
+    
+    # Low CV indicates constant expression
+    constant_score <- if (cv < 0.1) {
+      1 - cv * 10
+    } else {
+      0
+    }
+    
+    pattern_scores$constant <- constant_score
+    pattern_details$constant <- list(
+      coefficient_of_variation = cv,
+      variance = expr_var,
+      mean = expr_mean,
+      score = constant_score
+    )
+    
+    if (constant_score > 0.5) {
+      detected_patterns <- c(detected_patterns, "constant")
+    }
+  }
+  
+  # --- 6. Return results ---
+  if (length(detected_patterns) == 0) {
+    detected_patterns <- "none"
+  }
+  
+  return(list(
+    gene = gene_id,
+    detected_patterns = detected_patterns,
+    pattern_scores = pattern_scores,
+    pattern_details = pattern_details,
+    n_cells = length(gene_expr)
+  ))
+}
