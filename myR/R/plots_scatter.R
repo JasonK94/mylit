@@ -59,9 +59,15 @@ plot_scatter <- function(data,
                          aggregate_by = NULL,
                          transpose = FALSE,
                          fitted_line = c("linear", "loess", "lasso"),
+                         each_fit = FALSE,
+                         show_stats = TRUE,
+                         stats_in_legend = FALSE,
                          palette = NULL,
                          transparency = TRUE,
                          transparency_desc = FALSE,
+                         shape.group.by = NULL,
+                         remove_na = FALSE,
+                         label = FALSE,
                          assay = NULL,
                          layer = "data",
                          metadata_df = NULL,
@@ -180,6 +186,26 @@ plot_scatter <- function(data,
     plot_df <- agg_df
   }
   
+  # Remove NA values if requested
+  if (remove_na) {
+    na_before <- nrow(plot_df)
+    plot_df <- plot_df[!is.na(plot_df$avg_expr) & !is.na(plot_df$x_val), ]
+    na_removed <- na_before - nrow(plot_df)
+    if (na_removed > 0) {
+      warning("Removed ", na_removed, " rows with NA values")
+    }
+  }
+  
+  # Handle shape.group.by
+  if (!is.null(shape.group.by)) {
+    if (shape.group.by %in% names(plot_df)) {
+      plot_df$shape_var <- as.factor(plot_df[[shape.group.by]])
+    } else {
+      warning("shape.group.by '", shape.group.by, "' not found, ignoring")
+      shape.group.by <- NULL
+    }
+  }
+  
   # Set axis columns
   x_col <- if (transpose) "avg_expr" else "x_val"
   y_col <- if (transpose) "x_val" else "avg_expr"
@@ -254,10 +280,20 @@ plot_scatter <- function(data,
       p <- p + ggplot2::scale_colour_gradientn(colours = pal, name = color_by)
       
     } else {
-      p <- p + ggplot2::geom_point(
-        ggplot2::aes(colour = colour),
-        size = point_size
-      )
+      # Add shape if shape.group.by is specified
+      if (!is.null(shape.group.by) && "shape_var" %in% names(plot_df)) {
+        p <- p + ggplot2::geom_point(
+          ggplot2::aes(colour = colour, shape = shape_var),
+          size = point_size
+        )
+        n_shapes <- length(unique(plot_df$shape_var))
+        p <- p + ggplot2::scale_shape_manual(values = 1:min(n_shapes, 6), name = shape.group.by)
+      } else {
+        p <- p + ggplot2::geom_point(
+          ggplot2::aes(colour = colour),
+          size = point_size
+        )
+      }
       
       n_levels <- length(unique(plot_df$colour))
       pal <- if (is.null(palette)) RColorBrewer::brewer.pal(max(3, n_levels), "Set1") else palette
@@ -268,7 +304,35 @@ plot_scatter <- function(data,
     }
     
   } else {
-    p <- p + ggplot2::geom_point(size = point_size)
+    # No color_by or split.by
+    if (!is.null(shape.group.by) && "shape_var" %in% names(plot_df)) {
+      p <- p + ggplot2::geom_point(
+        ggplot2::aes(shape = shape_var),
+        size = point_size
+      )
+      n_shapes <- length(unique(plot_df$shape_var))
+      p <- p + ggplot2::scale_shape_manual(values = 1:min(n_shapes, 6), name = shape.group.by)
+    } else {
+      p <- p + ggplot2::geom_point(size = point_size)
+    }
+  }
+  
+  # Add labels if requested
+  if (label && group.by %in% names(plot_df)) {
+    if (requireNamespace("ggrepel", quietly = TRUE)) {
+      p <- p + ggrepel::geom_text_repel(
+        ggplot2::aes(label = .data[[group.by]]),
+        size = 3,
+        max.overlaps = Inf
+      )
+    } else {
+      p <- p + ggplot2::geom_text(
+        ggplot2::aes(label = .data[[group.by]]),
+        size = 3,
+        hjust = 0,
+        vjust = 0
+      )
+    }
   }
   
   # Add smoothing line
@@ -281,7 +345,88 @@ plot_scatter <- function(data,
       NULL
     )
     
-    if (!is.null(split.by)) {
+    # Handle each_fit: fit separately for each color_by group
+    if (each_fit && !is.null(color_by) && "colour" %in% names(plot_df) && !is.numeric(plot_df$colour)) {
+      # Fit separately for each color group
+      if (fitted_line == "lasso") {
+        warning("Lasso smoothing not supported with each_fit, using linear")
+        method_val <- "lm"
+      }
+      
+      p <- p + ggplot2::geom_smooth(
+        ggplot2::aes(colour = colour, group = colour),
+        method = method_val,
+        se = TRUE,
+        show.legend = if(stats_in_legend) "line" else FALSE
+      )
+      
+      # Add statistics for each group
+      if (show_stats && fitted_line == "linear") {
+        color_levels <- unique(plot_df$colour)
+        color_levels <- color_levels[!is.na(color_levels)]
+        stats_list <- list()
+        
+        # Get palette for color matching
+        n_levels <- length(unique(plot_df$colour))
+        pal <- if (is.null(palette)) RColorBrewer::brewer.pal(max(3, n_levels), "Set1") else palette
+        if (length(pal) < n_levels) {
+          pal <- grDevices::colorRampPalette(pal)(n_levels)
+        }
+        
+        for (clr in color_levels) {
+          plot_df_sub <- plot_df[plot_df$colour == clr & !is.na(plot_df$colour), ]
+          if (nrow(plot_df_sub) >= 2) {
+            fit <- tryCatch(
+              stats::lm(plot_df_sub[[y_col]] ~ plot_df_sub[[x_col]]),
+              error = function(e) NULL
+            )
+            if (!is.null(fit) && nrow(summary(fit)$coefficients) >= 2) {
+              coef <- round(stats::coef(fit), 3)
+              pval <- signif(summary(fit)$coefficients[2, 4], 3)
+              stats_list[[as.character(clr)]] <- list(
+                coef = coef,
+                pval = pval,
+                color = clr,
+                x_pos = min(plot_df_sub[[x_col]], na.rm = TRUE),
+                y_pos = max(plot_df_sub[[y_col]], na.rm = TRUE)
+              )
+            }
+          }
+        }
+        
+        # Add annotations
+        if (length(stats_list) > 0) {
+          # Get factor levels for color matching
+          color_factor <- as.factor(plot_df$colour)
+          color_levels_factor <- levels(color_factor)
+          
+          y_offset <- 0
+          for (i in seq_along(stats_list)) {
+            st <- stats_list[[i]]
+            annot <- paste0(st$color, ": y=", st$coef[1], "+", st$coef[2], "x, p=", st$pval)
+            # Get color from palette
+            clr_idx <- which(color_levels_factor == as.character(st$color))
+            if (length(clr_idx) > 0 && clr_idx <= length(pal)) {
+              text_color <- pal[clr_idx]
+            } else {
+              text_color <- "black"
+            }
+            p <- p + ggplot2::annotate(
+              "text",
+              x = st$x_pos,
+              y = st$y_pos - y_offset * (max(plot_df[[y_col]], na.rm = TRUE) - min(plot_df[[y_col]], na.rm = TRUE)) * 0.05,
+              label = annot,
+              hjust = 0,
+              vjust = 1,
+              size = 3,
+              color = text_color
+            )
+            y_offset <- y_offset + 1
+          }
+        }
+      }
+      
+    } else if (!is.null(split.by)) {
       # Split by smoothing
       if (fitted_line == "lasso") {
         warning("Lasso smoothing not supported with split.by, using linear")
@@ -301,23 +446,25 @@ plot_scatter <- function(data,
         p <- p + ggplot2::geom_smooth(method = "lm", se = TRUE, colour = "black")
         
         # Add statistics annotation
-        fit <- tryCatch(
-          stats::lm(plot_df[[y_col]] ~ plot_df[[x_col]]),
-          error = function(e) NULL
-        )
-        if (!is.null(fit) && nrow(summary(fit)$coefficients) >= 2) {
-          coef <- round(stats::coef(fit), 3)
-          pval <- signif(summary(fit)$coefficients[2, 4], 3)
-          annot <- paste0("y = ", coef[1], " + ", coef[2], " * x\np = ", pval)
-          p <- p + ggplot2::annotate(
-            "text",
-            x = min(plot_df[[x_col]], na.rm = TRUE),
-            y = max(plot_df[[y_col]], na.rm = TRUE),
-            label = annot,
-            hjust = 0,
-            vjust = 1,
-            size = 4
+        if (show_stats) {
+          fit <- tryCatch(
+            stats::lm(plot_df[[y_col]] ~ plot_df[[x_col]]),
+            error = function(e) NULL
           )
+          if (!is.null(fit) && nrow(summary(fit)$coefficients) >= 2) {
+            coef <- round(stats::coef(fit), 3)
+            pval <- signif(summary(fit)$coefficients[2, 4], 3)
+            annot <- paste0("y = ", coef[1], " + ", coef[2], " * x\np = ", pval)
+            p <- p + ggplot2::annotate(
+              "text",
+              x = min(plot_df[[x_col]], na.rm = TRUE),
+              y = max(plot_df[[y_col]], na.rm = TRUE),
+              label = annot,
+              hjust = 0,
+              vjust = 1,
+              size = 4
+            )
+          }
         }
         
       } else if (fitted_line == "loess") {

@@ -61,6 +61,9 @@ plot_heatmap_genes <- function(data,
                                agg_fun = "mean",
                                normalize = TRUE,
                                normalize_by = c("row", "column", "both"),
+                               normalize_transpose = FALSE,
+                               remove_na = FALSE,
+                               show_group_separator = TRUE,
                                assay = NULL,
                                layer = "data",
                                metadata_df = NULL,
@@ -76,6 +79,16 @@ plot_heatmap_genes <- function(data,
                                return_data = FALSE) {
   
   normalize_by <- match.arg(normalize_by)
+  
+  # If normalize_transpose is TRUE, swap row/column normalization
+  if (normalize_transpose) {
+    if (normalize_by == "row") {
+      normalize_by <- "column"
+    } else if (normalize_by == "column") {
+      normalize_by <- "row"
+    }
+    # "both" stays "both"
+  }
   
   # Helper function for NULL coalescing
   `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -177,6 +190,16 @@ plot_heatmap_genes <- function(data,
     heatmap_df$Gene <- factor(heatmap_df$Gene, levels = all_col_names)
     heatmap_df[[split.by]] <- factor(heatmap_df[[split.by]], levels = split_values)
     
+    # Remove NA values if requested
+    if (remove_na) {
+      na_before <- nrow(heatmap_df)
+      heatmap_df <- heatmap_df[!is.na(heatmap_df$Zscore), ]
+      na_removed <- na_before - nrow(heatmap_df)
+      if (na_removed > 0) {
+        warning("Removed ", na_removed, " rows with NA Zscore values")
+      }
+    }
+    
   } else {
     # No split.by - original logic
     heatmap_matrix <- .reshape_for_heatmap(
@@ -267,13 +290,14 @@ plot_heatmap_genes <- function(data,
     )) +
       ggplot2::geom_tile() +
       ggplot2::facet_wrap(ggplot2::vars(.data[[split.by]]), scales = "free_x", nrow = 1) +
-    ggplot2::scale_fill_gradient2(
-      low = if(is.null(color_palette)) "blue" else color_palette[1],
-      mid = if(is.null(color_palette)) "white" else color_palette[2],
-      high = if(is.null(color_palette)) "red" else color_palette[3],
-      midpoint = 0,
-      name = if(normalize) "Z-score" else "Expression"
-    ) +
+      ggplot2::scale_fill_gradient2(
+        low = if(is.null(color_palette)) "blue" else color_palette[1],
+        mid = if(is.null(color_palette)) "white" else color_palette[2],
+        high = if(is.null(color_palette)) "red" else color_palette[3],
+        midpoint = 0,
+        name = if(normalize) "Z-score" else "Expression",
+        na.value = "grey90"
+      ) +
       ggplot2::theme_minimal() +
       ggplot2::labs(
         title = if (is.null(title)) "Normalized Gene Expression" else title,
@@ -320,6 +344,30 @@ plot_heatmap_genes <- function(data,
         axis.title.y = ggplot2::element_text(face = "bold", size = 14),
         plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5)
       )
+    
+    # Add vertical separator lines between groups if requested
+    if (show_group_separator && nlevels(heatmap_df[[group.by]]) > 1) {
+      # Calculate positions for vertical lines between groups
+      group_levels <- levels(heatmap_df[[group.by]])
+      n_groups <- length(group_levels)
+      
+      if (n_groups > 1) {
+        # Get x positions (0.5 between each group)
+        # Convert factor positions to numeric
+        x_positions <- seq(0.5, n_groups - 0.5, by = 1)
+        x_positions <- x_positions[-c(1, length(x_positions))]  # Remove first and last
+        
+        if (length(x_positions) > 0) {
+          p <- p + ggplot2::geom_vline(
+            xintercept = x_positions,
+            linetype = "dashed",
+            color = "black",
+            linewidth = 0.5,
+            alpha = 0.5
+          )
+        }
+      }
+    }
   }
   
   if (!show_rownames) {

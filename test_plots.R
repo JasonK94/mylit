@@ -126,7 +126,9 @@ test_plots <- function(sobj,
         color_by = split.by,  # Color by g3 to see groups
         aggregate = TRUE,  # Aggregate by cluster
         aggregate_by = group.by,
-        fitted_line = "linear"
+        fitted_line = "linear",
+        each_fit = TRUE,  # Fit separately for each g3 group
+        show_stats = TRUE
       )
       ggsave(file.path(output_dir, "01_scatter_cluster.png"), 
              p_scatter_cluster, width = 10, height = 7, dpi = 300)
@@ -149,7 +151,9 @@ test_plots <- function(sobj,
       aggregate = TRUE,
       aggregate_by = group.by,
       normalize = TRUE,
-      normalize_by = "row",  # Normalize by gene (row)
+      normalize_by = "row",  # Normalize by gene (row) - default
+      normalize_transpose = FALSE,  # Keep row normalization
+      show_group_separator = TRUE,  # Add vertical lines between groups
       title = paste("Cluster-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "02_heatmap_cluster.png"), 
@@ -179,7 +183,9 @@ test_plots <- function(sobj,
         color_by = split.by,  # Color by g3
         aggregate = TRUE,
         aggregate_by = sample_col,  # Aggregate by patient only
-        fitted_line = "linear"
+        fitted_line = "linear",
+        each_fit = TRUE,  # Fit separately for each g3 group
+        show_stats = TRUE
       )
       ggsave(file.path(output_dir, "03_scatter_patient.png"), 
              p_scatter_patient, width = 12, height = 7, dpi = 300)
@@ -203,7 +209,9 @@ test_plots <- function(sobj,
       aggregate = TRUE,
       aggregate_by = sample_col,  # Aggregate by patient
       normalize = TRUE,
-      normalize_by = "row",  # Normalize by gene (row)
+      normalize_by = "row",  # Normalize by gene (row) - default
+      normalize_transpose = FALSE,  # Keep row normalization
+      show_group_separator = TRUE,  # Add vertical lines between groups
       title = paste("Patient-level (split by", split.by, "):", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "04_heatmap_patient.png"), 
@@ -237,7 +245,8 @@ test_plots <- function(sobj,
           group.by = split.by,
           aggregate = TRUE,
           aggregate_by = split.by,
-          fitted_line = "linear"
+          fitted_line = "linear",
+          label = TRUE  # Default label for group-level
         )
         ggsave(file.path(output_dir, "05_scatter_group.png"), 
                p_scatter_group, width = 10, height = 7, dpi = 300)
@@ -263,7 +272,10 @@ test_plots <- function(sobj,
       aggregate = TRUE,
       aggregate_by = split.by,
       normalize = TRUE,
-      normalize_by = "row",  # Normalize by gene (row)
+      normalize_by = "row",  # Normalize by gene (row) - default
+      normalize_transpose = FALSE,  # Keep row normalization
+      remove_na = TRUE,  # Remove NA values
+      show_group_separator = TRUE,  # Add vertical lines between groups
       title = paste("Group-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "06_heatmap_group.png"), 
