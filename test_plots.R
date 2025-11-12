@@ -8,7 +8,7 @@
 #' 3. Group-level: group x feature (split: g3)
 
 # Load required libraries with error checking
-required_packages <- c("Seurat", "ggplot2", "dplyr", "patchwork", "rlang", "tidyr", "viridisLite", "RColorBrewer")
+required_packages <- c("Seurat", "ggplot2", "dplyr", "patchwork", "tidyr", "viridisLite", "RColorBrewer")
 missing_packages <- required_packages[!sapply(required_packages, requireNamespace, quietly = TRUE)]
 
 if (length(missing_packages) > 0) {
