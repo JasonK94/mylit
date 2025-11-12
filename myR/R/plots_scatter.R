@@ -56,6 +56,7 @@ plot_scatter <- function(data,
                          split.by = NULL,
                          color_by = NULL,
                          aggregate = TRUE,
+                         aggregate_by = NULL,
                          transpose = FALSE,
                          fitted_line = c("linear", "loess", "lasso"),
                          palette = NULL,
@@ -82,6 +83,13 @@ plot_scatter <- function(data,
   
   # Prepare data
   if (aggregate) {
+    # Determine aggregation variables
+    if (is.null(aggregate_by)) {
+      # Include split.by in aggregation if provided
+      aggregate_by <- unique(c(group.by, split.by))
+      aggregate_by <- aggregate_by[!is.null(aggregate_by)]
+    }
+    
     plot_df <- .prepare_data_with_aggregation(
       data = data,
       features = c(feature, x_var),
@@ -89,7 +97,7 @@ plot_scatter <- function(data,
       split.by = split.by,
       sample_col = group.by,
       aggregate = TRUE,
-      aggregate_by = group.by,
+      aggregate_by = aggregate_by,
       agg_fun = "mean",
       assay = assay,
       layer = layer,
@@ -180,7 +188,12 @@ plot_scatter <- function(data,
       stop("split.by column '", split.by, "' not found in aggregated data")
     }
     
-    plot_df$split_col <- as.factor(plot_df$split_col)
+    # Convert to factor, handling numeric values
+    if (is.numeric(plot_df$split_col)) {
+      plot_df$split_col <- as.factor(as.character(plot_df$split_col))
+    } else {
+      plot_df$split_col <- as.factor(plot_df$split_col)
+    }
     p <- p + ggplot2::geom_point(
       ggplot2::aes(colour = .data[["split_col"]]),
       size = point_size

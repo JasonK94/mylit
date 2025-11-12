@@ -23,7 +23,13 @@ if (length(args) > 0) {
     stop("File not found: ", sobj_path)
   }
   
-  if (grepl("\\.rds$", sobj_path, ignore.case = TRUE)) {
+  if (grepl("\\.qs$", sobj_path, ignore.case = TRUE)) {
+    # qs format
+    if (!requireNamespace("qs", quietly = TRUE)) {
+      stop("qs package required for .qs files. Install with: install.packages('qs')")
+    }
+    sobj <- qs::qread(sobj_path)
+  } else if (grepl("\\.rds$", sobj_path, ignore.case = TRUE)) {
     sobj <- readRDS(sobj_path)
   } else if (grepl("\\.RData$", sobj_path, ignore.case = TRUE)) {
     load(sobj_path)

@@ -174,6 +174,7 @@ test_plots <- function(sobj,
         group.by = sample_col,
         split.by = split.by,
         aggregate = TRUE,
+        aggregate_by = c(sample_col, split.by),
         fitted_line = "linear"
       )
       ggsave(file.path(output_dir, "03_scatter_patient.png"), 
@@ -225,7 +226,6 @@ test_plots <- function(sobj,
         x_var = numeric_meta[1],
         group.by = split.by,
         aggregate = TRUE,
-        aggregate_by = split.by,
         fitted_line = "linear"
       )
       ggsave(file.path(output_dir, "05_scatter_group.png"), 

@@ -171,9 +171,11 @@ plot_heatmap_genes <- function(data,
       values_to = "Zscore"
     )
   
-  # Set factor levels to preserve order
-  heatmap_df[[group.by]] <- factor(heatmap_df[[group.by]], levels = rownames(heatmap_matrix))
-  heatmap_df$Gene <- factor(heatmap_df$Gene, levels = colnames(heatmap_matrix))
+  # Set factor levels to preserve order (remove duplicates)
+  unique_row_names <- unique(rownames(heatmap_matrix))
+  unique_col_names <- unique(colnames(heatmap_matrix))
+  heatmap_df[[group.by]] <- factor(heatmap_df[[group.by]], levels = unique_row_names)
+  heatmap_df$Gene <- factor(heatmap_df$Gene, levels = unique_col_names)
   
   # Create plot
   p <- ggplot2::ggplot(heatmap_df, ggplot2::aes(

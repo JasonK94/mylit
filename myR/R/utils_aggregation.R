@@ -206,43 +206,72 @@ NULL
   
   # If col_var is NULL, features become columns
   if (is.null(col_var)) {
-    # Pivot features to columns
-    plot_df_long <- plot_df %>%
-      tidyr::pivot_longer(
-        cols = dplyr::all_of(features),
-        names_to = ".feature",
-        values_to = ".value"
-      )
+    # Check if features are already in columns (already in wide format)
+    features_in_cols <- all(features %in% names(plot_df))
     
-    col_var <- ".feature"
-    value_var <- ".value"
+    if (features_in_cols) {
+      # Already in wide format, just select relevant columns
+      heatmap_df <- plot_df %>%
+        dplyr::select(dplyr::all_of(c(row_var, features)))
+    } else {
+      # Need to pivot to long first, then aggregate if needed, then pivot to wide
+      plot_df_long <- plot_df %>%
+        tidyr::pivot_longer(
+          cols = dplyr::all_of(features),
+          names_to = ".feature",
+          values_to = ".value"
+        )
+      
+      # Aggregate if needed
+      if (aggregate) {
+        group_vars <- unique(c(row_var, ".feature"))
+        group_vars <- group_vars[!is.null(group_vars)]
+        
+        plot_df_long <- .aggregate_cells(
+          plot_df = plot_df_long,
+          features = ".value",
+          group_vars = group_vars,
+          fun = agg_fun
+        )
+      }
+      
+      # Reshape to wide
+      heatmap_df <- plot_df_long %>%
+        tidyr::pivot_wider(
+          id_cols = dplyr::all_of(row_var),
+          names_from = ".feature",
+          values_from = ".value",
+          values_fill = NA
+        )
+    }
   } else {
+    # col_var is specified
     if (is.null(value_var)) {
       value_var <- features[1]
     }
-  }
-  
-  # Aggregate if needed
-  if (aggregate) {
-    group_vars <- unique(c(row_var, col_var))
-    group_vars <- group_vars[!is.null(group_vars)]
     
-    plot_df <- .aggregate_cells(
-      plot_df = plot_df,
-      features = value_var,
-      group_vars = group_vars,
-      fun = agg_fun
-    )
+    # Aggregate if needed
+    if (aggregate) {
+      group_vars <- unique(c(row_var, col_var))
+      group_vars <- group_vars[!is.null(group_vars)]
+      
+      plot_df <- .aggregate_cells(
+        plot_df = plot_df,
+        features = value_var,
+        group_vars = group_vars,
+        fun = agg_fun
+      )
+    }
+    
+    # Reshape to wide
+    heatmap_df <- plot_df %>%
+      tidyr::pivot_wider(
+        id_cols = dplyr::all_of(row_var),
+        names_from = dplyr::all_of(col_var),
+        values_from = dplyr::all_of(value_var),
+        values_fill = NA
+      )
   }
-  
-  # Reshape to wide
-  heatmap_df <- plot_df %>%
-    tidyr::pivot_wider(
-      id_cols = dplyr::all_of(row_var),
-      names_from = dplyr::all_of(col_var),
-      values_from = dplyr::all_of(value_var),
-      values_fill = NA
-    )
   
   # Convert to matrix format
   row_names <- heatmap_df[[row_var]]
