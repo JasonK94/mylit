@@ -201,9 +201,18 @@ plot_scatter <- function(data,
     
     # Set palette
     n_levels <- length(unique(plot_df$split_col))
-    pal <- if (is.null(palette)) RColorBrewer::brewer.pal(max(3, n_levels), "Set1") else palette
-    if (length(pal) < n_levels) {
-      pal <- grDevices::colorRampPalette(pal)(n_levels)
+    if (is.null(palette)) {
+      # Use Set1 for small number of levels, otherwise use a larger palette
+      if (n_levels <= 9) {
+        pal <- RColorBrewer::brewer.pal(max(3, n_levels), "Set1")[1:n_levels]
+      } else {
+        pal <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(9, "Set1"))(n_levels)
+      }
+    } else {
+      pal <- palette
+      if (length(pal) < n_levels) {
+        pal <- grDevices::colorRampPalette(pal)(n_levels)
+      }
     }
     p <- p + ggplot2::scale_colour_manual(values = pal, name = split.by)
     
