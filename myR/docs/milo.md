@@ -192,24 +192,147 @@ cluster_bias_full <- test_cluster_logfc_bias(
 ## 검정 방법 상세
 
 ### 1. Block Permutation Test (권장)
-- **원리**: 각 block 내에서만 logFC 값을 섞어서 permutation을 수행
-- **장점**: Block 구조를 보존하여 비독립성 문제를 완화
-- **단점**: 계산 시간이 오래 걸림 (n_perm에 비례)
+
+**원리**:
+1. 각 클러스터별로 독립적으로 검정 수행
+2. 관찰된 평균 logFC 계산: `obs = mean(logFC)`
+3. Permutation 과정 (n_perm번 반복):
+   - 각 **block 내에서만** logFC 값을 무작위로 섞음 (block 구조 보존)
+   - Block별 평균 logFC 계산
+   - Block 평균들의 전체 평균 계산 → `perm_mean`
+4. p-value 계산: `(sum(abs(perm_means) >= abs(obs)) + 1) / (n_perm + 1)`
+   - 관찰값보다 극단적인 permutation 결과의 비율
+
+**수식**:
+```
+obs = mean(logFC) for cluster
+For each permutation i:
+  For each block b:
+    logFC_perm[b] = sample(logFC[b])  # block 내에서만 섞기
+  perm_mean[i] = mean(mean(logFC_perm[b] for all blocks))
+p = (count(|perm_mean| >= |obs|) + 1) / (n_perm + 1)
+```
+
+**장점**:
+- Block 구조를 완전히 보존하여 비독립성 문제를 완화
+- Non-parametric 방법으로 분포 가정 불필요
+- 가장 신뢰할 수 있는 방법
+
+**단점**:
+- 계산 시간이 오래 걸림 (n_perm에 비례, 기본값 2000)
+- 작은 클러스터에서는 permutation 수가 제한적일 수 있음
 
 ### 2. Correlation-adjusted t-test (neff)
-- **원리**: Neighborhood 그래프의 인접 행렬을 기반으로 effective sample size (neff)를 계산하여 t-test의 자유도를 보정
-- **장점**: 빠른 계산 속도
-- **단점**: 근사적 방법이므로 permutation보다 덜 보수적일 수 있음
+
+**원리**:
+1. Neighborhood 그래프의 인접 행렬(adjacency matrix) 계산
+2. 인접 행렬의 고유값(eigenvalue) 계산
+3. Effective sample size (neff) 추정: `neff = sum(eigenvalues > 0.1)`
+   - 고유값이 클수록 독립적인 정보를 많이 포함
+   - 0.1보다 작은 고유값은 상관관계로 인한 중복 정보로 간주
+4. 클러스터별 neff 배분: `neff_cluster = neff * (n_cluster / n_total)`
+5. t-test 수행 (자유도 = neff_cluster - 1):
+   ```
+   t_stat = mean_logFC / (sd_logFC / sqrt(neff_cluster))
+   p = 2 * (1 - pt(|t_stat|, df = neff_cluster - 1))
+   ```
+
+**수식**:
+```
+G = nhoodGraph adjacency matrix
+eigenvals = eigenvalues(G)
+neff = sum(eigenvals > threshold)  # threshold = 0.1
+neff_cluster = neff * (n_cluster / n_total)
+t = mean_logFC / (sd_logFC / sqrt(neff_cluster))
+p = 2 * P(T > |t|) where T ~ t(neff_cluster - 1)
+```
+
+**장점**:
+- 매우 빠른 계산 속도
+- 그래프 구조를 직접 활용하여 상관관계를 고려
+
+**단점**:
+- 근사적 방법이므로 permutation보다 덜 보수적일 수 있음
+- 고유값 계산이 큰 그래프에서는 계산 비용이 클 수 있음
+- 작은 클러스터에서는 neff_cluster가 너무 작아질 수 있음
 
 ### 3. Mixed-Effects Model (LMM)
-- **원리**: `logFC ~ 1 + (1 | block_id)` 형태의 선형혼합모형으로 block-level random effect를 모델링
-- **장점**: Block 구조를 명시적으로 모델링
-- **단점**: lme4 패키지 필요, 작은 클러스터에서는 수렴 실패 가능
+
+**원리**:
+1. 각 클러스터별로 선형혼합모형 피팅
+2. 현재 구현: `logFC ~ 1 + (1 | block_id)`
+   - 고정 효과: 절편만 (평균 logFC 추정)
+   - 랜덤 효과: `block_id` (block-level 변동성 모델링)
+3. 절편의 유의성 검정 (H0: mean_logFC = 0)
+
+**수식**:
+```
+logFC_ij = μ + b_i + ε_ij
+where:
+  μ = overall mean (fixed effect)
+  b_i ~ N(0, σ²_block) (random effect for block i)
+  ε_ij ~ N(0, σ²_residual) (residual error)
+  
+Test: H0: μ = 0
+```
+
+**주의사항**:
+- **현재 구현은 `batch_var`를 보정하지 않습니다**
+- Block-level random effect만 모델링
+- `batch_var`를 보정하려면 모델을 `logFC ~ 1 + batch_var + (1 | block_id)` 형태로 확장해야 함
+
+**장점**:
+- Block 구조를 명시적으로 모델링
+- Block-level 변동성을 분리하여 추정
+
+**단점**:
+- lme4 패키지 필요
+- 작은 클러스터나 block 수가 적을 때 수렴 실패 가능
+- 현재는 batch 효과를 보정하지 않음
 
 ### 4. Empirical Bayes (ashr)
-- **원리**: p-value를 z-score로 변환한 후 Empirical Bayes shrinkage를 적용하여 effect size를 추정
-- **장점**: 작은 effect도 안정적으로 추정 가능
-- **단점**: ashr 패키지 필요, 검정보다는 effect size 추정에 유용
+
+**원리**:
+1. p-value를 z-score로 변환:
+   ```
+   z = qnorm(1 - PValue/2) * sign(logFC)
+   ```
+2. Standard error 추정:
+   ```
+   se = |logFC| / max(|z|, 1e-6)
+   ```
+3. Empirical Bayes shrinkage 적용:
+   - `ashr::ash()` 함수 사용
+   - Prior distribution을 데이터에서 추정
+   - Posterior distribution 계산
+4. Posterior mean 계산 (effect size 추정):
+   ```
+   eb_mean = mean(posterior_mean for all neighborhoods in cluster)
+   ```
+
+**수식**:
+```
+z_i = qnorm(1 - PValue_i/2) * sign(logFC_i)
+se_i = |logFC_i| / max(|z_i|, 1e-6)
+
+# Empirical Bayes
+posterior_i = ash(logFC_i, se_i, method="fdr")
+eb_mean = mean(posterior_mean_i for all i in cluster)
+```
+
+**장점**:
+- 작은 effect size도 안정적으로 추정 가능
+- Shrinkage를 통해 과도한 추정을 방지
+- Multiple testing 문제를 완화
+
+**단점**:
+- ashr 패키지 필요
+- 검정(test)보다는 effect size 추정에 유용
+- p-value가 아닌 posterior mean을 제공
+
+**용도**:
+- Effect size의 방향성과 크기를 추정할 때 유용
+- 검정 결과를 보완하는 정보로 활용
 
 ## 주의사항
 
