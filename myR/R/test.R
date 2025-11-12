@@ -3609,8 +3609,44 @@ find_gene_signature_v5.2 <- function(data,
           
           nmf_res <- do.call(NMF::nmf, nmf_args)
           
-          # ... (v4.1 nmf 나머지 로직: W, H, best_component, 방향성 보정 등) ...
-          list(...)
+          W <- NMF::basis(nmf_res)
+          H <- NMF::coef(nmf_res)
+          
+          component_cors <- numeric(rank)
+          for (k in 1:rank) {
+            if (n_groups == 2) {
+              component_cors[k] <- abs(cor(H[k, ], as.numeric(target_binary)))
+            } else {
+              component_cors[k] <- summary(aov(H[k, ] ~ target_binary))[[1]][1, "F value"]
+            }
+          }
+          
+          best_component <- which.max(component_cors)
+          weights_magnitude <- W[, best_component]
+          names(weights_magnitude) <- rownames(expr_mat_pos)
+          
+          top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, length(weights_magnitude))])
+          weights_magnitude <- weights_magnitude[top_genes]
+          
+          if (n_groups == 2) {
+            g1_cells <- y == levels(y)[1]
+            g2_cells <- y == levels(y)[2]
+            mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+            mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+            effect_size <- mean_g2 - mean_g1
+            weights <- weights_magnitude * sign(effect_size)
+          } else {
+            warning("nmf_loadings: n_groups > 2. Score represents magnitude (importance), not direction.")
+            weights <- weights_magnitude
+          }
+          
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          perf <- list(component = best_component, correlation = component_cors[best_component])
+          
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = if(return_model) nmf_res else NULL)
         },
 
         # --- 4. Statistical Modelling ---
@@ -3663,7 +3699,11 @@ find_gene_signature_v5.2 <- function(data,
               return(NULL) 
             })
             
-            # ... (deviance_explained 로직) ...
+            if (is.null(fit_result)) {
+              deviance_explained[i] <- 0
+            } else {
+              deviance_explained[i] <- summary(fit_result)$dev.expl
+            }
           }
           
           if (genes_skipped > 0) {
@@ -3673,18 +3713,154 @@ find_gene_signature_v5.2 <- function(data,
             warning(sprintf("GAM: %d genes failed to converge.", convergence_warnings))
           }
           
-          # ... (v4.1 gam 나머지 로직: top_genes, 방향성 보정 등) ...
-          list(...)
+          weights_magnitude <- deviance_explained
+          top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, sum(weights_magnitude > 0, na.rm=TRUE))])
+          
+          if (length(top_genes) == 0) {
+            warning("GAM method found no genes with deviance > 0.")
+            return(list(genes=character(0), weights=numeric(0), scores=numeric(0), performance=list()))
+          }
+          
+          weights_magnitude <- weights_magnitude[top_genes]
+
+          if (n_groups == 2) {
+            g1_cells <- y == levels(y)[1]
+            g2_cells <- y == levels(y)[2]
+            mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+            mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+            effect_size <- mean_g2 - mean_g1
+            weights <- weights_magnitude * sign(effect_size)
+          } else {
+            warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
+            weights <- weights_magnitude
+          }
+          
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          perf <- list(deviance_explained = weights_magnitude)
+          
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = NULL)
         },
         
         limma = {
-          # ... (v5.1 limma 로직과 동일) ...
-          list(...)
+          if (!requireNamespace("limma", quietly = TRUE)) {
+            stop("limma package required. Install with: BiocManager::install('limma')")
+          }
+          
+          # Sanitize target_binary levels for limma (must be valid R names)
+          target_binary_limma <- target_binary
+          orig_levels <- levels(target_binary_limma)
+          safe_levels <- make.names(orig_levels)
+          if (!all(orig_levels == safe_levels)) {
+            levels(target_binary_limma) <- safe_levels
+            meta.data_clean$target_binary_limma <- target_binary_limma
+          } else {
+            meta.data_clean$target_binary_limma <- target_binary_limma
+          }
+          
+          # expr_mat_method는 'expr_mat_base' (보정되지 않은 원본)
+          if (is.null(control_vars)) {
+            design <- model.matrix(~0 + target_binary_limma, data = meta.data_clean)
+            colnames(design)[1:n_groups] <- levels(target_binary_limma)
+          } else {
+            control_formula <- paste(control_vars, collapse = " + ")
+            full_formula <- as.formula(paste("~0 + target_binary_limma +", control_formula))
+            design <- model.matrix(full_formula, data = meta.data_clean)
+            colnames(design)[1:n_groups] <- levels(target_binary_limma) 
+          }
+
+          fit <- limma::lmFit(expr_mat_method, design)
+          
+          if (n_groups == 2) {
+            contrast_str <- paste(levels(target_binary_limma)[2], levels(target_binary_limma)[1], sep="-")
+          } else {
+            contrast_pairs <- combn(levels(target_binary_limma), 2, function(x) paste(x[2], x[1], sep="-"))
+            contrast_str <- contrast_pairs
+            warning("limma: n_groups > 2. Using all pairwise contrasts. Weights based on average t-statistic.")
+          }
+          
+          contrast_mat <- limma::makeContrasts(contrasts=contrast_str, levels=design)
+          fit2 <- limma::contrasts.fit(fit, contrast_mat)
+          fit2 <- limma::eBayes(fit2)
+          
+          if(n_groups == 2) {
+              top_table <- limma::topTable(fit2, number=Inf, sort.by="B")
+              weights_all <- top_table$t
+          } else {
+              top_table <- limma::topTable(fit2, number=Inf, sort.by="F")
+              weights_all <- rowMeans(abs(fit2$t[, contrast_str, drop=FALSE]))
+          }
+          
+          names(weights_all) <- rownames(top_table)
+          
+          top_genes <- rownames(top_table)[1:min(n_features, nrow(top_table))]
+          
+          if(n_groups == 2) {
+              weights <- top_table[top_genes, "t"]
+          } else {
+              weights <- weights_all[top_genes]
+          }
+
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          perf <- list(top_table = top_table[top_genes, ])
+          
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = if(return_model) fit2 else NULL)
         },
         
         wilcoxon = {
-          # ... (v5.1 wilcoxon 로직과 동일) ...
-          list(...)
+          # expr_mat_method는 'expr_mat_corrected' (보정된 버전)
+          pvals <- numeric(nrow(expr_mat_method))
+          effect_sizes <- numeric(nrow(expr_mat_method))
+          names(pvals) <- rownames(expr_mat_method)
+          names(effect_sizes) <- rownames(expr_mat_method)
+
+          for (i in 1:nrow(expr_mat_method)) {
+            if (n_groups == 2) {
+              group1 <- expr_mat_method[i, target_binary == levels(target_binary)[1]]
+              group2 <- expr_mat_method[i, target_binary == levels(target_binary)[2]]
+              
+              test <- try(wilcox.test(group1, group2), silent=TRUE) 
+              
+              if(inherits(test, "try-error")) {
+                pvals[i] <- 1.0
+                effect_sizes[i] <- 0
+              } else {
+                pvals[i] <- test$p.value
+                effect_sizes[i] <- median(group2) - median(group1)
+              }
+            } else {
+              test <- try(kruskal.test(expr_mat_method[i, ] ~ target_binary), silent=TRUE) 
+              
+              if(inherits(test, "try-error")) {
+                 pvals[i] <- 1.0
+                 effect_sizes[i] <- 0
+              } else {
+                 pvals[i] <- test$p.value
+                 effect_sizes[i] <- var(tapply(expr_mat_method[i, ], target_binary, median))
+              }
+            }
+          }
+          
+          padj <- p.adjust(pvals, method="BH")
+          
+          ranks <- rank(pvals) + rank(-abs(effect_sizes))
+          top_genes <- names(sort(ranks)[1:min(n_features, length(ranks))])
+          
+          weights <- effect_sizes[top_genes]
+          
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          perf <- list(pvalues = pvals[top_genes], padj = padj[top_genes],
+                       effect_sizes = effect_sizes[top_genes])
+          
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = NULL)
         }
         
       ) # --- switch 끝 ---
@@ -4414,6 +4590,18 @@ train_meta_learner_v4 <- function(l1_signatures,
   ))
 }
 
+#' @export
+train_meta_learner_v5 <- function(...) {
+  .Deprecated("TML6", package = "myR")
+  TML6(...)
+}
+
+#' @export
+train_meta_learner_v6 <- function(...) {
+  .Deprecated("TML6", package = "myR")
+  TML6(...)
+}
+
 #' Train Meta-Learner (TML6): Stacked Ensemble Model for Signature Scores
 #'
 #' @description
@@ -4823,17 +5011,7 @@ TML6 <- function(
   )
 }
 
-#' @export
-train_meta_learner_v5 <- function(...) {
-  .Deprecated("TML6", package = "myR")
-  TML6(...)
-}
 
-#' @export
-train_meta_learner_v6 <- function(...) {
-  .Deprecated("TML6", package = "myR")
-  TML6(...)
-}
 
 #' Derive gene-level importance from a trained meta learner
 #'
