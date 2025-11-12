@@ -4414,13 +4414,127 @@ train_meta_learner_v4 <- function(l1_signatures,
   ))
 }
 
-#' Train meta learner using stacked models (v6)
+#' Train Meta-Learner (TML6): Stacked Ensemble Model for Signature Scores
 #'
-#' Safely trains Level-2 meta learners from signature scores, with guarded
-#' parallel execution that defaults to sequential processing.
+#' @description
+#'   Implements a two-level stacking approach for combining multiple Level-1 (L1)
+#'   gene signatures into a unified prediction model. The function standardizes
+#'   diverse signature formats (character vectors, named numeric weights,
+#'   up/down lists, data frames) into a common representation, computes signature
+#'   scores on the holdout expression data, and trains one or more Level-2 (L2)
+#'   caret models on the resulting score matrix. The best-performing model,
+#'   selected via cross-validation, is returned along with the processed training
+#'   data and standardized signatures.
+#'
+#'   **Mechanism:**
+#'   1. **Signature Standardization**: Each L1 signature is converted to a named
+#'      numeric vector of gene weights using `as_signature()`, which handles
+#'      multiple input formats (character vectors → uniform weights, named
+#'      numeric → direct weights, up/down lists → +1/-1 weights, data frames →
+#'      extracted gene-weight pairs).
+#'   2. **Score Computation**: For each signature, a per-cell score is computed
+#'      as the weighted average of expression values, normalized by the sum of
+#'      absolute weights and optionally z-scored across cells.
+#'   3. **L2 Feature Matrix**: The signature scores form the columns of the L2
+#'      training matrix (one row per cell, one column per signature).
+#'   4. **Model Training**: Multiple caret models (e.g., glm, ranger, xgbTree)
+#'      are trained via k-fold cross-validation, with the best model selected
+#'      based on the specified metric (AUC/ROC for binary, Accuracy/Kappa for
+#'      multi-class).
+#'   5. **Parallel Safety**: Parallel execution is opt-in (`allow_parallel=TRUE`)
+#'      and guarded to prevent runaway worker creation on shared servers.
+#'      Worker count is capped at 8 by default.
+#'
+#' @param l1_signatures Named list of L1 signatures. Each element can be:
+#'   \itemize{
+#'     \item A character vector of gene names (uniform weights = 1)
+#'     \item A named numeric vector (gene names → weights)
+#'     \item A list with `up` and/or `down` components (up-regulated genes get
+#'           weight +1, down-regulated get -1)
+#'     \item A data frame with gene identifiers and weight/score columns
+#'   }
+#' @param holdout_data Expression container. Either:
+#'   \itemize{
+#'     \item A Seurat object (expression extracted via `GetAssayData(layer=layer)`)
+#'     \item A matrix or data frame with rows = genes/features, columns = cells/samples
+#'   }
+#' @param target_var For Seurat input: column name in `meta.data` containing the
+#'   outcome to predict. For matrix input: the target vector itself (must match
+#'   cell order).
+#' @param l2_methods Character vector of caret model identifiers to evaluate
+#'   (default: `c("glm", "ranger", "xgbTree")`). See `caret::train()` for
+#'   available methods.
+#' @param k_folds Number of cross-validation folds (default: 5).
+#' @param metric Performance metric for model selection. Options:
+#'   \itemize{
+#'     \item `"AUC"` or `"ROC"`: For binary classification (requires `twoClassSummary`)
+#'     \item `"Accuracy"`: Classification accuracy
+#'     \item `"Kappa"`: Cohen's kappa
+#'   }
+#'   For multi-class targets, AUC/ROC is invalid and falls back to Accuracy.
+#' @param fgs_seed Random seed for reproducibility (default: 42).
+#' @param layer When `holdout_data` is a Seurat object, the assay layer to extract
+#'   (default: `"data"`). Options: `"counts"`, `"data"`, `"scale.data"`.
+#' @param allow_parallel Logical. If `TRUE` and `future`/`doFuture` packages are
+#'   available, enables parallel cross-validation via `future::multisession` plan
+#'   (default: `FALSE` for safety).
+#' @param parallel_workers Optional integer overriding the number of parallel
+#'   workers when `allow_parallel=TRUE`. If `NULL`, defaults to
+#'   `min(8, detectCores(logical=FALSE))`, falling back to 4 if detection fails.
+#'
+#' @return A list with components:
+#'   \describe{
+#'     \item{best_model}{Caret `train` object for the selected L2 model.}
+#'     \item{best_model_name}{Character string identifier of the best model.}
+#'     \item{best_metric_name}{Name of the metric used for selection.}
+#'     \item{model_comparison}{A `resamples` object comparing all trained models
+#'           (or `NULL` if only one model succeeded).}
+#'     \item{l2_train}{Data frame with signature scores (columns) and target
+#'           variable (`.target` column).}
+#'     \item{l1_signatures}{Standardized signatures (named numeric weight vectors).}
+#'   }
+#'
+#' @details
+#'   **Signature Scoring Formula:**
+#'   For a signature with gene weights \eqn{w_g} and expression values \eqn{x_{gc}}
+#'   for gene \eqn{g} and cell \eqn{c}:
+#'   \deqn{s_c = \frac{\sum_g w_g \cdot x_{gc}}{\sum_g |w_g|}}
+#'   If `normalize=TRUE`, scores are further z-scored: \eqn{s_c' = (s_c - \mu_s) / \sigma_s}.
+#'
+#'   **Model Selection:**
+#'   The best model is chosen by maximizing the cross-validated metric across all
+#'   folds. For binary classification with AUC/ROC, `caret::twoClassSummary` is
+#'   used; for multi-class or Accuracy/Kappa, `caret::defaultSummary` is used.
+#'
+#' @examples
+#' \dontrun{
+#' # Example: Combine multiple signature-finding methods
+#' sigs <- list(
+#'   lasso = find_gene_signature(data, target_var="g3", method="lasso"),
+#'   rf = find_gene_signature(data, target_var="g3", method="tree_based"),
+#'   limma = find_gene_signature(data, target_var="g3", method="limma")
+#' )
+#'
+#' # Train meta-learner on holdout data
+#' meta_model <- TML6(
+#'   l1_signatures = sigs,
+#'   holdout_data = seurat_obj,
+#'   target_var = "g3",
+#'   l2_methods = c("glm", "ranger"),
+#'   metric = "AUC"
+#' )
+#'
+#' # Use for prediction
+#' predictions <- predict(meta_model$best_model, newdata = new_scores)
+#' }
+#'
+#' @seealso
+#'   \code{\link[caret]{train}} for L2 model training,
+#'   \code{\link{compute_meta_gene_importance}} for deriving gene-level
+#'   importance from the trained meta-learner
 #'
 #' @export
-train_meta_learner_v6 <- function(
+TML6 <- function(
   l1_signatures,
   holdout_data,
   target_var,
@@ -4711,8 +4825,14 @@ train_meta_learner_v6 <- function(
 
 #' @export
 train_meta_learner_v5 <- function(...) {
-  .Deprecated("train_meta_learner_v6", package = "myR")
-  train_meta_learner_v6(...)
+  .Deprecated("TML6", package = "myR")
+  TML6(...)
+}
+
+#' @export
+train_meta_learner_v6 <- function(...) {
+  .Deprecated("TML6", package = "myR")
+  TML6(...)
 }
 
 #' Derive gene-level importance from a trained meta learner
@@ -4724,7 +4844,7 @@ train_meta_learner_v5 <- function(...) {
 #' For non-linear models the magnitude is still meaningful, but signs should be
 #' interpreted cautiously because the L2 model can capture non-linear effects.
 #'
-#' @param meta_result A result list returned by [train_meta_learner_v6()].
+#' @param meta_result A result list returned by [TML6()].
 #' @param normalize If `TRUE`, scale contributions so that the maximum absolute
 #'   per-signature contribution is 1.
 #' @return A list with elements:
@@ -4740,7 +4860,7 @@ train_meta_learner_v5 <- function(...) {
 compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
   if (!is.list(meta_result) ||
       !all(c("best_model", "best_model_name", "l1_signatures", "l2_train") %in% names(meta_result))) {
-    stop("meta_result must be the object returned by train_meta_learner_v6().")
+    stop("meta_result must be the object returned by TML6().")
   }
 
   `%||%` <- function(x, y) if (!is.null(x)) x else y
