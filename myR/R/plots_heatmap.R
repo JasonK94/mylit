@@ -248,6 +248,16 @@ plot_heatmap_genes <- function(data,
     unique_col_names <- unique(colnames(heatmap_matrix))
     heatmap_df[[group.by]] <- factor(heatmap_df[[group.by]], levels = unique_row_names)
     heatmap_df$Gene <- factor(heatmap_df$Gene, levels = unique_col_names)
+    
+    # Remove NA values if requested
+    if (remove_na) {
+      na_before <- nrow(heatmap_df)
+      heatmap_df <- heatmap_df[!is.na(heatmap_df$Zscore), ]
+      na_removed <- na_before - nrow(heatmap_df)
+      if (na_removed > 0) {
+        warning("Removed ", na_removed, " rows with NA Zscore values")
+      }
+    }
   }
   
   # Cluster if requested (only if no split)
