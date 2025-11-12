@@ -80,15 +80,18 @@ plot_heatmap_genes <- function(data,
   
   normalize_by <- match.arg(normalize_by)
   
-  # If normalize_transpose is TRUE, swap row/column normalization
-  if (normalize_transpose) {
+  # If normalize_transpose is FALSE, use column normalization (sample/group level)
+  # If TRUE, use row normalization (gene level) - default behavior
+  if (!normalize_transpose) {
+    # User wants column normalization (sample/group level)
     if (normalize_by == "row") {
       normalize_by <- "column"
     } else if (normalize_by == "column") {
-      normalize_by <- "row"
+      normalize_by <- "row"  # Swap back if already column
     }
     # "both" stays "both"
   }
+  # If normalize_transpose is TRUE (default), keep row normalization (gene level)
   
   # Helper function for NULL coalescing
   `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -300,6 +303,15 @@ plot_heatmap_genes <- function(data,
     )) +
       ggplot2::geom_tile() +
       ggplot2::facet_wrap(ggplot2::vars(.data[[split.by]]), scales = "free_x", nrow = 1) +
+      # Add vertical line between facets (g3=1 and g3=2)
+      ggplot2::geom_vline(
+        data = data.frame(x = 0.5, split_val = split_values),
+        ggplot2::aes(xintercept = x),
+        linetype = "solid",
+        color = "black",
+        linewidth = 1,
+        inherit.aes = FALSE
+      ) +
       ggplot2::scale_fill_gradient2(
         low = if(is.null(color_palette)) "blue" else color_palette[1],
         mid = if(is.null(color_palette)) "white" else color_palette[2],
@@ -322,7 +334,10 @@ plot_heatmap_genes <- function(data,
         axis.title.x = ggplot2::element_text(face = "bold", size = 14),
         axis.title.y = ggplot2::element_text(face = "bold", size = 14),
         plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5),
-        strip.text = ggplot2::element_text(face = "bold", size = 12)
+        strip.text = ggplot2::element_text(face = "bold", size = 12),
+        # Add border between panels to separate g3=1 and g3=2
+        panel.spacing = ggplot2::unit(0.05, "lines"),
+        strip.background = ggplot2::element_rect(fill = "grey90", color = "black", linewidth = 1.5)
       )
   } else {
     # Single plot without split

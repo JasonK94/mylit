@@ -151,10 +151,10 @@ test_plots <- function(sobj,
       aggregate = TRUE,
       aggregate_by = group.by,
       normalize = TRUE,
-      normalize_by = "row",  # Normalize by gene (row) - default
-      normalize_transpose = FALSE,  # Keep row normalization
+      normalize_by = "row",  # Normalize by gene (row)
+      normalize_transpose = FALSE,  # FALSE = column normalization (sample/group level)
       show_group_separator = TRUE,  # Add vertical lines between groups
-      title = paste("Cluster-level:", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
+      title = paste("Cluster-level (column nmz):", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "02_heatmap_cluster.png"), 
            p_heatmap_cluster, width = 10, height = 7, dpi = 300)
@@ -209,10 +209,10 @@ test_plots <- function(sobj,
       aggregate = TRUE,
       aggregate_by = sample_col,  # Aggregate by patient
       normalize = TRUE,
-      normalize_by = "row",  # Normalize by gene (row) - default
-      normalize_transpose = FALSE,  # Keep row normalization
-      show_group_separator = TRUE,  # Add vertical lines between groups
-      title = paste("Patient-level (split by", split.by, "):", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
+      normalize_by = "row",  # Normalize by gene (row)
+      normalize_transpose = FALSE,  # FALSE = column normalization (sample/group level)
+      show_group_separator = TRUE,  # Add vertical lines between groups (including between g3=1 and g3=2)
+      title = paste("Patient-level (split by", split.by, ", column nmz):", paste(test_features[1:min(3, length(test_features))], collapse = ", "))
     )
     ggsave(file.path(output_dir, "04_heatmap_patient.png"), 
            p_heatmap_patient, width = 14, height = 7, dpi = 300)
@@ -246,7 +246,10 @@ test_plots <- function(sobj,
           aggregate = TRUE,
           aggregate_by = split.by,
           fitted_line = "linear",
-          label = TRUE  # Default label for group-level
+          label = TRUE,  # Default label for group-level
+          color_by = split.by,  # Color by group for legend
+          each_fit = TRUE,  # Show each_fit option
+          show_stats = TRUE
         )
         ggsave(file.path(output_dir, "05_scatter_group.png"), 
                p_scatter_group, width = 10, height = 7, dpi = 300)

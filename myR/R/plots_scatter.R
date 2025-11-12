@@ -319,19 +319,80 @@ plot_scatter <- function(data,
   
   # Add labels if requested
   if (label && group.by %in% names(plot_df)) {
-    if (requireNamespace("ggrepel", quietly = TRUE)) {
-      p <- p + ggrepel::geom_text_repel(
-        ggplot2::aes(label = .data[[group.by]]),
-        size = 3,
-        max.overlaps = Inf
-      )
+    # Prepare label data with color information
+    label_df <- plot_df
+    label_df$label_text <- as.character(label_df[[group.by]])
+    
+    # Include NA labels if present
+    if (any(is.na(label_df[[group.by]]))) {
+      label_df$label_text[is.na(label_df[[group.by]])] <- "NA"
+    }
+    
+    # Determine color mapping for labels
+    # Check if color_by column exists and is not numeric
+    has_color_col <- !is.null(color_by) && "colour" %in% names(label_df) && 
+                     !is.numeric(label_df$colour) && 
+                     !all(is.na(label_df$colour))
+    
+    if (has_color_col) {
+      # Use color_by for label coloring
+      if (requireNamespace("ggrepel", quietly = TRUE)) {
+        p <- p + ggrepel::geom_text_repel(
+          ggplot2::aes(label = label_text, colour = colour),
+          data = label_df,
+          size = 3,
+          max.overlaps = Inf,
+          show.legend = TRUE
+        )
+      } else {
+        p <- p + ggplot2::geom_text(
+          ggplot2::aes(label = label_text, colour = colour),
+          data = label_df,
+          size = 3,
+          hjust = 0,
+          vjust = 0,
+          show.legend = TRUE
+        )
+      }
+    } else if (!is.null(split.by) && "split_col" %in% names(label_df) && 
+               !all(is.na(label_df$split_col))) {
+      # Use split.by for label coloring
+      if (requireNamespace("ggrepel", quietly = TRUE)) {
+        p <- p + ggrepel::geom_text_repel(
+          ggplot2::aes(label = label_text, colour = split_col),
+          data = label_df,
+          size = 3,
+          max.overlaps = Inf,
+          show.legend = TRUE
+        )
+      } else {
+        p <- p + ggplot2::geom_text(
+          ggplot2::aes(label = label_text, colour = split_col),
+          data = label_df,
+          size = 3,
+          hjust = 0,
+          vjust = 0,
+          show.legend = TRUE
+        )
+      }
     } else {
-      p <- p + ggplot2::geom_text(
-        ggplot2::aes(label = .data[[group.by]]),
-        size = 3,
-        hjust = 0,
-        vjust = 0
-      )
+      # No color mapping, just labels
+      if (requireNamespace("ggrepel", quietly = TRUE)) {
+        p <- p + ggrepel::geom_text_repel(
+          ggplot2::aes(label = label_text),
+          data = label_df,
+          size = 3,
+          max.overlaps = Inf
+        )
+      } else {
+        p <- p + ggplot2::geom_text(
+          ggplot2::aes(label = label_text),
+          data = label_df,
+          size = 3,
+          hjust = 0,
+          vjust = 0
+        )
+      }
     }
   }
   
