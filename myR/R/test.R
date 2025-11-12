@@ -3247,7 +3247,35 @@ find_gene_signature_v5.2 <- function(data,
           top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
           weights_magnitude <- weights_magnitude_genes[top_genes]
           
-          # ... (v4.1 방향성 보정 및 performance 로직) ...
+          # 방향성 보정 및 performance 계산
+          if (n_groups == 2) {
+            g1_cells <- y == levels(y)[1]
+            g2_cells <- y == levels(y)[2]
+            mean_g1 <- colMeans(X_rf[g1_cells, top_genes, drop=FALSE])
+            mean_g2 <- colMeans(X_rf[g2_cells, top_genes, drop=FALSE])
+            effect_size <- mean_g2 - mean_g1 
+            weights <- weights_magnitude * sign(effect_size)
+          } else {
+            warning("random_forest: n_groups > 2. Score represents magnitude (importance), not direction.")
+            weights <- weights_magnitude
+          }
+          
+          scores <- as.numeric(X_rf[, top_genes] %*% weights)
+          names(scores) <- rownames(X_rf)
+          
+          pred <- rf_model$predicted
+          if (n_groups == 2) {
+            if (requireNamespace("pROC", quietly = TRUE)) {
+              roc_obj <- pROC::roc(y, scores, quiet=TRUE)
+              auc <- as.numeric(pROC::auc(roc_obj))
+            } else { auc <- NA }
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+          } else {
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, confusion = table(pred, y))
+          }
+          
           list(genes = top_genes, weights = weights, scores = scores,
                performance = perf, model = if(return_model) rf_model else NULL)
         },
@@ -3280,7 +3308,35 @@ find_gene_signature_v5.2 <- function(data,
           top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
           weights_magnitude <- weights_magnitude_genes[top_genes]
 
-          # ... (v4.1 방향성 보정 및 performance 로직) ...
+          # 방향성 보정 및 performance 계산
+          if (n_groups == 2) {
+            g1_cells <- y == levels(y)[1]
+            g2_cells <- y == levels(y)[2]
+            mean_g1 <- colMeans(X_ranger[g1_cells, top_genes, drop=FALSE])
+            mean_g2 <- colMeans(X_ranger[g2_cells, top_genes, drop=FALSE])
+            effect_size <- mean_g2 - mean_g1 
+            weights <- weights_magnitude * sign(effect_size)
+          } else {
+            warning("random_forest_ranger: n_groups > 2. Score represents magnitude (importance), not direction.")
+            weights <- weights_magnitude
+          }
+          
+          scores <- as.numeric(X_ranger[, top_genes] %*% weights)
+          names(scores) <- rownames(X_ranger)
+          
+          pred <- rf_model$predictions
+          if (n_groups == 2) {
+            if (requireNamespace("pROC", quietly = TRUE)) {
+              roc_obj <- pROC::roc(y, scores, quiet=TRUE)
+              auc <- as.numeric(pROC::auc(roc_obj))
+            } else { auc <- NA }
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+          } else {
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, confusion = table(pred, y))
+          }
+          
           list(genes = top_genes, weights = weights, scores = scores,
                performance = perf, model = if(return_model) rf_model else NULL)
         },
@@ -3319,7 +3375,38 @@ find_gene_signature_v5.2 <- function(data,
           top_genes <- names(sort(weights_magnitude_genes, decreasing=TRUE)[1:min(n_features, length(weights_magnitude_genes))])
           weights_magnitude <- weights_magnitude_genes[top_genes]
 
-          # ... (v4.1 방향성 보정 및 performance 로직) ...
+          # 방향성 보정 및 performance 계산
+          if (n_groups == 2) {
+            g1_cells <- y == levels(y)[1]
+            g2_cells <- y == levels(y)[2]
+            mean_g1 <- colMeans(X_xgb[g1_cells, top_genes, drop=FALSE])
+            mean_g2 <- colMeans(X_xgb[g2_cells, top_genes, drop=FALSE])
+            effect_size <- mean_g2 - mean_g1 
+            weights <- weights_magnitude * sign(effect_size)
+          } else {
+            warning("xgboost: n_groups > 2. Score represents magnitude (importance), not direction.")
+            weights <- weights_magnitude
+          }
+          
+          scores <- as.numeric(X_xgb[, top_genes] %*% weights)
+          names(scores) <- rownames(X_xgb)
+          
+          pred_probs <- predict(xgb_model, newdata = X_xgb)
+          if (n_groups == 2) {
+            pred <- factor(ifelse(pred_probs > 0.5, levels(y)[2], levels(y)[1]), levels=levels(y))
+            if (requireNamespace("pROC", quietly = TRUE)) {
+              roc_obj <- pROC::roc(y, scores, quiet=TRUE)
+              auc <- as.numeric(pROC::auc(roc_obj))
+            } else { auc <- NA }
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+          } else {
+            pred_class_indices <- apply(pred_probs, 1, which.max)
+            pred <- levels(y)[pred_class_indices]
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, confusion = table(pred, y))
+          }
+          
           list(genes = top_genes, weights = weights, scores = scores,
                performance = perf, model = if(return_model) xgb_model else NULL)
         },
@@ -3327,11 +3414,67 @@ find_gene_signature_v5.2 <- function(data,
         # --- 2. Regularization ---
 
         lasso = {
-          # ... (v4.1 lasso 로직과 동일, X는 스케일링됨) ...
-          # 단, alpha=1 고정
-          cv_fit <- glmnet::cv.glmnet(X_model, y, family=..., alpha=1, ...)
-          # ...
-          list(...) 
+          if (!requireNamespace("glmnet", quietly = TRUE)) {
+            stop("glmnet package required. Install with: install.packages('glmnet')")
+          }
+          
+          # X는 스케일링된 데이터 (expr_mat_scaled)
+          if (is.null(control_vars)) {
+            X_model <- X
+            penalty_vec <- rep(1, ncol(X_model))
+          } else {
+            X_model <- cbind(X, covariate_mat_model)
+            penalty_vec <- c(rep(1, ncol(X)), rep(0, ncol(covariate_mat_model)))
+          }
+          
+          # alpha=1 (LASSO)
+          if (n_groups == 2) {
+            cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=1, 
+                                        penalty.factor = penalty_vec, ...)
+          } else {
+            cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=1, 
+                                        penalty.factor = penalty_vec, ...)
+          }
+          
+          coefs <- coef(cv_fit, s = lambda_selection) 
+          
+          if (n_groups == 2) {
+            weights_all <- as.numeric(coefs[2:(ncol(X)+1)]) 
+            names(weights_all) <- rownames(coefs)[2:(ncol(X)+1)]
+          } else {
+            coef_list <- lapply(coefs, function(x) as.numeric(x[2:(ncol(X)+1)]))
+            weights_all <- rowMeans(do.call(cbind, coef_list))
+            names(weights_all) <- rownames(coefs[[1]])[2:(ncol(X)+1)]
+          }
+          
+          if (length(weights_all) == 0) {
+            stop("LASSO returned no gene coefficients.")
+          }
+
+          top_genes <- names(sort(abs(weights_all), decreasing=TRUE)[1:min(n_features, length(weights_all))])
+          weights <- weights_all[top_genes]
+          
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          pred_probs <- predict(cv_fit, newx=X_model, s = lambda_selection, type="response")
+          if (n_groups == 2) {
+            pred <- factor(ifelse(pred_probs > 0.5, levels(y)[2], levels(y)[1]), levels=levels(y))
+            if (requireNamespace("pROC", quietly = TRUE)) {
+              roc_obj <- pROC::roc(y, scores, quiet=TRUE) 
+              auc <- as.numeric(pROC::auc(roc_obj))
+            } else { auc <- NA }
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+          } else {
+            pred_class_indices <- apply(pred_probs[,,1], 1, which.max)
+            pred <- levels(y)[pred_class_indices]
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, confusion = table(pred, y))
+          }
+          
+          list(genes = top_genes, weights = weights, scores = scores,
+               performance = perf, model = if(return_model) cv_fit else NULL)
         },
         
         ridge = { # [Req 4] 신규
