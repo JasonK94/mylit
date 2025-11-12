@@ -600,3 +600,246 @@ run_milo_pipeline <- function(
     return(list(suffix = NULL, suffix_str = "", paths = base_paths))
 }
 
+#' Test cluster-wise logFC bias in Milo DA results
+#'
+#' @description
+#' Tests whether logFC values are systematically biased (enriched/depleted) per cluster,
+#' accounting for non-independence between neighborhoods using block permutation,
+#' correlation-adjusted t-test, or mixed-effects models.
+#'
+#' @param da_results Data frame from `miloR::testNhoods()` with columns `Nhood`, `logFC`, `PValue`, etc.
+#' @param milo Milo object containing nhood membership matrix and graph.
+#' @param cluster_col Character string; column name in `da_results` containing cluster identities (default: `"major_cluster"`).
+#' @param block_method Character; method for creating blocks: `"sample"` (extract from cell names), `"community"` (graph-based), or `"none"` (no blocking).
+#' @param test_methods Character vector; which tests to run: `"permutation"`, `"neff"`, `"lmm"`, `"ashr"`.
+#' @param n_perm Integer; number of permutations for block permutation test (default: 2000).
+#' @param max_nhoods Optional integer; if provided, randomly sample this many neighborhoods for faster testing.
+#' @param seed Integer; random seed for reproducibility (default: 1).
+#' @param verbose Logical; emit progress messages.
+#'
+#' @return Data frame with columns:
+#'   - `cluster`: cluster identity
+#'   - `mean_logFC`: mean logFC per cluster
+#'   - `p_perm`: p-value from block permutation (if `"permutation"` in `test_methods`)
+#'   - `p_neff`: p-value from correlation-adjusted t-test (if `"neff"` in `test_methods`)
+#'   - `p_lmm`: p-value from mixed-effects model (if `"lmm"` in `test_methods`)
+#'   - `eb_mean`: Empirical Bayes posterior mean (if `"ashr"` in `test_methods`)
+#'
+#' @importFrom stringr str_extract
+#' @importFrom Matrix sparse.model.matrix
+#' @importFrom stats qnorm pt
+#' @export
+test_cluster_logfc_bias <- function(
+    da_results,
+    milo,
+    cluster_col = "major_cluster",
+    block_method = c("sample", "community", "none"),
+    test_methods = c("permutation", "neff"),
+    n_perm = 2000L,
+    max_nhoods = NULL,
+    seed = 1L,
+    verbose = TRUE
+) {
+    if (!cluster_col %in% names(da_results)) {
+        stop(sprintf("Column '%s' not found in `da_results`.", cluster_col))
+    }
+
+    block_method <- match.arg(block_method)
+    test_methods <- match.arg(test_methods, several.ok = TRUE)
+
+    # Downsample if requested
+    if (!is.null(max_nhoods) && max_nhoods < nrow(da_results)) {
+        if (verbose) cli::cli_inform("Downsampling to {max_nhoods} neighborhoods for faster testing...")
+        set.seed(seed)
+        keep_idx <- sample.int(nrow(da_results), size = max_nhoods)
+        da_results <- da_results[keep_idx, , drop = FALSE]
+    }
+
+    # Restore or create block variable
+    if (block_method == "sample") {
+        # Get cell information from nhoods matrix (cells × nhoods)
+        W <- miloR::nhoods(milo)
+        cells <- rownames(W)
+        if (is.null(cells)) {
+            cells <- rownames(SingleCellExperiment::colData(milo))
+        }
+        sample_id <- stringr::str_extract(cells, "S\\d+$")
+        if (all(is.na(sample_id))) {
+            sample_id <- substr(cells, 1, 8)
+        }
+        if (all(is.na(sample_id)) || length(unique(sample_id)) < 2) {
+            if (verbose) cli::cli_warn("Could not extract sample_id from cell names; falling back to community blocks.")
+            block_method <- "community"
+        } else {
+            S <- Matrix::sparse.model.matrix(~0 + factor(sample_id))
+            # S is cells × samples, W is cells × nhoods
+            # t(S) is samples × cells, so t(S) %*% W is samples × nhoods
+            C_samp <- Matrix::t(S) %*% W
+            top_samp <- apply(C_samp, 2, function(v) {
+                idx <- which.max(v)
+                if (length(idx) && idx > 0) colnames(C_samp)[idx] else NA_character_
+            })
+            da_results$block_id <- top_samp[da_results$Nhood]
+            if (verbose && any(is.na(da_results$block_id))) {
+                cli::cli_warn("Some neighborhoods lack sample_id; falling back to community blocks.")
+                block_method <- "community"
+            }
+        }
+    }
+
+    if (block_method == "community" || (block_method == "sample" && any(is.na(da_results$block_id)))) {
+        G <- miloR::nhoodGraph(milo)
+        if (is.null(G) || length(G) == 0) {
+            if (verbose) cli::cli_warn("nhoodGraph not available; building it.")
+            milo <- miloR::buildNhoodGraph(milo)
+            G <- miloR::nhoodGraph(milo)
+        }
+        if (requireNamespace("igraph", quietly = TRUE)) {
+            comm <- igraph::cluster_louvain(G)$membership
+            da_results$block_id <- as.character(comm[da_results$Nhood])
+        } else {
+            if (verbose) cli::cli_warn("Package 'igraph' not available; skipping community blocks.")
+            da_results$block_id <- "all"
+        }
+    }
+
+    if (block_method == "none") {
+        da_results$block_id <- "all"
+    }
+
+    # Remove rows with missing cluster or block
+    da_results <- da_results[!is.na(da_results[[cluster_col]]) & !is.na(da_results$block_id), ]
+
+    # Group by cluster and compute statistics
+    cluster_stats <- da_results %>%
+        dplyr::group_by(.data[[cluster_col]]) %>%
+        dplyr::summarise(
+            mean_logFC = mean(.data$logFC, na.rm = TRUE),
+            n_nhoods = dplyr::n(),
+            .groups = "drop"
+        )
+
+    # Block permutation test
+    if ("permutation" %in% test_methods) {
+        if (verbose) cli::cli_inform("Running block permutation tests...")
+        perm_test_block <- function(df, block_var = "block_id", n = n_perm) {
+            obs <- mean(df$logFC, na.rm = TRUE)
+            perm_means <- replicate(n, {
+                df_perm <- df %>%
+                    dplyr::group_by(.data[[block_var]]) %>%
+                    dplyr::mutate(logFC_perm = sample(.data$logFC, size = dplyr::n(), replace = FALSE)) %>%
+                    dplyr::ungroup()
+                df_perm %>%
+                    dplyr::group_by(.data[[block_var]]) %>%
+                    dplyr::summarise(m = mean(.data$logFC_perm, na.rm = TRUE), .groups = "drop") %>%
+                    dplyr::summarise(mean(.data$m, na.rm = TRUE), .groups = "drop") %>%
+                    dplyr::pull()
+            })
+            (sum(abs(perm_means) >= abs(obs), na.rm = TRUE) + 1) / (n + 1)
+        }
+
+        cluster_perm <- da_results %>%
+            dplyr::group_by(.data[[cluster_col]]) %>%
+            dplyr::summarise(
+                p_perm = perm_test_block(dplyr::cur_data(), block_var = "block_id", n = n_perm),
+                .groups = "drop"
+            )
+        cluster_stats <- dplyr::left_join(cluster_stats, cluster_perm, by = cluster_col)
+    }
+
+    # Correlation-adjusted t-test (neff correction)
+    if ("neff" %in% test_methods) {
+        if (verbose) cli::cli_inform("Computing correlation-adjusted t-tests...")
+        G <- tryCatch(miloR::nhoodGraph(milo), warning = function(w) NULL, error = function(e) NULL)
+        if (is.null(G) || length(G) == 0) {
+            if (verbose) cli::cli_inform("Building nhoodGraph...")
+            milo <- miloR::buildNhoodGraph(milo)
+            G <- miloR::nhoodGraph(milo)
+        }
+        if (requireNamespace("igraph", quietly = TRUE)) {
+            adj_mat <- igraph::as_adjacency_matrix(G, sparse = TRUE)
+            nhood_idx <- match(da_results$Nhood, as.numeric(igraph::V(G)$name))
+            valid_idx <- !is.na(nhood_idx)
+            if (sum(valid_idx) > 0) {
+                adj_sub <- adj_mat[nhood_idx[valid_idx], nhood_idx[valid_idx], drop = FALSE]
+                eigen_vals <- eigen(as.matrix(adj_sub), only.values = TRUE)$values
+                neff <- sum(eigen_vals > 0.1)
+                neff <- max(neff, 1)
+            } else {
+                neff <- nrow(da_results)
+            }
+        } else {
+            neff <- nrow(da_results)
+        }
+
+        cluster_neff <- da_results %>%
+            dplyr::group_by(.data[[cluster_col]]) %>%
+            dplyr::summarise(
+                mean_lfc = mean(.data$logFC, na.rm = TRUE),
+                sd_lfc = sd(.data$logFC, na.rm = TRUE),
+                n = dplyr::n(),
+                .groups = "drop"
+            ) %>%
+            dplyr::mutate(
+                neff_cluster = pmax(2, round(neff * (.data$n / nrow(da_results)))),
+                sd_lfc = pmax(.data$sd_lfc, 1e-10),
+                t_stat = .data$mean_lfc / (.data$sd_lfc / sqrt(.data$neff_cluster)),
+                p_neff = ifelse(is.finite(.data$t_stat) & .data$neff_cluster > 1,
+                    2 * (1 - pt(abs(.data$t_stat), df = .data$neff_cluster - 1)),
+                    NA_real_)
+            ) %>%
+            dplyr::select(.data[[cluster_col]], .data$p_neff)
+        cluster_stats <- dplyr::left_join(cluster_stats, cluster_neff, by = cluster_col)
+    }
+
+    # Mixed-effects model
+    if ("lmm" %in% test_methods) {
+        if (requireNamespace("lme4", quietly = TRUE)) {
+            if (verbose) cli::cli_inform("Fitting mixed-effects models...")
+            cluster_lmm <- da_results %>%
+                dplyr::group_by(.data[[cluster_col]]) %>%
+                dplyr::summarise(
+                    p_lmm = tryCatch({
+                        mod <- lme4::lmer(logFC ~ 1 + (1 | block_id), data = dplyr::cur_data())
+                        coefs <- summary(mod)$coefficients
+                        if (nrow(coefs) > 0) {
+                            coefs[1, "Pr(>|t|)"]
+                        } else {
+                            NA_real_
+                        }
+                    }, error = function(e) NA_real_),
+                    .groups = "drop"
+                )
+            cluster_stats <- dplyr::left_join(cluster_stats, cluster_lmm, by = cluster_col)
+        } else {
+            if (verbose) cli::cli_warn("Package 'lme4' not available; skipping LMM tests.")
+        }
+    }
+
+    # Empirical Bayes (ashr)
+    if ("ashr" %in% test_methods) {
+        if (requireNamespace("ashr", quietly = TRUE)) {
+            if (verbose) cli::cli_inform("Computing Empirical Bayes estimates...")
+            da_results <- da_results %>%
+                dplyr::mutate(
+                    z = qnorm(1 - .data$PValue / 2, lower.tail = FALSE) * sign(.data$logFC),
+                    se = abs(.data$logFC) / pmax(abs(.data$z), 1e-6)
+                )
+            cluster_ashr <- da_results %>%
+                dplyr::group_by(.data[[cluster_col]]) %>%
+                dplyr::summarise(
+                    eb_mean = tryCatch({
+                        fit <- ashr::ash(.data$logFC, sebetahat = .data$se, method = "fdr")
+                        mean(fit$result$PosteriorMean, na.rm = TRUE)
+                    }, error = function(e) NA_real_),
+                    .groups = "drop"
+                )
+            cluster_stats <- dplyr::left_join(cluster_stats, cluster_ashr, by = cluster_col)
+        } else {
+            if (verbose) cli::cli_warn("Package 'ashr' not available; skipping Empirical Bayes estimates.")
+        }
+    }
+
+    cluster_stats
+}
+
