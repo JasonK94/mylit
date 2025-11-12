@@ -117,6 +117,47 @@
   - Milo `qs` 캐시에 UMAP 좌표까지 포함시켜 plotting 시 Seurat 재로딩을 줄이는 방안을 검토.
   - beeswarm 색상 팔레트와 보고용 그래프 템플릿을 표준화.
 
+## 2025-11-12 — Milo 클러스터별 logFC 편중성 검정 함수 개발 (`milo` 브랜치)
+- **작성자**: GPT-5 Codex  
+- **요약**: MiloR DA 결과에서 클러스터별 logFC 편중성을 검정하는 `test_cluster_logfc_bias()` 함수 개발 및 문서화 완료.
+- **세부 사항**:
+  - **함수 개발**:
+    - `test_cluster_logfc_bias()`: 클러스터별 logFC가 체계적으로 편향되어 있는지 검정
+    - Neighborhood 간 비독립성을 고려한 4가지 검정 방법 구현:
+      1. **Block Permutation Test** (권장): Block 내에서만 logFC를 섞어 permutation 수행
+      2. **Correlation-adjusted t-test (neff)**: 그래프 인접 행렬의 고유값으로 effective sample size 추정
+      3. **Mixed-Effects Model (LMM)**: `logFC ~ 1 + (1 | block_id)` 형태로 block-level random effect 모델링
+      4. **Empirical Bayes (ashr)**: p-value를 z-score로 변환 후 shrinkage로 effect size 추정
+  - **Block Method 개선**:
+    - `block_var` 파라미터로 통합: `patient_var`, `batch_var`, `GEM`, `set` 등 어떤 metadata 컬럼도 사용 가능
+    - GEM well suffix (`-1`, `-2`) 제거 로직 제거: 중복 barcode 문제 방지
+    - 우선순위: `block_var` 제공 시 `colData(milo)`에서 직접 사용 → cell name에서 추출 (fallback)
+  - **문서화**:
+    - `myR/docs/milo.md`: MiloR 파이프라인 및 검정 방법 상세 문서 작성
+    - 각 검정 방법의 원리, 수식, 장단점, 사용 예시 포함
+    - Block permutation test 알고리즘 단계별 설명
+    - neff 계산 방법 (고유값 기반 effective sample size)
+    - LMM 현재 구현의 제한사항 명시 (batch_var 보정 없음)
+    - Empirical Bayes shrinkage 방법 설명
+- **주요 발견**:
+  - Block permutation test는 block 구조를 완전히 보존하여 가장 신뢰할 수 있는 방법
+  - neff는 빠르지만 근사적이므로 permutation보다 덜 보수적
+  - LMM은 현재 `batch_var`를 보정하지 않음 (block-level random effect만 모델링)
+  - ashr는 검정보다는 effect size 추정에 유용
+- **기술적 세부사항**:
+  - Block permutation: 각 block 내에서만 logFC를 섞어 block 구조 보존
+  - neff: `neff = sum(eigenvalues > 0.1)`, 클러스터별로 비례 배분
+  - LMM: `logFC ~ 1 + (1 | block_id)`, 절편의 유의성 검정
+  - ashr: `z = qnorm(1 - PValue/2) * sign(logFC)`, `se = |logFC| / max(|z|, 1e-6)`
+- **주의사항**:
+  - LMM에 batch_var 보정을 추가하려면 모델을 `logFC ~ 1 + batch_var + (1 | block_id)` 형태로 확장 필요
+  - Block permutation test는 계산 시간이 오래 걸림 (n_perm에 비례, 기본값 2000)
+  - 작은 클러스터에서는 neff_cluster가 너무 작아질 수 있음
+- **다음 단계**:
+  - LMM에 batch_var 보정 옵션 추가 검토
+  - 검정 방법 간 결과 비교 및 검증
+  - 실제 데이터셋에서의 성능 평가
+
 ---
 
 ### 향후 계획
