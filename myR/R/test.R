@@ -502,66 +502,17 @@ NEBULA=function(){}
 #' @param n_cores (numeric) 병렬 처리 코어 수
 #' @param lrt_variable (character) LRT 검정을 수행할 변수명 (예: "type")
 #'
+#' @title MAST 파이프라인 함수 (DEPRECATED)
+#' @description 이 함수는 deprecated되었습니다. test_analysis.R의 runMAST_v1을 사용하세요.
 #' @export
-runMAST <- function(sobj,
-                    formula,
-                    min_cells_expr = 10,
-                    n_cores = 4,
-                    lrt_variable = NULL) {
-  
-  if (!requireNamespace("MAST", quietly = TRUE)) stop("MAST 패키지가 필요합니다.")
-  if (!requireNamespace("SingleCellExperiment", quietly = TRUE)) stop("SCE 패키지가 필요합니다.")
-  if (is.null(lrt_variable)) stop("'lrt_variable' 인자 (예: 'g3')를 지정해야 합니다.")
-  
-  if (is.character(formula)) {
-    formula_obj <- as.formula(formula)
-  } else if (inherits(formula, "formula")) {
-    formula_obj <- formula
+runMAST <- function(...) {
+  .Deprecated("runMAST_v1", package = "myR", msg = "runMAST in test.R is deprecated. Use runMAST_v1 from test_analysis.R instead.")
+  if (exists("runMAST_v1", envir = asNamespace("myR"), inherits = FALSE)) {
+    fun <- get("runMAST_v1", envir = asNamespace("myR"))
+    return(fun(...))
   } else {
-    stop("'formula'는 문자열 또는 formula 객체여야 합니다.")
+    stop("runMAST_v1 from test_analysis.R not found. Please ensure test_analysis.R is loaded.")
   }
-  
-  # --- 1. SCA 객체 생성 및 정규화 ---
-  message("1/5: Seurat -> SingleCellExperiment(SCE) 객체 변환 중...")
-  
-  # [수정] MAST Problem 1 해결: FromSeurat 대신 as.SingleCellExperiment 사용
-  sca <- as.SingleCellExperiment(sobj)
-  
-  # --- 2. 유전자 필터링 ---
-  message(sprintf("2/5: 유전자 필터링 (min %d cells)...", min_cells_expr))
-  # freq()는 발현 비율 (0~1)을 반환
-  keep_genes <- (MAST::freq(sca) * ncol(sca)) >= min_cells_expr
-  sca_filtered <- sca[keep_genes, ]
-  message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(sca)))
-
-  # --- 3. 정규화 (MAST는 log2cpm 사용) ---
-  message("3/5: Log2(CPM+1) 정규화 중...")
-  SummarizedExperiment::assay(sca_filtered, "logcpm") <- MAST::cpm(sca_filtered, log = TRUE)
-  
-  # --- 4. zlm (Hurdle LMM) 실행 ---
-  message(sprintf("4/5: MAST::zlm 실행 (Cores: %d). 시간이 오래 걸릴 수 있습니다...", n_cores))
-  
-  zfit <- MAST::zlm(formula_obj, 
-                    sca = sca_filtered, 
-                    method = "glmer", 
-                    parallel = TRUE,
-                    nCores = n_cores)
-  
-  # --- 5. LRT 결과 요약 ---
-  message(sprintf("5/5: LRT 검정 수행 (변수: %s)...", lrt_variable))
-  summary_res <- summary(zfit, doLRT = lrt_variable)
-  summary_dt <- summary_res$datatable
-  
-  results_df <- merge(
-      summary_dt[component == 'H', .(primerid, `Pr(>Chisq)`)], # Hurdle (logistic)
-      summary_dt[component == 'logcpm', .(primerid, coef, ci.hi, ci.lo)], # Continuous
-      by = 'primerid'
-  )
-  colnames(results_df)[2] <- "p_value_hurdle"
-  results_df <- results_df[order(p_value_hurdle), ]
-  
-  message("MAST 분석 완료.")
-  return(results_df)
 }
 
 # [V4] find_gene_signature_v4
