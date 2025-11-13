@@ -2147,3 +2147,378 @@ detect_expression_patterns <- function(cds_obj,
     n_cells = length(gene_expr)
   ))
 }
+
+
+#' Analyze branching dynamics in trajectory
+#'
+#' This function detects branching points in a Monocle3 trajectory and analyzes
+#' gene expression differences between branches. It can also analyze how metadata
+#' variables relate to branch selection.
+#'
+#' @param cds_obj A Monocle3 cell_data_set object with trajectory graph learned.
+#' @param gene_id Optional. Character string, a specific gene ID to analyze.
+#'   If NULL, analyzes all genes or a subset.
+#' @param metadata_col Optional. Character string, metadata column to analyze
+#'   for branch selection mechanism (e.g., condition, treatment).
+#' @param min_cells_per_branch Integer. Minimum number of cells required per branch.
+#'   Default is 20.
+#' @param test_method Character string. Method for testing branch-specific expression:
+#'   "graph_test" (default, uses Monocle3's graph_test) or "wilcoxon".
+#' @param q_value_threshold Numeric. Q-value threshold for branch-specific genes.
+#'   Default is 0.05.
+#' @param return_branch_assignments Logical. If TRUE, returns cell-to-branch assignments.
+#'   Default is FALSE.
+#'
+#' @return A list containing:
+#'   \itemize{
+#'     \item `branching_points`: Detected branching points information.
+#'     \item `branch_assignments`: (if return_branch_assignments=TRUE) Cell-to-branch mapping.
+#'     \item `branch_specific_genes`: Genes with branch-specific expression.
+#'     \item `gene_analysis`: (if gene_id provided) Detailed analysis for the gene.
+#'     \item `metadata_analysis`: (if metadata_col provided) Branch selection mechanism analysis.
+#'   }
+#'
+#' @import monocle3
+#' @importFrom stats wilcox.test
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Analyze branching dynamics
+#' branch_results <- analyze_branching_dynamics(
+#'   cds_obj = cds,
+#'   metadata_col = "condition"
+#' )
+#' 
+#' # Analyze specific gene across branches
+#' gene_branch <- analyze_branching_dynamics(
+#'   cds_obj = cds,
+#'   gene_id = "DDIT4"
+#' )
+#' }
+analyze_branching_dynamics <- function(cds_obj,
+                                      gene_id = NULL,
+                                      metadata_col = NULL,
+                                      min_cells_per_branch = 20,
+                                      test_method = "graph_test",
+                                      q_value_threshold = 0.05,
+                                      return_branch_assignments = FALSE) {
+  
+  # --- 0. Input Validation ---
+  if (!is(cds_obj, "cell_data_set")) {
+    stop("cds_obj must be a Monocle3 cell_data_set object.", call. = FALSE)
+  }
+  
+  # Check if graph is learned
+  if (is.null(monocle3::principal_graph(cds_obj))) {
+    stop("Principal graph not found. Please run learn_graph() first.", call. = FALSE)
+  }
+  
+  # --- 1. Detect branches ---
+  message("--- Step 1: Detecting branches ---")
+  
+  # Get principal graph
+  principal_graph <- monocle3::principal_graph(cds_obj)
+  
+  # Get cell-to-principal-point mappings
+  cell_point_mappings <- tryCatch({
+    monocle3::principal_graph_aux(cds_obj)$pr_graph_cell_proj_closest_vertex
+  }, error = function(e) {
+    warning("Could not extract cell-to-principal-point mappings: ", e$message, call. = FALSE)
+    return(NULL)
+  })
+  
+  if (is.null(cell_point_mappings)) {
+    stop("Could not extract cell-to-principal-point mappings. Graph may not be properly learned.", call. = FALSE)
+  }
+  
+  # Identify branching points (nodes with degree > 2)
+  graph_adjacency <- tryCatch({
+    if (requireNamespace("igraph", quietly = TRUE)) {
+      igraph::as_adjacency_matrix(principal_graph, sparse = FALSE)
+    } else {
+      warning("igraph package not available. Skipping branching point detection.", call. = FALSE)
+      NULL
+    }
+  }, error = function(e) {
+    warning("Could not extract graph adjacency: ", e$message, call. = FALSE)
+    return(NULL)
+  })
+  
+  branching_points <- list()
+  if (!is.null(graph_adjacency)) {
+    node_degrees <- rowSums(graph_adjacency > 0)
+    branching_node_indices <- which(node_degrees > 2)
+    
+    if (length(branching_node_indices) > 0) {
+      branching_points <- list(
+        node_indices = branching_node_indices,
+        node_degrees = node_degrees[branching_node_indices],
+        n_branching_points = length(branching_node_indices)
+      )
+      message("Found ", length(branching_node_indices), " branching point(s)")
+    } else {
+      message("No branching points detected (all nodes have degree <= 2)")
+    }
+  }
+  
+  # --- 2. Assign cells to branches ---
+  message("--- Step 2: Assigning cells to branches ---")
+  
+  # Use partition information if available
+  partitions <- tryCatch({
+    monocle3::partitions(cds_obj)
+  }, error = function(e) {
+    NULL
+  })
+  
+  branch_assignments <- NULL
+  if (!is.null(partitions)) {
+    unique_partitions <- unique(partitions)
+    message("Found ", length(unique_partitions), " partition(s)")
+    
+    # Create branch assignments based on partitions
+    branch_assignments <- factor(partitions, levels = unique_partitions)
+    names(branch_assignments) <- colnames(cds_obj)
+    
+    # Filter branches with sufficient cells
+    branch_counts <- table(branch_assignments)
+    valid_branches <- names(branch_counts)[branch_counts >= min_cells_per_branch]
+    
+    if (length(valid_branches) < 2) {
+      warning("Less than 2 branches with sufficient cells (", min_cells_per_branch, "). ",
+              "Branch analysis may be limited.", call. = FALSE)
+    } else {
+      message("Valid branches (>= ", min_cells_per_branch, " cells): ", length(valid_branches))
+      branch_assignments <- branch_assignments[branch_assignments %in% valid_branches]
+    }
+  } else {
+    # Alternative: use cluster information if partitions not available
+    cluster_info <- tryCatch({
+      monocle3::pData(cds_obj)$cluster
+    }, error = function(e) NULL)
+    
+    if (!is.null(cluster_info)) {
+      message("Using cluster information for branch assignment")
+      branch_assignments <- factor(cluster_info)
+      names(branch_assignments) <- colnames(cds_obj)
+      
+      branch_counts <- table(branch_assignments)
+      valid_branches <- names(branch_counts)[branch_counts >= min_cells_per_branch]
+      
+      if (length(valid_branches) >= 2) {
+        branch_assignments <- branch_assignments[branch_assignments %in% valid_branches]
+        message("Valid branches: ", length(valid_branches))
+      }
+    } else {
+      warning("Could not determine branch assignments. Partition or cluster information not available.", call. = FALSE)
+    }
+  }
+  
+  # --- 3. Analyze branch-specific genes ---
+  branch_specific_genes <- NULL
+  
+  if (!is.null(branch_assignments) && length(unique(branch_assignments)) >= 2) {
+    message("--- Step 3: Finding branch-specific genes ---")
+    
+    if (test_method == "graph_test") {
+      # Use Monocle3's graph_test
+      tryCatch({
+        graph_test_result <- monocle3::graph_test(cds_obj, neighbor_graph = "principal_graph", cores = 1)
+        
+        if (!is.null(graph_test_result) && nrow(graph_test_result) > 0) {
+          # Filter by q-value
+          significant_genes <- graph_test_result[graph_test_result$q_value < q_value_threshold, ]
+          branch_specific_genes <- significant_genes
+          message("Found ", nrow(significant_genes), " branch-specific genes (q < ", q_value_threshold, ")")
+        }
+      }, error = function(e) {
+        warning("graph_test failed: ", e$message, ". Trying alternative method.", call. = FALSE)
+        test_method <- "wilcoxon"
+      })
+    }
+    
+    if (test_method == "wilcoxon" || is.null(branch_specific_genes)) {
+      # Alternative: Wilcoxon test between branches
+      message("Using Wilcoxon test for branch-specific genes...")
+      
+      branch_names <- unique(branch_assignments)
+      if (length(branch_names) >= 2) {
+        # Test each gene
+        all_genes <- rownames(cds_obj)
+        n_genes_to_test <- min(1000, length(all_genes))  # Limit for performance
+        genes_to_test <- sample(all_genes, n_genes_to_test)
+        
+        wilcoxon_results <- lapply(genes_to_test, function(g) {
+          gene_expr <- as.numeric(counts(cds_obj)[g, names(branch_assignments)])
+          
+          # Compare first two branches
+          branch1_expr <- gene_expr[branch_assignments == branch_names[1]]
+          branch2_expr <- gene_expr[branch_assignments == branch_names[2]]
+          
+          if (length(branch1_expr) >= min_cells_per_branch && 
+              length(branch2_expr) >= min_cells_per_branch) {
+            test_result <- tryCatch({
+              wilcox.test(branch1_expr, branch2_expr)
+            }, error = function(e) NULL)
+            
+            if (!is.null(test_result)) {
+              data.frame(
+                gene = g,
+                branch1 = branch_names[1],
+                branch2 = branch_names[2],
+                p_value = test_result$p.value,
+                branch1_mean = mean(branch1_expr, na.rm = TRUE),
+                branch2_mean = mean(branch2_expr, na.rm = TRUE),
+                log2_fold_change = log2((mean(branch2_expr, na.rm = TRUE) + 1) / (mean(branch1_expr, na.rm = TRUE) + 1)),
+                stringsAsFactors = FALSE
+              )
+            } else {
+              NULL
+            }
+          } else {
+            NULL
+          }
+        })
+        
+        branch_specific_genes <- do.call(rbind, Filter(Negate(is.null), wilcoxon_results))
+        if (!is.null(branch_specific_genes) && nrow(branch_specific_genes) > 0) {
+          branch_specific_genes <- branch_specific_genes[branch_specific_genes$p_value < q_value_threshold, ]
+          message("Found ", nrow(branch_specific_genes), " branch-specific genes (p < ", q_value_threshold, ")")
+        }
+      }
+    }
+  }
+  
+  # --- 4. Analyze specific gene (if provided) ---
+  gene_analysis <- NULL
+  
+  if (!is.null(gene_id)) {
+    message("--- Step 4: Analyzing gene '", gene_id, "' across branches ---")
+    
+    if (!gene_id %in% rownames(cds_obj)) {
+      warning("Gene '", gene_id, "' not found in cds_obj.", call. = FALSE)
+    } else if (!is.null(branch_assignments) && length(unique(branch_assignments)) >= 2) {
+      gene_expr <- as.numeric(counts(cds_obj)[gene_id, names(branch_assignments)])
+      
+      branch_stats <- lapply(unique(branch_assignments), function(branch) {
+        branch_expr <- gene_expr[branch_assignments == branch]
+        list(
+          branch = branch,
+          n_cells = length(branch_expr),
+          mean_expr = mean(branch_expr, na.rm = TRUE),
+          median_expr = median(branch_expr, na.rm = TRUE),
+          sd_expr = sd(branch_expr, na.rm = TRUE)
+        )
+      })
+      
+      # Statistical test between branches
+      branch_names <- unique(branch_assignments)
+      if (length(branch_names) >= 2) {
+        branch1_expr <- gene_expr[branch_assignments == branch_names[1]]
+        branch2_expr <- gene_expr[branch_assignments == branch_names[2]]
+        
+        if (length(branch1_expr) >= min_cells_per_branch && 
+            length(branch2_expr) >= min_cells_per_branch) {
+          test_result <- tryCatch({
+            wilcox.test(branch1_expr, branch2_expr)
+          }, error = function(e) NULL)
+          
+          gene_analysis <- list(
+            gene = gene_id,
+            branch_statistics = branch_stats,
+            branch_comparison = if (!is.null(test_result)) {
+              list(
+                branch1 = branch_names[1],
+                branch2 = branch_names[2],
+                p_value = test_result$p.value,
+                branch1_mean = mean(branch1_expr, na.rm = TRUE),
+                branch2_mean = mean(branch2_expr, na.rm = TRUE),
+                log2_fold_change = log2((mean(branch2_expr, na.rm = TRUE) + 1) / (mean(branch1_expr, na.rm = TRUE) + 1))
+              )
+            } else {
+              NULL
+            }
+          )
+        }
+      }
+    }
+  }
+  
+  # --- 5. Analyze metadata for branch selection mechanism ---
+  metadata_analysis <- NULL
+  
+  if (!is.null(metadata_col) && !is.null(branch_assignments)) {
+    message("--- Step 5: Analyzing branch selection mechanism (metadata: ", metadata_col, ") ---")
+    
+    cell_metadata <- monocle3::pData(cds_obj)
+    if (metadata_col %in% colnames(cell_metadata)) {
+      metadata_values <- cell_metadata[[metadata_col]][names(branch_assignments)]
+      
+      # Test association between metadata and branch assignment
+      if (is.numeric(metadata_values)) {
+        # Numeric: test if metadata differs between branches
+        branch_names <- unique(branch_assignments)
+        if (length(branch_names) >= 2) {
+          branch1_meta <- metadata_values[branch_assignments == branch_names[1]]
+          branch2_meta <- metadata_values[branch_assignments == branch_names[2]]
+          
+          if (length(branch1_meta) >= min_cells_per_branch && 
+              length(branch2_meta) >= min_cells_per_branch) {
+            test_result <- tryCatch({
+              wilcox.test(branch1_meta, branch2_meta)
+            }, error = function(e) NULL)
+            
+            metadata_analysis <- list(
+              metadata_col = metadata_col,
+              branch1_mean = mean(branch1_meta, na.rm = TRUE),
+              branch2_mean = mean(branch2_meta, na.rm = TRUE),
+              p_value = if (!is.null(test_result)) test_result$p.value else NA_real_,
+              association = if (!is.null(test_result) && test_result$p.value < 0.05) {
+                "significant"
+              } else {
+                "not_significant"
+              }
+            )
+          }
+        }
+      } else {
+        # Categorical: chi-square test
+        contingency_table <- table(branch_assignments, metadata_values)
+        if (nrow(contingency_table) >= 2 && ncol(contingency_table) >= 2) {
+          test_result <- tryCatch({
+            chisq.test(contingency_table)
+          }, error = function(e) NULL)
+          
+          metadata_analysis <- list(
+            metadata_col = metadata_col,
+            contingency_table = contingency_table,
+            p_value = if (!is.null(test_result)) test_result$p.value else NA_real_,
+            association = if (!is.null(test_result) && test_result$p.value < 0.05) {
+              "significant"
+            } else {
+              "not_significant"
+            }
+          )
+        }
+      }
+    } else {
+      warning("Metadata column '", metadata_col, "' not found in colData(cds_obj).", call. = FALSE)
+    }
+  }
+  
+  # --- 6. Return results ---
+  result <- list(
+    branching_points = branching_points,
+    n_branches = if (!is.null(branch_assignments)) length(unique(branch_assignments)) else 0,
+    branch_specific_genes = branch_specific_genes,
+    gene_analysis = gene_analysis,
+    metadata_analysis = metadata_analysis
+  )
+  
+  if (return_branch_assignments && !is.null(branch_assignments)) {
+    result$branch_assignments <- branch_assignments
+  }
+  
+  return(result)
+}
