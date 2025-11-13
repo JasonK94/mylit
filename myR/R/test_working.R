@@ -982,97 +982,14 @@ PERMANOVA=function(sobj, patient_var, celltype_var, group_var, assay="RNA", na.d
 #' @return (nebula) NEBULA 실행 결과 객체
 #'
 #' @export 
-runNEBULA <- function(sobj,
-                                layer = "counts",
-                                fixed_effects = c("target_col", "celltype_col"),
-                                covar_effects = c("batch_col"),
-                                patient_col = "patient_col",
-                                offset = "nCount_RNA",
-                                min_count = 10) {
-  
-  # --- 0. 데이터 추출 ---
-  meta <- sobj@meta.data
-  counts <- GetAssayData(sobj, layer = layer) # dgCMatrix (희소 행렬)
-  
-  # --- 1. 유전자 필터링 ---
-  message(sprintf("1/6: 유전자 필터링 (min %d cells)...", min_count))
-  keep_genes <- rowSums(counts > 0) >= min_count
-  counts_filtered <- counts[keep_genes, ]
-  message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(counts)))
-  
-  # --- 2. NA 값 확인 및 제거 ---
-  # [수정] NEBULA는 'covar_effects'도 고정 효과로 처리해야 함
-  all_fixed_vars <- c(fixed_effects, covar_effects)
-  
-  # [수정] NA 체크할 모든 변수 목록
-  vars_to_check <- c(all_fixed_vars, patient_col, offset)
-  
-  message("2/6: 모델 변수에서 NA 값 확인 중...")
-  message(paste("... 확인 대상:", paste(vars_to_check, collapse = ", ")))
-  
-  keep_cells_idx <- complete.cases(meta[, vars_to_check])
-  n_removed <- sum(!keep_cells_idx)
-  
-  if (n_removed > 0) {
-    message(sprintf("... NA 값으로 인해 %d 개의 세포를 제거합니다.", n_removed))
+runNEBULA <- function(...) {
+  .Deprecated("runNEBULA_v1", package = "myR", msg = "runNEBULA in test_working.R is deprecated. Use runNEBULA_v1 from test_analysis.R instead.")
+  if (exists("runNEBULA_v1", envir = asNamespace("myR"), inherits = FALSE)) {
+    fun <- get("runNEBULA_v1", envir = asNamespace("myR"))
+    return(fun(...))
+  } else {
+    stop("runNEBULA_v1 from test_analysis.R not found. Please ensure test_analysis.R is loaded.")
   }
-  
-  # NA가 없는 '깨끗한' 데이터 생성
-  meta_clean <- meta[keep_cells_idx, ]
-  counts_clean <- counts_filtered[, keep_cells_idx]
-  
-  message(sprintf("... 최종 분석 대상 세포: %d 개", nrow(meta_clean)))
-  
-  # --- 3. 디자인 행렬 및 벡터 생성 ---
-  message("3/6: 디자인 행렬 및 벡터 생성 중...")
-  
-  # [수정] 범주형 변수와 숫자형 변수 분리
-  # 'offset'은 숫자로 유지해야 함!
-  factor_vars <- c(all_fixed_vars, patient_col)
-  
-  # [수정] lapply + as.factor 적용 (오타 수정 as.factors -> as.factor)
-  meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], as.factor)
-  
-  # [수정] 'offset'은 numeric으로 강제 변환 (안전장치)
-  meta_clean[[offset]] <- as.numeric(meta_clean[[offset]])
-  if (any(is.na(meta_clean[[offset]]))) {
-      stop(sprintf("'%s' 컬럼에 NA가 아닌 숫자형 값만 있어야 합니다.", offset))
-  }
-
-  # [수정] 'formula' 인수를 없애고, 변수명으로부터 동적 생성
-  formula_str <- paste("~", paste(all_fixed_vars, collapse = " + "))
-  message(sprintf("... 사용할 고정 효과 포뮬러: %s", formula_str))
-  
-  design_matrix <- model.matrix(as.formula(formula_str), data = meta_clean)
-  
-  # id 및 offset 벡터 추출
-  id_vector <- meta_clean[[patient_col]]
-  offset_vector <- meta_clean[[offset]]
-  
-  # --- 4. group_cell()로 데이터 정렬 ---
-  message(sprintf("4/6: NEBULA를 위해 id (%s) 기준으로 데이터 정렬 중...", patient_col))
-  data_grouped <- nebula::group_cell(
-    count = counts_clean,
-    id = id_vector,
-    pred = design_matrix,
-    offset = offset_vector
-  )
-  
-  # --- 5. NEBULA 실행 ---
-  message("5/6: NEBULA 실행 중 (NBLMM)...")
-  re_nebula <- nebula::nebula(
-    count = data_grouped$count,
-    id = data_grouped$id,
-    pred = data_grouped$pred,
-    offset = data_grouped$offset,
-    model = "NBLMM" # lme4::glmer.nb와 유사한 Lognormal random effect 권장
-  )
-  
-  # --- 6. 결과 반환 ---
-  message("6/6: 분석 완료.")
-  
-  # [수정] 함수는 결과를 'return' 해야 함
-  return(re_nebula)
 }
 
 #' @title Muscat (Pseudo-bulking) 파이프라인 함수 (V5 - prepData 사용)
