@@ -288,8 +288,20 @@ run_slingshot_from_seurat <- function(seurat_obj,
   
   # --- Step 4: Processing Slingshot output ---
   message("Processing Slingshot output...")
-  pst_matrix <- slingshot::slingPseudotime(slingshot_result, na = FALSE)
-  weights_matrix <- slingshot::slingCurveWeights(slingshot_result, na = FALSE)
+  # slingshot 버전에 따라 na 인자 지원 여부가 다를 수 있음
+  pst_matrix <- tryCatch({
+    slingshot::slingPseudotime(slingshot_result, na = FALSE)
+  }, error = function(e) {
+    # na 인자가 지원되지 않는 경우
+    slingshot::slingPseudotime(slingshot_result)
+  })
+  
+  weights_matrix <- tryCatch({
+    slingshot::slingCurveWeights(slingshot_result, na = FALSE)
+  }, error = function(e) {
+    # na 인자가 지원되지 않는 경우
+    slingshot::slingCurveWeights(slingshot_result)
+  })
   # Cell names for slingshot_result are based on the input dim_reduced_data_filt
   original_cell_names_for_slingshot_input <- rownames(dim_reduced_data_filt)
   
