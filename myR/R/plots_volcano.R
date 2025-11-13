@@ -10,7 +10,7 @@ NULL
 #' Creates a volcano plot from statistical results (e.g., differential expression,
 #' linear model results). Supports flexible column naming and filtering.
 #'
-#' @param data data.frame with statistical results
+#' @param data data.frame with statistical results (i.e. FindMarkers object, LMM summary object, etc.)
 #' @param x_col Character. Column name for effect size/estimate (default: "estimate")
 #' @param y_col Character. Column name for p-value (default: "p_value")
 #' @param gene_col Character. Column name for gene/feature names (default: "gene")

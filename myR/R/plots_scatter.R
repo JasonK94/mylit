@@ -31,6 +31,7 @@ NULL
 #' @param title Character. Plot title (auto-generated if NULL)
 #' @param xlab Character. X-axis label (auto-generated if NULL)
 #' @param ylab Character. Y-axis label (auto-generated if NULL)
+#' @param remove_na Logical. Remove NA values in x_var and feature. To remove group, split, color variables, use subset. (default: FALSE)
 #'
 #' @return ggplot object
 #'
@@ -236,7 +237,7 @@ plot_scatter <- function(data,
   # Remove NA values if requested
   if (remove_na) {
     na_before <- nrow(plot_df)
-    plot_df <- plot_df[!is.na(plot_df$avg_expr) & !is.na(plot_df$x_val), ]
+    plot_df <- plot_df[!is.na(plot_df$avg_expr) & !is.na(plot_df$x_val) , ]
     na_removed <- na_before - nrow(plot_df)
     if (na_removed > 0) {
       warning("Removed ", na_removed, " rows with NA values")

@@ -41,13 +41,10 @@ export(filter_demulti_results)
 export(find_drug_response_genes)
 export(find_gene_signature)
 export(find_gene_signature_v3)
-<<<<<<< HEAD
 export(FGS_v5.2)
 export(FGS_v5.3)
 export(find_gene_signature_v5.2)
 export(find_gene_signature_v5.3)
-=======
->>>>>>> milo
 export(find_temporal_response_genes)
 export(format_results)
 export(generate_lmm_report)
@@ -129,7 +126,6 @@ export(run_lmm_multiple_genes)
 export(run_milo_pipeline)
 export(run_nichenet_analysis)
 export(run_slingshot_from_seurat)
-<<<<<<< HEAD
 export(runMAST_v1)
 export(runNEBULA_v1)
 export(runMUSCAT_v5)
@@ -137,8 +133,6 @@ export(compute_meta_gene_importance)
 export(TML6)
 export(train_meta_learner_v5)
 export(train_meta_learner_v6)
-=======
->>>>>>> milo
 export(sanitize_filename)
 export(save_plot_with_conflict_resolution)
 export(save_seurat_to_h5ad)

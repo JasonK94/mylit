@@ -86,6 +86,15 @@ plot_box <- function(data,
     if (is.null(aggregate_by)) {
       aggregate_by <- unique(c(sample_col, group.by, split.by))
       aggregate_by <- aggregate_by[!is.null(aggregate_by)]
+    } else {
+      # Ensure group.by and split.by are included in aggregate_by
+      # They are needed for plotting even if user didn't specify them
+      if (!is.null(group.by) && !group.by %in% aggregate_by) {
+        aggregate_by <- c(aggregate_by, group.by)
+      }
+      if (!is.null(split.by) && !split.by %in% aggregate_by) {
+        aggregate_by <- c(aggregate_by, split.by)
+      }
     }
   }
   
@@ -110,6 +119,18 @@ plot_box <- function(data,
   if (is.null(group.by)) {
     group.by.internal <- ".internal_placeholder_group"
     plot_df[[group.by.internal]] <- "Overall"
+  } else {
+    # Check if group.by column exists after aggregation
+    if (!group.by.internal %in% names(plot_df)) {
+      stop("Column '", group.by.internal, "' not found after aggregation. ",
+           "Please include '", group.by.internal, "' in aggregate_by parameter.")
+    }
+  }
+  
+  # Check if split.by column exists
+  if (!split.by %in% names(plot_df)) {
+    stop("Column '", split.by, "' not found after aggregation. ",
+         "Please include '", split.by, "' in aggregate_by parameter.")
   }
   
   # Filter by idents if specified
@@ -136,10 +157,11 @@ plot_box <- function(data,
     } else {
       plot_df[[group.by.internal]] <- as.factor(plot_df[[group.by.internal]])
     }
+  } else {
+    # Convert to factors (only if not already converted in idents filtering)
+    plot_df[[group.by.internal]] <- as.factor(plot_df[[group.by.internal]])
   }
   
-  # Convert to factors
-  plot_df[[group.by.internal]] <- as.factor(plot_df[[group.by.internal]])
   plot_df[[split.by]] <- as.factor(plot_df[[split.by]])
   
   # Create plots for each feature
