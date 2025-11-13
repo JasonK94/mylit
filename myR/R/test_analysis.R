@@ -558,8 +558,9 @@ runMUSCAT2_v1 <- function(
     stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
   }
   
-  # NA 값이 있는 셀 확인
+  # NA 값이 있는 셀 확인 (R의 NA와 character "NA" 모두 제거)
   if (remove_na_groups) {
+    # R의 NA 값 확인
     na_mask <- is.na(meta[[group_id]]) | 
                is.na(meta[[cluster_id]]) | 
                is.na(meta[[sample_id]])
@@ -567,9 +568,23 @@ runMUSCAT2_v1 <- function(
       na_mask <- na_mask | is.na(meta[[batch_id]])
     }
     
+    # character "NA" 문자열도 제거 (group_id, cluster_id, sample_id, batch_id)
+    if (is.character(meta[[group_id]])) {
+      na_mask <- na_mask | (meta[[group_id]] == "NA" | meta[[group_id]] == "na")
+    }
+    if (is.character(meta[[cluster_id]])) {
+      na_mask <- na_mask | (meta[[cluster_id]] == "NA" | meta[[cluster_id]] == "na")
+    }
+    if (is.character(meta[[sample_id]])) {
+      na_mask <- na_mask | (meta[[sample_id]] == "NA" | meta[[sample_id]] == "na")
+    }
+    if (!is.null(batch_id) && batch_id %in% colnames(meta) && is.character(meta[[batch_id]])) {
+      na_mask <- na_mask | (meta[[batch_id]] == "NA" | meta[[batch_id]] == "na")
+    }
+    
     n_na_cells <- sum(na_mask)
     if (n_na_cells > 0) {
-      message(sprintf("... NA 값이 있는 %d 개의 세포를 제거합니다.", n_na_cells))
+      message(sprintf("... NA 값(또는 'NA' 문자열)이 있는 %d 개의 세포를 제거합니다.", n_na_cells))
       sobj <- sobj[, !na_mask]
       meta <- sobj@meta.data
     } else {
@@ -875,7 +890,49 @@ runNEBULA2_v1 <- function(sobj,
   formula_str <- paste("~", paste(all_fixed_vars, collapse = " + "))
   message(sprintf("... 사용할 고정 효과 포뮬러: %s", formula_str))
   
+  # 설계 행렬 생성 및 특이성(singularity) 확인
   design_matrix <- model.matrix(as.formula(formula_str), data = meta_clean)
+  
+  # 설계 행렬의 특이성 확인 (rank deficiency) - qr() 사용
+  design_qr <- qr(design_matrix)
+  design_rank <- design_qr$rank
+  n_cols <- ncol(design_matrix)
+  
+  # 완전 분리된 조합 확인 (설계 행렬이 특이하기 전에 미리 확인)
+  if (length(all_fixed_vars) >= 2) {
+    message("... 변수 간 완전 분리(complete separation) 확인 중...")
+    separation_issues <- FALSE
+    for (i in 1:(length(all_fixed_vars)-1)) {
+      for (j in (i+1):length(all_fixed_vars)) {
+        var1 <- all_fixed_vars[i]
+        var2 <- all_fixed_vars[j]
+        contingency <- table(meta_clean[[var1]], meta_clean[[var2]])
+        zero_cells <- sum(contingency == 0)
+        if (zero_cells > 0) {
+          separation_issues <- TRUE
+          warning(sprintf("%s와 %s 사이에 완전 분리된 조합이 있습니다 (0인 셀: %d개).", 
+                         var1, var2, zero_cells))
+          message(sprintf("  %s x %s contingency table:", var1, var2))
+          print(contingency)
+        }
+      }
+    }
+    if (!separation_issues) {
+      message("... 완전 분리 문제 없음")
+    }
+  }
+  
+  if (design_rank < n_cols) {
+    warning(sprintf("설계 행렬이 특이(singular)합니다. rank=%d < columns=%d. 완전 분리(complete separation) 문제로 인해 분석이 실패할 수 있습니다.", 
+                    design_rank, n_cols))
+    message("설계 행렬이 특이하지만 분석을 계속 진행합니다. 오류가 발생하면:")
+    message("  1. covar_effects를 제거하거나 다른 변수를 사용하세요.")
+    message("  2. 완전 분리된 조합을 제거하거나 데이터를 필터링하세요.")
+    message("  3. min_count를 높여서 더 적은 유전자로 분석하세요.")
+  }
+  
+  message(sprintf("... 설계 행렬: %d 행 x %d 열 (rank=%d)", 
+                  nrow(design_matrix), ncol(design_matrix), design_rank))
   
   # id 및 offset 벡터 추출
   id_vector <- meta_clean[[patient_col]]
@@ -895,6 +952,23 @@ runNEBULA2_v1 <- function(sobj,
   
   # --- 5. NEBULA 실행 ---
   message("5/7: NEBULA 실행 중 (NBLMM)...")
+  
+  # 유전자 수가 너무 많으면 일부만 테스트
+  n_genes <- nrow(data_grouped$count)
+  n_samples <- length(unique(data_grouped$id))
+  
+  message(sprintf("... %d 개의 유전자, %d 개의 샘플 분석 시작", n_genes, n_samples))
+  
+  # 샘플 수가 적거나 설계 행렬이 특이하면 유전자 수 제한
+  if (n_samples < 10 || design_rank < n_cols) {
+    if (n_genes > 1000) {
+      message(sprintf("... 샘플 수가 적거나 설계 행렬이 특이하여 유전자 수를 1000개로 제한합니다."))
+      gene_subset <- sample(1:n_genes, min(1000, n_genes))
+      data_grouped$count <- data_grouped$count[gene_subset, , drop = FALSE]
+      message(sprintf("... %d 개의 유전자로 분석 진행", nrow(data_grouped$count)))
+    }
+  }
+  
   # Add stability options to prevent convergence issues
   re_nebula <- tryCatch({
     nebula::nebula(
@@ -917,8 +991,34 @@ runNEBULA2_v1 <- function(sobj,
         model = "NBLMM"
       )
     }, error = function(e2) {
-      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", 
-                   conditionMessage(e2)))
+      # 더 자세한 오류 메시지
+      error_msg <- conditionMessage(e2)
+      suggestions <- character(0)
+      
+      if (grepl("NA|NaN", error_msg)) {
+        suggestions <- c(suggestions, 
+                        "- 설계 행렬이 특이(singular)할 수 있습니다. 변수 조합을 확인하세요.",
+                        "- 완전 분리(complete separation) 문제가 있을 수 있습니다.",
+                        "- min_count를 높여서 더 적은 유전자로 분석하세요.",
+                        "- covar_effects를 제거하거나 다른 변수를 사용하세요.")
+      }
+      
+      if (n_genes > 5000) {
+        suggestions <- c(suggestions, 
+                        "- 유전자 수가 너무 많습니다. min_count를 높이거나 유전자를 제한하세요.")
+      }
+      
+      if (n_samples < 10) {
+        suggestions <- c(suggestions, 
+                        "- 샘플 수가 너무 적습니다. 더 많은 샘플이 필요합니다.")
+      }
+      
+      full_error_msg <- sprintf("NEBULA failed: %s", error_msg)
+      if (length(suggestions) > 0) {
+        full_error_msg <- paste0(full_error_msg, "\n제안사항:\n", paste(suggestions, collapse = "\n"))
+      }
+      
+      stop(full_error_msg)
     })
   })
   
