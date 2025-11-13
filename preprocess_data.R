@@ -72,30 +72,86 @@ preprocess_pseudotime_data <- function(seurat_obj = NULL,
   message("\n--- Step 1: Preprocessing sex variable ---")
   if ("sex" %in% colnames(seurat_obj@meta.data)) {
     sex_original <- seurat_obj@meta.data$sex
-    message("Original sex values: ", paste(unique(sex_original), collapse = ", "))
     
-    # 다양한 encoding을 M, F로 변환
-    sex_clean <- as.character(sex_original)
-    
-    # 대소문자 통일 및 일반적인 변환
-    sex_clean <- toupper(sex_clean)
-    sex_clean[grepl("^M", sex_clean, ignore.case = TRUE)] <- "M"
-    sex_clean[grepl("^F", sex_clean, ignore.case = TRUE)] <- "F"
-    sex_clean[grepl("^1|MALE", sex_clean, ignore.case = TRUE)] <- "M"
-    sex_clean[grepl("^2|FEMALE", sex_clean, ignore.case = TRUE)] <- "F"
+    # 인코딩 문제 해결: 안전한 변환
+    sex_clean <- tryCatch({
+      # factor인 경우 levels 사용
+      if (is.factor(sex_original)) {
+        sex_char <- as.character(levels(sex_original)[sex_original])
+      } else {
+        sex_char <- as.character(sex_original)
+      }
+      
+      # 인코딩 문제가 있는 경우 iconv로 처리
+      Encoding(sex_char) <- "UTF-8"
+      sex_char <- iconv(sex_char, from = "UTF-8", to = "UTF-8", sub = "")
+      sex_char
+    }, error = function(e) {
+      message("Encoding issue detected. Using alternative method...")
+      # 대안: 숫자 인덱스 사용
+      if (is.factor(sex_original)) {
+        # factor의 levels를 직접 처리
+        levels_clean <- tryCatch({
+          iconv(levels(sex_original), from = "UTF-8", to = "UTF-8", sub = "")
+        }, error = function(e2) {
+          # 완전히 실패하면 숫자로 변환
+          as.character(seq_along(levels(sex_original)))
+        })
+        levels_clean[sex_original]
+      } else {
+        # 숫자로 변환 시도
+        as.character(as.numeric(sex_original))
+      }
+    })
     
     # NA 처리
-    sex_clean[is.na(sex_clean) | sex_clean == "" | sex_clean == "NA"] <- NA_character_
+    sex_clean[is.na(sex_clean) | sex_clean == "" | nchar(sex_clean) == 0] <- NA_character_
     
-    # 유효하지 않은 값 확인
+    # 고유값 확인 (디버깅용, 인코딩 문제 방지)
+    unique_sex <- unique(sex_clean[!is.na(sex_clean)])
+    message("Found ", length(unique_sex), " unique sex values")
+    
+    # 대소문자 통일 및 일반적인 변환
+    # 먼저 NA가 아닌 값만 처리
+    non_na_idx <- !is.na(sex_clean)
+    if (sum(non_na_idx) > 0) {
+      # 안전하게 toupper 적용
+      sex_upper <- tryCatch({
+        toupper(sex_clean[non_na_idx])
+      }, error = function(e) {
+        # toupper 실패 시 원본 사용
+        sex_clean[non_na_idx]
+      })
+      
+      # 다양한 패턴으로 M, F 변환
+      # M 패턴: M으로 시작, 1, MALE 등
+      m_pattern <- grepl("^M|^1$|MALE", sex_upper, ignore.case = TRUE)
+      sex_upper[m_pattern] <- "M"
+      
+      # F 패턴: F로 시작, 2, FEMALE 등
+      f_pattern <- grepl("^F|^2$|FEMALE", sex_upper, ignore.case = TRUE)
+      sex_upper[f_pattern] <- "F"
+      
+      sex_clean[non_na_idx] <- sex_upper
+      
+      # 남은 값 중 유효하지 않은 것은 NA로
+      remaining_idx <- non_na_idx & !sex_clean %in% c("M", "F")
+      if (sum(remaining_idx) > 0) {
+        invalid_count <- sum(remaining_idx)
+        message("  Converting ", invalid_count, " invalid sex values to NA")
+        sex_clean[remaining_idx] <- NA_character_
+      }
+    }
+    
+    # 최종 유효성 검사
     valid_sex <- sex_clean %in% c("M", "F", NA_character_)
     if (any(!valid_sex, na.rm = TRUE)) {
       invalid_values <- unique(sex_clean[!valid_sex])
-      warning("Found invalid sex values: ", paste(invalid_values, collapse = ", "),
-              ". These will be set to NA.", call. = FALSE)
+      warning("Found invalid sex values (", length(invalid_values), " unique). Setting to NA.", call. = FALSE)
       sex_clean[!valid_sex] <- NA_character_
     }
     
+    # Factor로 변환
     seurat_obj@meta.data$sex <- factor(sex_clean, levels = c("M", "F"))
     message("Converted sex values: ", paste(levels(seurat_obj@meta.data$sex), collapse = ", "))
     message("Sex distribution: M=", sum(seurat_obj@meta.data$sex == "M", na.rm = TRUE),
