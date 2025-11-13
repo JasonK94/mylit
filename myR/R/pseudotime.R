@@ -379,8 +379,8 @@ run_slingshot_from_seurat <- function(seurat_obj,
   )
   
   tryCatch({
-    reducedDim(sce, toupper(reduced_dim_name)) <- dim_reduced_data_sce
-    reducedDim(sce, "slingshot") <- pst_matrix_sce
+    SingleCellExperiment::reducedDim(sce, toupper(reduced_dim_name)) <- dim_reduced_data_sce
+    SingleCellExperiment::reducedDim(sce, "slingshot") <- pst_matrix_sce
   }, error = function(e){
     warning("Failed to set reducedDims on SCE object: ", e$message, call.=FALSE)
   })
@@ -395,14 +395,14 @@ run_slingshot_from_seurat <- function(seurat_obj,
   
   # Carefully merge weights_df into existing colData(sce), which already has original_metadata_sce
   for(w_col in colnames(weights_df)){
-    safe_w_col_name <- if(w_col %in% colnames(colData(sce))) paste0("slingWeight_", w_col) else w_col
-    tryCatch(colData(sce)[[safe_w_col_name]] <- weights_df[[w_col]],
+    safe_w_col_name <- if(w_col %in% colnames(SingleCellExperiment::colData(sce))) paste0("slingWeight_", w_col) else w_col
+    tryCatch(SingleCellExperiment::colData(sce)[[safe_w_col_name]] <- weights_df[[w_col]],
              error = function(e) warning("Could not add weight column '", safe_w_col_name, "' to colData: ", e$message, call. = FALSE))
   }
   
   # Ensure the specific cluster_col is present and is a factor with original levels
   if(cluster_col %in% colnames(original_metadata_sce)){
-    colData(sce)[[cluster_col]] <- factor(original_metadata_sce[[cluster_col]],
+    SingleCellExperiment::colData(sce)[[cluster_col]] <- factor(original_metadata_sce[[cluster_col]],
                                           levels = levels(factor(seurat_obj@meta.data[[cluster_col]])))
   } else {
     warning("Original cluster column '", cluster_col, "' was lost from colData of SCE.", call. = FALSE)
