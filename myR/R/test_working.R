@@ -1090,7 +1090,20 @@ runNEBULA <- function(sobj,
 #' @param method (character) "edgeR", "DESeq2", "limma-trend", "limma-voom" (block 없음)
 #'
 #' @export
-runMUSCAT <- function(
+runMUSCAT <- function(...) {
+  .Deprecated("runMUSCAT_v5", package = "myR", msg = "runMUSCAT in test_working.R is deprecated. Use runMUSCAT_v5 or runMUSCAT2_v1 from test_analysis.R instead.")
+  if (exists("runMUSCAT_v5", envir = asNamespace("myR"), inherits = FALSE)) {
+    fun <- get("runMUSCAT_v5", envir = asNamespace("myR"))
+    return(fun(...))
+  } else {
+    stop("runMUSCAT_v5 from test_analysis.R not found. Please ensure test_analysis.R is loaded.")
+  }
+}
+
+# Original runMUSCAT function body removed - use runMUSCAT_v5 from test_analysis.R instead
+# The following code block is kept for reference but will not execute:
+if (FALSE) {
+  runMUSCAT_original <- function(
   sobj,
   cluster_id = "seurat_clusters",
   sample_id  = "hos_no",
@@ -1337,6 +1350,7 @@ runMUSCAT <- function(
     top_overall    = top_overall
   )
 }
+} # End of if (FALSE) block
 
 #' Seurat 객체에서 유전자별 CLMM 분석 수행 (v2: 기능 추가)
 #'
