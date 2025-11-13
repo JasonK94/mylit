@@ -104,6 +104,15 @@ plot_heatmap_genes <- function(data,
   if (is.null(aggregate_by)) {
     aggregate_by <- unique(c(group.by, split.by))
     aggregate_by <- aggregate_by[!is.null(aggregate_by)]
+  } else {
+    # Ensure group.by and split.by are included in aggregate_by
+    # They are needed for plotting even if user didn't specify them
+    if (!is.null(group.by) && !group.by %in% aggregate_by) {
+      aggregate_by <- c(aggregate_by, group.by)
+    }
+    if (!is.null(split.by) && !split.by %in% aggregate_by) {
+      aggregate_by <- c(aggregate_by, split.by)
+    }
   }
   
   # Prepare data
