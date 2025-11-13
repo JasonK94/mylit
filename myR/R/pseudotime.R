@@ -394,19 +394,26 @@ run_slingshot_from_seurat <- function(seurat_obj,
   }
   
   # Carefully merge weights_df into existing colData(sce), which already has original_metadata_sce
+  current_colData <- SummarizedExperiment::colData(sce)
   for(w_col in colnames(weights_df)){
-    safe_w_col_name <- if(w_col %in% colnames(SingleCellExperiment::colData(sce))) paste0("slingWeight_", w_col) else w_col
-    tryCatch(SingleCellExperiment::colData(sce)[[safe_w_col_name]] <- weights_df[[w_col]],
-             error = function(e) warning("Could not add weight column '", safe_w_col_name, "' to colData: ", e$message, call. = FALSE))
+    safe_w_col_name <- if(w_col %in% colnames(current_colData)) paste0("slingWeight_", w_col) else w_col
+    tryCatch({
+      current_colData[[safe_w_col_name]] <- weights_df[[w_col]]
+    }, error = function(e) {
+      warning("Could not add weight column '", safe_w_col_name, "' to colData: ", e$message, call. = FALSE)
+    })
   }
   
   # Ensure the specific cluster_col is present and is a factor with original levels
   if(cluster_col %in% colnames(original_metadata_sce)){
-    SingleCellExperiment::colData(sce)[[cluster_col]] <- factor(original_metadata_sce[[cluster_col]],
+    current_colData[[cluster_col]] <- factor(original_metadata_sce[[cluster_col]],
                                           levels = levels(factor(seurat_obj@meta.data[[cluster_col]])))
   } else {
     warning("Original cluster column '", cluster_col, "' was lost from colData of SCE.", call. = FALSE)
   }
+  
+  # Update colData
+  SummarizedExperiment::colData(sce) <- current_colData
   
   message("SCE object created successfully with ", ncol(sce), " cells.")
   if(!is.null(slingshot_result) && "slingLineages" %in% ls(getNamespace("slingshot"))){ # Check if SlingshotDataSet was returned
