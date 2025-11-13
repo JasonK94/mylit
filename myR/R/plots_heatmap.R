@@ -337,6 +337,11 @@ plot_heatmap_genes <- function(data,
   
   # Create plot
   if (has_split) {
+    # Calculate number of samples per split for vertical line positioning
+    samples_per_split <- heatmap_df %>%
+      dplyr::group_by(.data[[split.by]]) %>%
+      dplyr::summarise(n_samples = dplyr::n_distinct(.data[[group.by]]), .groups = "drop")
+    
     # Faceted plot with split.by
     p <- ggplot2::ggplot(heatmap_df, ggplot2::aes(
       x = .data[[group.by]],
@@ -345,15 +350,6 @@ plot_heatmap_genes <- function(data,
     )) +
       ggplot2::geom_tile() +
       ggplot2::facet_wrap(ggplot2::vars(.data[[split.by]]), scales = "free_x", nrow = 1) +
-      # Add vertical line between facets (g3=1 and g3=2)
-      ggplot2::geom_vline(
-        data = data.frame(x = 0.5, split_val = split_values),
-        ggplot2::aes(xintercept = x),
-        linetype = "solid",
-        color = "black",
-        linewidth = 1,
-        inherit.aes = FALSE
-      ) +
       ggplot2::scale_fill_gradient2(
         low = if(is.null(color_palette)) "blue" else color_palette[1],
         mid = if(is.null(color_palette)) "white" else color_palette[2],
