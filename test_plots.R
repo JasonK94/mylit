@@ -249,7 +249,8 @@ test_plots <- function(sobj,
           label = TRUE,  # Default label for group-level
           color_by = split.by,  # Color by group for legend
           each_fit = TRUE,  # Show each_fit option
-          show_stats = TRUE
+          show_stats = TRUE,
+          remove_na = FALSE  # Keep NA for categorical treatment
         )
         ggsave(file.path(output_dir, "05_scatter_group.png"), 
                p_scatter_group, width = 10, height = 7, dpi = 300)

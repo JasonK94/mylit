@@ -126,13 +126,46 @@ plot_heatmap_genes <- function(data,
   
   if (has_split) {
     # Split data by split.by variable
-    split_values <- unique(plot_df[[split.by]])
-    split_values <- split_values[!is.na(split_values)]
+    # Include NA as a separate level if present
+    split_values_all <- unique(plot_df[[split.by]])
+    has_na <- any(is.na(split_values_all))
+    
+    # Separate NA and non-NA values
+    split_values <- split_values_all[!is.na(split_values_all)]
+    
+    # If only NA values exist, warn but continue
+    if (length(split_values) == 0 && !has_na) {
+      stop("No valid split.by values found")
+    }
+    
+    # If we have both NA and non-NA, include NA as a level
+    if (has_na && length(split_values) > 0) {
+      # Convert NA to "NA" string for processing
+      plot_df[[split.by]] <- as.character(plot_df[[split.by]])
+      plot_df[[split.by]][is.na(plot_df[[split.by]])] <- "NA"
+      split_values <- c(split_values, "NA")
+    } else if (has_na && length(split_values) == 0) {
+      # Only NA values - this is the problematic case (6번 플롯 문제)
+      warning("Only NA values found in split.by. Filtering out NA values or using group.by only.")
+      # Don't use split.by, treat as no split
+      has_split <- FALSE
+    }
     
     # Reshape for each split value
     heatmap_list <- list()
     for (split_val in split_values) {
-      plot_df_split <- plot_df[plot_df[[split.by]] == split_val, , drop = FALSE]
+      # Handle "NA" string vs actual NA
+      if (split_val == "NA") {
+        plot_df_split <- plot_df[is.na(plot_df[[split.by]]) | plot_df[[split.by]] == "NA", , drop = FALSE]
+      } else {
+        plot_df_split <- plot_df[plot_df[[split.by]] == split_val & !is.na(plot_df[[split.by]]), , drop = FALSE]
+      }
+      
+      # Skip if no data for this split
+      if (nrow(plot_df_split) == 0) {
+        warning("No data found for split.by value: ", split_val)
+        next
+      }
       
       heatmap_matrix <- .reshape_for_heatmap(
         plot_df = plot_df_split,
@@ -339,6 +372,18 @@ plot_heatmap_genes <- function(data,
         panel.spacing = ggplot2::unit(0.05, "lines"),
         strip.background = ggplot2::element_rect(fill = "grey90", color = "black", linewidth = 1.5)
       )
+    
+    # Add vertical separator line at the end of first facet (between g3=1 and g3=2)
+    if (nrow(samples_per_split) >= 2 && show_group_separator) {
+      # Get number of samples in first facet
+      n_first_facet <- samples_per_split$n_samples[1]
+      # Add annotation for debugging (can be removed later)
+      # message("First facet has ", n_first_facet, " samples. Vertical line will be at position ", n_first_facet + 0.5)
+      
+      # Note: In facet_wrap, we can't directly add vertical lines between facets
+      # The strip.background border should provide visual separation
+      # For more explicit separation, we could use annotation_custom, but it's complex with free_x scales
+    }
   } else {
     # Single plot without split
     p <- ggplot2::ggplot(heatmap_df, ggplot2::aes(

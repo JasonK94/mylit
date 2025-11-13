@@ -135,10 +135,36 @@ plot_scatter <- function(data,
     
     # Handle color_by and split.by in aggregated data
     if (!is.null(color_by) && color_by %in% names(plot_df)) {
-      plot_df$colour <- plot_df[[color_by]]
+      # Check if color_by should be treated as categorical
+      # Convert to character first to handle NA properly
+      color_values <- as.character(plot_df[[color_by]])
+      # Replace NA with "NA" string for categorical treatment
+      color_values[is.na(plot_df[[color_by]])] <- "NA"
+      
+      # Determine if should be treated as categorical
+      # If it's numeric but has few unique values, treat as categorical
+      unique_vals <- unique(color_values)
+      n_unique <- length(unique_vals)
+      
+      # If numeric with few levels or explicitly categorical, treat as factor
+      if (is.numeric(plot_df[[color_by]])) {
+        # Check if it's actually categorical (few unique values, likely integers)
+        if (n_unique <= 10 && all(plot_df[[color_by]][!is.na(plot_df[[color_by]])] %% 1 == 0)) {
+          # Treat as categorical
+          plot_df$colour <- factor(color_values, levels = sort(unique_vals))
+        } else {
+          # Keep as numeric, exclude NA
+          plot_df$colour <- plot_df[[color_by]]
+        }
+      } else {
+        # Already categorical/character, convert NA to "NA" level
+        plot_df$colour <- factor(color_values, levels = unique_vals)
+      }
     }
     if (!is.null(split.by) && split.by %in% names(plot_df)) {
-      plot_df$split_col <- plot_df[[split.by]]
+      split_values <- as.character(plot_df[[split.by]])
+      split_values[is.na(plot_df[[split.by]])] <- "NA"
+      plot_df$split_col <- factor(split_values, levels = unique(split_values))
     }
     
   } else {
@@ -155,10 +181,16 @@ plot_scatter <- function(data,
     )
     
     # Aggregate by group.by for plotting
-    is_color_numeric <- if (!is.null(color_by)) {
-      is.numeric(plot_df[[color_by]])
+    # Handle color_by: determine if numeric or categorical
+    if (!is.null(color_by)) {
+      color_vals <- plot_df[[color_by]]
+      # Check if should be treated as categorical
+      unique_vals <- unique(color_vals[!is.na(color_vals)])
+      n_unique <- length(unique_vals)
+      is_color_numeric <- is.numeric(color_vals) && 
+                         (n_unique > 10 || !all(color_vals[!is.na(color_vals)] %% 1 == 0))
     } else {
-      FALSE
+      is_color_numeric <- FALSE
     }
     
     agg_df <- plot_df %>%
@@ -168,20 +200,35 @@ plot_scatter <- function(data,
         x_val = mean(.data[[x_var]], na.rm = TRUE),
         colour = if (!is.null(color_by)) {
           if (is_color_numeric) {
+            # For numeric, exclude NA
             mean(.data[[color_by]], na.rm = TRUE)
           } else {
-            dplyr::first(.data[[color_by]], na_rm = TRUE)
+            # For categorical, use first value (including NA)
+            first_val <- dplyr::first(.data[[color_by]], na_rm = TRUE)
+            # Convert NA to "NA" string for categorical treatment
+            if (is.na(first_val)) "NA" else as.character(first_val)
           }
         } else {
           NA
         },
         split_col = if (!is.null(split.by)) {
-          dplyr::first(.data[[split.by]], na_rm = TRUE)
+          first_val <- dplyr::first(.data[[split.by]], na_rm = TRUE)
+          if (is.na(first_val)) "NA" else as.character(first_val)
         } else {
           NA
         },
         .groups = "drop"
       )
+    
+    # Convert colour to factor if categorical
+    if (!is.null(color_by) && !is_color_numeric) {
+      unique_colors <- unique(agg_df$colour)
+      agg_df$colour <- factor(agg_df$colour, levels = unique_colors)
+    }
+    if (!is.null(split.by)) {
+      unique_splits <- unique(agg_df$split_col)
+      agg_df$split_col <- factor(agg_df$split_col, levels = unique_splits)
+    }
     
     plot_df <- agg_df
   }
@@ -256,7 +303,8 @@ plot_scatter <- function(data,
       stop("color_by column '", color_by, "' not found in aggregated data")
     }
     
-    is_color_numeric <- is.numeric(plot_df$colour)
+    # Check if colour is numeric (not factor)
+    is_color_numeric <- is.numeric(plot_df$colour) && !is.factor(plot_df$colour)
     
     if (is_color_numeric) {
       p <- p + ggplot2::geom_point(
@@ -407,8 +455,13 @@ plot_scatter <- function(data,
     )
     
     # Handle each_fit: fit separately for each color_by group
-    if (each_fit && !is.null(color_by) && "colour" %in% names(plot_df) && !is.numeric(plot_df$colour)) {
-      # Fit separately for each color group
+    # Check if colour is categorical (factor or character, not numeric)
+    is_colour_categorical <- "colour" %in% names(plot_df) && 
+                             !is.numeric(plot_df$colour) && 
+                             (is.factor(plot_df$colour) || is.character(plot_df$colour))
+    
+    if (each_fit && !is.null(color_by) && is_colour_categorical) {
+      # Fit separately for each color group (including NA if present)
       if (fitted_line == "lasso") {
         warning("Lasso smoothing not supported with each_fit, using linear")
         method_val <- "lm"
@@ -423,8 +476,12 @@ plot_scatter <- function(data,
       
       # Add statistics for each group
       if (show_stats && fitted_line == "linear") {
-        color_levels <- unique(plot_df$colour)
-        color_levels <- color_levels[!is.na(color_levels)]
+        # Get all color levels including "NA" if present
+        if (is.factor(plot_df$colour)) {
+          color_levels <- levels(plot_df$colour)
+        } else {
+          color_levels <- unique(plot_df$colour)
+        }
         stats_list <- list()
         
         # Get palette for color matching
@@ -435,7 +492,13 @@ plot_scatter <- function(data,
         }
         
         for (clr in color_levels) {
-          plot_df_sub <- plot_df[plot_df$colour == clr & !is.na(plot_df$colour), ]
+          # Handle both factor and character comparisons, including "NA"
+          if (is.factor(plot_df$colour)) {
+            plot_df_sub <- plot_df[as.character(plot_df$colour) == as.character(clr), ]
+          } else {
+            plot_df_sub <- plot_df[plot_df$colour == clr, ]
+          }
+          # For numeric color_by, exclude NA; for categorical, include "NA" as valid level
           if (nrow(plot_df_sub) >= 2) {
             fit <- tryCatch(
               stats::lm(plot_df_sub[[y_col]] ~ plot_df_sub[[x_col]]),
