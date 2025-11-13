@@ -373,16 +373,17 @@ plot_heatmap_genes <- function(data,
         strip.background = ggplot2::element_rect(fill = "grey90", color = "black", linewidth = 1.5)
       )
     
-    # Add vertical separator line at the end of first facet (between g3=1 and g3=2)
+    # Log facet information for user reference
     if (nrow(samples_per_split) >= 2 && show_group_separator) {
       # Get number of samples in first facet
       n_first_facet <- samples_per_split$n_samples[1]
-      # Add annotation for debugging (can be removed later)
-      # message("First facet has ", n_first_facet, " samples. Vertical line will be at position ", n_first_facet + 0.5)
-      
-      # Note: In facet_wrap, we can't directly add vertical lines between facets
-      # The strip.background border should provide visual separation
-      # For more explicit separation, we could use annotation_custom, but it's complex with free_x scales
+      split_levels <- levels(heatmap_df[[split.by]])
+      if (length(split_levels) >= 2) {
+        message("Heatmap facets: ", split_levels[1], " has ", n_first_facet, " samples, ", 
+                split_levels[2], " has ", samples_per_split$n_samples[2], " samples")
+      }
+      # Note: Visual separation is provided by strip.background border and panel.spacing
+      # In facet_wrap with free_x scales, direct vertical lines between facets are complex
     }
   } else {
     # Single plot without split
