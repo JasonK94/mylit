@@ -18,8 +18,15 @@ R
 패키지 로드
 devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 # 함수 소스 로드
+<<<<<<< HEAD:docs/wt_test_general/TEST_INSTRUCTIONS.md
 source("/home/user3/data_user3/git_repo/_wt/<your_worktree>/myR/scripts/test_scripts.R") #example.
 
+=======
+source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
+
+# 또는 패키지 로드
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/main2/myR")
+>>>>>>> main2:TEST_INSTRUCTIONS.md
 ```
 
 ## 테스트 실행
@@ -133,7 +140,11 @@ qs::qsave(res_muscat3, "/data/user3/sobj/test_muscat2_v1_result.qs")
 # test_nebula2_pb <- TRUE
 
 # 스크립트 실행
+<<<<<<< HEAD:docs/wt_test_general/TEST_INSTRUCTIONS.md
 source("/home/user3/data_user3/git_repo/mylit/scripts/test_functions.R")
+=======
+source("/home/user3/data_user3/git_repo/_wt/main2/test_functions.R")
+>>>>>>> main2:TEST_INSTRUCTIONS.md
 ```
 
 ## 결과 확인
