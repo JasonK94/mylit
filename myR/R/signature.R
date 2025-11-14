@@ -900,12 +900,28 @@ find_gene_signature_v5.3 <- function(data,
           }
         } else {
           # gam이 아닌 다른 메서드는 v5.2를 호출
-          v52_call <- match.call()
-          v52_call[[1]] <- as.name("find_gene_signature_v5.2")
-          v52_call$gam.k <- if (is.null(gam.k)) 10 else gam.k
-          v52_call$gam.k_dynamic_factor <- NULL
-          v52_call$method <- m
-          result <- eval(v52_call)
+          # 환경 문제를 피하기 위해 직접 함수 호출
+          result <- find_gene_signature_v5.2(
+            data = data,
+            meta.data = meta.data,
+            target_var = target_var,
+            target_group = target_group,
+            control_vars = control_vars,
+            method = m,
+            n_features = n_features,
+            test_n = test_n,
+            preprocess = preprocess,
+            min_cells = min_cells,
+            min_pct = min_pct,
+            return_model = return_model,
+            fgs_seed = fgs_seed,
+            lambda_selection = lambda_selection,
+            enet.alpha = enet.alpha,
+            pca.n_pcs = pca.n_pcs,
+            gam.min_unique = gam.min_unique,
+            gam.k = if (is.null(gam.k)) 10 else gam.k,
+            ...
+          )
           result <- result[[m]]
         }
         
@@ -926,10 +942,28 @@ find_gene_signature_v5.3 <- function(data,
     return(results_list)
   } else {
     # gam.k가 지정되어 있으면 v5.2를 그대로 사용
-    v52_call <- match.call()
-    v52_call[[1]] <- as.name("find_gene_signature_v5.2")
-    v52_call$gam.k_dynamic_factor <- NULL
-    return(eval(v52_call))
+    # 환경 문제를 피하기 위해 직접 함수 호출
+    return(find_gene_signature_v5.2(
+      data = data,
+      meta.data = meta.data,
+      target_var = target_var,
+      target_group = target_group,
+      control_vars = control_vars,
+      method = method,
+      n_features = n_features,
+      test_n = test_n,
+      preprocess = preprocess,
+      min_cells = min_cells,
+      min_pct = min_pct,
+      return_model = return_model,
+      fgs_seed = fgs_seed,
+      lambda_selection = lambda_selection,
+      enet.alpha = enet.alpha,
+      pca.n_pcs = pca.n_pcs,
+      gam.min_unique = gam.min_unique,
+      gam.k = gam.k,
+      ...
+    ))
   }
 }
 

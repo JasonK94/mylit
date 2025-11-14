@@ -1362,7 +1362,10 @@ runNEBULA2_v1_with_formula <- function(sobj,
   }
   
   # Nested random effects 처리: (1|GEM/patient) -> patient만 추출
-  random_terms <- gsub("\\(1\\||\\)", "", random_matches)
+  # random_matches는 "(1 | GEM/hos_no)" 형태
+  # 괄호와 "1 |" 제거하여 실제 변수만 추출
+  random_terms <- gsub("^\\(1\\s*\\|\\s*", "", random_matches)  # 앞부분 제거
+  random_terms <- gsub("\\)$", "", random_terms)  # 뒷부분 괄호 제거
   
   # nested 처리: GEM/patient -> patient만 사용
   nested_terms <- strsplit(random_terms, "/")
@@ -1400,12 +1403,20 @@ runNEBULA2_v1_with_formula <- function(sobj,
   # Random effects 제거한 formula에서 fixed effects 추출
   formula_no_random <- formula_str
   for (rm in random_matches) {
-    formula_no_random <- gsub(rm, "", formula_no_random, fixed = TRUE)
+    # 정규식 이스케이프 처리하여 정확히 제거
+    rm_escaped <- gsub("([()|])", "\\\\\\1", rm)  # 특수문자 이스케이프
+    formula_no_random <- gsub(rm_escaped, "", formula_no_random)
   }
   formula_no_random <- gsub("\\+\\s*\\+", "+", formula_no_random)  # 연속된 + 제거
   formula_no_random <- gsub("~\\s*\\+", "~", formula_no_random)    # ~ 뒤의 + 제거
   formula_no_random <- gsub("\\s*\\+\\s*$", "", formula_no_random) # 끝의 + 제거
+  formula_no_random <- gsub("\\s+", " ", formula_no_random)  # 연속된 공백 제거
   formula_no_random <- trimws(formula_no_random)
+  
+  # 빈 formula 확인
+  if (formula_no_random == "~" || nchar(trimws(gsub("~", "", formula_no_random))) == 0) {
+    stop("Random effects 제거 후 fixed effects가 없습니다.")
+  }
   
   # Formula를 파싱하여 terms 추출
   tryCatch({
@@ -1497,9 +1508,11 @@ runNEBULA2_v1_with_formula <- function(sobj,
   # 각 factor 변수의 레벨 수 확인
   for (v in factor_vars) {
     n_levels <- length(levels(meta_clean[[v]]))
-    message(sprintf("... %s: %d 레벨 (%s)", v, n_levels, 
-                   paste(levels(meta_clean[[v]])[1:min(5, n_levels)], collapse=", "),
-                   if(n_levels > 5) "..." else ""))
+    levels_str <- paste(levels(meta_clean[[v]])[1:min(5, n_levels)], collapse=", ")
+    if(n_levels > 5) {
+      levels_str <- paste0(levels_str, "...")
+    }
+    message(sprintf("... %s: %d 레벨 (%s)", v, n_levels, levels_str))
   }
   
   # offset 처리
