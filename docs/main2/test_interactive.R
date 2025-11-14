@@ -5,7 +5,7 @@
 # 
 # 사용법:
 #   cd /home/user3/GJC_KDW_250721
-#   Rscript "/home/user3/data_user3/git_repo/mylit-main2/test_interactive.R"
+#   Rscript "/home/user3/data_user3/git_repo/_wt/main2/test_interactive.R"
 # ============================================================================
 
 # 작업 디렉터리를 /home/user3/GJC_KDW_250721로 설정 (중요!)
@@ -38,7 +38,7 @@ if (!is.null(start_r_path)) {
 
 # 함수 소스 로드 (main2 워크트리에서)
 # start.R이 myR을 로드했을 수도 있지만, main2 워크트리의 함수를 사용해야 함
-repo_root <- "/home/user3/data_user3/git_repo/mylit-main2"
+repo_root <- "/home/user3/data_user3/git_repo/_wt/main2"
 if (dir.exists(repo_root)) {
   # 함수 소스 직접 로드 (start.R이 로드한 것과 별개로)
   source(file.path(repo_root, "myR/R/test_analysis.R"))
