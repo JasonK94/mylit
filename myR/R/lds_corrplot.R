@@ -56,14 +56,18 @@ lds_corrplot <- function(sva,
          nrow(sv_matrix), " vs ", nrow(meta.data))
   }
   
-  # 2. 숫자형/팩터형 변수만 선택
+  # 2. 숫자형/팩터형/문자형 변수만 선택
   numeric_vars <- sapply(colnames(meta.data), function(v) {
-    is.numeric(meta.data[[v]]) || is.factor(meta.data[[v]])
+    var_data <- meta.data[[v]]
+    is.numeric(var_data) || is.factor(var_data) || is.character(var_data)
   })
   meta_numeric <- meta.data[, numeric_vars, drop = FALSE]
   
-  # 팩터를 숫자로 변환
+  # 문자형을 factor로 변환 후, 팩터를 숫자로 변환
   for (i in 1:ncol(meta_numeric)) {
+    if (is.character(meta_numeric[[i]])) {
+      meta_numeric[[i]] <- as.factor(meta_numeric[[i]])
+    }
     if (is.factor(meta_numeric[[i]])) {
       meta_numeric[[i]] <- as.numeric(meta_numeric[[i]])
     }
@@ -219,11 +223,15 @@ lds_corrplot_summary <- function(sva,
   }
   
   numeric_vars <- sapply(colnames(meta.data), function(v) {
-    is.numeric(meta.data[[v]]) || is.factor(meta.data[[v]])
+    var_data <- meta.data[[v]]
+    is.numeric(var_data) || is.factor(var_data) || is.character(var_data)
   })
   meta_numeric <- meta.data[, numeric_vars, drop = FALSE]
   
   for (i in 1:ncol(meta_numeric)) {
+    if (is.character(meta_numeric[[i]])) {
+      meta_numeric[[i]] <- as.factor(meta_numeric[[i]])
+    }
     if (is.factor(meta_numeric[[i]])) {
       meta_numeric[[i]] <- as.numeric(meta_numeric[[i]])
     }
