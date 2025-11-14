@@ -693,7 +693,7 @@ print.gene_signature <- function(x, ...) {
 #'
 #' @param ... All arguments passed to \code{find_gene_signature_v5.3}
 #' @return See \code{find_gene_signature_v5.3}
-#' @seealso \code{\link{find_gene_signature_v5.3}}, \code{\link{FGS_v5.3}}
+#' @seealso \code{\link{find_gene_signature_v5.3}}
 #' @export
 FGS <- function(...) {
   find_gene_signature_v5.3(...)
