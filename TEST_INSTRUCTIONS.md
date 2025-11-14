@@ -16,10 +16,10 @@ R
 source("st/start.R")
 
 # 함수 소스 로드
-source("/home/user3/data_user3/git_repo/mylit-main2/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
 
 # 또는 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/mylit-main2/myR")
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/main2/myR")
 ```
 
 ## 테스트 실행
@@ -121,7 +121,7 @@ qs::qsave(res_nebula2_pb, "/data/user3/sobj/test_nebula2_v1_with_pseudobulk_resu
 # test_nebula2_pb <- TRUE
 
 # 스크립트 실행
-source("/home/user3/data_user3/git_repo/mylit-main2/test_functions.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/test_functions.R")
 ```
 
 ## 결과 확인
@@ -182,10 +182,10 @@ if (!requireNamespace("nebula", quietly = TRUE)) {
 ### 함수가 로드되지 않음
 ```r
 # 함수 소스 직접 로드
-source("/home/user3/data_user3/git_repo/mylit-main2/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
 
 # 또는 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/mylit-main2/myR")
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/main2/myR")
 ```
 
 ### 데이터 로드 오류
