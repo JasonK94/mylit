@@ -3836,50 +3836,6 @@ find_gene_signature_v5.2 <- function(data,
 }
 
 #' @export
-      control_vars = control_vars,
-      method = method,
-      n_features = n_features,
-      test_n = test_n,
-      preprocess = preprocess,
-      min_cells = min_cells,
-      min_pct = min_pct,
-      return_model = return_model,
-      fgs_seed = fgs_seed,
-      lambda_selection = lambda_selection,
-      enet.alpha = enet.alpha,
-      pca.n_pcs = pca.n_pcs,
-      gam.min_unique = gam.min_unique,
-      gam.k = gam.k,
-      ...
-    ))
-  }
-}
-
-
-#' Train a Meta-Learner (L2 Stacking Model)
-#'
-#' Trains multiple L2 candidate models on L1 scores and selects the best
-#' one based on cross-validation performance.
-#'
-#' @param l1_signatures A named list of trained L1 signatures (outputs from
-#'                      find_gene_signature). e.g., list(lasso=sig1, rf=sig2)
-#' @param holdout_data A Seurat object or matrix (genes x cells) NOT used
-#'                      for training L1 models.
-#' @param target_var The target variable column name in holdout_data@meta.data.
-#' @param l2_methods A vector of model methods supported by caret 
-#'                   (e.g., c("glm", "ranger", "xgbTree", "svmRadial")).
-#' @param k_folds Number of folds for cross-validation to select the best L2 model.
-#' @param metric The metric to optimize (e.g., "AUC", "Accuracy"). 
-#'               (Note: For "AUC", target must be binary factor).
-#' @param fgs_seed Seed for reproducibility.
-#'
-#' @return A list containing:
-#'    - $best_model: The final L2 model (a caret 'train' object) 
-#'                     trained on all l2_train_df.
-#'    - $model_comparison: Results from caret::resamples comparing L2 candidates.
-#'    - $l2_train_df: The dataframe used for L2 training (L1 scores + target).
-#'    - $l1_signatures: The provided L1 signatures (for reference).
-#' @export
 train_meta_learner_v1 <- function(l1_signatures,
                                holdout_data,
                                target_var,
