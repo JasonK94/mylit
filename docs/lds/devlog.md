@@ -91,6 +91,83 @@ scripts/
    - 다른 워크트리들과 문서 구조 통일
    - 공통 템플릿 제안
 
+## 2025-01-XX: LDS 함수 모듈화 및 개선
+
+### 완료된 작업
+
+#### 1. 함수 모듈화
+- `LDS()` 함수를 8개의 독립적인 단계별 함수로 분리:
+  - `lds_01_extract_data()`: 데이터 추출
+  - `lds_01b_filter_na()`: NA 필터링
+  - `lds_02_parse_formula()`: 포뮬러 파싱
+  - `lds_03_preprocess_dge()`: DGEList 전처리
+  - `lds_04_run_sva()`: SVA 실행
+  - `lds_05_build_final_formula()`: 최종 포뮬러 생성
+  - `lds_06_run_dream()`: Dream 실행
+  - `lds_07_analyze_sva_correlation()`: SVA 상관관계 분석
+  - `lds_08_create_heatmaps()`: Heatmap 생성
+
+#### 2. 주요 개선사항
+
+**2-1. NA 필터링 추가**
+- `remove_na` 파라미터로 포뮬러 변수의 NA 값 필터링
+- `counts_matrix`와 `meta.data`의 차원 일치 보장
+
+**2-2. 필터링 유연성 향상**
+- `filterByExpr` 옵션을 파라미터로 노출:
+  - `min.count`, `min.total.count`, `min.prop`, `large.n`
+- 기본값 완화 (scRNA-seq 데이터에 적합)
+
+**2-3. p-value 계산 수정**
+- `dream` 결과에서 t-statistics와 df를 사용하여 p-value 직접 계산
+- `topTable()`에서 p-value 정상 출력 확인
+
+**2-4. SV 개수 결정 개선**
+- `sv_var_cutoff = NULL`이면 전체 유의미한 SV 사용
+- 잔차 분산 기반 자동 결정 또는 사용자 지정
+
+**2-5. SVA 상관관계 분석 및 시각화**
+- `lds_07_analyze_sva_correlation()`: 상관관계 행렬 계산
+- `lds_08_create_heatmaps()`: 3가지 Heatmap 자동 생성
+  - 전체 상관관계 행렬 (metadata + SV)^2
+  - 메타데이터 × SV
+  - 상위 n개 메타데이터 × SV (p<0.05 기준)
+
+**2-6. Helper 함수 추가**
+- `lds_corrplot()`: 독립적으로 사용 가능한 상관관계 플롯 함수
+- `lds_corrplot_summary()`: 상관관계 요약 테이블 생성
+- SV가 열이 되도록 재배치
+
+#### 3. 파일 구조
+
+**모듈화된 함수들**:
+- `myR/R/lds.R`: 메인 LDS 함수 및 단계별 함수
+- `myR/R/lds_corrplot.R`: Helper 함수 (독립 사용 가능)
+- `myR/R/lds_08_heatmaps.R`: Step 8 Heatmap 생성 함수
+
+**차이점**:
+- `lds_corrplot()`: 독립적으로 사용 가능한 helper 함수 (파이프라인 외부)
+- `lds_08_create_heatmaps()`: LDS 파이프라인의 일부 (Step 8에서 자동 실행)
+
+#### 4. SVA 원리 정리
+
+**SVA가 설명하는 분산**:
+- 전체 유전자의 총 분산이 아니라, **잔차 분산(residual variance)**을 설명
+- 고정 효과 모델(`mod`)로 설명되지 않는 잔차에서 숨겨진 변동성 탐지
+- 잔차 행렬의 SVD를 통해 주성분(SV) 추출
+
+**유의미한 SV의 기준**:
+- SVA 패키지의 `sva()` 함수가 permutation test와 통계적 검정으로 자동 결정
+- 일반적으로 p-value < 0.05 기준
+- 이후 `sv_var_cutoff`로 추가 필터링
+
+#### 5. 테스트 결과
+
+- p-value 정상 생성 확인 (291/291 유전자)
+- 필터링 유연성 확인 (291개 유전자 통과, 0.6%)
+- 3가지 Heatmap 자동 생성 확인
+- `sv_var_cutoff = NULL` 시 전체 SV 사용 확인
+
 ## 표준화 제안
 
 ### 문서 구조 표준화

@@ -1,5 +1,24 @@
 # LDS 함수 테스트 및 실행 방법
 
+## 모듈화된 LDS 함수
+
+LDS 함수는 이제 `lds.R` 파일에 모듈화되어 있습니다. 각 단계별 함수를 개별적으로 사용하거나, 전체 파이프라인을 실행할 수 있습니다.
+
+### 모듈화된 함수 목록
+- `lds_01_extract_data()`: 데이터 추출
+- `lds_01b_filter_na()`: NA 필터링
+- `lds_02_parse_formula()`: 포뮬러 파싱
+- `lds_03_preprocess_dge()`: DGEList 전처리
+- `lds_04_run_sva()`: SVA 실행
+- `lds_05_build_final_formula()`: 최종 포뮬러 생성
+- `lds_06_run_dream()`: Dream 실행
+- `lds_07_analyze_sva_correlation()`: SVA 상관관계 분석
+- `LDS()`: 전체 파이프라인 (위 함수들을 순차 호출)
+
+### 중간 결과 저장
+
+각 단계별 함수는 `save_intermediate=TRUE` 옵션으로 중간 결과를 저장할 수 있습니다. 이를 통해 특정 단계에서 오류가 발생했을 때, 이전 단계의 결과를 다시 로드하여 디버깅할 수 있습니다.
+
 ## 환경 설정
 
 ### 1. R 세션 시작
@@ -11,16 +30,12 @@ R
 
 ### 2. R 세션에서 실행
 ```r
-# start.R 자동 실행 (Rprofile.R에서 설정되어 있을 수 있음)
-# 또는 수동으로 실행
-# source("st/start.R")
+# 워크트리에서 패키지 로드
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/lds/myR")
 
-# 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
-
-# LDS 함수는 test_working.R에 있음
-# 이미 load_all로 로드되어 있을 수 있음
-# 확인: exists("LDS")
+# LDS 함수 확인
+exists("LDS")
+exists("lds_01_extract_data")  # 모듈화된 함수들도 확인
 ```
 
 ## 데이터 준비
@@ -64,7 +79,141 @@ table(meta_clinical$GEM, meta_clinical$g3)
 
 ## LDS 테스트
 
-### 기본 테스트 (다운샘플링 데이터)
+### 모듈화된 함수로 단계별 테스트 (권장)
+
+각 단계를 개별적으로 실행하고 중간 결과를 저장하여 디버깅이 용이합니다.
+
+```r
+# 테스트 스크립트 실행
+source("/home/user3/data_user3/git_repo/_wt/lds/scripts/lds/test_lds_modular.R")
+```
+
+또는 수동으로 단계별 실행:
+
+```r
+# 데이터 로드
+library(qs)
+is5s <- qs::qread("/data/user3/sobj/IS_scvi_251107_ds2500.qs")
+is5s_test <- is5s
+is5s_test$g3_clean <- as.numeric(as.character(is5s_test$g3))
+is5s_test <- is5s_test[, !is.na(is5s_test$g3_clean)]
+
+# 중간 결과 저장 디렉터리
+output_dir <- "/data/user3/sobj/lds_intermediate"
+dir.create(output_dir, recursive = TRUE)
+
+# 단계 1: 데이터 추출
+step1 <- lds_01_extract_data(
+  sobj = is5s_test,
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 단계 1b: NA 필터링
+step1b <- lds_01b_filter_na(
+  counts_matrix = step1$counts_matrix,
+  meta.data = step1$meta.data,
+  formula = ~ g3_clean + (1|hos_no) + (1|GEM),
+  remove_na = TRUE,
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 단계 2: 포뮬러 파싱
+step2 <- lds_02_parse_formula(
+  formula = ~ g3_clean + (1|hos_no) + (1|GEM),
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 단계 3: DGEList 전처리
+step3 <- lds_03_preprocess_dge(
+  counts_matrix = step1b$counts_matrix,
+  meta.data = step1b$meta.data,
+  fixed_effects_formula = step2$fixed_effects_formula,
+  min.count = 5,
+  min.prop = 0.05,
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 단계 4: SVA 실행
+step4 <- lds_04_run_sva(
+  dge = step3$dge,
+  meta.data = step1b$meta.data,
+  fixed_effects_formula = step2$fixed_effects_formula,
+  n_sv = NULL,
+  sv_var_cutoff = 0.5,
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 단계 5: 최종 포뮬러 생성
+step5 <- lds_05_build_final_formula(
+  original_formula = step2$original_formula,
+  svs_final = step4$svs_final,
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 단계 6: Dream 실행
+step6 <- lds_06_run_dream(
+  dge = step3$dge,
+  final_formula = step5$final_formula,
+  meta.data = step4$meta.data_with_sv,
+  n_cores = 4,
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 단계 7: SVA 상관관계 분석
+step7 <- lds_07_analyze_sva_correlation(
+  svs_final = step4$svs_final,
+  meta.data = step4$meta.data_with_sv,
+  plot_sva_correlation = TRUE,
+  save_intermediate = TRUE,
+  output_dir = output_dir,
+  prefix = "lds_test"
+)
+
+# 결과 확인
+result <- list(
+  fit = step6$fit_ebayes,
+  voom = step6$v_dream,
+  sva_obj = step4$sva_obj,
+  svs_used = step4$svs_final,
+  final_formula = step5$final_formula,
+  dge = step3$dge
+)
+```
+
+### 중간 결과 로드 및 재시작
+
+특정 단계에서 오류가 발생했을 때, 이전 단계의 결과를 로드하여 해당 단계부터 다시 시작할 수 있습니다:
+
+```r
+# 예: 단계 4에서 오류 발생 → 단계 3까지의 결과 로드
+step3 <- qs::qread("/data/user3/sobj/lds_intermediate/lds_test_03_preprocess_dge.qs")
+step1b <- qs::qread("/data/user3/sobj/lds_intermediate/lds_test_01b_filter_na.qs")
+step2 <- qs::qread("/data/user3/sobj/lds_intermediate/lds_test_02_parse_formula.qs")
+
+# 단계 4부터 다시 시작
+step4 <- lds_04_run_sva(
+  dge = step3$dge,
+  meta.data = step1b$meta.data,
+  fixed_effects_formula = step2$fixed_effects_formula,
+  ...
+)
+```
+
+### 기본 테스트 (전체 파이프라인, 다운샘플링 데이터)
 
 ```r
 # 변수 설정
@@ -86,7 +235,14 @@ result_lds <- LDS(
   formula = ~ g3_clean + (1|hos_no) + (1|GEM),
   n_sv = NULL,  # 자동 결정
   sv_var_cutoff = 0.5,
-  n_cores = 4
+  n_cores = 4,
+  remove_na = TRUE,
+  min.count = 5,
+  min.prop = 0.05,
+  plot_sva_correlation = TRUE,
+  save_intermediate = TRUE,  # 중간 결과 저장
+  output_dir = "/data/user3/sobj/lds_intermediate",
+  prefix = "lds_test"
 )
 
 # 결과 확인
@@ -223,11 +379,11 @@ for (pkg in required_packages) {
 
 ### 함수가 로드되지 않음
 ```r
-# 함수 소스 직접 로드
-source("/home/user3/data_user3/git_repo/mylit/myR/R/test_working.R")
+# 워크트리에서 패키지 로드
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/lds/myR")
 
-# 또는 패키지 재로드
-devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
+# 또는 함수 소스 직접 로드
+source("/home/user3/data_user3/git_repo/_wt/lds/myR/R/lds.R")
 ```
 
 ### 데이터 로드 오류
