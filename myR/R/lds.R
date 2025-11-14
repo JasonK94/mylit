@@ -42,6 +42,36 @@ lds_01_extract_data <- function(sobj,
     stop("Count matrix의 열 수(샘플)와 meta.data의 행 수(샘플)가 일치하지 않습니다.")
   }
   
+  # meta.data 변수 정보 출력 (변환 전)
+  message("... 메타데이터 변수 정보:")
+  var_info <- data.frame(
+    Variable = colnames(meta.data),
+    Original_Type = sapply(colnames(meta.data), function(v) {
+      # 원본 타입 저장
+      if (is.character(meta.data[[v]])) return("character")
+      return(class(meta.data[[v]])[1])
+    }),
+    Converted_Type = sapply(colnames(meta.data), function(v) {
+      # 변환 후 타입
+      if (is.character(meta.data[[v]])) return("factor")
+      return(class(meta.data[[v]])[1])
+    }),
+    N_Unique = sapply(colnames(meta.data), function(v) length(unique(meta.data[[v]]))),
+    Example_Values = sapply(colnames(meta.data), function(v) {
+      vals <- unique(meta.data[[v]])[1:min(3, length(unique(meta.data[[v]])))]
+      paste(vals, collapse = ", ")
+    }),
+    stringsAsFactors = FALSE
+  )
+  print(var_info, row.names = FALSE)
+  
+  # character 변수를 factor로 변환
+  for (i in 1:ncol(meta.data)) {
+    if (is.character(meta.data[[i]])) {
+      meta.data[[i]] <- as.factor(meta.data[[i]])
+    }
+  }
+  
   result <- list(
     counts_matrix = counts_matrix,
     meta.data = meta.data,
@@ -176,6 +206,8 @@ lds_02_parse_formula <- function(formula,
 #' @param counts_matrix Count matrix
 #' @param meta.data 메타데이터
 #' @param fixed_effects_formula 고정 효과 포뮬러
+#' @param features 분석할 유전자/features 목록. 지정 시 filterByExpr 필터링 생략
+#' @param features_meta meta.data의 컬럼명으로 features 지정
 #' @param min.count filterByExpr의 min.count
 #' @param min.total.count filterByExpr의 min.total.count
 #' @param min.prop filterByExpr의 min.prop
@@ -187,6 +219,8 @@ lds_02_parse_formula <- function(formula,
 lds_03_preprocess_dge <- function(counts_matrix,
                                    meta.data,
                                    fixed_effects_formula,
+                                   features = NULL,
+                                   features_meta = NULL,
                                    min.count = 10,
                                    min.total.count = 15,
                                    min.prop = 0.1,
@@ -200,26 +234,93 @@ lds_03_preprocess_dge <- function(counts_matrix,
     stop("'edgeR' 패키지가 필요합니다.")
   }
   
-  # `filterByExpr`를 위한 디자인 행렬 (고정 효과 기반)
-  design_for_filter <- model.matrix(fixed_effects_formula, data = meta.data)
-  
   dge <- edgeR::DGEList(counts_matrix, samples = meta.data)
   n_genes_before <- nrow(dge)
   
-  # filterByExpr 옵션 적용
-  keep_genes <- edgeR::filterByExpr(
-    dge, 
-    design = design_for_filter,
-    min.count = min.count,
-    min.total.count = min.total.count,
-    min.prop = min.prop,
-    large.n = large.n
-  )
-  dge <- dge[keep_genes, , keep.lib.sizes = FALSE]
-  n_genes_after <- sum(keep_genes)
-  
-  if (n_genes_after == 0) {
-    stop("모든 유전자가 필터링되었습니다. `filterByExpr` 조건을 확인하십시오.")
+  # features가 지정된 경우
+  if (!is.null(features) || !is.null(features_meta)) {
+    message("... 사용자 지정 features 사용 (필터링 생략)")
+    
+    # features 또는 features_meta 사용
+    if (!is.null(features_meta)) {
+      features_to_use <- features_meta
+    } else {
+      features_to_use <- features
+    }
+    
+    # features가 count matrix의 rownames에 있는지 확인
+    gene_names_in_counts <- rownames(counts_matrix)
+    features_found <- features_to_use[features_to_use %in% gene_names_in_counts]
+    
+    if (length(features_found) == 0) {
+      # count matrix에 없으면 meta.data에서 찾기
+      message("... count matrix에 features가 없어 meta.data에서 검색 중...")
+      if (!is.null(meta.data)) {
+        # meta.data의 모든 열에서 features 찾기
+        features_in_meta <- c()
+        for (col in colnames(meta.data)) {
+          if (is.numeric(meta.data[[col]])) {
+            # numeric 열은 그대로 사용 가능
+            if (col %in% features_to_use) {
+              features_in_meta <- c(features_in_meta, col)
+            }
+          }
+        }
+        
+        if (length(features_in_meta) > 0) {
+          message(sprintf("... meta.data에서 %d개 features 발견: %s", 
+                         length(features_in_meta), 
+                         paste(features_in_meta, collapse = ", ")))
+          # meta.data의 features는 나중에 처리 (현재는 count matrix만 필터링)
+          keep_genes <- rep(TRUE, n_genes_before)
+        } else {
+          stop(sprintf("지정한 features가 count matrix 또는 meta.data에서 찾을 수 없습니다: %s", 
+                      paste(head(features_to_use, 5), collapse = ", ")))
+        }
+      } else {
+        stop(sprintf("지정한 features가 count matrix에서 찾을 수 없습니다: %s", 
+                    paste(head(features_to_use, 5), collapse = ", ")))
+      }
+    } else {
+      # count matrix에서 찾은 features만 사용
+      keep_genes <- gene_names_in_counts %in% features_found
+      message(sprintf("... count matrix에서 %d/%d개 features 발견", 
+                     length(features_found), length(features_to_use)))
+      
+      if (length(features_found) < length(features_to_use)) {
+        missing <- setdiff(features_to_use, features_found)
+        message(sprintf("... 누락된 features (%d개): %s", 
+                       length(missing), 
+                       paste(head(missing, 5), collapse = ", ")))
+      }
+    }
+    
+    dge <- dge[keep_genes, , keep.lib.sizes = FALSE]
+    n_genes_after <- sum(keep_genes)
+    
+    if (n_genes_after == 0) {
+      stop("지정한 features가 없어 모든 유전자가 제외되었습니다.")
+    }
+  } else {
+    # features가 지정되지 않은 경우: 기존 필터링 로직
+    # `filterByExpr`를 위한 디자인 행렬 (고정 효과 기반)
+    design_for_filter <- model.matrix(fixed_effects_formula, data = meta.data)
+    
+    # filterByExpr 옵션 적용
+    keep_genes <- edgeR::filterByExpr(
+      dge, 
+      design = design_for_filter,
+      min.count = min.count,
+      min.total.count = min.total.count,
+      min.prop = min.prop,
+      large.n = large.n
+    )
+    dge <- dge[keep_genes, , keep.lib.sizes = FALSE]
+    n_genes_after <- sum(keep_genes)
+    
+    if (n_genes_after == 0) {
+      stop("모든 유전자가 필터링되었습니다. `filterByExpr` 조건을 확인하십시오.")
+    }
   }
   
   dge <- edgeR::calcNormFactors(dge)
@@ -563,15 +664,24 @@ lds_07_analyze_sva_correlation <- function(svs_final,
   
   message("7b/7: SVA와 메타데이터 상관관계 분석 중...")
   
-  # 메타데이터에서 숫자형/팩터형 변수만 선택
+  # 메타데이터에서 숫자형/팩터형/문자형 변수만 선택
   meta_vars <- colnames(meta.data)
   # SV 변수 제외
   meta_vars <- meta_vars[!grepl("^SV\\d+$", meta_vars)]
-  # 숫자형 또는 팩터형 변수만
+  # 숫자형, 팩터형, 또는 문자형 변수만 (문자형은 나중에 factor로 변환)
   numeric_vars <- sapply(meta_vars, function(v) {
-    is.numeric(meta.data[[v]]) || is.factor(meta.data[[v]])
+    var_data <- meta.data[[v]]
+    is.numeric(var_data) || is.factor(var_data) || is.character(var_data)
   })
   meta_vars_numeric <- meta_vars[numeric_vars]
+  
+  # 문자형 변수를 factor로 변환
+  for (i in seq_along(meta_vars_numeric)) {
+    var_name <- meta_vars_numeric[i]
+    if (is.character(meta.data[[var_name]])) {
+      meta.data[[var_name]] <- as.factor(meta.data[[var_name]])
+    }
+  }
   
   if (length(meta_vars_numeric) == 0) {
     message("... 숫자형/팩터형 메타데이터 변수가 없어 상관관계 분석을 스킵합니다.")
@@ -588,9 +698,9 @@ lds_07_analyze_sva_correlation <- function(svs_final,
       var_name <- meta_vars_numeric[j]
       var_data <- meta.data[[var_name]]
       
-      # 팩터는 숫자로 변환
-      if (is.factor(var_data)) {
-        var_data <- as.numeric(var_data)
+      # 팩터 또는 문자형은 숫자로 변환
+      if (is.factor(var_data) || is.character(var_data)) {
+        var_data <- as.numeric(as.factor(var_data))
       }
       
       # NA 제거 후 상관관계 계산
@@ -641,6 +751,8 @@ LDS <- function(sobj,
                 formula,
                 meta.data = NULL,
                 layer = "counts",
+                features = NULL,
+                features_meta = NULL,
                 n_sv = NULL,
                 sv_var_cutoff = 0.5,
                 n_cores = max(1, parallel::detectCores() - 2),
@@ -695,6 +807,8 @@ LDS <- function(sobj,
     counts_matrix = step1b$counts_matrix,
     meta.data = step1b$meta.data,
     fixed_effects_formula = step2$fixed_effects_formula,
+    features = features,
+    features_meta = features_meta,
     min.count = min.count,
     min.total.count = min.total.count,
     min.prop = min.prop,

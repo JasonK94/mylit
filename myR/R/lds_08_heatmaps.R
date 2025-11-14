@@ -36,24 +36,28 @@ lds_08_create_heatmaps <- function(svs_final,
   
   message("8/8: SVA 상관관계 Heatmap 생성 중...")
   
-  # 메타데이터에서 숫자형/팩터형 변수만 선택
+  # 메타데이터에서 숫자형/팩터형/문자형 변수만 선택
   meta_vars <- colnames(meta.data)
   # SV 변수 제외
   meta_vars <- meta_vars[!grepl("^SV\\d+$", meta_vars)]
-  # 숫자형 또는 팩터형 변수만
+  # 숫자형, 팩터형, 또는 문자형 변수만 (문자형은 나중에 factor로 변환)
   numeric_vars <- sapply(meta_vars, function(v) {
-    is.numeric(meta.data[[v]]) || is.factor(meta.data[[v]])
+    var_data <- meta.data[[v]]
+    is.numeric(var_data) || is.factor(var_data) || is.character(var_data)
   })
   meta_vars_numeric <- meta_vars[numeric_vars]
   
   if (length(meta_vars_numeric) == 0) {
-    message("... 숫자형/팩터형 메타데이터 변수가 없어 heatmap 생성을 스킵합니다.")
+    message("... 숫자형/팩터형/문자형 메타데이터 변수가 없어 heatmap 생성을 스킵합니다.")
     return(NULL)
   }
   
-  # 메타데이터 준비 (팩터를 숫자로 변환)
+  # 메타데이터 준비 (문자형을 factor로 변환 후 숫자로 변환)
   meta_numeric <- meta.data[, meta_vars_numeric, drop = FALSE]
   for (i in 1:ncol(meta_numeric)) {
+    if (is.character(meta_numeric[[i]])) {
+      meta_numeric[[i]] <- as.factor(meta_numeric[[i]])
+    }
     if (is.factor(meta_numeric[[i]])) {
       meta_numeric[[i]] <- as.numeric(meta_numeric[[i]])
     }
