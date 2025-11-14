@@ -1602,8 +1602,25 @@ LDS <- function(sobj,
     stop("Count matrix의 열 수(샘플)와 meta.data의 행 수(샘플)가 일치하지 않습니다.")
   }
   
+  # 필수 패키지 확인
+  if (!requireNamespace("BiocParallel", quietly = TRUE)) {
+    stop("'BiocParallel' 패키지가 필요합니다. BiocManager::install('BiocParallel')")
+  }
+  if (!requireNamespace("edgeR", quietly = TRUE)) {
+    stop("'edgeR' 패키지가 필요합니다. BiocManager::install('edgeR')")
+  }
+  if (!requireNamespace("limma", quietly = TRUE)) {
+    stop("'limma' 패키지가 필요합니다. BiocManager::install('limma')")
+  }
+  if (!requireNamespace("sva", quietly = TRUE)) {
+    stop("'sva' 패키지가 필요합니다. BiocManager::install('sva')")
+  }
+  if (!requireNamespace("variancePartition", quietly = TRUE)) {
+    stop("'variancePartition' 패키지가 필요합니다. BiocManager::install('variancePartition')")
+  }
+  
   # 병렬 백엔드 설정
-  BPPARAM_SETUP <- MulticoreParam(n_cores)
+  BPPARAM_SETUP <- BiocParallel::MulticoreParam(n_cores)
 
   # --- 2. SVA를 위한 포뮬러 파싱 ---
   message("2/7: 포뮬러 파싱 중...")
@@ -1626,16 +1643,16 @@ LDS <- function(sobj,
   # `filterByExpr`를 위한 디자인 행렬 (고정 효과 기반)
   design_for_filter <- model.matrix(fixed_effects_formula, data = meta.data)
   
-  dge <- DGEList(counts_matrix, samples = meta.data)
+  dge <- edgeR::DGEList(counts_matrix, samples = meta.data)
   
-  keep_genes <- filterByExpr(dge, design = design_for_filter)
+  keep_genes <- edgeR::filterByExpr(dge, design = design_for_filter)
   dge <- dge[keep_genes, , keep.lib.sizes = FALSE]
   
   if (sum(keep_genes) == 0) {
     stop("모든 유전자가 필터링되었습니다. `filterByExpr` 조건을 확인하십시오.")
   }
   
-  dge <- calcNormFactors(dge)
+  dge <- edgeR::calcNormFactors(dge)
   
   message(sprintf("... 유전자 필터링 완료: %d / %d 개 통과", 
                   sum(keep_genes), nrow(counts_matrix)))
@@ -1647,12 +1664,12 @@ LDS <- function(sobj,
   mod0_sva <- model.matrix(~ 1, data = meta.data)
   
   # SVA는 voom 변환된 데이터에 실행
-  v_sva <- voom(dge, mod_sva, plot = FALSE)
+  v_sva <- limma::voom(dge, mod_sva, plot = FALSE)
   
   # 1) n.sv=NULL로 SVA를 실행하여 *최대* SV 개수 및 SV *모두* 찾기
   # (n_sv=NULL일 때만 SVD를 수행하여 sva_obj$svd를 반환함. 
   #  -> 이 부분이 sva 버전마다 다를 수 있어, 수동 잔차 계산이 더 안정적임)
-  sva_obj <- sva(v_sva$E, mod = mod_sva, mod0 = mod0_sva, n.sv = NULL)
+  sva_obj <- sva::sva(v_sva$E, mod = mod_sva, mod0 = mod0_sva, n.sv = NULL)
   
   n_sv_max <- sva_obj$n.sv
   
@@ -1725,7 +1742,7 @@ LDS <- function(sobj,
   message(sprintf("6/7: limma-dream 실행 (Core: %d개)...", n_cores))
   
   # 1) 유효 가중치 계산 (voomWithDreamWeights)
-  v_dream <- voomWithDreamWeights(
+  v_dream <- variancePartition::voomWithDreamWeights(
     dge, 
     final_formula, 
     meta.data, 
@@ -1733,7 +1750,7 @@ LDS <- function(sobj,
   )
   
   # 2) LMM 피팅 (dream)
-  fit_dream <- dream(
+  fit_dream <- variancePartition::dream(
     v_dream, 
     final_formula, 
     meta.data, 
@@ -1741,7 +1758,7 @@ LDS <- function(sobj,
   )
   
   # 3) Empirical Bayes 조정
-  fit_ebayes <- eBayes(fit_dream)
+  fit_ebayes <- limma::eBayes(fit_dream)
   
   message("7/7: 분석 완료.")
 
