@@ -1306,3 +1306,315 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
   ))
 }
 
+
+# ============================================================================
+# Formula-based NEBULA Analysis (v2)
+# ============================================================================
+# Formula 1: ~ g3 + sex + anno3.scvi + GEM + g3:anno3.scvi + sex:anno3.scvi + (1|GEM/patient)
+
+#' Run NEBULA Analysis with Formula (v2)
+#'
+#' @description
+#' Performs differential expression analysis using NEBULA with a formula interface.
+#' Supports lme4-style formulas including nested random effects.
+#' Note: NEBULA only supports single-level random effects, so nested random effects
+#' like (1|GEM/patient) will be converted to (1|patient) with GEM as a fixed effect.
+#'
+#' @param sobj Seurat object
+#' @param formula Character string or formula object (e.g., "~ g3 + sex + anno3.scvi + GEM + g3:anno3.scvi + sex:anno3.scvi + (1|GEM/patient)")
+#' @param layer Assay layer to use (default: "counts")
+#' @param patient_col Column name for patient/sample ID. If NULL, extracted from formula's random effects
+#' @param offset Column name for offset variable (default: "nCount_RNA")
+#' @param min_count Minimum number of cells expressing a gene (default: 10)
+#' @param remove_na_cells Remove cells with NA in model variables (default: TRUE)
+#'
+#' @return NEBULA result object from \code{nebula::nebula()}
+#'
+#' @export
+runNEBULA2_v1_with_formula <- function(sobj,
+                                       formula,
+                                       layer = "counts",
+                                       patient_col = NULL,
+                                       offset = "nCount_RNA",
+                                       min_count = 10,
+                                       remove_na_cells = TRUE) {
+  
+  # --- 0. Formula 파싱 ---
+  if (is.character(formula)) {
+    formula_obj <- as.formula(formula)
+  } else if (inherits(formula, "formula")) {
+    formula_obj <- formula
+  } else {
+    stop("'formula'는 문자열 또는 formula 객체여야 합니다.")
+  }
+  
+  message("0/8: Formula 파싱 중...")
+  message(sprintf("... Formula: %s", deparse(formula_obj)))
+  
+  # Formula에서 fixed effects와 random effects 분리
+  formula_str <- deparse(formula_obj)
+  
+  # Random effects 추출: (1|...) 패턴 찾기
+  random_pattern <- "\\(1\\|[^)]+\\)"
+  random_matches <- regmatches(formula_str, gregexpr(random_pattern, formula_str))[[1]]
+  
+  if (length(random_matches) == 0) {
+    stop("Formula에 random effects가 없습니다. 예: (1|patient) 또는 (1|GEM/patient)")
+  }
+  
+  # Nested random effects 처리: (1|GEM/patient) -> patient만 추출
+  random_terms <- gsub("\\(1\\||\\)", "", random_matches)
+  
+  # nested 처리: GEM/patient -> patient만 사용
+  nested_terms <- strsplit(random_terms, "/")
+  actual_random_terms <- sapply(nested_terms, function(x) {
+    if (length(x) > 1) {
+      # nested인 경우: 마지막 요소 (patient)만 사용
+      # 앞의 요소들 (GEM)은 fixed effect로 추가
+      message(sprintf("... Nested random effect 발견: %s", paste(x, collapse="/")))
+      message(sprintf("   → Random effect로 사용: %s", x[length(x)]))
+      if (length(x) > 2) {
+        warning("3단계 이상의 nested random effects는 지원되지 않습니다. 마지막 레벨만 사용합니다.")
+      }
+      x[length(x)]
+    } else {
+      x[1]
+    }
+  })
+  
+  # patient_col 추출
+  if (is.null(patient_col)) {
+    patient_col <- actual_random_terms[1]  # 첫 번째 random effect를 patient로 사용
+    message(sprintf("... patient_col 자동 설정: %s", patient_col))
+  }
+  
+  # Nested 구조에서 상위 레벨들 (예: GEM)을 fixed effect로 추가
+  fixed_effects_from_nested <- character(0)
+  for (i in seq_along(nested_terms)) {
+    if (length(nested_terms[[i]]) > 1) {
+      # GEM/patient -> GEM을 fixed effect로 추가
+      upper_levels <- nested_terms[[i]][-length(nested_terms[[i]])]
+      fixed_effects_from_nested <- c(fixed_effects_from_nested, upper_levels)
+    }
+  }
+  
+  # Random effects 제거한 formula에서 fixed effects 추출
+  formula_no_random <- formula_str
+  for (rm in random_matches) {
+    formula_no_random <- gsub(rm, "", formula_no_random, fixed = TRUE)
+  }
+  formula_no_random <- gsub("\\+\\s*\\+", "+", formula_no_random)  # 연속된 + 제거
+  formula_no_random <- gsub("~\\s*\\+", "~", formula_no_random)    # ~ 뒤의 + 제거
+  formula_no_random <- gsub("\\s*\\+\\s*$", "", formula_no_random) # 끝의 + 제거
+  formula_no_random <- trimws(formula_no_random)
+  
+  # Formula를 파싱하여 terms 추출
+  tryCatch({
+    temp_formula <- as.formula(formula_no_random)
+    formula_terms <- attr(terms(temp_formula), "term.labels")
+  }, error = function(e) {
+    stop(sprintf("Formula 파싱 실패: %s", conditionMessage(e)))
+  })
+  
+  # 고정 효과 목록 (중복 제거)
+  fixed_effects_all <- unique(c(fixed_effects_from_nested, formula_terms))
+  
+  # 교호작용 항 처리 (g3:anno3.scvi -> 그대로 유지)
+  # main effects 추출 (교호작용에 포함된 변수)
+  main_effects_from_interactions <- character(0)
+  interaction_terms <- fixed_effects_all[grepl(":", fixed_effects_all)]
+  for (it in interaction_terms) {
+    main_effects_from_interactions <- c(main_effects_from_interactions, 
+                                       strsplit(it, ":")[[1]])
+  }
+  
+  # 모든 변수 추출 (메타데이터 컬럼명과 매칭)
+  all_vars <- unique(c(
+    setdiff(fixed_effects_all, interaction_terms),  # 교호작용 제외한 main effects
+    main_effects_from_interactions,  # 교호작용에서 추출한 main effects
+    patient_col
+  ))
+  
+  message(sprintf("... Fixed effects: %s", paste(fixed_effects_all, collapse=", ")))
+  message(sprintf("... Random effects: %s", paste(actual_random_terms, collapse=", ")))
+  message(sprintf("... Patient column: %s", patient_col))
+  
+  # --- 1. 데이터 추출 ---
+  meta <- sobj@meta.data
+  counts <- GetAssayData(sobj, layer = layer) # dgCMatrix (희소 행렬)
+  
+  # --- 2. 유전자 필터링 ---
+  message(sprintf("1/8: 유전자 필터링 (min %d cells)...", min_count))
+  keep_genes <- rowSums(counts > 0) >= min_count
+  counts_filtered <- counts[keep_genes, ]
+  message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(counts)))
+  
+  # --- 3. NA 값 확인 및 제거 ---
+  vars_to_check <- c(all_vars, offset)
+  vars_to_check <- vars_to_check[vars_to_check %in% colnames(meta)]
+  
+  message("2/8: 모델 변수에서 NA 값 확인 중...")
+  message(paste("... 확인 대상:", paste(vars_to_check, collapse = ", ")))
+  
+  # 각 변수별 NA 개수 확인
+  if (remove_na_cells) {
+    na_counts <- vapply(vars_to_check, function(v) sum(is.na(meta[[v]])), integer(1))
+    if (any(na_counts > 0)) {
+      message("... 변수별 NA 개수:")
+      for (v in names(na_counts[na_counts > 0])) {
+        message(sprintf("    %s: %d 개", v, na_counts[v]))
+      }
+    }
+    
+    keep_cells_idx <- complete.cases(meta[, vars_to_check])
+    n_removed <- sum(!keep_cells_idx)
+    
+    if (n_removed > 0) {
+      message(sprintf("... NA 값으로 인해 %d 개의 세포를 제거합니다.", n_removed))
+    } else {
+      message("... NA 값이 없습니다.")
+    }
+  } else {
+    keep_cells_idx <- rep(TRUE, nrow(meta))
+    n_removed <- 0
+    if (any(!complete.cases(meta[, vars_to_check]))) {
+      warning("일부 변수에 NA가 있지만 제거하지 않습니다. 분석 결과에 영향을 줄 수 있습니다.")
+    }
+  }
+  
+  # NA가 없는 '깨끗한' 데이터 생성
+  meta_clean <- meta[keep_cells_idx, ]
+  counts_clean <- counts_filtered[, keep_cells_idx]
+  
+  message(sprintf("... 최종 분석 대상 세포: %d 개", nrow(meta_clean)))
+  
+  # --- 4. 디자인 행렬 생성 ---
+  message("3/8: 디자인 행렬 생성 중...")
+  
+  # 범주형 변수 변환
+  factor_vars <- all_vars[all_vars %in% colnames(meta_clean)]
+  meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], as.factor)
+  
+  # 각 factor 변수의 레벨 수 확인
+  for (v in factor_vars) {
+    n_levels <- length(levels(meta_clean[[v]]))
+    message(sprintf("... %s: %d 레벨 (%s)", v, n_levels, 
+                   paste(levels(meta_clean[[v]])[1:min(5, n_levels)], collapse=", "),
+                   if(n_levels > 5) "..." else ""))
+  }
+  
+  # offset 처리
+  if (offset %in% colnames(meta_clean)) {
+    meta_clean[[offset]] <- as.numeric(meta_clean[[offset]])
+    if (any(is.na(meta_clean[[offset]]))) {
+        stop(sprintf("'%s' 컬럼에 NA가 아닌 숫자형 값만 있어야 합니다.", offset))
+    }
+    if (any(meta_clean[[offset]] <= 0)) {
+      warning(sprintf("'%s' 컬럼에 0 이하 값이 있습니다. offset은 양수여야 합니다.", offset))
+    }
+  } else {
+    stop(sprintf("'%s' 컬럼이 메타데이터에 없습니다.", offset))
+  }
+  
+  # Formula에서 random effects 제거한 후 design matrix 생성
+  formula_for_design <- as.formula(paste("~", paste(fixed_effects_all, collapse = " + ")))
+  message(sprintf("... Design formula: %s", deparse(formula_for_design)))
+  
+  design_matrix <- model.matrix(formula_for_design, data = meta_clean)
+  
+  # 설계 행렬의 특이성 확인
+  design_qr <- qr(design_matrix)
+  design_rank <- design_qr$rank
+  n_cols <- ncol(design_matrix)
+  
+  # 완전 분리 확인
+  main_effects_only <- setdiff(fixed_effects_all, interaction_terms)
+  if (length(main_effects_only) >= 2) {
+    message("... 변수 간 완전 분리(complete separation) 확인 중...")
+    separation_issues <- FALSE
+    for (i in 1:(length(main_effects_only)-1)) {
+      for (j in (i+1):length(main_effects_only)) {
+        var1 <- main_effects_only[i]
+        var2 <- main_effects_only[j]
+        if (var1 %in% colnames(meta_clean) && var2 %in% colnames(meta_clean)) {
+          contingency <- table(meta_clean[[var1]], meta_clean[[var2]])
+          zero_cells <- sum(contingency == 0)
+          if (zero_cells > 0) {
+            separation_issues <- TRUE
+            warning(sprintf("%s와 %s 사이에 완전 분리된 조합이 있습니다 (0인 셀: %d개).", 
+                           var1, var2, zero_cells))
+            message(sprintf("  %s x %s contingency table:", var1, var2))
+            print(contingency)
+          }
+        }
+      }
+    }
+    if (!separation_issues) {
+      message("... 완전 분리 문제 없음")
+    }
+  }
+  
+  if (design_rank < n_cols) {
+    warning(sprintf("설계 행렬이 특이(singular)합니다. rank=%d < columns=%d.", 
+                   design_rank, n_cols))
+    message("오류가 발생하면:")
+    message("  1. 교호작용 항을 제거하거나 단순화하세요.")
+    message("  2. 완전 분리된 조합을 제거하거나 데이터를 필터링하세요.")
+    message("  3. min_count를 높여서 더 적은 유전자로 분석하세요.")
+  }
+  
+  message(sprintf("... 설계 행렬: %d 행 x %d 열 (rank=%d)", 
+                 nrow(design_matrix), ncol(design_matrix), design_rank))
+  
+  # id 및 offset 벡터 추출
+  id_vector <- meta_clean[[patient_col]]
+  offset_vector <- meta_clean[[offset]]
+  
+  # --- 5. group_cell()로 데이터 정렬 ---
+  message(sprintf("4/8: NEBULA를 위해 id (%s) 기준으로 데이터 정렬 중...", patient_col))
+  data_grouped <- nebula::group_cell(
+    count = counts_clean,
+    id = id_vector,
+    pred = design_matrix,
+    offset = offset_vector
+  )
+  
+  # --- 6. NEBULA 실행 ---
+  message("5/8: NEBULA 실행 중 (NBLMM)...")
+  re_nebula <- tryCatch({
+    nebula::nebula(
+      count = data_grouped$count,
+      id = data_grouped$id,
+      pred = data_grouped$pred,
+      offset = data_grouped$offset,
+      model = "NBLMM",
+      method = "HL"
+    )
+  }, error = function(e) {
+    warning("NEBULA with HL method failed, trying with default settings...")
+    tryCatch({
+      nebula::nebula(
+        count = data_grouped$count,
+        id = data_grouped$id,
+        pred = data_grouped$pred,
+        offset = data_grouped$offset,
+        model = "NBLMM"
+      )
+    }, error = function(e2) {
+      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", 
+                   conditionMessage(e2)))
+    })
+  })
+  
+  # --- 7. 결과에 formula 정보 추가 ---
+  re_nebula$formula <- deparse(formula_obj)
+  re_nebula$design_formula <- deparse(formula_for_design)
+  re_nebula$patient_col <- patient_col
+  re_nebula$fixed_effects <- fixed_effects_all
+  
+  # --- 8. 완료 ---
+  message("6/8: 분석 완료.")
+  
+  return(re_nebula)
+}
+
