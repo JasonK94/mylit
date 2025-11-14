@@ -122,7 +122,7 @@ standardize_deg_results <- function(
   }
   
   # pvalue 컬럼 찾기
-  pval_cols <- c("pvalue", "p_value", "PValue", "P.Value", "pval", "p")
+  pval_cols <- c("pvalue", "p_value", "PValue", "P.Value", "pval", "p", "p_val")
   pval_col <- NULL
   for (col in pval_cols) {
     if (col %in% colnames(df)) {
@@ -136,8 +136,12 @@ standardize_deg_results <- function(
     result_std$pvalue <- NA_real_
   }
   
-  # pvalue_adj 컬럼 찾기
-  padj_cols <- c("pvalue_adj", "p_val_adj", "adj_p_val", "FDR", "padj", "adj.P.Val", "fdr", "qvalue", "q")
+  # pvalue_adj 컬럼 찾기 (muscat의 p_adj.loc, p_adj.glb 포함)
+  # 우선순위: local FDR (클러스터별) > global FDR > 기타
+  # Note: muscat의 경우 local FDR이 더 많은 유의한 유전자를 제공
+  padj_cols <- c("pvalue_adj", "p_val_adj", "adj_p_val", "FDR", "padj", "adj.P.Val", "fdr", "qvalue", "q",
+                 "p_adj.loc", "p_adj_loc",   # local FDR (클러스터별, 우선)
+                 "p_adj.glb", "p_adj_glb")   # global FDR (차선)
   padj_col <- NULL
   for (col in padj_cols) {
     if (col %in% colnames(df)) {
@@ -279,6 +283,20 @@ build_deg_matrices <- function(
   # 각 방법론별로 행렬 채우기
   for (method in methods) {
     result <- standardized_results_list[[method]]
+    
+    # 클러스터별 결과가 있는 경우 (같은 유전자가 여러 클러스터에 나타날 수 있음)
+    # 각 유전자에 대해 가장 유의한 클러스터의 결과를 선택
+    if ("cluster_id" %in% colnames(result) && any(duplicated(result$gene))) {
+      # 유전자별로 가장 유의한 결과 선택 (최소 pvalue_adj 또는 최대 |logFC|)
+      result_agg <- result[order(result$gene, 
+                                  if ("pvalue_adj" %in% colnames(result)) {
+                                    ifelse(is.na(result$pvalue_adj), Inf, result$pvalue_adj)
+                                  } else {
+                                    ifelse(is.na(result$pvalue), Inf, result$pvalue)
+                                  }), ]
+      result_agg <- result_agg[!duplicated(result_agg$gene), ]
+      result <- result_agg
+    }
     
     # gene을 인덱스로 사용
     match_idx <- match(result$gene, genes)
