@@ -1349,13 +1349,12 @@ runNEBULA2_v1_with_formula <- function(sobj,
   }
   
   message("0/8: Formula 파싱 중...")
-  message(sprintf("... Formula: %s", deparse(formula_obj)))
+  formula_deparse <- deparse(formula_obj)
+  formula_str <- paste(formula_deparse, collapse = " ")  # 여러 줄을 하나로 합치기
+  message(sprintf("... Formula: %s", formula_str))
   
-  # Formula에서 fixed effects와 random effects 분리
-  formula_str <- deparse(formula_obj)
-  
-  # Random effects 추출: (1|...) 패턴 찾기
-  random_pattern <- "\\(1\\|[^)]+\\)"
+  # Random effects 추출: (1|...) 또는 (1 | ...) 패턴 찾기 (공백 허용)
+  random_pattern <- "\\(1\\s*\\|[^)]+\\)"
   random_matches <- regmatches(formula_str, gregexpr(random_pattern, formula_str))[[1]]
   
   if (length(random_matches) == 0) {
