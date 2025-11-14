@@ -53,15 +53,31 @@ standardized_results <- lapply(result_consensus$methods_run, function(m) {
 names(standardized_results) <- result_consensus$methods_run
 
 # 5. 행렬 구성
-deg_matrices <- build_deg_matrices(standardized_results, genes = NULL, fdr_threshold = 0.05)
+# FDR threshold 설정 (완화된 값 사용 가능)
+# - 0.05: 엄격한 기준 (적은 DEG)
+# - 0.1: 완화된 기준 (권장, 더 많은 DEG 검출)
+# - 0.2: 더 완화된 기준
+fdr_threshold <- 0.1  # 기본값: 0.1
+
+deg_matrices <- build_deg_matrices(standardized_results, genes = NULL, fdr_threshold = fdr_threshold)
 
 # 6. Consensus 분석
 agreement_scores <- compute_agreement_scores(deg_matrices$significance)
 consensus_scores <- compute_consensus_scores(deg_matrices, agreement_scores)
+
+# Consensus DEG 리스트 생성
+# min_methods: 최소 몇 개의 방법론에서 유의해야 하는지
+#   - 예: min_methods = 2 → 최소 2개 방법론에서 유의한 유전자만 선택
+#   - 예: min_methods = NULL → 방법론 수 제한 없음
+# agreement_threshold: Agreement score 최소값 (0~1, 높을수록 엄격)
+min_methods <- 2  # 최소 2개 방법론에서 유의
+agreement_threshold <- 0.3  # Agreement score >= 0.3
+
 consensus_deg_list <- generate_consensus_deg_list(
   consensus_scores,
-  agreement_threshold = 0.5,
-  min_methods = ceiling(length(result_consensus$methods_run) * 0.5)
+  fdr_threshold = fdr_threshold,
+  agreement_threshold = agreement_threshold,
+  min_methods = min_methods
 )
 
 # 7. 결과 확인
