@@ -24,7 +24,7 @@
 
 ```r
 # R 세션에서 실행
-source("/home/user3/data_user3/git_repo/_wt/analysis/test_interactive.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/test_interactive.R")
 ```
 
 이 스크립트는:
@@ -37,7 +37,7 @@ source("/home/user3/data_user3/git_repo/_wt/analysis/test_interactive.R")
 ```r
 # 1. 환경 설정
 source("st/start.R")
-source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
 
 # 2. 데이터 로드
 library(qs)
@@ -67,12 +67,12 @@ qs::qsave(res_muscat2, "/data/user3/sobj/test_muscat2_v1_result.qs")
 
 ### 1단계: 데이터 확인
 ```r
-source("/home/user3/data_user3/git_repo/_wt/analysis/test_simple.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/test_simple.R")
 ```
 
 ### 2단계: runMUSCAT2_v1 테스트
 ```r
-source("/home/user3/data_user3/git_repo/_wt/analysis/test_interactive.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/test_interactive.R")
 ```
 
 ### 3단계: runNEBULA2_v1 테스트 (선택)
@@ -155,10 +155,10 @@ install.packages(c("Seurat", "nebula", "qs", "dplyr", "Matrix"))
 ### 함수가 로드되지 않음
 ```r
 # 함수 소스 직접 로드
-source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
 
 # 또는 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/_wt/analysis/myR")
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/main2/myR")
 ```
 
 ### 데이터 로드 오류

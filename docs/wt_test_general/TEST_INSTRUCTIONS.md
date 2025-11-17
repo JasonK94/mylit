@@ -22,10 +22,10 @@ devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 source("/home/user3/data_user3/git_repo/_wt/<your_worktree>/myR/scripts/test_scripts.R") #example.
 
 =======
-source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
 
 # 또는 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/_wt/analysis/myR")
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/main2/myR")
 >>>>>>> main2:TEST_INSTRUCTIONS.md
 ```
 
@@ -143,7 +143,7 @@ qs::qsave(res_muscat3, "/data/user3/sobj/test_muscat2_v1_result.qs")
 <<<<<<< HEAD:docs/wt_test_general/TEST_INSTRUCTIONS.md
 source("/home/user3/data_user3/git_repo/mylit/scripts/test_functions.R")
 =======
-source("/home/user3/data_user3/git_repo/_wt/analysis/test_functions.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/test_functions.R")
 >>>>>>> main2:TEST_INSTRUCTIONS.md
 ```
 
@@ -205,10 +205,10 @@ if (!requireNamespace("nebula", quietly = TRUE)) {
 ### 함수가 로드되지 않음
 ```r
 # 함수 소스 직접 로드
-source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
 
 # 또는 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/_wt/analysis/myR")
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/main2/myR")
 ```
 
 ### 데이터 로드 오류

@@ -492,6 +492,29 @@ example_usage <- function() {
 NEBULA=function(){}
 
 
+#' @title MAST 파이프라인 함수
+#'
+#' @description [수정] Seurat -> SCE로 변환하여 MAST를 실행
+#'
+#' @param sobj (Seurat) Seurat 객체
+#' @param formula (formula or character) lme4 문법의 포뮬러
+#' @param min_cells_expr (numeric) 유전자 필터링 기준 (최소 발현 세포 수)
+#' @param n_cores (numeric) 병렬 처리 코어 수
+#' @param lrt_variable (character) LRT 검정을 수행할 변수명 (예: "type")
+#'
+#' @title MAST 파이프라인 함수 (DEPRECATED)
+#' @description 이 함수는 deprecated되었습니다. test_analysis.R의 runMAST_v1을 사용하세요.
+#' @export
+runMAST <- function(...) {
+  .Deprecated("runMAST_v1", package = "myR", msg = "runMAST in test.R is deprecated. Use runMAST_v1 from test_analysis.R instead.")
+  if (exists("runMAST_v1", envir = asNamespace("myR"), inherits = FALSE)) {
+    fun <- get("runMAST_v1", envir = asNamespace("myR"))
+    return(fun(...))
+  } else {
+    stop("runMAST_v1 from test_analysis.R not found. Please ensure test_analysis.R is loaded.")
+  }
+}
+
 # [V4] find_gene_signature_v4
 #
 # 변경점:

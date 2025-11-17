@@ -15,12 +15,12 @@ if (file.exists("st/start.R")) {
   source("st/start.R")
 } else if (file.exists("../st/start.R")) {
   source("../st/start.R")
-} else if (file.exists("/home/user3/data_user3/git_repo/_wt/analysis/st/start.R")) {
-  source("/home/user3/data_user3/git_repo/_wt/analysis/st/start.R")
+} else if (file.exists("/home/user3/data_user3/git_repo/_wt/main2/st/start.R")) {
+  source("/home/user3/data_user3/git_repo/_wt/main2/st/start.R")
 }
 
 # 함수 소스 로드
-repo_root <- "/home/user3/data_user3/git_repo/_wt/analysis"
+repo_root <- "/home/user3/data_user3/git_repo/_wt/main2"
 if (dir.exists(repo_root)) {
   source(file.path(repo_root, "myR/R/test_analysis.R"))
   message("Functions loaded from: ", file.path(repo_root, "myR/R/test_analysis.R"))

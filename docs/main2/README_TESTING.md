@@ -11,7 +11,7 @@ R
 ### 2. 테스트 실행
 ```r
 # 대화형 테스트 스크립트 실행 (권장)
-source("/home/user3/data_user3/git_repo/_wt/analysis/test_interactive.R")
+source("/home/user3/data_user3/git_repo/_wt/main2/test_interactive.R")
 ```
 
 ## 개발된 함수
