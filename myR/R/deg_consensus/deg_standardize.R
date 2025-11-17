@@ -223,7 +223,15 @@ standardize_deg_results <- function(
 #'
 #' @param standardized_results_list Named list of standardized DEG results
 #' @param genes Optional vector of gene IDs. If NULL, uses intersection of all methods.
-#' @param fdr_threshold FDR threshold for significance (default: 0.05)
+#' @param fdr_threshold FDR threshold for significance (default: 0.05, used when
+#'   \code{significance_mode = \"fdr\"})
+#' @param significance_mode Character. How to define per-method significance:
+#'   \itemize{
+#'     \item \code{\"fdr\"} (default): use adjusted p-values (\code{pvalue_adj < fdr_threshold})
+#'     \item \code{\"pvalue\"}: use raw p-values (\code{pvalue < pvalue_threshold})
+#'   }
+#' @param pvalue_threshold Numeric. Raw p-value threshold for significance when
+#'   \code{significance_mode = \"pvalue\"}. Ignored otherwise. Default: 0.01.
 #'
 #' @return List with matrices:
 #'   - beta: Effect size matrix (genes × methods)
@@ -237,11 +245,20 @@ standardize_deg_results <- function(
 build_deg_matrices <- function(
   standardized_results_list,
   genes = NULL,
-  fdr_threshold = 0.05
+  fdr_threshold = 0.05,
+  significance_mode = c("fdr", "pvalue"),
+  pvalue_threshold = 0.01
 ) {
   
   if (length(standardized_results_list) == 0) {
     stop("standardized_results_list가 비어있습니다.")
+  }
+  significance_mode <- match.arg(significance_mode)
+  if (!is.numeric(fdr_threshold) || length(fdr_threshold) != 1L || fdr_threshold <= 0 || fdr_threshold >= 1) {
+    stop("fdr_threshold는 0과 1 사이의 숫자 하나여야 합니다.")
+  }
+  if (!is.numeric(pvalue_threshold) || length(pvalue_threshold) != 1L || pvalue_threshold <= 0 || pvalue_threshold >= 1) {
+    stop("pvalue_threshold는 0과 1 사이의 숫자 하나여야 합니다.")
   }
   
   # 모든 방법론에서 유전자 수집
@@ -320,10 +337,19 @@ build_deg_matrices <- function(
       logp_matrix[idx, method] <- -log10(pmax(result$pvalue[valid_idx], 1e-300))
     }
     
-    # significance (FDR < threshold)
-    if ("pvalue_adj" %in% colnames(result)) {
-      significance_matrix[idx, method] <- !is.na(result$pvalue_adj[valid_idx]) & 
-                                          result$pvalue_adj[valid_idx] < fdr_threshold
+    # significance: per-method significance indicator
+    if (significance_mode == "fdr") {
+      # FDR 기반 (기존 동작 유지)
+      if ("pvalue_adj" %in% colnames(result)) {
+        significance_matrix[idx, method] <- !is.na(result$pvalue_adj[valid_idx]) &
+          result$pvalue_adj[valid_idx] < fdr_threshold
+      }
+    } else if (significance_mode == "pvalue") {
+      # Raw p-value 기반
+      if ("pvalue" %in% colnames(result)) {
+        significance_matrix[idx, method] <- !is.na(result$pvalue[valid_idx]) &
+          result$pvalue[valid_idx] < pvalue_threshold
+      }
     }
     
     # statistic

@@ -162,6 +162,17 @@ cluster_deg_methods <- function(
 #' @param agreement_scores Agreement scores from compute_agreement_scores()
 #' @param clustering_results Clustering results from cluster_deg_methods()
 #' @param weights Optional weights for each method (default: NULL, equal weights)
+#' 
+#' @details
+#' In addition to simple averages, this function performs a meta-analysis of
+#' raw p-values across methods using Stouffer's Z-score method (with sign taken
+#' from logFC). It returns per-gene meta-analysis statistics:
+#'   - \code{meta_z}: combined Z-score
+#'   - \code{meta_p}: two-sided meta-analysis p-value
+#'   - \code{meta_p_adj}: BH-adjusted meta-analysis p-value (across genes)
+#' The final \code{consensus_score} combines effect size, agreement, and
+#' meta-analysis evidence as:
+#'   \deqn{consensus\_score = (agreement × |weighted\_beta|) × -log10(meta\_p)}
 #'
 #' @return Data frame with consensus scores
 #'
@@ -209,8 +220,49 @@ compute_consensus_scores <- function(
     sum(x_valid * w_valid) / sum(w_valid)
   })
   
-  # Consensus score (agreement와 가중 평균 beta의 조합)
-  consensus_scores$consensus_score <- consensus_scores$agreement * abs(consensus_scores$weighted_beta)
+  # --- Meta-analysis of p-values across methods (Stouffer's Z) ---
+  meta_z <- rep(NA_real_, length(genes))
+  meta_p <- rep(NA_real_, length(genes))
+  
+  for (i in seq_along(genes)) {
+    p_row <- pvalue_matrix[i, ]
+    beta_row <- beta_matrix[i, ]
+    valid <- !is.na(p_row) & !is.na(beta_row) & p_row > 0 & p_row < 1
+    if (!any(valid)) next
+    
+    p_valid <- p_row[valid]
+    beta_valid <- beta_row[valid]
+    method_names <- methods[valid]
+    
+    # clip p-values for numerical stability
+    p_valid <- pmin(pmax(p_valid, 1e-300), 1 - 1e-16)
+    # two-sided Z-score with sign from beta
+    z_scores <- sign(beta_valid) * stats::qnorm(1 - p_valid / 2)
+    
+    w_valid <- weights[method_names]
+    w_valid[is.na(w_valid)] <- 1
+    
+    z_comb <- sum(w_valid * z_scores) / sqrt(sum(w_valid^2))
+    meta_z[i] <- z_comb
+    meta_p[i] <- 2 * (1 - stats::pnorm(abs(z_comb)))
+  }
+  
+  consensus_scores$meta_z <- meta_z
+  consensus_scores$meta_p <- meta_p
+  
+  # BH-adjusted meta p-values (across genes)
+  meta_p_adj <- rep(NA_real_, length(meta_p))
+  valid_meta <- !is.na(meta_p)
+  if (any(valid_meta)) {
+    meta_p_adj[valid_meta] <- stats::p.adjust(meta_p[valid_meta], method = "BH")
+  }
+  consensus_scores$meta_p_adj <- meta_p_adj
+  
+  # Signal/evidence components and final consensus score
+  eps <- 1e-300
+  consensus_scores$score_signal <- consensus_scores$agreement * abs(consensus_scores$weighted_beta)
+  consensus_scores$score_evidence <- -log10(pmax(consensus_scores$meta_p, eps))
+  consensus_scores$consensus_score <- consensus_scores$score_signal * consensus_scores$score_evidence
   
   # 클러스터 정보 추가 (있는 경우)
   if (!is.null(clustering_results) && "clusters" %in% names(clustering_results)) {
@@ -254,6 +306,12 @@ generate_consensus_deg_list <- function(
   if (!is.null(min_methods)) {
     keep <- keep & (!is.na(consensus_scores$n_significant)) & 
                    (consensus_scores$n_significant >= min_methods)
+  }
+  
+  # Meta-analysis FDR threshold (if meta_p_adj available)
+  if (!is.null(fdr_threshold) && "meta_p_adj" %in% colnames(consensus_scores)) {
+    keep <- keep & (!is.na(consensus_scores$meta_p_adj)) &
+                   (consensus_scores$meta_p_adj <= fdr_threshold)
   }
   
   consensus_deg <- consensus_scores[keep, ]

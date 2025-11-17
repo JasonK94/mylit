@@ -53,13 +53,22 @@ standardized_results <- lapply(result_consensus$methods_run, function(m) {
 names(standardized_results) <- result_consensus$methods_run
 
 # 5. 행렬 구성
-# FDR threshold 설정 (완화된 값 사용 가능)
-# - 0.05: 엄격한 기준 (적은 DEG)
-# - 0.1: 완화된 기준 (권장, 더 많은 DEG 검출)
-# - 0.2: 더 완화된 기준
-fdr_threshold <- 0.1  # 기본값: 0.1
+# per-method significance 설정:
+# - significance_mode = "fdr": 각 방법론 내부의 adj.p (pvalue_adj)와 fdr_threshold 사용
+# - significance_mode = "pvalue": raw p.value와 pvalue_threshold 사용 (조금 더 관대함)
+#
+# 여기서는 adj.p 대신 raw p.value 기반으로 "유의 여부"를 정의하고,
+# 최종 FDR 제어는 meta-analysis p-value (meta_p_adj)에 대해 수행한다.
+fdr_threshold <- 0.1        # meta-analysis FDR threshold (generate_consensus_deg_list에서 사용)
+pvalue_threshold <- 0.01    # per-method raw p-value threshold (build_deg_matrices에서 사용)
 
-deg_matrices <- build_deg_matrices(standardized_results, genes = NULL, fdr_threshold = fdr_threshold)
+deg_matrices <- build_deg_matrices(
+  standardized_results,
+  genes = NULL,
+  fdr_threshold = fdr_threshold,          # significance_mode = "fdr"인 경우에만 사용
+  significance_mode = "pvalue",          # raw p.value 기반 유의성
+  pvalue_threshold = pvalue_threshold    # per-method p.value threshold
+)
 
 # 6. Consensus 분석
 agreement_scores <- compute_agreement_scores(deg_matrices$significance)
