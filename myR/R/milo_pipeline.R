@@ -107,6 +107,10 @@ run_milo_pipeline <- function(
     seurat_obj <- if (!is.null(input_seurat_obj)) seurat_supplier() else NULL
     set.seed(seed)
 
+    if (save && is.null(suffix) && !is.null(cache_files) && length(cache_files) > 0) {
+        suffix <- format(Sys.time(), "run%y%m%d_%H%M%S")
+    }
+
     force_flags <- .milo_normalize_force_flags(force_run)
     paths <- .milo_resolve_paths(
         output_dir = output_dir,
@@ -116,17 +120,42 @@ run_milo_pipeline <- function(
     )
     paths <- .milo_apply_cache_overrides(paths, cache_files, verbose)
 
+    manual_cache_names <- if (!is.null(cache_files)) names(cache_files) else character(0)
+    manual_mode <- length(manual_cache_names) > 0
+    step_names <- c("nhoods", "distances", "testing")
+    step_manual <- c(
+        nhoods = "nhoods" %in% manual_cache_names,
+        distances = "distances" %in% manual_cache_names,
+        testing = any(c("da_milo", "da_results") %in% manual_cache_names)
+    )
+
     if (save) {
         dir.create(paths$output_dir, recursive = TRUE, showWarnings = FALSE)
     }
 
     # Check cache status for all steps
-    cache_status <- list(
-        nhoods = save && !force_flags["nhoods"] && file.exists(paths$files$nhoods),
-        distances = save && !force_flags["distances"] && file.exists(paths$files$distances),
-        testing = save && !force_flags["testing"] && file.exists(paths$files$da_milo) && file.exists(paths$files$da_results)
+    step_files_exist <- c(
+        nhoods = !is.null(paths$files$nhoods) && file.exists(paths$files$nhoods),
+        distances = !is.null(paths$files$distances) && file.exists(paths$files$distances),
+        testing = !is.null(paths$files$da_milo) && file.exists(paths$files$da_milo) &&
+            !is.null(paths$files$da_results) && file.exists(paths$files$da_results)
     )
-    
+
+    cache_status <- list()
+    for (step in step_names) {
+        use_cache <- save && !force_flags[step]
+        if (use_cache) {
+            if (step_manual[step]) {
+                use_cache <- step_files_exist[step]
+            } else if (manual_mode) {
+                use_cache <- FALSE
+            } else {
+                use_cache <- step_files_exist[step]
+            }
+        }
+        cache_status[[step]] <- isTRUE(use_cache)
+    }
+
     if (verbose && save) {
         cache_msg <- c("Cache status:")
         for (step in names(cache_status)) {
@@ -247,6 +276,10 @@ run_milo_pipeline <- function(
                 }
             }
         }
+    }
+
+    if (verbose) {
+        cli::cli_inform(c("info" = paste0("testNhoods returned ", nrow(da_results), " neighborhoods.")))
     }
 
     plots <- NULL
@@ -394,7 +427,6 @@ run_milo_pipeline <- function(
     meta_df <- as.data.frame(SingleCellExperiment::colData(milo))
 
     target_include_effective <- NULL
-    target_mask <- rep(TRUE, nrow(meta_df))
     if (!is.null(target_include)) {
         include_vals <- intersect(target_include, unique(meta_df[[target_var]]))
         if (!length(include_vals)) {

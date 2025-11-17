@@ -66,7 +66,7 @@ MiloR 차등 풍부도 분석의 전체 파이프라인을 실행하는 통합 �
 | `output_dir` | 결과 저장 디렉터리 | `tempdir()/milo` |
 | `prefix` | 파일명 접두사 | `"milo"` |
 | `suffix` | 파일명 접미사 (자동 증가) | `NULL` |
-| `cache_files` | `nhoods`, `distances`, `da_milo`, `da_results`, `plots` 경로를 명시적으로 지정 | `NULL` |
+| `cache_files` | `nhoods`, `distances`, `da_milo`, `da_results`, `plots` 등 지정한 단계만 캐시로 재사용 | `NULL` |
 | `force_run` | 캐시 무시하고 재실행 여부 | `FALSE` |
 | `plotting` | 시각화 수행 여부 | `TRUE` |
 | `max_cells` | 다운샘플링할 최대 세포 수 | `NULL` |
@@ -199,7 +199,7 @@ cluster_bias_full <- test_cluster_logfc_bias(
 - `da_results$enriched_in`은 `logFC` 부호를 기준으로 어느 그룹이 풍부한지를 텍스트로 보여주며, `milo$commands$.milo_run_da` 로그에도 동일 정보가 저장됩니다.
 
 ### 캐시 관리와 command 로그
-- `cache_files = list(nhoods = "/abs/path/01_nhoods.qs", ...)`처럼 전달하면 자동 suffix 대신 특정 `.qs` 파일을 사용합니다. 캐시 경로를 명시하면 서로 다른 분석이 동일 파일을 공유하는 일을 줄일 수 있습니다.
+- `cache_files = list(nhoods = "/abs/path/01_nhoods.qs", ...)`처럼 전달하면 해당 단계만 캐시를 재사용하고, 명시하지 않은 단계는 항상 재계산합니다. 부분 지정 시 `save = TRUE` && `suffix = NULL`이면 타임스탬프 기반 suffix가 자동 부여되어 새로운 `.qs` 출력이 기존 캐시를 덮어쓰지 않습니다.
 - 모든 `.milo_run_da()` 호출은 `milo$commands`에 기록됩니다. 여기에는 사용한 캐시 경로, `target_include`, `target_levels`, FDR 가중치, 비교 참조/테스트 그룹 등 복원에 필요한 정보가 담깁니다.
 - Plot 번들은 이제 `.rds`가 아닌 `.qs`로 저장되며, `cache_files$plots`를 지정해 재사용할 수 있습니다.
 
