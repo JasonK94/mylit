@@ -89,6 +89,17 @@ This log captures the narrative context, decisions, and reasoning behind major d
   - Keep context files synchronized with evolving package functionality.
   - Schedule regular updates to DEVLOG/CHANGELOG alongside major commits.
 
+## 2025-11-17 — Milo cache overrides & explicit target semantics (`milo` branch)
+- **Author**: GPT-5.1 Codex  
+- **Summary**: Hardened Milo caching, logged every `.milo_run_da()` invocation, and exposed target comparison controls so logFC direction is unambiguous.  
+- **Details**:
+  - Added `target_include`/`target_levels` arguments to `run_milo_pipeline()` so analysts can drop unwanted groups (e.g., “middle”) and pin the reference vs. test level (e.g., `c("low","high")`). The resulting factor order, comparison labels, and effective filters are recorded both in `da_results` (`comparison_reference`, `comparison_test`, `enriched_in`) and in `milo$commands`.
+  - Introduced `cache_files` overrides and switched plot bundles to `.qs`, letting us point the orchestrator at explicit cache artefacts when auto-generated suffixes would collide. Each command log also captures which cache artefacts were consumed.
+  - Logged past failures—running R outside `st/start.R`, forcing `SingleCellExperiment::colData<-`, stripping GEM suffixes, abusing `git switch`, or blindly reusing caches—inside `context*.md` so future agents do not repeat them. Removed the brittle `test_milo_stepwise.R`.
+- **Next Steps**:
+  - Consider hashing Seurat metadata (cell/feature counts, key columns) and embedding the signature inside cached `.qs` files to prevent accidental reuse.
+  - Use the new `commands` log to auto-generate QA snippets (who ran what, with which reductions/FDR weighting) for DEVLOG/CHANGELOG entries.
+
 ---
 
 ### Upcoming Focus
