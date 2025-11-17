@@ -280,23 +280,31 @@ run_nichenet_analysis <- function(seurat_obj,
     
     # --- II. Seurat Object Setup & Expressed Genes ---
     if (verbose) message("Setting up Seurat object and identifying expressed genes...")
+    start_time_genes <- Sys.time()
     Seurat::DefaultAssay(seurat_obj) <- assay_name
     Seurat::Idents(seurat_obj) <- cluster_col
     if(!all(sender_celltypes %in% levels(Seurat::Idents(seurat_obj)))) stop("One or more sender_celltypes not found in Seurat Idents (column '", cluster_col, "').", call. = FALSE)
     if(!receiver_celltype %in% levels(Seurat::Idents(seurat_obj))) stop("Receiver_celltype '", receiver_celltype, "' not found in Seurat Idents (column '", cluster_col, "').", call. = FALSE)
     
+    if (verbose) message("  Checking expressed genes in ", length(sender_celltypes), " sender cell type(s)...")
     list_expressed_genes_sender <- lapply(sender_celltypes, nichenetr::get_expressed_genes, seurat_obj, min_pct_expressed)
     expressed_genes_sender <- unique(unlist(list_expressed_genes_sender))
+    if (verbose) message("  Checking expressed genes in receiver cell type...")
     expressed_genes_receiver <- nichenetr::get_expressed_genes(receiver_celltype, seurat_obj, min_pct_expressed)
+    elapsed_genes <- difftime(Sys.time(), start_time_genes, units = "secs")
+    if (verbose) message("  Expressed genes identified (", round(elapsed_genes, 1), " seconds)")
     background_expressed_genes <- expressed_genes_receiver[expressed_genes_receiver %in% rownames(ligand_target_matrix)]
     if(length(background_expressed_genes) < 20) warning("NN_Warning: Very few (<20) background expressed genes found in receiver (", length(background_expressed_genes), "). NicheNet might not perform well.")
     
     # --- III. Define Gene Set of Interest (DEGs in receiver) ---
     if (verbose) message("Performing DE analysis for receiver: ", receiver_celltype, " (", receiver_DE_ident1, " vs ", if(!is.null(receiver_DE_ident2)) receiver_DE_ident2 else "all others", " in group ", receiver_DE_group_by,")")
     if (!receiver_DE_group_by %in% colnames(seurat_obj@meta.data)) stop("`receiver_DE_group_by` column '", receiver_DE_group_by, "' not found in Seurat object metadata.", call. = FALSE)
+    start_time_de <- Sys.time()
     DE_table_receiver <- Seurat::FindMarkers(seurat_obj, ident.1 = receiver_DE_ident1, ident.2 = receiver_DE_ident2, group.by = receiver_DE_group_by, subset.ident = receiver_celltype, assay = assay_name, min.pct = min_pct_expressed, logfc.threshold = 0 ) %>%
       tibble::rownames_to_column("gene") %>%
       dplyr::filter(p_val_adj < p_val_adj_cutoff, avg_log2FC > logfc_cutoff)
+    elapsed_de <- difftime(Sys.time(), start_time_de, units = "secs")
+    if (verbose) message("  DE analysis completed (", round(elapsed_de, 1), " seconds)")
     geneset_oi <- DE_table_receiver$gene[DE_table_receiver$gene %in% rownames(ligand_target_matrix)]
     if(length(geneset_oi) == 0) stop("No DEGs found in the receiver cell type that are also in the NicheNet ligand_target_matrix. Number of DEGs before NicheNet filter: ", nrow(DE_table_receiver), call. = FALSE)
     if (verbose) message(length(geneset_oi), " DEGs (upregulated in ident.1) from receiver '", receiver_celltype, "' identified for NicheNet analysis.")
@@ -312,8 +320,11 @@ run_nichenet_analysis <- function(seurat_obj,
     if (verbose) message(length(potential_ligands), " potential ligands identified.")
     
     # --- V. Perform NicheNet Ligand Activity Analysis ---
-    if (verbose) message("Predicting ligand activities...")
+    if (verbose) message("Predicting ligand activities for ", length(potential_ligands), " potential ligands...")
+    start_time_ligand <- Sys.time()
     ligand_activities <- nichenetr::predict_ligand_activities(geneset = geneset_oi, background_expressed_genes = background_expressed_genes, ligand_target_matrix = ligand_target_matrix, potential_ligands = potential_ligands) %>% dplyr::arrange(dplyr::desc(aupr_corrected))
+    elapsed_ligand <- difftime(Sys.time(), start_time_ligand, units = "secs")
+    if (verbose) message("  Ligand activity prediction completed (", round(elapsed_ligand, 1), " seconds)")
     best_upstream_ligands <- ligand_activities %>% dplyr::top_n(min(top_n_ligands, nrow(ligand_activities)), aupr_corrected) %>% dplyr::pull(test_ligand) %>% unique()
     if (verbose) message("Top ", length(best_upstream_ligands), " ligands selected based on AUPR.")
     
@@ -404,13 +415,22 @@ run_nichenet_analysis <- function(seurat_obj,
           if(nrow(circos_lr_data_raw) > 0) {
             # Data Preparation for Circos (ensure all pkg calls are prefixed if not in @importFrom)
             unique_ligands_in_circos <- unique(circos_lr_data_raw$from)
+            if (verbose) message("  Mapping ", length(unique_ligands_in_circos), " ligands to sender cell types (this may take a while)...")
+            start_time_circos_map <- Sys.time()
+            # Pre-compute cells per sender type to avoid repeated calls
+            cells_per_sender <- lapply(sender_celltypes, function(s_type) {
+              Seurat::Cells(seurat_obj)[Seurat::Idents(seurat_obj) == s_type]
+            })
+            names(cells_per_sender) <- sender_celltypes
+            # Pre-compute assay data once
+            assay_data <- Seurat::GetAssayData(seurat_obj, assay = assay_name, slot = "data")
             ligand_sender_map <- sapply(unique_ligands_in_circos, function(lig) {
               expressing_senders <- c()
-              for (s_type in sender_celltypes) {
-                cells_in_sender <- Seurat::Cells(seurat_obj)[Seurat::Idents(seurat_obj) == s_type]
-                if (length(cells_in_sender) > 0) {
-                  if (lig %in% rownames(Seurat::GetAssayData(seurat_obj, assay = assay_name, slot = "data"))) {
-                    gene_expr_in_sender <- Seurat::GetAssayData(seurat_obj, assay = assay_name, slot = "data")[lig, cells_in_sender, drop=FALSE]
+              if (lig %in% rownames(assay_data)) {
+                for (s_type in sender_celltypes) {
+                  cells_in_sender <- cells_per_sender[[s_type]]
+                  if (length(cells_in_sender) > 0) {
+                    gene_expr_in_sender <- assay_data[lig, cells_in_sender, drop=FALSE]
                     if (sum(gene_expr_in_sender > 0) / length(cells_in_sender) >= min_pct_expressed) {
                       expressing_senders <- c(expressing_senders, s_type)
                     }
@@ -420,6 +440,8 @@ run_nichenet_analysis <- function(seurat_obj,
               if (length(expressing_senders) > 0) return(expressing_senders[1])
               return("UnknownSender")
             }, USE.NAMES = TRUE)
+            elapsed_circos_map <- difftime(Sys.time(), start_time_circos_map, units = "secs")
+            if (verbose) message("  Ligand-sender mapping completed (", round(elapsed_circos_map, 1), " seconds)")
             
             ligand_df_circos <- tibble::tibble(
               item = unique_ligands_in_circos,
