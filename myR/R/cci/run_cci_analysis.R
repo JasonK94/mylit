@@ -23,9 +23,14 @@
 #' @param nichenet_data_name Character string, NicheNet data name in global env (default: "NicheNetData")
 #' @param output_dir Character string, output directory (default: NULL)
 #' @param run_circos Logical, whether to generate circos plot (default: TRUE)
+#' @param circos_title Character string, title for circos plot (default: NULL, auto-generated)
+#' @param circos_show_legend Logical, whether to show legend in circos plot (default: TRUE)
+#' @param circos_legend_position Character string, legend position (default: "topright")
+#' @param circos_legend_size Numeric, legend text size (default: 0.9)
+#' @param circos_legend_inset Numeric vector, legend inset (default: c(-0.15, 0))
 #' @param auto_save Logical, whether to automatically save results (default: TRUE)
 #' @param verbose Logical, whether to print progress messages (default: TRUE)
-#' @param ... Additional arguments passed to run_nichenet_analysis
+#' @param ... Additional arguments passed to run_nichenet_analysis (circos params excluded)
 #'
 #' @return List with CCI analysis results
 #' @export
@@ -49,6 +54,11 @@ run_cci_analysis <- function(sobj,
                               nichenet_data_name = "NicheNetData",
                               output_dir = NULL,
                               run_circos = TRUE,
+                              circos_title = NULL,
+                              circos_show_legend = TRUE,
+                              circos_legend_position = "topright",
+                              circos_legend_size = 0.9,
+                              circos_legend_inset = c(-0.15, 0),
                               auto_save = TRUE,
                               verbose = TRUE,
                               ...) {
@@ -199,8 +209,26 @@ run_cci_analysis <- function(sobj,
       message("  The provided deg_df is used for validation, but internal DE analysis will be used.")
     }
     
+    # Extract circos-related parameters from function arguments and ...
+    # Priority: function arguments > ... arguments
+    dots_list <- list(...)
+    circos_params <- list(
+      circos_title = if(!is.null(circos_title)) circos_title else dots_list$circos_title,
+      circos_show_legend = if(!is.null(circos_show_legend)) circos_show_legend else dots_list$circos_show_legend,
+      circos_legend_position = if(!is.null(circos_legend_position)) circos_legend_position else dots_list$circos_legend_position,
+      circos_legend_size = if(!is.null(circos_legend_size)) circos_legend_size else dots_list$circos_legend_size,
+      circos_legend_inset = if(!is.null(circos_legend_inset)) circos_legend_inset else dots_list$circos_legend_inset
+    )
+    
+    # Remove circos params from dots_list to avoid duplication
+    dots_list_clean <- dots_list
+    for (param in c("circos_title", "circos_show_legend", "circos_legend_position", 
+                    "circos_legend_size", "circos_legend_inset")) {
+      dots_list_clean[[param]] <- NULL
+    }
+    
     # Generate circos title if not provided
-    if (run_circos && is.null(list(...)$circos_title)) {
+    if (run_circos && is.null(circos_params$circos_title)) {
       # Create informative title with condition and cell types
       condition_str <- paste0(condition_col, ": ", condition_oi)
       if (!is.null(condition_ref)) {
@@ -218,38 +246,46 @@ run_cci_analysis <- function(sobj,
                                   "Senders: ", sender_str, "\n",
                                   "Condition: ", condition_str)
     } else {
-      circos_title_auto <- list(...)$circos_title
+      circos_title_auto <- circos_params$circos_title
     }
     
     # Call run_nichenet_analysis
     # Note: We pass more lenient parameters to FindMarkers to ensure DEGs are found
     # The actual filtering will be done by p_val_adj_cutoff and logfc_cutoff
-    nichenet_results <- run_nichenet_analysis(
-      seurat_obj = sobj,
-      species = species,
-      sender_celltypes = sender_clusters_final,
-      receiver_celltype = receiver_cluster,
-      assay_name = assay_name,
-      cluster_col = cluster_col,
-      receiver_DE_ident1 = condition_oi,
-      receiver_DE_ident2 = condition_ref,
-      receiver_DE_group_by = condition_col,
-      min_pct_expressed = max(0.05, min_pct_expressed),  # More lenient min_pct
-      p_val_adj_cutoff = p_val_adj_cutoff,
-      logfc_cutoff = max(0.1, logfc_cutoff),  # More lenient logfc threshold for FindMarkers
-      top_n_ligands = top_n_ligands,
-      top_n_targets_per_ligand = top_n_targets_per_ligand,
-      ligand_target_cutoff = ligand_target_cutoff,
-      nichenet_data_dir = nichenet_data_dir,
-      nichenet_data_name = nichenet_data_name,
-      output_dir = output_dir,
-      run_circos = run_circos,
-      circos_title = circos_title_auto,  # Pass auto-generated or user-provided title
-      circos_show_legend = if(is.null(list(...)$circos_show_legend)) TRUE else list(...)$circos_show_legend,
-      circos_legend_position = if(is.null(list(...)$circos_legend_position)) "topright" else list(...)$circos_legend_position,
-      verbose = verbose,
-      ...
-    )
+    nichenet_results <- do.call(run_nichenet_analysis, c(
+      list(
+        seurat_obj = sobj,
+        species = species,
+        sender_celltypes = sender_clusters_final,
+        receiver_celltype = receiver_cluster,
+        assay_name = assay_name,
+        cluster_col = cluster_col,
+        receiver_DE_ident1 = condition_oi,
+        receiver_DE_ident2 = condition_ref,
+        receiver_DE_group_by = condition_col,
+        min_pct_expressed = max(0.05, min_pct_expressed),  # More lenient min_pct
+        p_val_adj_cutoff = p_val_adj_cutoff,
+        logfc_cutoff = max(0.1, logfc_cutoff),  # More lenient logfc threshold for FindMarkers
+        top_n_ligands = top_n_ligands,
+        top_n_targets_per_ligand = top_n_targets_per_ligand,
+        ligand_target_cutoff = ligand_target_cutoff,
+        nichenet_data_dir = nichenet_data_dir,
+        nichenet_data_name = nichenet_data_name,
+        output_dir = output_dir,
+        run_circos = run_circos,
+        verbose = verbose
+      ),
+      # Add circos parameters (with defaults)
+      list(
+        circos_title = circos_title_auto,
+        circos_show_legend = if(is.null(circos_params$circos_show_legend)) TRUE else circos_params$circos_show_legend,
+        circos_legend_position = if(is.null(circos_params$circos_legend_position)) "topright" else circos_params$circos_legend_position,
+        circos_legend_size = circos_params$circos_legend_size,
+        circos_legend_inset = circos_params$circos_legend_inset
+      ),
+      # Add remaining ... parameters (excluding circos params)
+      dots_list_clean
+    ))
   } else {
     # No condition provided - we need to use pre-computed DEGs
     # This requires a different approach since run_nichenet_analysis does DE analysis
