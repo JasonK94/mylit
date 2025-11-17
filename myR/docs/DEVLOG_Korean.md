@@ -158,6 +158,38 @@
   - 검정 방법 간 결과 비교 및 검증
   - 실제 데이터셋에서의 성능 평가
 
+## 2025-01-XX — TML6 및 compute_meta_gene_importance 버그 수정 (`fgs` 브랜치)
+- **작성자**: Auto (GPT-5 Codex)  
+- **요약**: TML6 함수의 zero-variance signature 처리 및 compute_meta_gene_importance의 subscript out of bounds 에러 수정.
+- **세부 사항**:
+  - **TML6 함수 개선**:
+    - `.score_signature()` 함수에서 `scale()` 사용 시 zero-variance 문제 해결
+    - 분산이 0인 경우 normalize를 건너뛰고 0으로 설정
+    - `scale()` 결과가 NA/Inf인 경우 원래 점수 사용
+    - xgboost의 deprecated 경고(`ntree_limit` → `iteration_range`) 억제
+    - 모든 signature가 제거될 때 더 자세한 디버깅 정보 제공
+  - **compute_meta_gene_importance 함수 수정**:
+    - `signature_importance[[sig]]` → `signature_importance[sig]`로 변경 (named vector이므로 `[` 사용)
+    - `caret::varImp`의 rownames와 `sig_names` 매칭 개선
+    - 존재하지 않는 signature는 경고 후 건너뛰기
+    - NA/Inf importance 값 체크 및 처리
+  - **새로운 함수 추가**:
+    - `add_meta_signature_score()`: TML6와 compute_meta_gene_importance로 만든 gene weights를 사용하여 signature score를 계산하고 Seurat 객체에 AddMetaData로 추가
+    - Sparse/dense matrix 모두 지원
+    - 가중합 계산: `sum(w * expr) / sum(|w|)`
+    - 선택적 z-score normalization
+    - signed/absolute contribution 선택 가능
+- **기술적 세부사항**:
+  - Zero-variance signature: `scale()` 전에 `stats::sd()`로 분산 체크
+  - Signature 이름 매칭: `intersect()`로 실제 존재하는 signature만 추출
+  - 에러 메시지 개선: 예상/실제 signature 이름 표시
+- **주의사항**:
+  - 모든 signature가 zero-variance인 경우는 데이터나 signature 자체에 문제가 있을 수 있음
+  - `add_meta_signature_score()`는 `compute_meta_gene_importance()`의 결과를 입력으로 받음
+- **다음 단계**:
+  - 실제 데이터셋에서 테스트 및 검증
+  - 사용 예시 문서화
+
 ---
 
 ### 향후 계획

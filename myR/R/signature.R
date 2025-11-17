@@ -1159,7 +1159,24 @@ TML6 <- function(
     den <- sum(abs(ww))
     if (!is.finite(den) || den == 0) den <- length(ww)
     s <- s / den
-    if (normalize) s <- as.numeric(scale(s))
+    
+    if (normalize) {
+      # zero-variance 체크: scale()이 NA를 반환하는 것을 방지
+      s_sd <- stats::sd(s, na.rm = TRUE)
+      if (!is.finite(s_sd) || s_sd == 0) {
+        # 모든 값이 동일하면 normalize를 건너뛰고 0으로 설정
+        s <- rep(0, length(s))
+      } else {
+        s_scaled <- as.numeric(scale(s))
+        # scale()이 NA를 반환할 수 있으므로 체크
+        if (any(!is.finite(s_scaled))) {
+          warning("Some signature scores became NA/Inf after scaling. Using original scores.")
+          # s는 이미 normalize 전 상태이므로 그대로 사용
+        } else {
+          s <- s_scaled
+        }
+      }
+    }
     s
   }
 
@@ -1261,9 +1278,29 @@ TML6 <- function(
   # --- L2 특성 구성 (시그니처 점수 계산) ---
   if (is.null(names(l1_signatures))) names(l1_signatures) <- paste0("L1_", seq_along(l1_signatures))
 
-  l2_features_list <- lapply(l1_signatures, function(sig) .score_signature(expr_mat, sig, normalize = TRUE))
+  l2_features_list <- lapply(l1_signatures, function(sig) {
+    tryCatch({
+      .score_signature(expr_mat, sig, normalize = TRUE)
+    }, error = function(e) {
+      warning(sprintf("Failed to score signature '%s': %s", 
+                      deparse(substitute(sig))[1], e$message))
+      return(rep(NA_real_, ncol(expr_mat)))
+    })
+  })
   l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
   colnames(l2_train_df) <- make.names(names(l1_signatures))
+  
+  # 디버깅: 각 signature의 분산 체크
+  sig_variances <- apply(l2_train_df, 2, function(x) {
+    x_clean <- x[is.finite(x)]
+    if (length(x_clean) == 0) return(NA_real_)
+    stats::var(x_clean, na.rm = TRUE)
+  })
+  zero_var_sigs <- names(sig_variances)[is.na(sig_variances) | sig_variances == 0]
+  if (length(zero_var_sigs) > 0 && length(zero_var_sigs) < ncol(l2_train_df)) {
+    message(sprintf("Note: %d signature(s) have zero variance before nearZeroVar: %s",
+                    length(zero_var_sigs), paste(zero_var_sigs, collapse=", ")))
+  }
 
   # --- 타깃 준비/정리 ---
   if (!is.factor(l2_target)) l2_target <- factor(l2_target)
@@ -1298,8 +1335,19 @@ TML6 <- function(
     l2_train_df <- l2_train_df[, -nzv, drop = FALSE]
   }
 
-  if (nrow(l2_train_df) == 0 || ncol(l2_train_df) == 0)
-    stop("No usable data remains after cleaning (check signatures and target).")
+  if (nrow(l2_train_df) == 0 || ncol(l2_train_df) == 0) {
+    # 더 자세한 에러 메시지 제공
+    n_sigs_input <- length(l1_signatures)
+    n_sigs_after_scoring <- length(l2_features_list)
+    n_rows_after_na_removal <- sum(row_ok)
+    n_cols_after_nzv <- ncol(l2_train_df)
+    
+    msg <- sprintf(
+      "No usable data remains after cleaning.\n  Input signatures: %d\n  Signatures after scoring: %d\n  Rows after NA/Inf removal: %d\n  Columns after zero-variance removal: %d\n  Possible causes: (1) All signature scores are identical (zero variance), (2) All rows contain NA/Inf, (3) Signatures have no overlap with expression data.",
+      n_sigs_input, n_sigs_after_scoring, n_rows_after_na_removal, n_cols_after_nzv
+    )
+    stop(msg)
+  }
 
   # --- metric 매핑 & trainControl ---
   is_bin <- .is_binary(l2_target)
@@ -1333,16 +1381,32 @@ TML6 <- function(
   model_list <- list()
   for (m in l2_methods) {
     message(sprintf("Training L2 candidate: %s (metric=%s)", m, caret_metric))
-    fit <- try(
-      caret::train(
-        x = l2_train_df,
-        y = l2_target,
-        method = m,
-        trControl = ctrl,
-        metric = caret_metric,
-        tuneLength = 5
-      ), silent = TRUE
-    )
+    # xgboost의 deprecated 경고 억제
+    if (m == "xgbTree") {
+      fit <- try(
+        suppressWarnings(
+          caret::train(
+            x = l2_train_df,
+            y = l2_target,
+            method = m,
+            trControl = ctrl,
+            metric = caret_metric,
+            tuneLength = 5
+          )
+        ), silent = TRUE
+      )
+    } else {
+      fit <- try(
+        caret::train(
+          x = l2_train_df,
+          y = l2_target,
+          method = m,
+          trControl = ctrl,
+          metric = caret_metric,
+          tuneLength = 5
+        ), silent = TRUE
+      )
+    }
     if (inherits(fit, "try-error")) {
       warning(sprintf("Failed to train '%s': %s", m, as.character(fit)))
     } else {
@@ -1459,31 +1523,64 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
   if (identical(model_type, "glm") && inherits(model$finalModel, "glm")) {
     coefs <- stats::coef(model$finalModel)
     coefs <- coefs[names(coefs) != "(Intercept)"]
-    signature_importance <- coefs[sig_names]
+    # sig_names와 일치하는 것만 추출
+    available_sigs <- intersect(sig_names, names(coefs))
+    if (length(available_sigs) == 0) {
+      stop("No matching signatures found in glm coefficients.")
+    }
+    signature_importance <- coefs[available_sigs]
+    names(signature_importance) <- available_sigs
   } else {
     vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
     if (!inherits(vi, "try-error")) {
       importance_df <- vi$importance
+      # rownames 확인 및 매칭
+      imp_rownames <- rownames(importance_df)
+      available_sigs <- intersect(sig_names, imp_rownames)
+      if (length(available_sigs) == 0) {
+        stop("No matching signatures found in varImp results. Expected: ", 
+             paste(sig_names, collapse=", "), 
+             "; Found: ", paste(imp_rownames, collapse=", "))
+      }
+      
       if ("Overall" %in% colnames(importance_df)) {
-        signature_importance <- importance_df[sig_names, "Overall"]
+        signature_importance <- importance_df[available_sigs, "Overall", drop = TRUE]
       } else if (ncol(importance_df) >= 1) {
-        signature_importance <- importance_df[sig_names, 1]
+        signature_importance <- importance_df[available_sigs, 1, drop = TRUE]
+      }
+      # named vector로 변환
+      if (is.null(names(signature_importance))) {
+        names(signature_importance) <- available_sigs
       }
     }
   }
 
-  if (is.null(signature_importance)) {
+  if (is.null(signature_importance) || length(signature_importance) == 0) {
     stop("Could not derive signature importance for model type: ", model_type)
+  }
+
+  # 사용 가능한 signature만 필터링
+  available_sigs <- names(signature_importance)
+  missing_sigs <- setdiff(sig_names, available_sigs)
+  if (length(missing_sigs) > 0) {
+    warning(sprintf("Some signatures not found in importance: %s. They will be skipped.",
+                    paste(missing_sigs, collapse=", ")))
   }
 
   if (normalize) {
     signature_importance <- signature_importance / (max(abs(signature_importance), na.rm = TRUE) %||% 1)
   }
 
-  gene_tables <- lapply(sig_names, function(sig) {
+  gene_tables <- lapply(available_sigs, function(sig) {
     weights <- signature_weights[[sig]]
     if (length(weights) == 0) return(NULL)
-    contrib <- signature_importance[[sig]] * weights
+    # named vector이므로 [ 사용 ([[ 아님)
+    sig_imp <- signature_importance[sig]
+    if (is.na(sig_imp) || !is.finite(sig_imp)) {
+      warning(sprintf("Signature '%s' has invalid importance value. Skipping.", sig))
+      return(NULL)
+    }
+    contrib <- sig_imp * weights
     if (normalize && any(is.finite(contrib))) {
       denom <- max(abs(contrib), na.rm = TRUE)
       if (is.finite(denom) && denom > 0) contrib <- contrib / denom
@@ -1514,5 +1611,152 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
     positive_class = positive_class,
     model_type = model_type
   )
+}
+
+#' Add Meta-Learner Signature Score to Seurat Object
+#'
+#' @description
+#'   Computes signature scores using the meta-learner gene weights from
+#'   `compute_meta_gene_importance()` and adds them to a Seurat object's metadata.
+#'   The signature score is calculated as a weighted sum of gene expression values,
+#'   where weights are derived from the meta-learner's gene-level importance.
+#'
+#' @param seurat_obj A Seurat object containing expression data.
+#' @param gene_importance_result Result from `compute_meta_gene_importance()`.
+#'   Must contain `gene_summary` with columns `gene` and `contribution`.
+#' @param signature_name Name for the metadata column (default: "meta_signature_score").
+#' @param assay Assay name to use (default: DefaultAssay(seurat_obj)).
+#' @param layer Layer to pull expression data from (default: "data").
+#' @param normalize Whether to z-score normalize the signature scores (default: TRUE).
+#' @param use_abs_contribution Whether to use absolute contribution values as weights
+#'   (default: FALSE, uses signed contribution).
+#'
+#' @return A Seurat object with signature scores added to metadata.
+#'
+#' @details
+#'   The signature score for each cell/AOI is calculated as:
+#'   \deqn{s_c = \frac{\sum_g w_g \cdot x_{gc}}{\sum_g |w_g|}}
+#'   where \eqn{w_g} are the gene weights (contribution values) and \eqn{x_{gc}} are
+#'   the expression values for gene \eqn{g} and cell \eqn{c}.
+#'
+#'   If `normalize=TRUE`, scores are further z-scored:
+#'   \deqn{s_c' = \frac{s_c - \mu_s}{\sigma_s}}
+#'
+#' @examples
+#' \dontrun{
+#' # After running TML6 and compute_meta_gene_importance
+#' tml_result <- TML6(l1_signatures, data_seurat, "response")
+#' cmgi_result <- compute_meta_gene_importance(tml_result)
+#'
+#' # Add signature scores to Seurat object
+#' data_seurat <- add_meta_signature_score(
+#'   seurat_obj = data_seurat,
+#'   gene_importance_result = cmgi_result,
+#'   signature_name = "response_signature"
+#' )
+#'
+#' # Visualize
+#' FeaturePlot(data_seurat, features = "response_signature")
+#' }
+#'
+#' @export
+add_meta_signature_score <- function(
+  seurat_obj,
+  gene_importance_result,
+  signature_name = "meta_signature_score",
+  assay = NULL,
+  layer = "data",
+  normalize = TRUE,
+  use_abs_contribution = FALSE
+) {
+  if (!inherits(seurat_obj, "Seurat")) {
+    stop("seurat_obj must be a Seurat object.")
+  }
+
+  if (!is.list(gene_importance_result) ||
+      !"gene_summary" %in% names(gene_importance_result)) {
+    stop("gene_importance_result must be the output of compute_meta_gene_importance().")
+  }
+
+  gene_summary <- gene_importance_result$gene_summary
+  if (!all(c("gene", "contribution") %in% colnames(gene_summary))) {
+    stop("gene_summary must contain 'gene' and 'contribution' columns.")
+  }
+
+  # Get assay
+  if (is.null(assay)) {
+    assay <- Seurat::DefaultAssay(seurat_obj)
+  }
+
+  # Get expression matrix
+  expr_mat <- Seurat::GetAssayData(seurat_obj, assay = assay, layer = layer)
+  if (is.null(expr_mat)) {
+    stop(sprintf("Layer '%s' not found in assay '%s'.", layer, assay))
+  }
+
+  # Prepare gene weights
+  if (use_abs_contribution) {
+    if (!"abs_contribution" %in% colnames(gene_summary)) {
+      gene_summary$abs_contribution <- abs(gene_summary$contribution)
+    }
+    weights <- gene_summary$abs_contribution
+  } else {
+    weights <- gene_summary$contribution
+  }
+  names(weights) <- gene_summary$gene
+
+  # Find overlapping genes
+  available_genes <- intersect(names(weights), rownames(expr_mat))
+  if (length(available_genes) == 0) {
+    stop("No overlapping genes found between signature and expression data.")
+  }
+  if (length(available_genes) < length(weights)) {
+    warning(sprintf("Only %d/%d signature genes found in expression data.",
+                    length(available_genes), length(weights)))
+  }
+
+  # Subset weights to available genes
+  w <- weights[available_genes]
+
+  # Calculate signature scores
+  # Weighted sum: sum(w * expr) / sum(|w|)
+  expr_subset <- expr_mat[available_genes, , drop = FALSE]
+  if (inherits(expr_subset, "sparseMatrix")) {
+    # For sparse matrices, use Matrix operations
+    scores <- as.numeric(Matrix::t(expr_subset) %*% w)
+  } else {
+    # For dense matrices
+    scores <- as.numeric(colSums(expr_subset * w))
+  }
+
+  # Normalize by sum of absolute weights
+  den <- sum(abs(w))
+  if (!is.finite(den) || den == 0) {
+    warning("Sum of absolute weights is zero or non-finite. Using unnormalized scores.")
+    den <- 1
+  }
+  scores <- scores / den
+
+  # Z-score normalization if requested
+  if (normalize) {
+    scores_sd <- stats::sd(scores, na.rm = TRUE)
+    if (is.finite(scores_sd) && scores_sd > 0) {
+      scores <- as.numeric(scale(scores))
+    } else {
+      warning("Cannot normalize scores (zero variance). Using unnormalized scores.")
+    }
+  }
+
+  # Add to metadata
+  seurat_obj <- Seurat::AddMetaData(
+    object = seurat_obj,
+    metadata = scores,
+    col.name = signature_name
+  )
+
+  message(sprintf("Added signature score '%s' to metadata (%d genes used).",
+                  signature_name, length(available_genes)))
+
+  return(seurat_obj)
 }
 
