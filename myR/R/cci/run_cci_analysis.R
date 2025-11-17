@@ -199,6 +199,28 @@ run_cci_analysis <- function(sobj,
       message("  The provided deg_df is used for validation, but internal DE analysis will be used.")
     }
     
+    # Generate circos title if not provided
+    if (run_circos && is.null(list(...)$circos_title)) {
+      # Create informative title with condition and cell types
+      condition_str <- paste0(condition_col, ": ", condition_oi)
+      if (!is.null(condition_ref)) {
+        condition_str <- paste0(condition_str, " vs ", condition_ref)
+      } else {
+        condition_str <- paste0(condition_str, " vs others")
+      }
+      sender_str <- if(length(sender_clusters_final) <= 3) {
+        paste(sender_clusters_final, collapse = ", ")
+      } else {
+        paste0(paste(head(sender_clusters_final, 2), collapse = ", "), " (+", length(sender_clusters_final) - 2, " more)")
+      }
+      circos_title_auto <- paste0("Ligand-Receptor Interactions\n", 
+                                  "Receiver: ", receiver_cluster, " | ",
+                                  "Senders: ", sender_str, "\n",
+                                  "Condition: ", condition_str)
+    } else {
+      circos_title_auto <- list(...)$circos_title
+    }
+    
     # Call run_nichenet_analysis
     # Note: We pass more lenient parameters to FindMarkers to ensure DEGs are found
     # The actual filtering will be done by p_val_adj_cutoff and logfc_cutoff
@@ -222,6 +244,9 @@ run_cci_analysis <- function(sobj,
       nichenet_data_name = nichenet_data_name,
       output_dir = output_dir,
       run_circos = run_circos,
+      circos_title = circos_title_auto,  # Pass auto-generated or user-provided title
+      circos_show_legend = if(is.null(list(...)$circos_show_legend)) TRUE else list(...)$circos_show_legend,
+      circos_legend_position = if(is.null(list(...)$circos_legend_position)) "topright" else list(...)$circos_legend_position,
       verbose = verbose,
       ...
     )
