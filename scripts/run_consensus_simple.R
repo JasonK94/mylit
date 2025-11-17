@@ -13,6 +13,13 @@ source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/de
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_consensus_analysis.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/run_deg_consensus.R")
 
+# 1-1. 출력 파일 prefix 설정 (데이터 크기 + 타임스탬프 기반)
+out_dir <- "/data/user3/sobj"
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+n_cells_is5 <- tryCatch(ncol(is5), error = function(e) NA_integer_)
+dataset_tag <- if (!is.na(n_cells_is5) && n_cells_is5 <= 3000) "ds" else "full"
+file_prefix <- file.path(out_dir, paste0("deg_consensus_", dataset_tag, "_", timestamp))
+
 # 2. 메타데이터 설정 (is5가 이미 로드되어 있다고 가정)
 cluster_key <- if ("anno3.scvi" %in% colnames(is5@meta.data)) "anno3.scvi" else "seurat_clusters"
 sample_key <- "hos_no"
@@ -46,11 +53,17 @@ result_consensus <- run_deg_consensus(
   verbose = TRUE
 )
 
+# 중간 결과 저장: raw method-level 결과
+qs::qsave(result_consensus, paste0(file_prefix, "_raw_results.qs"))
+
 # 4. 결과 표준화
 standardized_results <- lapply(result_consensus$methods_run, function(m) {
   standardize_deg_results(result_consensus$results[[m]], m)
 })
 names(standardized_results) <- result_consensus$methods_run
+
+# 중간 결과 저장: 표준화된 결과
+qs::qsave(standardized_results, paste0(file_prefix, "_standardized_results.qs"))
 
 # 5. 행렬 구성
 # per-method significance 설정:
@@ -70,9 +83,16 @@ deg_matrices <- build_deg_matrices(
   pvalue_threshold = pvalue_threshold    # per-method p.value threshold
 )
 
+# 중간 결과 저장: gene × method 행렬
+qs::qsave(deg_matrices, paste0(file_prefix, "_deg_matrices.qs"))
+
 # 6. Consensus 분석
 agreement_scores <- compute_agreement_scores(deg_matrices$significance)
 consensus_scores <- compute_consensus_scores(deg_matrices, agreement_scores)
+
+# 중간 결과 저장: agreement 및 consensus score
+qs::qsave(agreement_scores, paste0(file_prefix, "_agreement_scores.qs"))
+qs::qsave(consensus_scores, paste0(file_prefix, "_consensus_scores.qs"))
 
 # Consensus DEG 리스트 생성
 # min_methods: 최소 몇 개의 방법론에서 유의해야 하는지
@@ -88,6 +108,9 @@ consensus_deg_list <- generate_consensus_deg_list(
   agreement_threshold = agreement_threshold,
   min_methods = min_methods
 )
+
+# 중간 결과 저장: 최종 consensus DEG 리스트만 별도 저장
+qs::qsave(consensus_deg_list, paste0(file_prefix, "_consensus_deg_list.qs"))
 
 # 7. 결과 확인
 cat(sprintf("\n성공한 방법론: %d 개\n", length(result_consensus$methods_run)))
@@ -106,4 +129,5 @@ final_result <- list(
   consensus_deg_list = consensus_deg_list
 )
 qs::qsave(final_result, "/data/user3/sobj/deg_consensus_final_result.qs")
+qs::qsave(final_result, paste0(file_prefix, "_final_result.qs"))
 
