@@ -18,15 +18,8 @@ R
 패키지 로드
 devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 # 함수 소스 로드
-<<<<<<< HEAD:docs/wt_test_general/TEST_INSTRUCTIONS.md
 source("/home/user3/data_user3/git_repo/_wt/<your_worktree>/myR/scripts/test_scripts.R") #example.
 
-=======
-source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
-
-# 또는 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/_wt/analysis/myR")
->>>>>>> main2:TEST_INSTRUCTIONS.md
 ```
 
 ## 테스트 실행
@@ -85,7 +78,7 @@ colnames(res_muscat2)
 qs::qsave(res_muscat2, "/data/user3/sobj/test_muscat2_v1_result.qs")
 ```
 
-### 3. runNEBULA2_v1 테스트
+### 3. 전체 클러스터 테스트
 ```r
 # 전체 클러스터 테스트
 res_muscat2 <- runMUSCAT2_v1(
@@ -107,7 +100,7 @@ colnames(res_muscat2)
 qs::qsave(res_muscat2, "/data/user3/sobj/test_muscat2_v1_result.qs")
 ```
 
-### 4. runNEBULA2_v1_with_pseudobulk 테스트
+### 4. 원본데이터 테스트
 ```r
 # 원본 데이터로 테스트
 res_muscat3 <- runMUSCAT2_v1(
@@ -140,11 +133,7 @@ qs::qsave(res_muscat3, "/data/user3/sobj/test_muscat2_v1_result.qs")
 # test_nebula2_pb <- TRUE
 
 # 스크립트 실행
-<<<<<<< HEAD:docs/wt_test_general/TEST_INSTRUCTIONS.md
 source("/home/user3/data_user3/git_repo/mylit/scripts/test_functions.R")
-=======
-source("/home/user3/data_user3/git_repo/_wt/analysis/test_functions.R")
->>>>>>> main2:TEST_INSTRUCTIONS.md
 ```
 
 ## 결과 확인
