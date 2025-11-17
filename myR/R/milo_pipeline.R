@@ -290,6 +290,11 @@ run_milo_pipeline <- function(
     }
 }
 
+.milo_set_nhood_counts <- function(milo, counts) {
+    milo@nhoodCounts <- counts
+    milo
+}
+
 .milo_log_command <- function(milo, command_name, args_list) {
     if (is.null(args_list$timestamp)) {
         args_list$timestamp <- format(Sys.time(), tz = "UTC", usetz = TRUE)
@@ -389,6 +394,7 @@ run_milo_pipeline <- function(
     meta_df <- as.data.frame(SingleCellExperiment::colData(milo))
 
     target_include_effective <- NULL
+    target_mask <- rep(TRUE, nrow(meta_df))
     if (!is.null(target_include)) {
         include_vals <- intersect(target_include, unique(meta_df[[target_var]]))
         if (!length(include_vals)) {
@@ -409,12 +415,10 @@ run_milo_pipeline <- function(
                 )
             ))
         }
-        keep_cells <- meta_df[[target_var]] %in% include_vals
-        if (!any(keep_cells)) {
+        target_mask <- meta_df[[target_var]] %in% include_vals
+        if (!any(target_mask)) {
             stop("No cells left after applying target_include filter.")
         }
-        milo <- milo[, keep_cells]
-        meta_df <- meta_df[keep_cells, , drop = FALSE]
         target_include_effective <- include_vals
     }
     milo <- miloR::countCells(
@@ -456,6 +460,23 @@ run_milo_pipeline <- function(
     sample_design <- do.call(rbind, sample_design_list)
     rownames(sample_design) <- sample_design$sample_id
     sample_design$sample_id <- NULL
+
+    if (!is.null(target_include_effective)) {
+        sample_keep <- sample_design[[target_var]] %in% target_include_effective
+        sample_design <- sample_design[sample_keep, , drop = FALSE]
+        if (!nrow(sample_design)) {
+            stop("No samples remain after applying target_include filter.")
+        }
+        counts <- miloR::nhoodCounts(milo)
+        keep_cols <- colnames(counts) %in% rownames(sample_design)
+        if (!any(keep_cols)) {
+            stop("No matching samples found between nhoodCounts and filtered target levels.")
+        }
+        counts <- counts[, keep_cols, drop = FALSE]
+        milo <- .milo_set_nhood_counts(milo, counts)
+    }
+
+    sample_ids <- colnames(miloR::nhoodCounts(milo))
 
     sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
 
@@ -1107,17 +1128,20 @@ test_cluster_logfc_bias <- function(
     if ("permutation" %in% test_methods) {
         if (verbose) cli::cli_inform("Running block permutation tests...")
         perm_test_block <- function(df, block_var = "block_id", n = n_perm) {
-            obs <- mean(df$logFC, na.rm = TRUE)
+            block_summary <- df %>%
+                dplyr::group_by(.data[[block_var]]) %>%
+                dplyr::summarise(
+                    mean_logFC = mean(.data$logFC, na.rm = TRUE),
+                    weight = dplyr::n(),
+                    .groups = "drop"
+                )
+            if (nrow(block_summary) < 2) {
+                return(NA_real_)
+            }
+            obs <- sum(block_summary$mean_logFC * block_summary$weight) / sum(block_summary$weight)
             perm_means <- replicate(n, {
-                df_perm <- df %>%
-                    dplyr::group_by(.data[[block_var]]) %>%
-                    dplyr::mutate(logFC_perm = sample(.data$logFC, size = dplyr::n(), replace = FALSE)) %>%
-                    dplyr::ungroup()
-                df_perm %>%
-                    dplyr::group_by(.data[[block_var]]) %>%
-                    dplyr::summarise(m = mean(.data$logFC_perm, na.rm = TRUE), .groups = "drop") %>%
-                    dplyr::summarise(mean(.data$m, na.rm = TRUE), .groups = "drop") %>%
-                    dplyr::pull()
+                perm_idx <- sample.int(nrow(block_summary))
+                sum(block_summary$mean_logFC[perm_idx] * block_summary$weight) / sum(block_summary$weight)
             })
             (sum(abs(perm_means) >= abs(obs), na.rm = TRUE) + 1) / (n + 1)
         }
