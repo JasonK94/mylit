@@ -457,6 +457,21 @@ CompareModuleScoringMethods <- function(
 #' @param ... Additional arguments to be passed to `escape::enrichIt`.
 #'
 #' @return A Seurat object with the new signature score added to its metadata.
+#'
+#' @examples
+#' \dontrun{
+#' # Excel 파일에서 ENSEMBL ID를 읽어서 InflammatoryScore 시그니처 점수를 추가하는 예시
+#' data_seurat <- add_signature_enrichit(
+#'   seurat_obj    = data_seurat,
+#'   gene_source   = "/data/kjc1/mylit/projects/mIBD/41590_2024_1994_MOESM6_ESM.xlsx",
+#'   signature_name = "InflammatoryScore",
+#'   input_keytype  = "ENSEMBL",
+#'   gene_col       = 1,
+#'   sheet_name     = "Inflammation_score",
+#'   assay          = "RNA",
+#'   layer          = "data"
+#' )
+#' }
 #' @export
 add_signature_enrichit <- function(seurat_obj,
                                       gene_source,
@@ -967,7 +982,7 @@ find_gene_signature_v5.3 <- function(data,
   }
 }
 
-#' Train Meta-Learner (TML6): Stacked Ensemble Model for Signature Scores
+#' Train Meta-Learner (TML7): Stacked Ensemble Model for Signature Scores
 #'
 #' @description
 #'   Implements a two-level stacking approach for combining multiple Level-1 (L1)
@@ -1069,12 +1084,13 @@ find_gene_signature_v5.3 <- function(data,
 #' )
 #'
 #' # Train meta-learner on holdout data
-#' meta_model <- TML6(
+#' meta_model <- TML7(
 #'   l1_signatures = sigs,
 #'   holdout_data = seurat_obj,
 #'   target_var = "g3",
-#'   l2_methods = c("glm", "ranger"),
-#'   metric = "AUC"
+#'   l2_methods = c("glm", "ranger", "xgbTree"),  # xgbTree는 성능이 좋지만 xgboost 경고가 나올 수 있음
+#'   metric = "AUC",
+#'   cv_group_var = "emrid"  # Group-wise CV to prevent patient-level leakage
 #' )
 #'
 #' # Use for prediction
@@ -1087,7 +1103,7 @@ find_gene_signature_v5.3 <- function(data,
 #'   importance from the trained meta-learner
 #'
 #' @export
-TML6 <- function(
+TML7 <- function(
   l1_signatures,
   holdout_data,
   target_var,
@@ -1097,7 +1113,8 @@ TML6 <- function(
   fgs_seed  = 42,
   layer     = "data",
   allow_parallel = FALSE,
-  parallel_workers = NULL
+  parallel_workers = NULL,
+  cv_group_var = "emrid"
 ){
   `%||%` <- function(a,b) if (!is.null(a)) a else b
 
@@ -1313,19 +1330,35 @@ TML6 <- function(
     levels(l2_target) <- safe_lvls
   }
 
+  # --- 그룹 컬럼 준비 (Seurat + meta.data 컬럼 있을 때만) ---
+  cv_group <- NULL
+  if (inherits(holdout_data, "Seurat") && !is.null(cv_group_var)) {
+    meta_data <- holdout_data@meta.data
+    if (cv_group_var %in% colnames(meta_data)) {
+      cv_group <- meta_data[[cv_group_var]]
+    } else {
+      message(sprintf(
+        "cv_group_var '%s' not found in Seurat meta.data; using standard cell-wise CV.",
+        cv_group_var
+      ))
+    }
+  }
+
   keep <- !is.na(l2_target)
   if (!all(keep)) {
     message(sprintf("Removing %d rows with NA target.", sum(!keep)))
-    l2_target <- l2_target[keep]
+    l2_target   <- l2_target[keep]
     l2_train_df <- l2_train_df[keep, , drop = FALSE]
+    if (!is.null(cv_group)) cv_group <- cv_group[keep]
   }
 
   row_ok <- stats::complete.cases(l2_train_df) &
             apply(l2_train_df, 1, function(r) all(is.finite(r)))
   if (!all(row_ok)) {
     message(sprintf("Removing %d rows with NA/NaN/Inf features.", sum(!row_ok)))
-    l2_target <- l2_target[row_ok]
+    l2_target   <- l2_target[row_ok]
     l2_train_df <- l2_train_df[row_ok, , drop = FALSE]
+    if (!is.null(cv_group)) cv_group <- cv_group[row_ok]
   }
 
   nzv <- caret::nearZeroVar(l2_train_df, saveMetrics = FALSE)
@@ -1349,19 +1382,72 @@ TML6 <- function(
     stop(msg)
   }
 
-  # --- metric 매핑 & trainControl ---
+  # --- metric 매핑 & group-wise CV index 구성 ---
   is_bin <- .is_binary(l2_target)
   metric <- match.arg(metric, metric_choices)
   map <- .metric_map(metric, is_bin)
   caret_metric <- map$train_metric
 
+  summary_fun <- if (map$summary == "twoClassSummary") caret::twoClassSummary else caret::defaultSummary
+
+  index <- indexOut <- NULL
+  use_group_cv <- !is.null(cv_group) && !all(is.na(cv_group))
+
+  if (use_group_cv) {
+    group_factor  <- factor(cv_group)
+    unique_groups <- levels(group_factor)
+
+    if (length(unique_groups) < k_folds) {
+      message(sprintf(
+        "cv_group_var '%s' has only %d unique values (< k_folds=%d); using standard cell-wise CV.",
+        cv_group_var, length(unique_groups), k_folds
+      ))
+      use_group_cv <- FALSE
+    } else {
+      set.seed(fgs_seed)
+      fold_assign <- sample(rep(seq_len(k_folds), length.out = length(unique_groups)))
+      names(fold_assign) <- unique_groups
+
+      index    <- vector("list", k_folds)
+      indexOut <- vector("list", k_folds)
+
+      for (fold in seq_len(k_folds)) {
+        in_groups  <- unique_groups[fold_assign != fold]
+        out_groups <- unique_groups[fold_assign == fold]
+        in_idx  <- which(group_factor %in% in_groups)
+        out_idx <- which(group_factor %in% out_groups)
+        index[[fold]]    <- in_idx
+        indexOut[[fold]] <- out_idx
+      }
+
+      message(sprintf(
+        "Using group-wise CV on '%s' (%d groups) for L2 (k_folds=%d).",
+        cv_group_var, length(unique_groups), k_folds
+      ))
+    }
+  }
+
   ctrl <- caret::trainControl(
     method = "cv", number = k_folds,
     classProbs = is_bin,
-    summaryFunction = if (map$summary == "twoClassSummary") caret::twoClassSummary else caret::defaultSummary,
+    summaryFunction = summary_fun,
     savePredictions = "final",
-    allowParallel = allow_parallel
+    allowParallel = allow_parallel,
+    index    = index,
+    indexOut = indexOut
   )
+
+  drop_if_missing <- function(method_name, pkg) {
+    if (method_name %in% l2_methods && !.package_ok(pkg)) {
+      warning(sprintf("%s package required for '%s'; dropping.", pkg, method_name))
+      l2_methods <<- setdiff(l2_methods, method_name)
+    }
+  }
+
+  drop_if_missing("glmnet",          "glmnet")
+  drop_if_missing("svmRadial",       "kernlab")
+  drop_if_missing("mlp",             "RSNNS")
+  drop_if_missing("mlpKerasDropout", "keras")
 
   if ("xgbTree" %in% l2_methods) {
     if (!.package_ok("xgboost")) {
@@ -1373,6 +1459,14 @@ TML6 <- function(
       if (!ok) {
         warning("xgboost seems broken; dropping 'xgbTree'.")
         l2_methods <- setdiff(l2_methods, "xgbTree")
+      } else {
+        # 가능하면 전역 verbosity를 0으로 낮춰 C-level 경고(특히 ntree_limit)를 숨긴다
+        if (isTRUE(.package_ok("xgboost"))) {
+          xgb_ns <- asNamespace("xgboost")
+          if (exists("xgb.set.config", envir = xgb_ns, mode = "function")) {
+            try(xgboost::xgb.set.config(verbosity = 0), silent = TRUE)
+          }
+        }
       }
     }
   }
@@ -1381,8 +1475,8 @@ TML6 <- function(
   model_list <- list()
   for (m in l2_methods) {
     message(sprintf("Training L2 candidate: %s (metric=%s)", m, caret_metric))
-    # xgboost의 deprecated 경고 억제
     if (m == "xgbTree") {
+      # R-level warning은 suppressWarnings로, C-level 로그는 위에서 xgb.set.config(verbosity=0)로 최대한 억제
       fit <- try(
         suppressWarnings(
           caret::train(
@@ -1451,7 +1545,7 @@ TML6 <- function(
 #' For non-linear models the magnitude is still meaningful, but signs should be
 #' interpreted cautiously because the L2 model can capture non-linear effects.
 #'
-#' @param meta_result A result list returned by [TML6()].
+#' @param meta_result A result list returned by [TML7()].
 #' @param normalize If `TRUE`, scale contributions so that the maximum absolute
 #'   per-signature contribution is 1.
 #' @return A list with elements:
@@ -1467,7 +1561,7 @@ TML6 <- function(
 compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
   if (!is.list(meta_result) ||
       !all(c("best_model", "best_model_name", "l1_signatures", "l2_train") %in% names(meta_result))) {
-    stop("meta_result must be the object returned by TML6().")
+    stop("meta_result must be the object returned by TML7().")
   }
 
   `%||%` <- function(x, y) if (!is.null(x)) x else y
@@ -1644,8 +1738,8 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
 #'
 #' @examples
 #' \dontrun{
-#' # After running TML6 and compute_meta_gene_importance
-#' tml_result <- TML6(l1_signatures, data_seurat, "response")
+#' # After running TML7 and compute_meta_gene_importance
+#' tml_result <- TML7(l1_signatures, data_seurat, "response", cv_group_var = "emrid")
 #' cmgi_result <- compute_meta_gene_importance(tml_result)
 #'
 #' # Add signature scores to Seurat object

@@ -3429,7 +3429,9 @@ find_gene_signature_v5.2 <- function(data,
         },
         
         ridge = { # [Req 4] 신규
-          if (!requireNamespace("glmnet", quietly = TRUE)) { stop("glmnet required.") }
+          if (!requireNamespace("glmnet", quietly = TRUE)) {
+            stop("glmnet package required. Install with: install.packages('glmnet')")
+          }
           
           # X는 스케일링된 데이터 (expr_mat_scaled)
           if (is.null(control_vars)) {
@@ -3442,19 +3444,80 @@ find_gene_signature_v5.2 <- function(data,
           
           # alpha=0 (Ridge)
           if (n_groups == 2) {
-            cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=0, 
-                                        penalty.factor = penalty_vec, ...)
+            cv_fit <- glmnet::cv.glmnet(
+              X_model, y,
+              family = "binomial",
+              alpha = 0,
+              penalty.factor = penalty_vec,
+              ...
+            )
           } else {
-            cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=0, 
-                                        penalty.factor = penalty_vec, ...)
+            cv_fit <- glmnet::cv.glmnet(
+              X_model, y,
+              family = "multinomial",
+              alpha = 0,
+              penalty.factor = penalty_vec,
+              ...
+            )
           }
           
-          # ... (v4.1 lasso와 동일한 계수 추출, top_genes 선별, performance 로직) ...
-          list(...)
+          coefs <- coef(cv_fit, s = lambda_selection)
+          
+          if (n_groups == 2) {
+            weights_all <- as.numeric(coefs[2:(ncol(X) + 1)])
+            names(weights_all) <- rownames(coefs)[2:(ncol(X) + 1)]
+          } else {
+            coef_list <- lapply(coefs, function(x) as.numeric(x[2:(ncol(X) + 1)]))
+            weights_all <- rowMeans(do.call(cbind, coef_list))
+            names(weights_all) <- rownames(coefs[[1]])[2:(ncol(X) + 1)]
+          }
+          
+          if (length(weights_all) == 0) {
+            stop("Ridge returned no gene coefficients.")
+          }
+          
+          top_genes <- names(sort(abs(weights_all), decreasing = TRUE)[
+            1:min(n_features, length(weights_all))
+          ])
+          weights <- weights_all[top_genes]
+          
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          pred_probs <- predict(cv_fit, newx = X_model, s = lambda_selection, type = "response")
+          if (n_groups == 2) {
+            pred <- factor(
+              ifelse(pred_probs > 0.5, levels(y)[2], levels(y)[1]),
+              levels = levels(y)
+            )
+            if (requireNamespace("pROC", quietly = TRUE)) {
+              roc_obj <- pROC::roc(y, scores, quiet = TRUE)
+              auc <- as.numeric(pROC::auc(roc_obj))
+            } else {
+              auc <- NA
+            }
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+          } else {
+            pred_class_indices <- apply(pred_probs[, , 1], 1, which.max)
+            pred <- levels(y)[pred_class_indices]
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, confusion = table(pred, y))
+          }
+          
+          list(
+            genes = top_genes,
+            weights = weights,
+            scores = scores,
+            performance = perf,
+            model = if (return_model) cv_fit else NULL
+          )
         },
         
         elastic_net = { # [Req 4] 신규
-          if (!requireNamespace("glmnet", quietly = TRUE)) { stop("glmnet required.") }
+          if (!requireNamespace("glmnet", quietly = TRUE)) {
+            stop("glmnet package required. Install with: install.packages('glmnet')")
+          }
           
           # X는 스케일링된 데이터 (expr_mat_scaled)
           if (is.null(control_vars)) {
@@ -3467,15 +3530,74 @@ find_gene_signature_v5.2 <- function(data,
           
           # alpha=enet.alpha (기본 0.5)
           if (n_groups == 2) {
-            cv_fit <- glmnet::cv.glmnet(X_model, y, family="binomial", alpha=enet.alpha, 
-                                        penalty.factor = penalty_vec, ...)
+            cv_fit <- glmnet::cv.glmnet(
+              X_model, y,
+              family = "binomial",
+              alpha = enet.alpha,
+              penalty.factor = penalty_vec,
+              ...
+            )
           } else {
-            cv_fit <- glmnet::cv.glmnet(X_model, y, family="multinomial", alpha=enet.alpha, 
-                                        penalty.factor = penalty_vec, ...)
+            cv_fit <- glmnet::cv.glmnet(
+              X_model, y,
+              family = "multinomial",
+              alpha = enet.alpha,
+              penalty.factor = penalty_vec,
+              ...
+            )
           }
           
-          # ... (v4.1 lasso와 동일한 계수 추출, top_genes 선별, performance 로직) ...
-          list(...)
+          coefs <- coef(cv_fit, s = lambda_selection)
+          
+          if (n_groups == 2) {
+            weights_all <- as.numeric(coefs[2:(ncol(X) + 1)])
+            names(weights_all) <- rownames(coefs)[2:(ncol(X) + 1)]
+          } else {
+            coef_list <- lapply(coefs, function(x) as.numeric(x[2:(ncol(X) + 1)]))
+            weights_all <- rowMeans(do.call(cbind, coef_list))
+            names(weights_all) <- rownames(coefs[[1]])[2:(ncol(X) + 1)]
+          }
+          
+          if (length(weights_all) == 0) {
+            stop("Elastic net returned no gene coefficients.")
+          }
+          
+          top_genes <- names(sort(abs(weights_all), decreasing = TRUE)[
+            1:min(n_features, length(weights_all))
+          ])
+          weights <- weights_all[top_genes]
+          
+          scores <- as.numeric(X[, top_genes] %*% weights)
+          names(scores) <- rownames(X)
+          
+          pred_probs <- predict(cv_fit, newx = X_model, s = lambda_selection, type = "response")
+          if (n_groups == 2) {
+            pred <- factor(
+              ifelse(pred_probs > 0.5, levels(y)[2], levels(y)[1]),
+              levels = levels(y)
+            )
+            if (requireNamespace("pROC", quietly = TRUE)) {
+              roc_obj <- pROC::roc(y, scores, quiet = TRUE)
+              auc <- as.numeric(pROC::auc(roc_obj))
+            } else {
+              auc <- NA
+            }
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, auc = auc, confusion = table(pred, y))
+          } else {
+            pred_class_indices <- apply(pred_probs[, , 1], 1, which.max)
+            pred <- levels(y)[pred_class_indices]
+            acc <- mean(pred == y)
+            perf <- list(accuracy = acc, confusion = table(pred, y))
+          }
+          
+          list(
+            genes = top_genes,
+            weights = weights,
+            scores = scores,
+            performance = perf,
+            model = if (return_model) cv_fit else NULL
+          )
         },
 
         # --- 3. Loadings ---
@@ -4519,426 +4641,23 @@ train_meta_learner_v4 <- function(l1_signatures,
 
 #' @export
 train_meta_learner_v5 <- function(...) {
-  .Deprecated("TML6", package = "myR")
-  TML6(...)
+  .Deprecated("TML7", package = "myR")
+  TML7(...)
 }
 
 #' @export
 train_meta_learner_v6 <- function(...) {
-  .Deprecated("TML6", package = "myR")
-  TML6(...)
+  .Deprecated("TML7", package = "myR")
+  TML7(...)
 }
 
-#' Train Meta-Learner (TML6): Stacked Ensemble Model for Signature Scores
-#'
-#' @description
-#'   Implements a two-level stacking approach for combining multiple Level-1 (L1)
-#'   gene signatures into a unified prediction model. The function standardizes
-#'   diverse signature formats (character vectors, named numeric weights,
-#'   up/down lists, data frames) into a common representation, computes signature
-#'   scores on the holdout expression data, and trains one or more Level-2 (L2)
-#'   caret models on the resulting score matrix. The best-performing model,
-#'   selected via cross-validation, is returned along with the processed training
-#'   data and standardized signatures.
-#'
-#'   **Mechanism:**
-#'   1. **Signature Standardization**: Each L1 signature is converted to a named
-#'      numeric vector of gene weights using `as_signature()`, which handles
-#'      multiple input formats (character vectors → uniform weights, named
-#'      numeric → direct weights, up/down lists → +1/-1 weights, data frames →
-#'      extracted gene-weight pairs).
-#'   2. **Score Computation**: For each signature, a per-cell score is computed
-#'      as the weighted average of expression values, normalized by the sum of
-#'      absolute weights and optionally z-scored across cells.
-#'   3. **L2 Feature Matrix**: The signature scores form the columns of the L2
-#'      training matrix (one row per cell, one column per signature).
-#'   4. **Model Training**: Multiple caret models (e.g., glm, ranger, xgbTree)
-#'      are trained via k-fold cross-validation, with the best model selected
-#'      based on the specified metric (AUC/ROC for binary, Accuracy/Kappa for
-#'      multi-class).
-#'   5. **Parallel Safety**: Parallel execution is opt-in (`allow_parallel=TRUE`)
-#'      and guarded to prevent runaway worker creation on shared servers.
-#'      Worker count is capped at 8 by default.
-#'
-#' @param l1_signatures Named list of L1 signatures. Each element can be:
-#'   \itemize{
-#'     \item A character vector of gene names (uniform weights = 1)
-#'     \item A named numeric vector (gene names → weights)
-#'     \item A list with `up` and/or `down` components (up-regulated genes get
-#'           weight +1, down-regulated get -1)
-#'     \item A data frame with gene identifiers and weight/score columns
-#'   }
-#' @param holdout_data Expression container. Either:
-#'   \itemize{
-#'     \item A Seurat object (expression extracted via `GetAssayData(layer=layer)`)
-#'     \item A matrix or data frame with rows = genes/features, columns = cells/samples
-#'   }
-#' @param target_var For Seurat input: column name in `meta.data` containing the
-#'   outcome to predict. For matrix input: the target vector itself (must match
-#'   cell order).
-#' @param l2_methods Character vector of caret model identifiers to evaluate
-#'   (default: `c("glm", "ranger", "xgbTree")`). See `caret::train()` for
-#'   available methods.
-#' @param k_folds Number of cross-validation folds (default: 5).
-#' @param metric Performance metric for model selection. Options:
-#'   \itemize{
-#'     \item `"AUC"` or `"ROC"`: For binary classification (requires `twoClassSummary`)
-#'     \item `"Accuracy"`: Classification accuracy
-#'     \item `"Kappa"`: Cohen's kappa
-#'   }
-#'   For multi-class targets, AUC/ROC is invalid and falls back to Accuracy.
-#' @param fgs_seed Random seed for reproducibility (default: 42).
-#' @param layer When `holdout_data` is a Seurat object, the assay layer to extract
-#'   (default: `"data"`). Options: `"counts"`, `"data"`, `"scale.data"`.
-#' @param allow_parallel Logical. If `TRUE` and `future`/`doFuture` packages are
-#'   available, enables parallel cross-validation via `future::multisession` plan
-#'   (default: `FALSE` for safety).
-#' @param parallel_workers Optional integer overriding the number of parallel
-#'   workers when `allow_parallel=TRUE`. If `NULL`, defaults to
-#'   `min(8, detectCores(logical=FALSE))`, falling back to 4 if detection fails.
-#'
-#' @return A list with components:
-#'   \describe{
-#'     \item{best_model}{Caret `train` object for the selected L2 model.}
-#'     \item{best_model_name}{Character string identifier of the best model.}
-#'     \item{best_metric_name}{Name of the metric used for selection.}
-#'     \item{model_comparison}{A `resamples` object comparing all trained models
-#'           (or `NULL` if only one model succeeded).}
-#'     \item{l2_train}{Data frame with signature scores (columns) and target
-#'           variable (`.target` column).}
-#'     \item{l1_signatures}{Standardized signatures (named numeric weight vectors).}
-#'   }
-#'
-#' @details
-#'   **Signature Scoring Formula:**
-#'   For a signature with gene weights \eqn{w_g} and expression values \eqn{x_{gc}}
-#'   for gene \eqn{g} and cell \eqn{c}:
-#'   \deqn{s_c = \frac{\sum_g w_g \cdot x_{gc}}{\sum_g |w_g|}}
-#'   If `normalize=TRUE`, scores are further z-scored: \eqn{s_c' = (s_c - \mu_s) / \sigma_s}.
-#'
-#'   **Model Selection:**
-#'   The best model is chosen by maximizing the cross-validated metric across all
-#'   folds. For binary classification with AUC/ROC, `caret::twoClassSummary` is
-#'   used; for multi-class or Accuracy/Kappa, `caret::defaultSummary` is used.
-#'
-#' @examples
-#' \dontrun{
-#' # Example: Combine multiple signature-finding methods
-#' sigs <- list(
-#'   lasso = find_gene_signature(data, target_var="g3", method="lasso"),
-#'   rf = find_gene_signature(data, target_var="g3", method="tree_based"),
-#'   limma = find_gene_signature(data, target_var="g3", method="limma")
-#' )
-#'
-#' # Train meta-learner on holdout data
-#' meta_model <- TML6(
-#'   l1_signatures = sigs,
-#'   holdout_data = seurat_obj,
-#'   target_var = "g3",
-#'   l2_methods = c("glm", "ranger"),
-#'   metric = "AUC"
-#' )
-#'
-#' # Use for prediction
-#' predictions <- predict(meta_model$best_model, newdata = new_scores)
-#' }
-#'
-#' @seealso
-#'   \code{\link[caret]{train}} for L2 model training,
-#'   \code{\link{compute_meta_gene_importance}} for deriving gene-level
-#'   importance from the trained meta-learner
-#'
+.TML7_impl <- TML7
+
+#' @rdname TML7
 #' @export
-TML6 <- function(
-  l1_signatures,
-  holdout_data,
-  target_var,
-  l2_methods = c("glm","ranger","xgbTree"),
-  k_folds   = 5,
-  metric    = c("AUC","ROC","Accuracy","Kappa"),
-  fgs_seed  = 42,
-  layer     = "data",
-  allow_parallel = FALSE,
-  parallel_workers = NULL
-){
-  `%||%` <- function(a,b) if (!is.null(a)) a else b
-
-  # ---- NEW: 표준화 유틸 ----
-  as_signature <- function(sig){
-    # 문자형 유전자 벡터
-    if (is.character(sig)) return(structure(rep(1, length(sig)), names = sig))
-
-    # 이름달린 numeric (가중치)
-    if (is.numeric(sig) && !is.null(names(sig))) return(sig)
-
-    # list(up=..., down=...)
-    if (is.list(sig) && all(c("up","down") %in% names(sig))) {
-      up <- sig$up; down <- sig$down
-      stopifnot(is.character(up) || is.null(up), is.character(down) || is.null(down))
-      up   <- up   %||% character()
-      down <- down %||% character()
-      nm <- c(up, down)
-      wt <- c(rep(1, length(up)), rep(-1, length(down)))
-      return(structure(wt, names = nm))
-    }
-
-    # list(genes=..., weights=...)
-    if (is.list(sig) && all(c("genes","weights") %in% names(sig))) {
-      g <- sig$genes; w <- sig$weights
-      stopifnot(is.character(g), is.numeric(w), length(g) == length(w))
-      names(w) <- g
-      return(w)
-    }
-
-    # data.frame/tibble: gene/feature + weight/w/score
-    if (is.data.frame(sig)) {
-      cn <- tolower(colnames(sig))
-      gene_col   <- which(cn %in% c("gene","genes","feature","features","symbol","id"))[1]
-      weight_col <- which(cn %in% c("weight","weights","w","score","scores","coef","coefs"))[1]
-      if (!is.na(gene_col) && !is.na(weight_col)) {
-        g <- as.character(sig[[gene_col]])
-        w <- as.numeric(sig[[weight_col]])
-        ok <- !is.na(g) & !is.na(w)
-        w  <- w[ok]; g <- g[ok]
-        names(w) <- g
-        return(w)
-      }
-    }
-
-    stop("Unsupported signature format.")
-  }
-
-  .score_signature <- function(expr_data, signature, normalize = TRUE) {
-    # signature를 표준화해 항상 "이름달린 가중치 numeric"으로 맞춘다
-    w <- as_signature(signature)
-
-    genes <- intersect(rownames(expr_data), names(w))
-    if (length(genes) == 0) stop("Signature has no overlap with expression data.")
-
-    ww <- w[genes]
-    # (표준) 가중평균
-    s <- as.numeric(Matrix::t(expr_data[genes, , drop = FALSE]) %*% ww)
-    den <- sum(abs(ww))
-    if (!is.finite(den) || den == 0) den <- length(ww)
-    s <- s / den
-    if (normalize) s <- as.numeric(scale(s))
-    s
-  }
-
-  .is_binary <- function(y) length(levels(y)) == 2
-
-  metric_choices <- c("AUC", "ROC", "Accuracy", "Kappa")
-
-  .metric_map <- function(user_metric, is_binary) {
-    if (is_binary) {
-      # caret twoClassSummary → columns: ROC, Sens, Spec
-      if (user_metric %in% c("AUC","ROC")) return(list(train_metric="ROC",  summary="twoClassSummary"))
-      if (user_metric %in% c("Accuracy","Kappa")) return(list(train_metric=user_metric, summary="twoClassSummary"))
-    } else {
-      # 멀티클래스 → defaultSummary (Accuracy, Kappa)
-      if (user_metric == "AUC") {
-        message("WARNING: 'AUC/ROC' not defined for multi-class defaultSummary. Falling back to 'Accuracy'.")
-        return(list(train_metric="Accuracy", summary="defaultSummary"))
-      }
-      return(list(train_metric=user_metric, summary="defaultSummary"))
-    }
-    list(train_metric = if (is_binary) "ROC" else "Accuracy",
-         summary      = if (is_binary) "twoClassSummary" else "defaultSummary")
-  }
-
-  .package_ok <- function(pkg){
-    suppressWarnings(suppressMessages(requireNamespace(pkg, quietly = TRUE)))
-  }
-
-  if (!.package_ok("caret")) stop("caret package required.")
-  if (!.package_ok("Matrix")) stop("Matrix package required.")
-
-  register_sequential <- function() {
-    if (.package_ok("foreach")) {
-      try(foreach::registerDoSEQ(), silent = TRUE)
-    }
-  }
-
-  allow_parallel <- isTRUE(allow_parallel)
-  worker_count <- parallel_workers
-  if (is.null(worker_count)) {
-    fallback <- getOption("mylit.meta_learner.workers", 4L)
-    cores <- tryCatch(parallel::detectCores(logical = FALSE), error = function(e) NA_integer_)
-    cores <- cores %||% fallback
-    worker_count <- max(1L, min(8L, as.integer(cores)))
-  }
-
-  if (allow_parallel) {
-    if (.package_ok("future") && .package_ok("doFuture")) {
-      oplan <- future::plan()
-      on.exit({
-        try(future::plan(oplan), silent = TRUE)
-      }, add = TRUE)
-
-      message(sprintf("Enabling parallel training with %d workers (future::multisession).", worker_count))
-      tryCatch(
-        future::plan(future::multisession, workers = worker_count),
-        error = function(e) {
-          warning("Failed to configure future multisession plan: ", conditionMessage(e), call. = FALSE)
-          allow_parallel <<- FALSE
-        }
-      )
-
-      if (allow_parallel) {
-        doFuture::registerDoFuture()
-        on.exit(register_sequential(), add = TRUE)
-      } else {
-        register_sequential()
-      }
-
-    } else {
-      message("NOTE: Parallel dependencies (future/doFuture) not available; falling back to sequential execution.")
-      allow_parallel <- FALSE
-      register_sequential()
-    }
-  } else {
-    register_sequential()
-  }
-
-  set.seed(fgs_seed)
-  RNGkind(sample.kind = "Rejection")
-
-  # --- 데이터 추출 ---
-  if (inherits(holdout_data, "Seurat")) {
-    if (!.package_ok("Seurat")) stop("Seurat package required for Seurat input.")
-    expr_mat <- Seurat::GetAssayData(holdout_data, layer = layer)
-    meta_data <- holdout_data@meta.data
-    if (!target_var %in% colnames(meta_data))
-      stop(sprintf("Target column '%s' not found in Seurat meta.data.", target_var))
-    l2_target <- meta_data[[target_var]]
-  } else {
-    if (is.data.frame(holdout_data)) holdout_data <- as.matrix(holdout_data)
-    if (!is.matrix(holdout_data)) stop("holdout_data must be Seurat or a matrix/data.frame [features x cells].")
-    expr_mat <- holdout_data
-    l2_target <- target_var
-  }
-  if (is.null(rownames(expr_mat))) stop("Expression matrix must have rownames (feature IDs).")
-  if (is.null(colnames(expr_mat))) colnames(expr_mat) <- paste0("cell_", seq_len(ncol(expr_mat)))
-
-  # --- L2 특성 구성 (시그니처 점수 계산) ---
-  if (is.null(names(l1_signatures))) names(l1_signatures) <- paste0("L1_", seq_along(l1_signatures))
-
-  l2_features_list <- lapply(l1_signatures, function(sig) .score_signature(expr_mat, sig, normalize = TRUE))
-  l2_train_df <- as.data.frame(do.call(cbind, l2_features_list))
-  colnames(l2_train_df) <- make.names(names(l1_signatures))
-
-  # --- 타깃 준비/정리 ---
-  if (!is.factor(l2_target)) l2_target <- factor(l2_target)
-  orig_lvls <- levels(l2_target)
-  safe_lvls <- make.names(orig_lvls)
-  if (!all(orig_lvls == safe_lvls)) {
-    message(sprintf("Sanitizing target levels: '%s' -> '%s'",
-                    paste(orig_lvls, collapse="'/'"),
-                    paste(safe_lvls, collapse="'/'")))
-    levels(l2_target) <- safe_lvls
-  }
-
-  keep <- !is.na(l2_target)
-  if (!all(keep)) {
-    message(sprintf("Removing %d rows with NA target.", sum(!keep)))
-    l2_target <- l2_target[keep]
-    l2_train_df <- l2_train_df[keep, , drop = FALSE]
-  }
-
-  row_ok <- stats::complete.cases(l2_train_df) &
-            apply(l2_train_df, 1, function(r) all(is.finite(r)))
-  if (!all(row_ok)) {
-    message(sprintf("Removing %d rows with NA/NaN/Inf features.", sum(!row_ok)))
-    l2_target <- l2_target[row_ok]
-    l2_train_df <- l2_train_df[row_ok, , drop = FALSE]
-  }
-
-  nzv <- caret::nearZeroVar(l2_train_df, saveMetrics = FALSE)
-  if (length(nzv) > 0) {
-    message(sprintf("Removing %d zero-variance features: %s",
-                    length(nzv), paste(colnames(l2_train_df)[nzv], collapse=", ")))
-    l2_train_df <- l2_train_df[, -nzv, drop = FALSE]
-  }
-
-  if (nrow(l2_train_df) == 0 || ncol(l2_train_df) == 0)
-    stop("No usable data remains after cleaning (check signatures and target).")
-
-  # --- metric 매핑 & trainControl ---
-  is_bin <- .is_binary(l2_target)
-  metric <- match.arg(metric, metric_choices)
-  map <- .metric_map(metric, is_bin)
-  caret_metric <- map$train_metric
-
-  ctrl <- caret::trainControl(
-    method = "cv", number = k_folds,
-    classProbs = is_bin,
-    summaryFunction = if (map$summary == "twoClassSummary") caret::twoClassSummary else caret::defaultSummary,
-    savePredictions = "final",
-    allowParallel = allow_parallel
-  )
-
-  if ("xgbTree" %in% l2_methods) {
-    if (!.package_ok("xgboost")) {
-      warning("xgboost not available; dropping 'xgbTree'.")
-      l2_methods <- setdiff(l2_methods, "xgbTree")
-    } else {
-      ok <- TRUE
-      tryCatch(utils::packageVersion("xgboost"), error = function(e) ok <<- FALSE)
-      if (!ok) {
-        warning("xgboost seems broken; dropping 'xgbTree'.")
-        l2_methods <- setdiff(l2_methods, "xgbTree")
-      }
-    }
-  }
-  if (length(l2_methods) == 0) stop("No usable models remain.")
-
-  model_list <- list()
-  for (m in l2_methods) {
-    message(sprintf("Training L2 candidate: %s (metric=%s)", m, caret_metric))
-    fit <- try(
-      caret::train(
-        x = l2_train_df,
-        y = l2_target,
-        method = m,
-        trControl = ctrl,
-        metric = caret_metric,
-        tuneLength = 5
-      ), silent = TRUE
-    )
-    if (inherits(fit, "try-error")) {
-      warning(sprintf("Failed to train '%s': %s", m, as.character(fit)))
-    } else {
-      model_list[[m]] <- fit
-    }
-  }
-  if (length(model_list) == 0) stop("No L2 models were successfully trained.")
-
-  if (length(model_list) == 1) {
-    best_name <- names(model_list)[1]
-    best_fit  <- model_list[[1]]
-    best_val  <- suppressWarnings(max(best_fit$results[[caret_metric]], na.rm = TRUE))
-    message(sprintf("Only one model trained. Selected '%s' (CV %s=%.4f).",
-                    best_name, caret_metric, best_val))
-    resamp <- NULL
-  } else {
-    resamp <- caret::resamples(model_list)
-    vals <- sapply(model_list, function(f) suppressWarnings(max(f$results[[caret_metric]], na.rm = TRUE)))
-    best_name <- names(which.max(vals))
-    best_fit  <- model_list[[best_name]]
-    message(sprintf("Best model: %s (CV %s=%.4f).", best_name, caret_metric, max(vals, na.rm = TRUE)))
-  }
-
-  list(
-    best_model       = best_fit,
-    best_model_name  = best_name,
-    best_metric_name = caret_metric,
-    model_comparison = resamp,
-    l2_train         = data.frame(l2_train_df, .target = l2_target),
-    l1_signatures    = l1_signatures
-  )
+TML7 <- function(...) {
+  .TML7_impl(...)
 }
-
-
 
 #' Derive gene-level importance from a trained meta learner
 #'
@@ -4949,7 +4668,7 @@ TML6 <- function(
 #' For non-linear models the magnitude is still meaningful, but signs should be
 #' interpreted cautiously because the L2 model can capture non-linear effects.
 #'
-#' @param meta_result A result list returned by [TML6()].
+#' @param meta_result A result list returned by [TML7()].
 #' @param normalize If `TRUE`, scale contributions so that the maximum absolute
 #'   per-signature contribution is 1.
 #' @return A list with elements:
@@ -4965,7 +4684,7 @@ TML6 <- function(
 compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
   if (!is.list(meta_result) ||
       !all(c("best_model", "best_model_name", "l1_signatures", "l2_train") %in% names(meta_result))) {
-    stop("meta_result must be the object returned by TML6().")
+    stop("meta_result must be the object returned by TML7().")
   }
 
   `%||%` <- function(x, y) if (!is.null(x)) x else y

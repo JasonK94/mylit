@@ -190,6 +190,30 @@
   - 실제 데이터셋에서 테스트 및 검증
   - 사용 예시 문서화
 
+## 2025-01-XX — TML6 환자 단위 CV 및 메타러너 확장 (`fgs` 브랜치)
+- **작성자**: Auto (GPT-5 Codex)  
+- **요약**: TML6에 `cv_group_var` 파라미터를 도입해 환자 단위 누수를 방지하고, L2 메타러너 후보에 `glmnet`, `svmRadial`, `mlp`, `mlpKerasDropout`를 추가.
+- **세부 사항**:
+  - **그룹 CV**:
+    - `cv_group_var` (기본값 `\"emrid\"`)로 같은 환자의 AOI가 항상 같은 fold에 들어가도록 `caret::trainControl(index/indexOut)` 구성
+    - 그룹 수가 `k_folds`보다 적으면 자동으로 기존 셀 단위 CV로 fallback
+    - 그룹 컬럼이 없으면 경고 후 셀 단위 CV 유지
+  - **L2 메서드 확장**:
+    - `glmnet`, `svmRadial`, `mlp`, `mlpKerasDropout` 패키지 의존성 체크 후 사용 가능
+    - 패키지가 없으면 경고만 출력하고 해당 모델을 자동으로 제거
+    - 기존 기본값(`glm`, `ranger`, `xgbTree`)은 그대로 유지
+  - **로그 개선**:
+    - 그룹 CV가 활성화될 때 fold 구성 메시지를 출력
+    - xgboost는 `xgb.set.config(verbosity = 0)`로 C-level 경고를 최대한 억제
+- **테스트**:
+  - R 4.3 환경에서 `Matrix` 및 Seurat 의존성 설치가 불가하여 Seurat 기반 통합 테스트는 진행하지 못함
+  - 매트릭스 입력 + `glm` 메타러너 케이스로 기본 동작을 추가 점검 (caret 미설치 문제로 부분 실패)
+  - 추후 R 4.4+ 또는 사전 구축된 컨테이너에서 full 테스트 필요
+- **다음 단계**:
+  - Seurat/Matrix 환경이 준비된 머신에서 group CV + 확장 메타러너 조합 테스트
+  - `cv_group_var`가 matrix 입력에서도 사용할 수 있도록 벡터 인자를 허용할지 검토
+  - 문서/사용 예시 업데이트
+
 ---
 
 ### 향후 계획
