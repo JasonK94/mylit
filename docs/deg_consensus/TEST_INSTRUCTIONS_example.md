@@ -194,10 +194,10 @@ if (!requireNamespace("nebula", quietly = TRUE)) {
 ### 함수가 로드되지 않음
 ```r
 # 함수 소스 직접 로드
-source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
 
 # 또는 패키지 로드
-devtools::load_all("/home/user3/data_user3/git_repo/_wt/main2/myR")
+devtools::load_all("/home/user3/data_user3/git_repo/_wt/analysis/myR")
 ```
 
 ### 데이터 로드 오류
