@@ -358,35 +358,52 @@ replot_nichenet_circos <- function(results_file,
   if (verbose) message("Replaying circos plot with new parameters...")
   
   # Open graphics device
+  device_opened <- FALSE
   if (format == "png" && !is.null(output_file)) {
     grDevices::png(output_file, width = width * res, height = height * res, res = res)
-    on.exit(grDevices::dev.off())
+    device_opened <- TRUE
   } else if (format == "pdf" && !is.null(output_file)) {
     grDevices::pdf(output_file, width = width, height = height)
-    on.exit(grDevices::dev.off())
+    device_opened <- TRUE
   }
   
-  # Replay the original plot
-  if (inherits(plot_circos, "recordedplot")) {
-    # Replay the recorded plot
-    grDevices::replayPlot(plot_circos)
-    
-    # Note: We cannot easily modify parameters of a recorded plot
-    # The user would need to re-run the analysis with different parameters
-    # or we would need to store the raw circos data separately
-    if (verbose) {
-      message("Note: Recorded plots cannot be modified. Using original plot.")
-      message("To change parameters, re-run the analysis with different circos_* parameters.")
+  tryCatch({
+    # Replay the original plot
+    if (inherits(plot_circos, "recordedplot")) {
+      # Replay the recorded plot
+      grDevices::replayPlot(plot_circos)
+      
+      # Note: We cannot easily modify parameters of a recorded plot
+      # The user would need to re-run the analysis with different parameters
+      # or we would need to store the raw circos data separately
+      if (verbose) {
+        message("Note: Recorded plots cannot be modified. Using original plot.")
+        message("To change parameters, re-run the analysis with different circos_* parameters.")
+      }
+    } else {
+      # If it's not a recorded plot, try to plot it directly
+      if (verbose) message("Plotting circos plot object...")
+      graphics::plot(plot_circos)
     }
-  } else {
-    # If it's not a recorded plot, try to plot it directly
-    if (verbose) message("Plotting circos plot object...")
-    graphics::plot(plot_circos)
-  }
-  
-  if (verbose && !is.null(output_file)) {
-    message("Plot saved to: ", output_file)
-  }
+    
+    # Ensure device is properly closed
+    if (device_opened) {
+      grDevices::dev.off()
+      if (verbose && !is.null(output_file)) {
+        if (file.exists(output_file)) {
+          file_size <- file.info(output_file)$size
+          message("Plot saved to: ", output_file, " (", file_size, " bytes)")
+        } else {
+          warning("Warning: Output file was not created: ", output_file)
+        }
+      }
+    }
+  }, error = function(e) {
+    if (device_opened) {
+      try(grDevices::dev.off(), silent = TRUE)
+    }
+    stop("Error during plot generation: ", e$message)
+  })
   
   return(invisible(list(
     plot = plot_circos,

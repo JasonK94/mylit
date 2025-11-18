@@ -612,14 +612,26 @@ run_nichenet_analysis <- function(seurat_obj,
     if (verbose) message("  Ligand-target inference completed (", round(elapsed_targets, 1), " seconds, ", nrow(active_ligand_target_links_df), " links found)")
     p_ligand_target_network <- NULL
     if(nrow(active_ligand_target_links_df) > 0){
-      if (verbose) message("  Preparing ligand-target visualization matrix...")
+      if (verbose) {
+        message("  Preparing ligand-target visualization matrix...")
+        message("    Input links: ", nrow(active_ligand_target_links_df), " links")
+        message("    Using cutoff: ", ligand_target_cutoff)
+      }
       start_time_viz <- Sys.time()
       active_ligand_target_links_matrix <- nichenetr::prepare_ligand_target_visualization(ligand_target_df = active_ligand_target_links_df, ligand_target_matrix = ligand_target_matrix, cutoff = ligand_target_cutoff)
       elapsed_viz <- difftime(Sys.time(), start_time_viz, units = "secs")
-      if (verbose) message("  Visualization matrix prepared (", round(elapsed_viz, 1), " seconds)")
+      if (verbose) {
+        if (!is.null(active_ligand_target_links_matrix)) {
+          message("  Visualization matrix prepared (", round(elapsed_viz, 1), " seconds, ", nrow(active_ligand_target_links_matrix), " targets x ", ncol(active_ligand_target_links_matrix), " ligands)")
+        } else {
+          message("  Visualization matrix is NULL after preparation")
+        }
+      }
       if (is.null(active_ligand_target_links_matrix) || nrow(active_ligand_target_links_matrix) == 0 || ncol(active_ligand_target_links_matrix) == 0) {
-        warning("NN_Warning: Ligand-target matrix is empty/small after preparation. Skipping L-T heatmap.")
-        p_ligand_target_network <- ggplot2::ggplot() + ggplot2::labs(title="No L-T links for heatmap after preparation.")
+        warning("NN_Warning: Ligand-target matrix is empty/small after preparation (cutoff=", ligand_target_cutoff, "). ",
+                "Try lowering ligand_target_cutoff (current: ", ligand_target_cutoff, "). ",
+                "Input had ", nrow(active_ligand_target_links_df), " links.")
+        p_ligand_target_network <- ggplot2::ggplot() + ggplot2::labs(title=paste0("No L-T links for heatmap after preparation (cutoff=", ligand_target_cutoff, ")"))
       } else {
         ligands_for_ordering <- base::intersect(best_upstream_ligands, colnames(active_ligand_target_links_matrix)) %>% rev()
         targets_for_ordering <- active_ligand_target_links_df$target %>% unique() %>% base::intersect(rownames(active_ligand_target_links_matrix))
@@ -841,6 +853,17 @@ run_nichenet_analysis <- function(seurat_obj,
             
             # Define the plotting function
             do_circos_plotting <- function() {
+              # Set up plot margins to accommodate legend
+              if (circos_show_legend && length(legend_labels) > 0) {
+                # Adjust margins: bottom, left, top, right
+                # Increase right margin if legend is on the right
+                if (circos_legend_position %in% c("topright", "right", "bottomright")) {
+                  graphics::par(mar = c(5, 4, 4, 8) + 0.1, xpd = TRUE)
+                } else {
+                  graphics::par(mar = c(5, 4, 4, 4) + 0.1, xpd = TRUE)
+                }
+              }
+              
               circlize::circos.clear()
               circlize::chordDiagram(links_df_circos,
                                      order = sector_order,
@@ -857,8 +880,10 @@ run_nichenet_analysis <- function(seurat_obj,
                                       cex=circos_cex_text)
               }, bg.border = NA)
               
-              # Add legend if requested
+              # Add legend if requested - MUST be after chordDiagram
               if (circos_show_legend && length(legend_labels) > 0) {
+                # Ensure xpd=TRUE to allow plotting outside plot region
+                graphics::par(xpd = TRUE)
                 graphics::legend(
                   x = circos_legend_position,
                   legend = legend_labels,
@@ -867,7 +892,8 @@ run_nichenet_analysis <- function(seurat_obj,
                   inset = circos_legend_inset,
                   bg = "white",
                   box.lty = 1,
-                  box.lwd = 1
+                  box.lwd = 1,
+                  title = "Cell Types"
                 )
               }
             }
