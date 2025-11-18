@@ -329,15 +329,26 @@ replot_nichenet_circos <- function(results_file,
   if (verbose) message("Loading results from: ", results_file)
   results <- qs::qread(results_file)
   
-  # Check if results contain NicheNet results
-  if (is.null(results$nichenet_results)) {
-    stop("Results file does not contain 'nichenet_results'. Please check the file structure.")
+  # Check file structure - handle both nested and flat structures
+  # Structure 1: results$nichenet_results$plot_circos (from run_cci_analysis)
+  # Structure 2: results$plot_circos (direct NicheNet results)
+  if (!is.null(results$nichenet_results) && !is.null(results$nichenet_results$plot_circos)) {
+    # Nested structure
+    nichenet_results <- results$nichenet_results
+    plot_circos <- nichenet_results$plot_circos
+    if (verbose) message("Found nested structure: results$nichenet_results$plot_circos")
+  } else if (!is.null(results$plot_circos)) {
+    # Flat structure (direct NicheNet results)
+    nichenet_results <- results
+    plot_circos <- results$plot_circos
+    if (verbose) message("Found flat structure: results$plot_circos")
+  } else {
+    stop("No circos plot found in results. Please check the file structure. ",
+         "Expected either 'results$nichenet_results$plot_circos' or 'results$plot_circos'.")
   }
   
-  nichenet_results <- results$nichenet_results
-  
   # Check if circos plot data exists
-  if (is.null(nichenet_results$plot_circos)) {
+  if (is.null(plot_circos)) {
     stop("No circos plot found in results. The original analysis may not have generated a circos plot.")
   }
   
@@ -356,9 +367,9 @@ replot_nichenet_circos <- function(results_file,
   }
   
   # Replay the original plot
-  if (inherits(nichenet_results$plot_circos, "recordedplot")) {
+  if (inherits(plot_circos, "recordedplot")) {
     # Replay the recorded plot
-    grDevices::replayPlot(nichenet_results$plot_circos)
+    grDevices::replayPlot(plot_circos)
     
     # Note: We cannot easily modify parameters of a recorded plot
     # The user would need to re-run the analysis with different parameters
@@ -370,7 +381,7 @@ replot_nichenet_circos <- function(results_file,
   } else {
     # If it's not a recorded plot, try to plot it directly
     if (verbose) message("Plotting circos plot object...")
-    graphics::plot(nichenet_results$plot_circos)
+    graphics::plot(plot_circos)
   }
   
   if (verbose && !is.null(output_file)) {
@@ -378,7 +389,7 @@ replot_nichenet_circos <- function(results_file,
   }
   
   return(invisible(list(
-    plot = nichenet_results$plot_circos,
+    plot = plot_circos,
     results = nichenet_results,
     metadata = list(
       format = format,
