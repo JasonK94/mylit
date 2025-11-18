@@ -1135,6 +1135,32 @@ find_gene_signature_v5_impl <- function(data,
   completed_methods <- 0
   total_start_time <- Sys.time()
   
+  # Calculate total estimated time if we have cache for all methods
+  total_estimated_sec <- 0
+  methods_with_estimate <- 0
+  for (m_check in method) {
+    if (m_check %in% all_methods) {
+      method_key_check <- paste0("fgs_v5.4_", m_check)
+      est_sec <- if (!is.null(timing_cache[[method_key_check]])) {
+        mean(timing_cache[[method_key_check]], na.rm = TRUE)
+      } else {
+        NA_real_
+      }
+      if (!is.na(est_sec) && est_sec > 0) {
+        total_estimated_sec <- total_estimated_sec + est_sec
+        methods_with_estimate <- methods_with_estimate + 1
+      }
+    }
+  }
+  has_total_estimate <- (methods_with_estimate == total_methods && total_estimated_sec > 0)
+  
+  if (has_total_estimate) {
+    message(sprintf("\n=== FGS v5.4 시작: 총 %d개 메서드, 전체 예상 시간: %.1f분 ===\n",
+                    total_methods, total_estimated_sec / 60))
+  } else {
+    message(sprintf("\n=== FGS v5.4 시작: 총 %d개 메서드 ===\n", total_methods))
+  }
+  
   for (m_idx in seq_along(method)) {
     m <- method[m_idx]
     
@@ -1809,26 +1835,58 @@ find_gene_signature_v5_impl <- function(data,
         # Ignore save errors
       })
       
-      # Calculate remaining time estimate
+      # Improved progress estimation: use actual elapsed time from first completed method
+      # After first method completes, we can estimate remaining time more accurately
       elapsed_total <- as.numeric(difftime(method_end_time, total_start_time, units = "secs"))
-      avg_time_per_method <- elapsed_total / completed_methods
       remaining_methods <- total_methods - completed_methods
-      estimated_remaining <- avg_time_per_method * remaining_methods
       
-      message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분",
-                      m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods, estimated_remaining / 60))
+      if (completed_methods == 1 && remaining_methods > 0) {
+        # First method completed: estimate based on this method's time
+        # So remaining methods will take approximately: elapsed_sec * remaining_methods
+        estimated_remaining <- elapsed_sec * remaining_methods
+        message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (첫 메서드 기준)",
+                        m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods, estimated_remaining / 60))
+      } else if (completed_methods > 1 && remaining_methods > 0) {
+        # Multiple methods completed: use average time
+        avg_time_per_method <- elapsed_total / completed_methods
+        estimated_remaining <- avg_time_per_method * remaining_methods
+        message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (평균 %.1f초/메서드)",
+                        m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods, 
+                        estimated_remaining / 60, avg_time_per_method))
+      } else {
+        # Last method or no remaining methods
+        message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 완료!",
+                        m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods))
+      }
         
       }, error = function(e) {
         warning(sprintf("Method '%s' failed with error: %s", m, e$message))
-        results_list[[m]] <- list(method = m, error = e$message)
+        results_list[[m]] <<- list(method = m, error = e$message)
       
-      # Record execution time even for errors
-      method_end_time <- Sys.time()
-      elapsed_sec <- as.numeric(difftime(method_end_time, method_start_time, units = "secs"))
-      completed_methods <<- completed_methods + 1
-      
-      message(sprintf("✗ %s 실패: %.1f초 | 진행: %d/%d", m, elapsed_sec, completed_methods, total_methods))
-    })
+        # Record execution time even for errors
+        method_end_time <- Sys.time()
+        elapsed_sec <- as.numeric(difftime(method_end_time, method_start_time, units = "secs"))
+        completed_methods <<- completed_methods + 1
+        
+        # Calculate remaining time estimate even for errors
+        elapsed_total <- as.numeric(difftime(method_end_time, total_start_time, units = "secs"))
+        remaining_methods <- total_methods - completed_methods
+        
+        if (completed_methods == 1 && remaining_methods > 0) {
+          estimated_remaining <- elapsed_sec * remaining_methods
+          message(sprintf("✗ %s 실패: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (첫 메서드 기준)",
+                          m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods, estimated_remaining / 60))
+        } else if (completed_methods > 1 && remaining_methods > 0) {
+          avg_time_per_method <- elapsed_total / completed_methods
+          estimated_remaining <- avg_time_per_method * remaining_methods
+          message(sprintf("✗ %s 실패: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (평균 %.1f초/메서드)",
+                          m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods, 
+                          estimated_remaining / 60, avg_time_per_method))
+        } else {
+          message(sprintf("✗ %s 실패: %.1f초 (%.1f분) | 진행: %d/%d",
+                          m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods))
+        }
+      })
     
   } # --- for 루프 끝 ---
   
