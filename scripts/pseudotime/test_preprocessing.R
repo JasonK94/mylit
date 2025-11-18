@@ -8,7 +8,14 @@ if (!requireNamespace("qs", quietly = TRUE)) {
 }
 
 # 전처리 함수 로드
-source("preprocess_data.R")
+# Assume script is run from project root or scripts/pseudotime directory
+if (file.exists("preprocess_data.R")) {
+  source("preprocess_data.R")
+} else if (file.exists("scripts/pseudotime/preprocess_data.R")) {
+  source("scripts/pseudotime/preprocess_data.R")
+} else {
+  stop("Cannot find preprocess_data.R. Please run from project root or scripts/pseudotime directory.")
+}
 
 # --- 1. 다운샘플 데이터 전처리 ---
 message("=== Testing preprocessing on downsampled data ===")

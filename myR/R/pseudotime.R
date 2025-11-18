@@ -2214,56 +2214,8 @@ analyze_branching_dynamics <- function(cds_obj,
     stop("Principal graph not found. Please run learn_graph() first.", call. = FALSE)
   }
   
-  # --- 1. Detect branches ---
-  message("--- Step 1: Detecting branches ---")
-  
-  # Get principal graph
-  principal_graph <- monocle3::principal_graph(cds_obj)
-  
-  # Get cell-to-principal-point mappings
-  cell_point_mappings <- tryCatch({
-    monocle3::principal_graph_aux(cds_obj)$pr_graph_cell_proj_closest_vertex
-  }, error = function(e) {
-    warning("Could not extract cell-to-principal-point mappings: ", e$message, call. = FALSE)
-    return(NULL)
-  })
-  
-  if (is.null(cell_point_mappings)) {
-    stop("Could not extract cell-to-principal-point mappings. Graph may not be properly learned.", call. = FALSE)
-  }
-  
-  # Identify branching points (nodes with degree > 2)
-  graph_adjacency <- tryCatch({
-    if (requireNamespace("igraph", quietly = TRUE)) {
-      igraph::as_adjacency_matrix(principal_graph, sparse = FALSE)
-    } else {
-      warning("igraph package not available. Skipping branching point detection.", call. = FALSE)
-      NULL
-    }
-  }, error = function(e) {
-    warning("Could not extract graph adjacency: ", e$message, call. = FALSE)
-    return(NULL)
-  })
-  
-  branching_points <- list()
-  if (!is.null(graph_adjacency)) {
-    node_degrees <- rowSums(graph_adjacency > 0)
-    branching_node_indices <- which(node_degrees > 2)
-    
-    if (length(branching_node_indices) > 0) {
-      branching_points <- list(
-        node_indices = branching_node_indices,
-        node_degrees = node_degrees[branching_node_indices],
-        n_branching_points = length(branching_node_indices)
-      )
-      message("Found ", length(branching_node_indices), " branching point(s)")
-    } else {
-      message("No branching points detected (all nodes have degree <= 2)")
-    }
-  }
-  
-  # --- 2. Assign cells to branches ---
-  message("--- Step 2: Assigning cells to branches ---")
+  # --- 1. Assign cells to branches ---
+  message("--- Step 1: Assigning cells to branches ---")
   
   # Use partition information if available
   partitions <- tryCatch({
@@ -2273,7 +2225,7 @@ analyze_branching_dynamics <- function(cds_obj,
   })
   
   branch_assignments <- NULL
-  if (!is.null(partitions)) {
+  if (!is.null(partitions) && length(unique(partitions)) > 1) {
     unique_partitions <- unique(partitions)
     message("Found ", length(unique_partitions), " partition(s)")
     
@@ -2298,7 +2250,7 @@ analyze_branching_dynamics <- function(cds_obj,
       monocle3::pData(cds_obj)$cluster
     }, error = function(e) NULL)
     
-    if (!is.null(cluster_info)) {
+    if (!is.null(cluster_info) && length(unique(cluster_info)) > 1) {
       message("Using cluster information for branch assignment")
       branch_assignments <- factor(cluster_info)
       names(branch_assignments) <- colnames(cds_obj)
@@ -2309,9 +2261,68 @@ analyze_branching_dynamics <- function(cds_obj,
       if (length(valid_branches) >= 2) {
         branch_assignments <- branch_assignments[branch_assignments %in% valid_branches]
         message("Valid branches: ", length(valid_branches))
+      } else {
+        warning("Less than 2 valid clusters found for branch assignment.", call. = FALSE)
       }
     } else {
-      warning("Could not determine branch assignments. Partition or cluster information not available.", call. = FALSE)
+      # Last resort: try to use pseudotime-based splitting
+      message("Attempting pseudotime-based branch assignment...")
+      pt_values <- tryCatch({
+        monocle3::pseudotime(cds_obj)
+      }, error = function(e) NULL)
+      
+      if (!is.null(pt_values) && !all(is.infinite(pt_values))) {
+        # Split by pseudotime median
+        pt_median <- median(pt_values[is.finite(pt_values)], na.rm = TRUE)
+        branch_assignments <- factor(ifelse(pt_values <= pt_median, "early", "late"))
+        names(branch_assignments) <- colnames(cds_obj)
+        
+        branch_counts <- table(branch_assignments)
+        valid_branches <- names(branch_counts)[branch_counts >= min_cells_per_branch]
+        
+        if (length(valid_branches) >= 2) {
+          branch_assignments <- branch_assignments[branch_assignments %in% valid_branches]
+          message("Valid branches (pseudotime-based): ", length(valid_branches))
+        } else {
+          warning("Could not determine branch assignments. Insufficient cells in pseudotime-based branches.", call. = FALSE)
+        }
+      } else {
+        warning("Could not determine branch assignments. Partition, cluster, or pseudotime information not available.", call. = FALSE)
+      }
+    }
+  }
+  
+  # --- 2. Detect branching points (optional) ---
+  branching_points <- list()
+  
+  if (!is.null(branch_assignments) && length(unique(branch_assignments)) >= 2) {
+    # Try to detect branching points from graph structure
+    principal_graph <- tryCatch({
+      monocle3::principal_graph(cds_obj)
+    }, error = function(e) NULL)
+    
+    if (!is.null(principal_graph)) {
+      graph_adjacency <- tryCatch({
+        if (requireNamespace("igraph", quietly = TRUE)) {
+          igraph::as_adjacency_matrix(principal_graph, sparse = FALSE)
+        } else {
+          NULL
+        }
+      }, error = function(e) NULL)
+      
+      if (!is.null(graph_adjacency)) {
+        node_degrees <- rowSums(graph_adjacency > 0)
+        branching_node_indices <- which(node_degrees > 2)
+        
+        if (length(branching_node_indices) > 0) {
+          branching_points <- list(
+            node_indices = branching_node_indices,
+            node_degrees = node_degrees[branching_node_indices],
+            n_branching_points = length(branching_node_indices)
+          )
+          message("Found ", length(branching_node_indices), " branching point(s) in graph")
+        }
+      }
     }
   }
   
