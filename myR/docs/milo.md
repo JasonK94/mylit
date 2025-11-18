@@ -60,17 +60,20 @@ MiloR 차등 풍부도 분석의 전체 파이프라인을 실행하는 통합 �
 | `d` | 차원 축소 차원 수 | `30` |
 | `prop` | Neighborhood 생성 비율 | `0.1` |
 | `alpha` | 유의성 임계값 | `0.1` |
+| `target_include` | `target_var` 값 중 포함할 그룹 (예: `c("low","high")`) | `NULL` |
+| `target_levels` | `target_var` factor 순서를 강제하는 벡터 (`c("low","high")`) | `NULL` |
 | `save` | 중간 결과 저장 여부 | `TRUE` |
 | `output_dir` | 결과 저장 디렉터리 | `tempdir()/milo` |
 | `prefix` | 파일명 접두사 | `"milo"` |
 | `suffix` | 파일명 접미사 (자동 증가) | `NULL` |
+| `cache_files` | `nhoods`, `distances`, `da_milo`, `da_results`, `plots` 등 지정한 단계만 캐시로 재사용 | `NULL` |
 | `force_run` | 캐시 무시하고 재실행 여부 | `FALSE` |
 | `plotting` | 시각화 수행 여부 | `TRUE` |
 | `max_cells` | 다운샘플링할 최대 세포 수 | `NULL` |
 
 #### 반환값
 - `milo`: Milo 객체
-- `da_results`: 차등 풍부도 검정 결과 데이터프레임
+- `da_results`: 차등 풍부도 검정 결과 (기존 열 + `comparison_reference`, `comparison_test`, `comparison_label`, `enriched_in`가 포함되어 logFC 방향을 바로 확인 가능)
 - `plots`: 시각화 객체 리스트 (UMAP, nhood graph, beeswarm plot)
 
 #### 사용 예시
@@ -188,6 +191,17 @@ cluster_bias_full <- test_cluster_logfc_bias(
     test_methods = c("permutation", "neff", "lmm", "ashr")
 )
 ```
+
+### logFC 방향 해석과 레벨 제어
+- `target_include`: `target_var` 값 중 비교에 사용할 그룹만 남깁니다. 예를 들어 `target_include = c("low","high")`로 지정하면 "middle" 샘플은 countCells 이전에 제거됩니다.
+- `target_levels`: factor 순서를 고정합니다. `target_levels = c("low","high")`이면 `logFC > 0` 은 `high`가 `low`보다 풍부하다는 뜻이며, `comparison_reference = "low"`, `comparison_test = "high"`가 `da_results`에 기록됩니다.
+- `testNhoods()`는 기본적으로 factor의 첫 번째 레벨을 reference로, 두 번째 레벨을 contrast로 사용합니다. 레벨이 3개 이상이면 R의 더미 코딩 규칙을 따르므로, 관심 있는 두 수준만 비교하려면 `target_include` 또는 `target_levels`로 명시하는 것이 좋습니다.
+- `da_results$enriched_in`은 `logFC` 부호를 기준으로 어느 그룹이 풍부한지를 텍스트로 보여주며, `milo$commands$.milo_run_da` 로그에도 동일 정보가 저장됩니다.
+
+### 캐시 관리와 command 로그
+- `cache_files = list(nhoods = "/abs/path/01_nhoods.qs", ...)`처럼 전달하면 해당 단계만 캐시를 재사용하고, 명시하지 않은 단계는 항상 재계산합니다. 부분 지정 시 `save = TRUE` && `suffix = NULL`이면 타임스탬프 기반 suffix가 자동 부여되어 새로운 `.qs` 출력이 기존 캐시를 덮어쓰지 않습니다.
+- 모든 `.milo_run_da()` 호출은 `milo$commands`에 기록됩니다. 여기에는 사용한 캐시 경로, `target_include`, `target_levels`, FDR 가중치, 비교 참조/테스트 그룹 등 복원에 필요한 정보가 담깁니다.
+- Plot 번들은 이제 `.rds`가 아닌 `.qs`로 저장되며, `cache_files$plots`를 지정해 재사용할 수 있습니다.
 
 ## 검정 방법 상세
 

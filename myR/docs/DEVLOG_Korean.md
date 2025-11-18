@@ -158,6 +158,19 @@
   - 검정 방법 간 결과 비교 및 검증
   - 실제 데이터셋에서의 성능 평가
 
+## 2025-11-17 — Milo 캐시 오버라이드 & 타깃 비교 명시화 (`milo` 브랜치)
+- **작성자**: GPT-5.1 Codex  
+- **요약**: `run_milo_pipeline()`에 캐시 경로 명시 옵션(`cache_files`), 그룹 필터(`target_include`), factor 순서 고정(`target_levels`), logFC 방향 레이블을 추가하고 실행 커맨드를 `milo$commands`에 기록.  
+- **세부 사항**:
+  - `da_results`에 `comparison_reference`, `comparison_test`, `comparison_label`, `enriched_in` 열을 추가해 logFC>0이 어느 그룹 풍부도를 의미하는지 즉시 해석 가능하도록 했고, 동일 정보를 `milo$commands`에도 남겨 캐시 재사용 상태를 추적.
+  - `cache_files`로 `nhoods`/`distances`/`testing`/`plots` `.qs` 경로를 직접 지정할 수 있게 했으며, beeswarm·UMAP 묶음은 `.rds` 대신 `.qs`로 저장된다. 캐시 사용 내역은 실행 로그에 포함된다.
+  - `cache_files`를 부분 지정하면 명시된 단계만 캐시를 사용하고 나머지는 강제로 재계산하며, `save = TRUE` & `suffix = NULL`일 때는 타임스탬프 기반 suffix가 자동 부여되어 기존 `.qs`를 덮어쓰지 않는다.
+  - `test_cluster_logfc_bias()`의 block permutation이 block 내부에서만 셔플하던 버그를 고쳐, block별 평균(가중치 포함)을 셔플하도록 수정했다. 이제 `p_perm`이 이론적으로 타당한 분포를 갖는다.
+  - `target_include`로 “middle” 같은 그룹을 완전히 제거하고, `target_levels`로 참조/테스트 순서를 강제해 `testNhoods()`의 alphabetic 정렬 문제를 제거했다. 잘못된 prefix/suffix, `SingleCellExperiment::colData<-` 강제, GEM suffix 제거 등 과거 LLM의 뻘 패치는 `context*.md`에 정리해 재발을 방지했다. 실험용 `test_milo_stepwise.R`는 삭제했다.
+- **다음 단계**:
+  - 캐시 `.qs`에 셀/피처 카운트 해시를 저장해 다른 데이터가 같은 파일명을 사용할 위험을 줄인다.
+  - `milo$commands` 로그를 DEVLOG/CHANGELOG 자동 요약에 활용하는 방안을 검토한다.
+
 ---
 
 ### 향후 계획

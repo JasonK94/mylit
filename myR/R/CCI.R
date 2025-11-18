@@ -54,6 +54,18 @@ ligand_to_target=function(ligand,target,NN_data=NicheNetData,ligand_tf_matrix=NU
 #' @param receiver_DE_ident1 Character string, the identity for `ident.1` in `FindMarkers` for DE analysis within the `receiver_celltype`.
 #' @param receiver_DE_ident2 Character string, the identity for `ident.2` in `FindMarkers` (e.g., control group). Can be NULL if comparing against all other cells in `receiver_DE_group_by`.
 #' @param receiver_DE_group_by Character string, the metadata column used for `group.by` in `FindMarkers` for DE analysis within the `receiver_celltype`.
+#' @param receiver_de_table Optional data frame containing precomputed DE statistics for the receiver cell type.
+#'        Must include a gene identifier column and at least one effect-size column (e.g., `avg_log2FC`) plus a p-value column
+#'        (e.g., `p_val_adj`). When provided, internal `FindMarkers` calls are skipped and this table is used directly.
+#' @param receiver_gene_col Character string, name of the gene column in `receiver_de_table`. Default: `"gene"`.
+#' @param receiver_logfc_col Character string or NULL, name of the log fold-change column in `receiver_de_table`.
+#'        If NULL, the column is auto-detected among `avg_log2FC`, `avg_logFC`, or `logFC`.
+#' @param receiver_pval_col Character string or NULL, name of the adjusted p-value column in `receiver_de_table`.
+#'        If NULL, the column is auto-detected among `p_val_adj`, `FDR`, or `p_val`.
+#' @param receiver_de_table Optional data frame containing precomputed DE results for the receiver cell type.
+#'        Must include a `gene` column (or gene rownames) and either `avg_log2FC`/`logFC` plus a p-value column
+#'        (`p_val_adj`, `FDR`, or `p_val`). When provided, internal `FindMarkers` calls are skipped and these
+#'        results are used (still filtered using `p_val_adj_cutoff` and `logfc_cutoff`).
 #' @param min_pct_expressed Numeric, minimum fraction of cells in which a gene must be expressed in sender/receiver groups for initial filtering. Default: 0.10.
 #' @param p_val_adj_cutoff Numeric, adjusted p-value cutoff for DEGs. Default: 0.05.
 #' @param logfc_cutoff Numeric, log fold-change cutoff for DEGs (positive values for upregulation in ident1). Default: 0.25.
@@ -110,6 +122,7 @@ ligand_to_target=function(ligand,target,NN_data=NicheNetData,ligand_tf_matrix=NU
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom circlize circos.clear chordDiagram circos.track circos.text uy mm_h CELL_META
 #' @importFrom evaluate evaluate
+#' @importFrom rlang sym
 #' @export
 run_nichenet_analysis <- function(seurat_obj,
                                   species = c("human", "mouse"),
@@ -120,6 +133,7 @@ run_nichenet_analysis <- function(seurat_obj,
                                   receiver_DE_ident1,
                                   receiver_DE_ident2 = NULL,
                                   receiver_DE_group_by,
+                                  receiver_de_table = NULL,
                                   min_pct_expressed = 0.10,
                                   p_val_adj_cutoff = 0.05,
                                   logfc_cutoff = 0.25,

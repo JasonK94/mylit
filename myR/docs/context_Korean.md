@@ -52,6 +52,11 @@
 - `plotDAbeeswarm()`의 `alpha` 임계값과 색상 스케일은 SpatialFDR 분포를 전제로 한다. 기준보다 작은 값이 없을 경우 오류가 발생하므로, 메트릭을 `PValue`·`logFC` 백분위 등으로 교체하거나 `alpha`를 조정한다.
 - Milo 워크플로 각 단계는 계산 비용이 크므로, 중간 산출물을 저장하고 `force_run` 플래그로 재실행 여부를 제어하는 패턴을 유지한다.
 - Milo 스크립트는 `st/` 디렉터리에서 `start.R`을 통해 초기화된 `renv` 환경에서만 실행한다. 루트에서 바로 R 세션을 열면 `Seurat`, `miloR`, `cli` 등 필수 패키지가 누락되어 파이프라인이 실패한다.
+- 핵심 함수(`run_milo_pipeline()` 등)는 반드시 `myR/R/` 최상위에 둔다. 하위 폴더에 두면 namespace에 export되지 않아 `myR::run_milo_pipeline`을 찾을 수 없다.
+- `SingleCellExperiment::colData<-` 같은 네임스페이스 지정 setter는 사용하지 않는다. 특정 버전에서 export되지 않아 `'not an exported object'` 오류가 발생한다.
+- GEM barcode suffix(`-1`, `-2`)를 임의로 제거하거나 샘플 ID를 손대지 않는다. 과거 LLM이 suffix를 없앴다가 sample ID 중복으로 DA 단계 전체가 실패했다.
+- 자동화 스크립트에서 `git switch`를 사용하지 않는다. 잘못된 worktree를 checkout해 작업물이 소실될 뻔한 문제가 있었다.
+- 캐시 `.qs`를 재사용할 때는 동일 데이터인지 확인한다. 필요하면 `cache_files` 인자로 경로를 명시하고 실행 후 `milo$commands` 로그를 검토한다.
 
 ## 코드 품질 & 스타일
 1. **가독성**: 기존 스타일을 따르며 읽기 쉬운 구조와 주석을 유지합니다.
