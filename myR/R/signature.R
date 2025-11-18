@@ -2148,6 +2148,22 @@ TML7 <- function(
       try(foreach::registerDoSEQ(), silent = TRUE)
     }
   }
+  
+  # CRITICAL: Set global xgboost config to single-threaded BEFORE any operations
+  # This must be done early to prevent xgboost from spawning threads
+  if (requireNamespace("xgboost", quietly = TRUE)) {
+    tryCatch({
+      if (exists("xgb.set.config", envir = asNamespace("xgboost"))) {
+        xgboost::xgb.set.config(nthread = 1, verbosity = 0)
+      }
+      options(xgboost.nthread = 1)
+    }, error = function(e) {
+      # If xgb.set.config fails, at least set the option
+      options(xgboost.nthread = 1)
+    })
+    # Also set environment variable that xgboost checks at C level
+    Sys.setenv(XGBOOST_NTHREAD = "1")
+  }
 
   # Strict CPU core limiting to prevent cascade parallelization
   # Especially important when child processes load start.R which may spawn more workers
@@ -2497,48 +2513,135 @@ TML7 <- function(
     
     l2_method_start_time <- Sys.time()
     
-    # Method-specific parallel disabling
+    # === STRATEGY 1: Force cleanup of all parallel backends before caret::train ===
+    # This prevents caret from using any registered parallel backends
+    if (requireNamespace("doParallel", quietly = TRUE)) {
+      tryCatch({
+        # Stop any implicit cluster
+        doParallel::stopImplicitCluster()
+      }, error = function(e) {
+        # Ignore if no cluster exists
+      })
+      tryCatch({
+        # Force sequential backend
+        doParallel::registerDoSEQ()
+      }, error = function(e) {
+        # Ignore errors
+      })
+    }
+    
+    if (requireNamespace("foreach", quietly = TRUE)) {
+      tryCatch({
+        foreach::registerDoSEQ()
+      }, error = function(e) {})
+    }
+    
+    if (requireNamespace("doMC", quietly = TRUE)) {
+      tryCatch({
+        doMC::registerDoMC(cores = 1)
+      }, error = function(e) {})
+    }
+    
+    # === STRATEGY 2: Re-set environment variables before each model ===
+    # Ensure BLAS/LAPACK threads are still limited
+    Sys.setenv(
+      OMP_NUM_THREADS = "1",
+      OPENBLAS_NUM_THREADS = "1",
+      MKL_NUM_THREADS = "1",
+      VECLIB_MAXIMUM_THREADS = "1",
+      NUMEXPR_NUM_THREADS = "1"
+    )
+    
+    # === STRATEGY 3: Model-specific thread limits (ENHANCED) ===
+    # CRITICAL: Model packages (xgboost, ranger) use C/C++ level parallel processing
+    # Even with nthread=1, they may spawn threads. We need to set global configs.
     if (m == "xgbTree" && requireNamespace("xgboost", quietly = TRUE)) {
-      # xgboost nthread 설정
-      xgb_params <- list(nthread = 1)
+      # xgboost: Set global config BEFORE any xgboost operations
+      # This must be done at the C level, not just R level
+      tryCatch({
+        # Set global xgboost config to single-threaded
+        if (exists("xgb.set.config", envir = asNamespace("xgboost"))) {
+          xgboost::xgb.set.config(nthread = 1, verbosity = 0)
+        }
+        # Also set R-level option as backup
+        options(xgboost.nthread = 1)
+      }, error = function(e) {
+        # If xgb.set.config fails, at least set the option
+        options(xgboost.nthread = 1)
+      })
+      # CRITICAL: Also set environment variable that xgboost checks at C level
+      Sys.setenv(OMP_NUM_THREADS = "1")
+      Sys.setenv(XGBOOST_NTHREAD = "1")
     } else if (m == "ranger" && requireNamespace("ranger", quietly = TRUE)) {
-      # ranger num.threads 설정
-      ranger_params <- list(num.threads = 1)
-    } else {
-      xgb_params <- NULL
-      ranger_params <- NULL
+      # ranger: Set global option (ranger checks this at C level)
+      options(ranger.num.threads = 1)
+      # CRITICAL: ranger also respects OMP_NUM_THREADS
+      Sys.setenv(OMP_NUM_THREADS = "1")
+    } else if (m %in% c("glmnet", "nnet", "earth", "mlp", "mlpKerasDropout")) {
+      # These use OpenMP, ensure it's limited
+      Sys.setenv(OMP_NUM_THREADS = "1")
+    }
+    
+    # === STRATEGY 4: Garbage collection before training ===
+    # Clean up memory to reduce overhead
+    gc(verbose = FALSE)
+    
+    # === Train model with all safeguards ===
+    # CRITICAL: Wrap caret::train in a function that enforces single-threading
+    # This ensures that even if caret spawns child processes, they inherit our settings
+    train_with_strict_limits <- function(...) {
+      # Re-assert environment variables inside the function
+      # This ensures child processes (if any) inherit these settings
+      old_env <- Sys.getenv(c("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", 
+                              "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"))
+      on.exit({
+        # Restore old environment (though we want to keep limits)
+        do.call(Sys.setenv, as.list(old_env))
+      }, add = TRUE)
+      
+      # Force single-threading environment
+      Sys.setenv(
+        OMP_NUM_THREADS = "1",
+        OPENBLAS_NUM_THREADS = "1",
+        MKL_NUM_THREADS = "1",
+        VECLIB_MAXIMUM_THREADS = "1",
+        NUMEXPR_NUM_THREADS = "1"
+      )
+      
+      # Call caret::train
+      caret::train(...)
     }
     
     if (m == "xgbTree") {
       # R-level warning은 suppressWarnings로, C-level 로그는 위에서 xgb.set.config(verbosity=0)로 최대한 억제
       fit <- try(
         suppressWarnings(
-          caret::train(
+          train_with_strict_limits(
             x = l2_train_df,
             y = l2_target,
             method = m,
             trControl = ctrl,
             metric = caret_metric,
             tuneLength = 5,
-            nthread = 1  # Force single-threaded xgboost
+            nthread = 1  # Force single-threaded xgboost (also set globally above)
           )
         ), silent = TRUE
       )
     } else if (m == "ranger") {
       fit <- try(
-        caret::train(
+        train_with_strict_limits(
           x = l2_train_df,
           y = l2_target,
           method = m,
           trControl = ctrl,
           metric = caret_metric,
           tuneLength = 5,
-          num.threads = 1  # Force single-threaded ranger
+          num.threads = 1  # Force single-threaded ranger (also set globally above)
         ), silent = TRUE
       )
     } else {
       fit <- try(
-        caret::train(
+        train_with_strict_limits(
           x = l2_train_df,
           y = l2_target,
           method = m,
@@ -2548,13 +2651,29 @@ TML7 <- function(
         ), silent = TRUE
       )
     }
+    
+    # === STRATEGY 5: Cleanup after training ===
+    # Force cleanup again after training to prevent accumulation
+    if (requireNamespace("doParallel", quietly = TRUE)) {
+      tryCatch({
+        doParallel::stopImplicitCluster()
+        doParallel::registerDoSEQ()
+      }, error = function(e) {})
+    }
+    if (requireNamespace("foreach", quietly = TRUE)) {
+      tryCatch({
+        foreach::registerDoSEQ()
+      }, error = function(e) {})
+    }
+    gc(verbose = FALSE)
     l2_method_end_time <- Sys.time()
     elapsed_sec <- as.numeric(difftime(l2_method_end_time, l2_method_start_time, units = "secs"))
     
     if (inherits(fit, "try-error")) {
       warning(sprintf("Failed to train '%s': %s", m, as.character(fit)))
       completed_l2_methods <- completed_l2_methods + 1
-      message(sprintf("✗ %s 실패: %.1f초 | 진행: %d/%d", m, elapsed_sec, completed_l2_methods, total_l2_methods))
+      message(sprintf("✗ %s 실패: %.1f초 (%.1f분) | 진행: %d/%d", 
+                      m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods))
     } else {
       model_list[[m]] <- fit
       completed_l2_methods <- completed_l2_methods + 1
@@ -2576,14 +2695,43 @@ TML7 <- function(
         # Ignore
       })
       
-      # Calculate remaining time estimate
+      # Improved progress estimation: use actual elapsed time from first completed method
+      # After first method completes, we can estimate remaining time more accurately
       elapsed_total <- as.numeric(difftime(l2_method_end_time, tml_start_time, units = "secs"))
-      avg_time_per_method <- elapsed_total / completed_l2_methods
       remaining_methods <- total_l2_methods - completed_l2_methods
-      estimated_remaining <- avg_time_per_method * remaining_methods
       
-      message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분",
-                      m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods, estimated_remaining / 60))
+      if (completed_l2_methods == 1 && remaining_methods > 0) {
+        # First method completed: estimate based on this method's time
+        # For CV with k_folds, we can estimate: this method took elapsed_sec for all folds
+        # So remaining methods will take approximately: elapsed_sec * remaining_methods
+        estimated_remaining <- elapsed_sec * remaining_methods
+        message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (첫 모델 기준)",
+                        m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods, estimated_remaining / 60))
+      } else if (completed_l2_methods > 1 && remaining_methods > 0) {
+        # Multiple methods completed: use average time
+        avg_time_per_method <- elapsed_total / completed_l2_methods
+        estimated_remaining <- avg_time_per_method * remaining_methods
+        
+        # Also show per-fold estimate if we have CV fold info
+        # Note: caret doesn't expose fold-level timing, but we can estimate based on k_folds
+        if (!is.null(k_folds) && k_folds > 1) {
+          # Estimate: if this method took elapsed_sec for k_folds, each fold takes ~elapsed_sec/k_folds
+          # For remaining methods: (elapsed_sec/k_folds) * k_folds * remaining_methods = elapsed_sec * remaining_methods
+          # But we use the average across completed methods for better accuracy
+          avg_per_fold <- avg_time_per_method / k_folds
+          message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (평균 %.1f초/모델, %.2f초/fold)",
+                          m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods, 
+                          estimated_remaining / 60, avg_time_per_method, avg_per_fold))
+        } else {
+          message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (평균 %.1f초/모델)",
+                          m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods, 
+                          estimated_remaining / 60, avg_time_per_method))
+        }
+      } else {
+        # Last method or no remaining methods
+        message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 완료!",
+                        m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods))
+      }
     }
   }
   
