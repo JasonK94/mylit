@@ -55,10 +55,10 @@ covar_key="sex"
 cluster_key="anno3.scvi"
 ```
 
-### 2. runMUSCAT2_v1 테스트
+### 2. runMUSCAT 테스트
 ```r
 # 처음 3개 클러스터만 테스트
-res_muscat2 <- runMUSCAT2_v1(
+res_muscat2 <- runMUSCAT(
   sobj = is5s,
   cluster_id = cluster_key,
   sample_id = sample_key,
@@ -81,7 +81,7 @@ qs::qsave(res_muscat2, "/data/user3/sobj/test_muscat2_v1_result.qs")
 ### 3. 전체 클러스터 테스트
 ```r
 # 전체 클러스터 테스트
-res_muscat2 <- runMUSCAT2_v1(
+res_muscat2 <- runMUSCAT(
   sobj = is5s,
   cluster_id = cluster_key,
   sample_id = sample_key,
@@ -103,7 +103,7 @@ qs::qsave(res_muscat2, "/data/user3/sobj/test_muscat2_v1_result.qs")
 ### 4. 원본데이터 테스트
 ```r
 # 원본 데이터로 테스트
-res_muscat3 <- runMUSCAT2_v1(
+res_muscat3 <- runMUSCAT(
   sobj = is5,
   cluster_id = cluster_key,
   sample_id = sample_key,
@@ -139,9 +139,9 @@ source("/home/user3/data_user3/git_repo/mylit/scripts/test_functions.R")
 ## 결과 확인
 
 ### 결과 파일 위치
-- `test_muscat2_v1_result.qs`: runMUSCAT2_v1 결과
-- `test_nebula2_v1_result.qs`: runNEBULA2_v1 결과
-- `test_nebula2_v1_with_pseudobulk_result.qs`: runNEBULA2_v1_with_pseudobulk 결과
+- `test_muscat2_v1_result.qs`: runMUSCAT 결과
+- `test_nebula2_v1_result.qs`: runNEBULA 결과
+- `test_nebula2_v1_with_pseudobulk_result.qs`: runNEBULA (pseudobulk mode) 결과
 
 ### 결과 로드
 ```r
@@ -169,9 +169,9 @@ str(res_nebula2_pb, max.level = 2)
 2. **메모리**: 큰 데이터셋의 경우 메모리 사용량이 많을 수 있습니다
 
 3. **실행 시간**: 
-   - runMUSCAT2_v1: 수 분 ~ 수십 분
-   - runNEBULA2_v1: 수십 분 ~ 수 시간
-   - runNEBULA2_v1_with_pseudobulk: 수십 분 ~ 수 시간
+   - runMUSCAT: 수 분 ~ 수십 분
+   - runNEBULA: 수십 분 ~ 수 시간
+   - runNEBULA (pseudobulk mode): 수십 분 ~ 수 시간
 
 4. **g3 결측치**: g3 변수에 결측치가 있을 수 있으므로 `remove_na_cells=TRUE` 사용 권장
 

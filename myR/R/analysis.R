@@ -555,7 +555,7 @@ run_spearman_pseudobulk <- function(sobj, ordinal_var, patient_col, assay = "RNA
 #' this function.
 #'
 #' @export
-runMAST_v1 <- function(sobj,
+runMAST <- function(sobj,
                     formula,
                     min_cells_expr = 10,
                     n_cores = 4,
@@ -646,9 +646,9 @@ runMAST_v1 <- function(sobj,
 
 
 #' @export
-runMAST <- function(...) {
-  .Deprecated("runMAST_v1", package = "myR")
-  runMAST_v1(...)
+runMAST_v1 <- function(...) {
+  .Deprecated("runMAST", package = "myR")
+  runMAST(...)
 }
 
 
@@ -678,349 +678,40 @@ runMAST <- function(...) {
 #' similar utilities.
 #'
 #' @export
-runNEBULA_v1 <- function(sobj,
-                                layer = "counts",
-                                fixed_effects = c("target_col", "celltype_col"),
-                                covar_effects = c("batch_col"),
-                                patient_col = "patient_col",
-                                offset = "nCount_RNA",
-                                min_count = 10) {
-  
-  # --- 0. 데이터 추출 ---
-  meta <- sobj@meta.data
-  counts <- GetAssayData(sobj, layer = layer) # dgCMatrix (희소 행렬)
-  
-  # --- 1. 유전자 필터링 ---
-  message(sprintf("1/6: 유전자 필터링 (min %d cells)...", min_count))
-  keep_genes <- rowSums(counts > 0) >= min_count
-  counts_filtered <- counts[keep_genes, ]
-  message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(counts)))
-  
-  # --- 2. NA 값 확인 및 제거 ---
-  # [수정] NEBULA는 'covar_effects'도 고정 효과로 처리해야 함
-  all_fixed_vars <- c(fixed_effects, covar_effects)
-  
-  # [수정] NA 체크할 모든 변수 목록
-  vars_to_check <- c(all_fixed_vars, patient_col, offset)
-  
-  message("2/6: 모델 변수에서 NA 값 확인 중...")
-  message(paste("... 확인 대상:", paste(vars_to_check, collapse = ", ")))
-  
-  keep_cells_idx <- complete.cases(meta[, vars_to_check])
-  n_removed <- sum(!keep_cells_idx)
-  
-  if (n_removed > 0) {
-    message(sprintf("... NA 값으로 인해 %d 개의 세포를 제거합니다.", n_removed))
-  }
-  
-  # NA가 없는 '깨끗한' 데이터 생성
-  meta_clean <- meta[keep_cells_idx, ]
-  counts_clean <- counts_filtered[, keep_cells_idx]
-  
-  message(sprintf("... 최종 분석 대상 세포: %d 개", nrow(meta_clean)))
-  
-  # --- 3. 디자인 행렬 및 벡터 생성 ---
-  message("3/6: 디자인 행렬 및 벡터 생성 중...")
-  
-  # [수정] 범주형 변수와 숫자형 변수 분리
-  # 'offset'은 숫자로 유지해야 함!
-  factor_vars <- c(all_fixed_vars, patient_col)
-  
-  # [수정] lapply + as.factor 적용 (오타 수정 as.factors -> as.factor)
-  meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], as.factor)
-  
-  # [수정] 'offset'은 numeric으로 강제 변환 (안전장치)
-  meta_clean[[offset]] <- as.numeric(meta_clean[[offset]])
-  if (any(is.na(meta_clean[[offset]]))) {
-      stop(sprintf("'%s' 컬럼에 NA가 아닌 숫자형 값만 있어야 합니다.", offset))
-  }
-  
-  # [수정] 'formula' 인수를 없애고, 변수명으로부터 동적 생성
-  formula_str <- paste("~", paste(all_fixed_vars, collapse = " + "))
-  message(sprintf("... 사용할 고정 효과 포뮬러: %s", formula_str))
-  
-  design_matrix <- model.matrix(as.formula(formula_str), data = meta_clean)
-  
-  # id 및 offset 벡터 추출
-  id_vector <- meta_clean[[patient_col]]
-  offset_vector <- meta_clean[[offset]]
-  
-  # --- 4. group_cell()로 데이터 정렬 ---
-  message(sprintf("4/6: NEBULA를 위해 id (%s) 기준으로 데이터 정렬 중...", patient_col))
-  data_grouped <- nebula::group_cell(
-    count = counts_clean,
-    id = id_vector,
-    pred = design_matrix,
-    offset = offset_vector
-  )
-  
-  # --- 5. NEBULA 실행 ---
-  message("5/6: NEBULA 실행 중 (NBLMM)...")
-  # Add stability options to prevent convergence issues
-  re_nebula <- tryCatch({
-    nebula::nebula(
-      count = data_grouped$count,
-      id = data_grouped$id,
-      pred = data_grouped$pred,
-      offset = data_grouped$offset,
-      model = "NBLMM", # lme4::glmer.nb와 유사한 Lognormal random effect 권장
-      method = "HL" # Use HL (Hessian-Laplace) method for stability
-    )
-  }, error = function(e) {
-    # If HL fails, try with fewer genes or different method
-    warning("NEBULA with HL method failed, trying with default settings...")
-    tryCatch({
-      nebula::nebula(
-        count = data_grouped$count,
-        id = data_grouped$id,
-        pred = data_grouped$pred,
-        offset = data_grouped$offset,
-        model = "NBLMM"
-      )
-    }, error = function(e2) {
-      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", 
-                   conditionMessage(e2)))
-    })
-  })
-  
-  # --- 6. 결과 반환 ---
-  message("6/6: 분석 완료.")
-  
-  # [수정] 함수는 결과를 'return' 해야 함
-  return(re_nebula)
+runNEBULA_v1 <- function(...) {
+  .Deprecated("runNEBULA", package = "myR")
+  runNEBULA(...)
 }
+
+
+
+#' @keywords internal
+#' @noRd
+#' Legacy wrapper retained for backwards compatibility.
+runMUSCAT_v5 <- function(...) {
+  .Deprecated("runMUSCAT", package = "myR")
+  runMUSCAT(..., remove_na_groups = FALSE)
+}
+
+runMUSCAT2_v1 <- function(...) {
+  .Deprecated("runMUSCAT", package = "myR")
+  runMUSCAT(..., remove_na_groups = TRUE)
+}
+
 
 
 #' @export
-runNEBULA <- function(...) {
-  .Deprecated("runNEBULA_v1", package = "myR")
-  runNEBULA_v1(...)
-}
 
-
-
-#' Run MUSCAT Analysis (v5 - Pseudobulking)
-#'
-#' @description
-#' Performs differential expression analysis using MUSCAT (Multi-sample
-#' Multi-condition DE analysis). This function automatically performs
-#' pseudobulking by aggregating cells within each cluster and sample, then
-#' applies edgeR, DESeq2, or limma-voom for differential expression testing.
-#'
-#' @param sobj Seurat object
-#' @param cluster_id Column name for cell type/cluster (default: "seurat_clusters")
-#' @param sample_id Column name for sample ID (default: "hos_no")
-#' @param group_id Column name for group/condition (default: "type")
-#' @param batch_id Optional column name for batch variable
-#' @param contrast Contrast string (e.g., "IS - SAH")
-#' @param method DE method: "edgeR", "DESeq2", "limma-trend", or "limma-voom"
-#'   (default: "edgeR")
-#' @param pb_min_cells Minimum cells per pseudobulk sample (default: 3)
-#' @param filter_genes Filtering method: "none", "genes", "both", or "edgeR"
-#'   (default: "edgeR")
-#' @param keep_clusters Optional vector of cluster IDs to keep
-#' @param cluster_label_map Optional named vector mapping cluster IDs to labels
-#'
-#' @return Data frame with differential expression results per cluster
-#'
-#' @note
-#' This function automatically performs pseudobulking via
-#' \code{muscat::aggregateData()}. For single-cell level analysis, use
-#' \code{runMAST_v1} or \code{runNEBULA_v1}.
-#'
-#' @export
-runMUSCAT_v5 <- function(
-  sobj,
-  cluster_id = "seurat_clusters",
-  sample_id  = "hos_no",
-  group_id   = "type",
-  batch_id   = NULL,                 # ex) "exp_batch"
-  contrast   = NULL,                 # ex) "IS - SAH"
-  method     = "edgeR",
-  pb_min_cells = 3,
-  filter_genes = c("none","genes","both","edgeR"),
-  keep_clusters = NULL,
-  cluster_label_map = NULL
-){
-  if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
-  filter_genes <- match.arg(filter_genes)
-
-  # deps
-  req <- c("Seurat","muscat","SingleCellExperiment","SummarizedExperiment","S4Vectors","limma","dplyr")
-  miss <- req[!vapply(req, requireNamespace, logical(1), quietly=TRUE)]
-  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse=", "))
-
-  # 1) Seurat -> SCE, prepSCE
-  sce <- Seurat::as.SingleCellExperiment(sobj)
-  sce <- muscat::prepSCE(sce, kid = cluster_id, sid = sample_id, gid = group_id)
-
-  # factor 보장
-  sce$cluster_id <- droplevels(factor(SummarizedExperiment::colData(sce)$cluster_id))
-  sce$sample_id  <- droplevels(factor(SummarizedExperiment::colData(sce)$sample_id))
-  sce$group_id   <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
-    sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
-  }
-
-  # 2) Pseudobulk
-  pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
-
-  # (선택) 특정 클러스터만
-  if (!is.null(keep_clusters)) {
-    keep_clusters <- as.character(keep_clusters)
-    pb <- pb[names(SummarizedExperiment::assays(pb)) %in% keep_clusters]
-    if (length(SummarizedExperiment::assays(pb)) == 0L) stop("keep_clusters에 해당하는 클러스터가 없습니다.")
-  }
-
-  # 2-1) pb 메타 보강 (sample_id / group_id / batch)
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-
-  # sample_id 없으면 assay의 colnames로 복구
-  if (!"sample_id" %in% names(pb_meta)) {
-    first_assay <- names(SummarizedExperiment::assays(pb))[1]
-    sid_guess <- colnames(SummarizedExperiment::assays(pb)[[first_assay]])
-    if (is.null(sid_guess)) stop("pb에 sample_id가 없습니다.")
-    pb_meta$sample_id <- sid_guess
-    rownames(pb_meta) <- pb_meta$sample_id
-    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta)
-  }
-
-  # sce에서 (sample_id -> group_id / batch) map
-  sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
-  map_cols <- c("sample_id","group_id")
-  if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
-  sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
-
-  # pb에 group_id / batch 보강
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-  need_fix <- (!"group_id" %in% names(pb_meta)) ||
-              (length(unique(pb_meta$group_id)) < 2) ||
-              (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
-  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
-    pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
-    if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
-      pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
-      pb_meta2$group_id.x <- NULL; pb_meta2$group_id.y <- NULL
-    }
-    rownames(pb_meta2) <- rownames(pb_meta)
-    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta2)
-  }
-
-  # factor화
-  pb$sample_id <- droplevels(factor(SummarizedExperiment::colData(pb)$sample_id))
-  pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
-    pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
-  }
-
-  # 3) contrast 그룹만 자동 subset
-  extract_groups <- function(contrast_str, levels_available){
-    z <- gsub("\\s+", "", contrast_str)
-    toks <- unique(gsub("^group(_id)?", "", unlist(strsplit(z, "[^A-Za-z0-9_]+"))))
-    toks <- toks[nchar(toks) > 0]
-    keep <- intersect(toks, levels_available)
-    if (length(keep) < 1) {
-      g2 <- levels_available[vapply(levels_available, function(g) grepl(g, z), logical(1))]
-      keep <- unique(g2)
-    }
-    keep
-  }
-  grp_lvls <- levels(SummarizedExperiment::colData(pb)$group_id)
-  tg <- extract_groups(contrast, grp_lvls)
-  if (length(tg) < 2) stop(sprintf("contrast에서 추출한 그룹이 부족합니다. contrast='%s', 사용가능레벨=%s",
-                                   contrast, paste(grp_lvls, collapse=", ")))
-
-  keep_idx <- SummarizedExperiment::colData(pb)$group_id %in% tg
-  pb_sub <- pb[, keep_idx]
-  pb_sub$group_id <- droplevels(factor(SummarizedExperiment::colData(pb_sub)$group_id))
-
-  # **sce도 동일 기준으로 subset (resDS용 필수)**
-  sce_sub <- sce[, sce$sample_id %in% SummarizedExperiment::colData(pb_sub)$sample_id &
-                    sce$group_id  %in% tg]
-  sce_sub$cluster_id <- droplevels(factor(sce_sub$cluster_id))
-  sce_sub$sample_id  <- droplevels(factor(sce_sub$sample_id))
-  sce_sub$group_id   <- droplevels(factor(sce_sub$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
-    sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
-  }
-
-  # 4) design/contrast (batch는 'batch'로 복사해서 사용)
-  pb_sub$group <- pb_sub$group_id
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb_sub))) {
-    pb_sub$batch <- droplevels(factor(SummarizedExperiment::colData(pb_sub)[[batch_id]]))
-    design <- stats::model.matrix(~ 0 + group + batch,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
-  } else {
-    design <- stats::model.matrix(~ 0 + group,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
-  }
-
-  fix_contrast <- function(contrast_str, design_cols){
-    z <- gsub("\\s+", "", contrast_str)
-    toks <- unlist(strsplit(z, "([+\\-])", perl=TRUE))
-    ops  <- unlist(regmatches(z, gregexpr("([+\\-])", z, perl=TRUE)))
-    rebuild <- function(tok){
-      tok <- gsub("^group(_id)?", "group", tok)
-      if (!grepl("^group", tok)) tok <- paste0("group", tok)
-      tok
-    }
-    toks2 <- vapply(toks, rebuild, character(1))
-    out <- toks2[1]; if (length(ops)) for (i in seq_along(ops)) out <- paste0(out, ops[i], toks2[i+1])
-    out
-  }
-  contrast_fixed <- fix_contrast(contrast, colnames(design))
-  contrast_matrix <- limma::makeContrasts(contrasts = contrast_fixed, levels = design)
-
-  # 5) pbDS
-  res <- muscat::pbDS(
-    pb_sub,
-    design    = design,
-    method    = method,
-    contrast  = contrast_matrix,
-    min_cells = pb_min_cells,
-    filter    = filter_genes,
-    verbose   = TRUE
-  )
-
-  # 6) 결과 평탄화: **sce_sub가 먼저, res가 다음**
-  combined <- muscat::resDS(sce_sub, res)
-
-  # cluster_id 정리 + 라벨
-  if ("cluster" %in% names(combined) && !"cluster_id" %in% names(combined)) {
-    combined$cluster_id <- combined$cluster
-  }
-  if (!"cluster_id" %in% names(combined)) stop("resDS 결과에 'cluster_id'가 없습니다.")
-  if (!is.null(cluster_label_map)) {
-    combined$cluster_label <- cluster_label_map[as.character(combined$cluster_id)]
-    combined$cluster_label[is.na(combined$cluster_label)] <- as.character(combined$cluster_id)
-  } else {
-    combined$cluster_label <- as.character(combined$cluster_id)
-  }
-
-  return(combined)
-}
-
-
-#' @export
-runMUSCAT <- function(...) {
-  .Deprecated("runMUSCAT_v5", package = "myR")
-  runMUSCAT_v5(...)
-}
 
 # ============================================================================
 
-#' Run MUSCAT Analysis (v2 - Improved with missing value handling)
+#' Run MUSCAT Analysis
 #'
 #' @description
-#' Performs differential expression analysis using MUSCAT (Multi-sample
-#' Multi-condition DE analysis). This function automatically performs
-#' pseudobulking by aggregating cells within each cluster and sample, then
-#' applies edgeR, DESeq2, or limma-voom for differential expression testing.
-#' 
-#' This version (v2) improves upon v5 by:
-#' - Better handling of missing values in group_id and other metadata columns
-#' - More robust NA filtering before pseudobulking
-#' - Better error messages and warnings
+#' Unified MUSCAT helper that performs pseudobulking by cluster/sample and
+#' then applies muscat's `pbDS` (edgeR/DESeq2/limma).  Missing-value handling
+#' is controlled via `remove_na_groups`, allowing backwards-compatible behaviour
+#' with the legacy v5 workflow.
 #'
 #' @param sobj Seurat object
 #' @param cluster_id Column name for cell type/cluster (default: "seurat_clusters")
@@ -1045,7 +736,7 @@ runMUSCAT <- function(...) {
 #' \code{runNEBULA2_v1}.
 #'
 #' @export
-runMUSCAT2_v1 <- function(
+runMUSCAT <- function(
   sobj,
   cluster_id = "seurat_clusters",
   sample_id  = "hos_no",
@@ -1279,8 +970,8 @@ runMUSCAT2_v1 <- function(
   return(combined)
 }
 
-
-
+#' @keywords internal
+#' @noRd
 #' Run NEBULA Analysis (v2 - Improved with missing value handling)
 #'
 #' @description
@@ -1308,11 +999,53 @@ runMUSCAT2_v1 <- function(
 #'
 #' @note
 #' This function operates on single-cell level data. Pseudobulking can be
-#' applied before calling this function using \code{runMUSCAT2_v1} or
+#' applied before calling this function using \code{runMUSCAT} or
 #' \code{runNEBULA2_v1_with_pseudobulk}.
 #'
-#' @export
-runNEBULA2_v1 <- function(sobj,
+._nebula_fit_with_retry <- function(grouped_data, fallback_gene_cap = 1000, min_gene_floor = 10) {
+  call_nebula <- function(grouped, hl_mode = TRUE) {
+    nebula::nebula(
+      count = grouped$count,
+      id = grouped$id,
+      pred = grouped$pred,
+      offset = grouped$offset,
+      model = "NBLMM",
+      method = if (hl_mode) "HL" else "LN"
+    )
+  }
+  fit_once <- function(grouped) {
+    tryCatch(
+      call_nebula(grouped, hl_mode = TRUE),
+      error = function(e) {
+        warning("NEBULA with HL method failed, trying with default settings...")
+        tryCatch(call_nebula(grouped, hl_mode = FALSE), error = function(e2) e2)
+      }
+    )
+  }
+  current <- grouped_data
+  if (nrow(current$count) > fallback_gene_cap) {
+    message(sprintf("... 유전자 수가 많아 %d개로 제한합니다.", fallback_gene_cap))
+    current$count <- current$count[seq_len(fallback_gene_cap), , drop = FALSE]
+  }
+  repeat {
+    result <- fit_once(current)
+    if (!inherits(result, "error")) {
+      return(result)
+    }
+    msg <- conditionMessage(result)
+    if (!grepl("objective in x0 returns NA", msg, fixed = TRUE)) {
+      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", msg))
+    }
+    new_gene_count <- max(min_gene_floor, floor(nrow(current$count) / 2))
+    if (new_gene_count >= nrow(current$count)) {
+      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", msg))
+    }
+    message(sprintf("... NEBULA objective returned NA. Retrying with %d genes.", new_gene_count))
+    current$count <- current$count[seq_len(new_gene_count), , drop = FALSE]
+  }
+}
+
+._nebula_fixed_impl <- function(sobj,
                                 layer = "counts",
                                 fixed_effects = c("g3"),
                                 covar_effects = NULL,
@@ -1413,6 +1146,14 @@ runNEBULA2_v1 <- function(sobj,
   
   # 설계 행렬 생성 및 특이성(singularity) 확인
   design_matrix <- model.matrix(as.formula(formula_str), data = meta_clean)
+  zero_var_cols <- which(apply(design_matrix, 2, function(x) length(unique(x)) <= 1))
+  intercept_idx <- which(colnames(design_matrix) == "(Intercept)")
+  zero_var_cols <- setdiff(zero_var_cols, intercept_idx)
+  if (length(zero_var_cols) > 0) {
+    message("... zero-variance predictors removed: ",
+            paste(colnames(design_matrix)[zero_var_cols], collapse = ", "))
+    design_matrix <- design_matrix[, -zero_var_cols, drop = FALSE]
+  }
   
   # 설계 행렬의 특이성 확인 (rank deficiency) - qr() 사용
   design_qr <- qr(design_matrix)
@@ -1446,6 +1187,14 @@ runNEBULA2_v1 <- function(sobj,
   if (design_rank < n_cols) {
     warning(sprintf("설계 행렬이 특이(singular)합니다. rank=%d < columns=%d. 완전 분리(complete separation) 문제로 인해 분석이 실패할 수 있습니다.", 
                     design_rank, n_cols))
+    dependent_idx <- design_qr$pivot[seq.int(design_rank + 1, n_cols)]
+    drop_cols <- colnames(design_matrix)[dependent_idx]
+    message("... Removing linearly dependent predictors: ", paste(drop_cols, collapse = ", "))
+    keep_idx <- design_qr$pivot[seq_len(design_rank)]
+    design_matrix <- design_matrix[, keep_idx, drop = FALSE]
+    design_qr <- qr(design_matrix)
+    design_rank <- design_qr$rank
+    n_cols <- ncol(design_matrix)
     message("설계 행렬이 특이하지만 분석을 계속 진행합니다. 오류가 발생하면:")
     message("  1. covar_effects를 제거하거나 다른 변수를 사용하세요.")
     message("  2. 완전 분리된 조합을 제거하거나 데이터를 필터링하세요.")
@@ -1490,58 +1239,7 @@ runNEBULA2_v1 <- function(sobj,
     }
   }
   
-  # Add stability options to prevent convergence issues
-  re_nebula <- tryCatch({
-    nebula::nebula(
-      count = data_grouped$count,
-      id = data_grouped$id,
-      pred = data_grouped$pred,
-      offset = data_grouped$offset,
-      model = "NBLMM", # lme4::glmer.nb와 유사한 Lognormal random effect 권장
-      method = "HL" # Use HL (Hessian-Laplace) method for stability
-    )
-  }, error = function(e) {
-    # If HL fails, try with fewer genes or different method
-    warning("NEBULA with HL method failed, trying with default settings...")
-    tryCatch({
-      nebula::nebula(
-        count = data_grouped$count,
-        id = data_grouped$id,
-        pred = data_grouped$pred,
-        offset = data_grouped$offset,
-        model = "NBLMM"
-      )
-    }, error = function(e2) {
-      # 더 자세한 오류 메시지
-      error_msg <- conditionMessage(e2)
-      suggestions <- character(0)
-      
-      if (grepl("NA|NaN", error_msg)) {
-        suggestions <- c(suggestions, 
-                        "- 설계 행렬이 특이(singular)할 수 있습니다. 변수 조합을 확인하세요.",
-                        "- 완전 분리(complete separation) 문제가 있을 수 있습니다.",
-                        "- min_count를 높여서 더 적은 유전자로 분석하세요.",
-                        "- covar_effects를 제거하거나 다른 변수를 사용하세요.")
-      }
-      
-      if (n_genes > 5000) {
-        suggestions <- c(suggestions, 
-                        "- 유전자 수가 너무 많습니다. min_count를 높이거나 유전자를 제한하세요.")
-      }
-      
-      if (n_samples < 10) {
-        suggestions <- c(suggestions, 
-                        "- 샘플 수가 너무 적습니다. 더 많은 샘플이 필요합니다.")
-      }
-      
-      full_error_msg <- sprintf("NEBULA failed: %s", error_msg)
-      if (length(suggestions) > 0) {
-        full_error_msg <- paste0(full_error_msg, "\n제안사항:\n", paste(suggestions, collapse = "\n"))
-      }
-      
-      stop(full_error_msg)
-    })
-  })
+  re_nebula <- ._nebula_fit_with_retry(data_grouped)
   
   # --- 6. 결과 정리 ---
   message("6/7: 결과 정리 중...")
@@ -1555,7 +1253,170 @@ runNEBULA2_v1 <- function(sobj,
 }
 
 
+#' Run NEBULA differential expression analysis
+#'
+#' @description
+#' Unified interface for NEBULA-based differential expression.  Use `formula` to
+#' activate the formula parser or `pseudobulk`/`pseudobulk_args` to trigger the
+#' pseudobulk workflow.
+#'
+#' @param sobj Seurat object
+#' @param layer Assay layer to use (default: "counts")
+#' @param fixed_effects Character vector of fixed effects used in the classic
+#'   interface.
+#' @param covar_effects Character vector of covariates.
+#' @param patient_col Column name for patient/sample ID.
+#' @param offset Column name for offset variable.
+#' @param min_count Minimum number of cells expressing a gene.
+#' @param remove_na_cells Remove cells with NA in model variables.
+#' @param formula Optional lme4-style formula string or object.
+#' @param pseudobulk Logical or list to enable the pseudobulk workflow.
+#' @param pseudobulk_args Named list overriding pseudobulk defaults
+#'   (e.g., cluster/sample identifiers, offsets, filtering thresholds).
+#' @param separation_min_cells Minimum cells required for each factor level when
+#'   using the formula mode. Levels below the threshold are pruned to avoid
+#'   complete separation (default: 20).
+#' @param simplify_interactions When TRUE (default) problematic interaction
+#'   terms detected during formula analysis are dropped automatically to avoid
+#'   singular design matrices.
+#' @param separation_group_var Optional metadata column used to enforce gene-level
+#'   balance (e.g., treatment group). When supplied, genes must have non-zero
+#'   expression in at least \code{separation_min_cells_per_group} cells for every
+#'   level of this column.
+#' @param separation_min_cells_per_group Minimum number of cells per level for
+#'   the gene-level balance filter (default: 3).
+#'
+#' @return NEBULA result object. When pseudobulk mode is enabled a list is
+#' returned containing the NEBULA result plus the pseudobulk counts/metadata.
+#'
+#' @export
+runNEBULA <- function(
+  sobj,
+  layer = "counts",
+  fixed_effects = c("g3"),
+  covar_effects = NULL,
+  patient_col = "hos_no",
+  offset = "nCount_RNA",
+  min_count = 10,
+  remove_na_cells = TRUE,
+  formula = NULL,
+  pseudobulk = FALSE,
+  pseudobulk_args = list(),
+  separation_min_cells = 20,
+  simplify_interactions = TRUE,
+  separation_group_var = NULL,
+  separation_min_cells_per_group = 3
+) {
+  if (!is.null(formula)) {
+    return(._nebula_formula_impl(
+      sobj = sobj,
+      formula = formula,
+      layer = layer,
+      patient_col = patient_col,
+      offset = offset,
+      min_count = min_count,
+      remove_na_cells = remove_na_cells,
+      separation_min_cells = separation_min_cells,
+      simplify_interactions = simplify_interactions,
+      separation_group_var = separation_group_var,
+      separation_min_cells_per_group = separation_min_cells_per_group
+    ))
+  }
+  use_pb <- isTRUE(pseudobulk) ||
+    (is.list(pseudobulk) && length(pseudobulk) > 0) ||
+    length(pseudobulk_args) > 0
+  if (use_pb) {
+    pb_defaults <- list(
+      layer = layer,
+      cluster_id = "seurat_clusters",
+      sample_id = "hos_no",
+      group_id = "type",
+      fixed_effects = fixed_effects,
+      covar_effects = covar_effects,
+      patient_col = patient_col,
+      offset_method = "sum",
+      min_count = min_count,
+      min_cells_per_pb = 3,
+      remove_na_cells = remove_na_cells,
+      keep_clusters = NULL
+    )
+    pb_override <- if (is.list(pseudobulk)) pseudobulk else list()
+    pb_args <- utils::modifyList(pb_defaults,
+                                 utils::modifyList(pb_override, pseudobulk_args))
+    return(do.call(._nebula_pseudobulk_impl, c(list(sobj = sobj), pb_args)))
+  }
+  ._nebula_fixed_impl(
+    sobj = sobj,
+    layer = layer,
+    fixed_effects = fixed_effects,
+    covar_effects = covar_effects,
+    patient_col = patient_col,
+    offset = offset,
+    min_count = min_count,
+    remove_na_cells = remove_na_cells
+  )
+}
 
+runNEBULA2_v1 <- function(...) {
+  .Deprecated("runNEBULA", package = "myR")
+  runNEBULA(...)
+}
+
+runNEBULA2_v1_with_formula <- function(sobj,
+                                       formula,
+                                       layer = "counts",
+                                       patient_col = NULL,
+                                       offset = "nCount_RNA",
+                                       min_count = 10,
+                                       remove_na_cells = TRUE) {
+  .Deprecated("runNEBULA", package = "myR")
+  runNEBULA(
+    sobj = sobj,
+    layer = layer,
+    patient_col = if (is.null(patient_col)) "hos_no" else patient_col,
+    offset = offset,
+    min_count = min_count,
+    remove_na_cells = remove_na_cells,
+    formula = formula
+  )
+}
+
+runNEBULA2_v1_with_pseudobulk <- function(sobj,
+                                          layer = "counts",
+                                          cluster_id = "seurat_clusters",
+                                          sample_id  = "hos_no",
+                                          group_id   = "type",
+                                          fixed_effects = c("g3"),
+                                          covar_effects = NULL,
+                                          patient_col = "hos_no",
+                                          offset_method = c("sum", "mean", "n_cells"),
+                                          min_count = 10,
+                                          min_cells_per_pb = 3,
+                                          remove_na_cells = TRUE,
+                                          keep_clusters = NULL) {
+  .Deprecated("runNEBULA", package = "myR")
+  runNEBULA(
+    sobj = sobj,
+    layer = layer,
+    fixed_effects = fixed_effects,
+    covar_effects = covar_effects,
+    patient_col = patient_col,
+    min_count = min_count,
+    remove_na_cells = remove_na_cells,
+    pseudobulk = list(
+      cluster_id = cluster_id,
+      sample_id = sample_id,
+      group_id = group_id,
+      offset_method = match.arg(offset_method),
+      min_cells_per_pb = min_cells_per_pb,
+      keep_clusters = keep_clusters
+    )
+  )
+}
+
+
+#' @keywords internal
+#' @noRd
 #' Run NEBULA Analysis with Pseudobulk (v2)
 #'
 #' @description
@@ -1595,8 +1456,7 @@ runNEBULA2_v1 <- function(sobj,
 #' This function performs pseudobulking by cluster and sample, then runs NEBULA.
 #' The offset is calculated from the pseudobulk counts (sum by default).
 #'
-#' @export
-runNEBULA2_v1_with_pseudobulk <- function(sobj,
+._nebula_pseudobulk_impl <- function(sobj,
                                 layer = "counts",
                                 cluster_id = "seurat_clusters",
                                 sample_id  = "hos_no",
@@ -1647,6 +1507,7 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
     }
   }
   
+
   # --- 1. Pseudobulking ---
   message("1/8: Pseudobulking 중...")
   
@@ -1828,8 +1689,194 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
   ))
 }
 
+#' @keywords internal
+#' @noRd
+#' Remove sparse factor levels to mitigate complete separation
+._nebula_prune_sparse_levels <- function(meta,
+                                         factor_vars,
+                                         min_cells_per_level = 10,
+                                         max_passes = 3) {
+  if (!length(factor_vars) || min_cells_per_level <= 1) {
+    return(list(
+      meta = meta,
+      keep_idx = rep(TRUE, nrow(meta)),
+      removed_cells = 0L,
+      passes = 0L,
+      removal_log = list()
+    ))
+  }
+  keep_idx <- rep(TRUE, nrow(meta))
+  removal_log <- list()
+  passes <- 0L
+  repeat {
+    meta_view <- meta[keep_idx, , drop = FALSE]
+    if (!nrow(meta_view)) {
+      break
+    }
+    rows_to_drop <- rep(FALSE, nrow(meta_view))
+    for (var in factor_vars) {
+      if (!var %in% colnames(meta_view)) {
+        next
+      }
+      freq <- table(meta_view[[var]], useNA = "no")
+      low_levels <- names(freq)[freq < min_cells_per_level]
+      if (!length(low_levels)) {
+        next
+      }
+      removal_log[[var]] <- sort(unique(c(removal_log[[var]], low_levels)))
+      rows_to_drop <- rows_to_drop | meta_view[[var]] %in% low_levels
+    }
+    if (!any(rows_to_drop) || passes >= max_passes) {
+      break
+    }
+    orig_idx <- which(keep_idx)[rows_to_drop]
+    keep_idx[orig_idx] <- FALSE
+    passes <- passes + 1L
+  }
+  list(
+    meta = meta[keep_idx, , drop = FALSE],
+    keep_idx = keep_idx,
+    removed_cells = sum(!keep_idx),
+    passes = passes,
+    removal_log = removal_log
+  )
+}
+
+
+#' @keywords internal
+#' @noRd
+#' Detect complete separation issues between factor pairs
+._nebula_detect_complete_separation <- function(meta, vars) {
+  result <- list(
+    has_issue = FALSE,
+    pairs = list(),
+    problem_vars = character(0)
+  )
+  if (length(vars) < 2) {
+    return(result)
+  }
+  combs <- utils::combn(vars, 2, simplify = FALSE)
+  for (pair in combs) {
+    var1 <- pair[1]
+    var2 <- pair[2]
+    if (!var1 %in% colnames(meta) || !var2 %in% colnames(meta)) {
+      next
+    }
+    contingency <- table(meta[[var1]], meta[[var2]])
+    zero_cells <- sum(contingency == 0)
+    if (zero_cells > 0) {
+      result$has_issue <- TRUE
+      result$pairs[[length(result$pairs) + 1]] <- list(
+        var1 = var1,
+        var2 = var2,
+        zero_cells = zero_cells,
+        table = contingency
+      )
+    }
+  }
+  if (length(result$pairs)) {
+    result$problem_vars <- unique(unlist(lapply(result$pairs, function(x) c(x$var1, x$var2))))
+  }
+  result
+}
+
+
+#' @keywords internal
+#' @noRd
+#' Emit warnings/messages for separation diagnostics
+._nebula_log_separation <- function(separation_info) {
+  if (!is.list(separation_info) || !isTRUE(separation_info$has_issue)) {
+    message("... 완전 분리 문제 없음")
+    return(invisible(NULL))
+  }
+  for (entry in separation_info$pairs) {
+    warning(sprintf("%s와 %s 사이에 완전 분리된 조합이 있습니다 (0인 셀: %d개).",
+                    entry$var1, entry$var2, entry$zero_cells))
+    message(sprintf("  %s x %s contingency table:", entry$var1, entry$var2))
+    print(entry$table)
+  }
+  invisible(NULL)
+}
+
+
+#' @keywords internal
+#' @noRd
+#' Remove factor levels that lack group balance
+._nebula_prune_unbalanced_levels <- function(meta,
+                                             factor_vars,
+                                             group_var,
+                                             min_cells_per_group = 1,
+                                             max_passes = 3) {
+  if (is.null(group_var) ||
+      !group_var %in% colnames(meta) ||
+      min_cells_per_group <= 0 ||
+      !length(factor_vars)) {
+    return(list(
+      meta = meta,
+      keep_idx = rep(TRUE, nrow(meta)),
+      removed_cells = 0L,
+      passes = 0L,
+      removal_log = list()
+    ))
+  }
+  group_levels <- levels(droplevels(as.factor(meta[[group_var]])))
+  if (length(group_levels) < 2) {
+    return(list(
+      meta = meta,
+      keep_idx = rep(TRUE, nrow(meta)),
+      removed_cells = 0L,
+      passes = 0L,
+      removal_log = list()
+    ))
+  }
+  keep_idx <- rep(TRUE, nrow(meta))
+  removal_log <- list()
+  passes <- 0L
+  repeat {
+    meta_view <- meta[keep_idx, , drop = FALSE]
+    if (!nrow(meta_view)) {
+      break
+    }
+    group_view <- droplevels(as.factor(meta_view[[group_var]]))
+    if (length(levels(group_view)) < 2) {
+      break
+    }
+    rows_to_drop <- rep(FALSE, nrow(meta_view))
+    for (var in factor_vars) {
+      if (!var %in% colnames(meta_view)) {
+        next
+      }
+      tbl <- table(meta_view[[var]], group_view)
+      if (!nrow(tbl)) {
+        next
+      }
+      low_levels <- rownames(tbl)[apply(tbl < min_cells_per_group, 1, any)]
+      if (!length(low_levels)) {
+        next
+      }
+      removal_log[[var]] <- sort(unique(c(removal_log[[var]], low_levels)))
+      rows_to_drop <- rows_to_drop | meta_view[[var]] %in% low_levels
+    }
+    if (!any(rows_to_drop) || passes >= max_passes) {
+      break
+    }
+    orig_idx <- which(keep_idx)[rows_to_drop]
+    keep_idx[orig_idx] <- FALSE
+    passes <- passes + 1L
+  }
+  list(
+    meta = meta[keep_idx, , drop = FALSE],
+    keep_idx = keep_idx,
+    removed_cells = sum(!keep_idx),
+    passes = passes,
+    removal_log = removal_log
+  )
+}
+
 # Formula 1: ~ g3 + sex + anno3.scvi + GEM + g3:anno3.scvi + sex:anno3.scvi + (1|GEM/patient)
 
+#' @keywords internal
+#' @noRd
 #' Run NEBULA Analysis with Formula (v2)
 #'
 #' @description
@@ -1845,17 +1892,31 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
 #' @param offset Column name for offset variable (default: "nCount_RNA")
 #' @param min_count Minimum number of cells expressing a gene (default: 10)
 #' @param remove_na_cells Remove cells with NA in model variables (default: TRUE)
+#' @param separation_min_cells Minimum cells required for each factor level.
+#'   Levels below the threshold are pruned iteratively to reduce complete
+#'   separation (default: 20).
+#' @param simplify_interactions Automatically drop interaction terms that involve
+#'   variables flagged during separation diagnostics (default: TRUE).
+#' @param separation_group_var Optional metadata column name used to enforce gene
+#'   balance across groups (e.g., "g3"). When provided, each retained gene must
+#'   have non-zero expression in at least
+#'   \code{separation_min_cells_per_group} cells for every level of this column.
+#' @param separation_min_cells_per_group Minimum number of non-zero cells per
+#'   level for the gene-level group balance filter (default: 3).
 #'
 #' @return NEBULA result object from \code{nebula::nebula()}
 #'
-#' @export
-runNEBULA2_v1_with_formula <- function(sobj,
+._nebula_formula_impl <- function(sobj,
                                        formula,
                                        layer = "counts",
                                        patient_col = NULL,
                                        offset = "nCount_RNA",
                                        min_count = 10,
-                                       remove_na_cells = TRUE) {
+                                       remove_na_cells = TRUE,
+                                       separation_min_cells = 20,
+                                       simplify_interactions = TRUE,
+                                       separation_group_var = NULL,
+                                       separation_min_cells_per_group = 3) {
   
   # --- 0. Formula 파싱 ---
   if (is.character(formula)) {
@@ -2016,15 +2077,128 @@ runNEBULA2_v1_with_formula <- function(sobj,
   
   message(sprintf("... 최종 분석 대상 세포: %d 개", nrow(meta_clean)))
   
+  separation_guard <- list(
+    min_cells = separation_min_cells,
+    min_cells_per_group = separation_min_cells_per_group,
+    group_var = separation_group_var,
+    removed_cells = 0L,
+    removal_log = list(),
+    balance_removal_log = list(),
+    simplified_interactions = character(0),
+    gene_balance = NULL
+  )
+  
   # --- 4. 디자인 행렬 생성 ---
   message("3/8: 디자인 행렬 생성 중...")
   
   # 범주형 변수 변환
   factor_vars <- all_vars[all_vars %in% colnames(meta_clean)]
+  prunable_vars <- factor_vars[vapply(
+    factor_vars,
+    function(v) {
+      col <- meta_clean[[v]]
+      is.factor(col) || is.character(col) || length(unique(col)) <= 50
+    },
+    logical(1)
+  )]
   meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], as.factor)
+
+  prune_result <- ._nebula_prune_sparse_levels(
+    meta = meta_clean,
+    factor_vars = prunable_vars,
+    min_cells_per_level = separation_min_cells
+  )
+  if (prune_result$removed_cells > 0) {
+    meta_clean <- prune_result$meta
+    counts_clean <- counts_clean[, prune_result$keep_idx, drop = FALSE]
+    separation_guard$removed_cells <- separation_guard$removed_cells + prune_result$removed_cells
+    separation_guard$removal_log <- prune_result$removal_log
+    message(sprintf("... 희소 레벨 제거: %d 개의 세포 제외 (threshold=%d)", 
+                    prune_result$removed_cells, separation_min_cells))
+    for (var in names(prune_result$removal_log)) {
+      message(sprintf("    %s → 제거된 레벨: %s",
+                      var, paste(prune_result$removal_log[[var]], collapse = ", ")))
+    }
+  }
+  if (!nrow(meta_clean)) {
+    stop("희소 레벨 제거 후 남은 세포가 없습니다. threshold를 낮추거나 데이터를 확인하세요.")
+  }
+  
+  balance_factor_candidates <- intersect(
+    prunable_vars,
+    unique(fixed_effects_from_nested)
+  )
+  if (!is.null(separation_group_var) &&
+      separation_group_var %in% colnames(meta_clean) &&
+      length(balance_factor_candidates) > 0) {
+    balance_result <- ._nebula_prune_unbalanced_levels(
+      meta = meta_clean,
+      factor_vars = balance_factor_candidates,
+      group_var = separation_group_var,
+      min_cells_per_group = separation_min_cells_per_group
+    )
+    if (balance_result$removed_cells > 0) {
+      meta_clean <- balance_result$meta
+      counts_clean <- counts_clean[, balance_result$keep_idx, drop = FALSE]
+      separation_guard$removed_cells <- separation_guard$removed_cells + balance_result$removed_cells
+      separation_guard$balance_removal_log <- balance_result$removal_log
+      message(sprintf("... 그룹 균형 기준으로 %d 개의 세포 제거 (threshold=%d per level)", 
+                      balance_result$removed_cells, separation_min_cells_per_group))
+      for (var in names(balance_result$removal_log)) {
+        message(sprintf("    %s → 제거된 레벨 (group coverage 부족): %s",
+                        var, paste(balance_result$removal_log[[var]], collapse = ", ")))
+      }
+    }
+    if (!nrow(meta_clean)) {
+      stop("그룹 균형 필터 적용 후 남은 세포가 없습니다. threshold를 낮추거나 데이터를 확인하세요.")
+    }
+  }
+  meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], droplevels)
+  message(sprintf("... 희소/불균형 레벨 정리 후 세포: %d 개", nrow(meta_clean)))
+  
+  if (!is.null(separation_group_var) &&
+      separation_group_var %in% colnames(meta_clean) &&
+      nrow(counts_clean) > 0) {
+    group_vec <- droplevels(meta_clean[[separation_group_var]])
+    group_levels <- levels(group_vec)
+    if (length(group_levels) >= 2) {
+      message(sprintf("... %s 기준 유전자 균형 필터 적용 (레벨당 최소 %d 셀)",
+                      separation_group_var, separation_min_cells_per_group))
+      group_counts <- sapply(group_levels, function(gl) {
+        mask <- group_vec == gl
+        if (!any(mask)) {
+          return(rep(0, nrow(counts_clean)))
+        }
+        Matrix::rowSums(counts_clean[, mask, drop = FALSE] > 0)
+      })
+      keep_gene_mask <- apply(group_counts >= separation_min_cells_per_group, 1, all)
+      removed_genes <- sum(!keep_gene_mask)
+      if (removed_genes > 0) {
+        counts_clean <- counts_clean[keep_gene_mask, , drop = FALSE]
+        separation_guard$gene_balance <- list(
+          group_var = separation_group_var,
+          threshold = separation_min_cells_per_group,
+          removed_genes = removed_genes
+        )
+        message(sprintf("... 그룹 균형으로 %d 개 유전자 제거 (잔여 %d)",
+                        removed_genes, nrow(counts_clean)))
+      } else {
+        message("... 모든 유전자가 그룹 균형 기준을 통과했습니다.")
+      }
+    } else {
+      message(sprintf("... %s 컬럼에 단일 레벨만 있어 유전자 균형 필터를 건너뜁니다.",
+                      separation_group_var))
+    }
+  }
+  if (nrow(counts_clean) == 0) {
+    stop("그룹 균형 필터 적용 후 남은 유전자가 없습니다. threshold를 낮추거나 데이터를 확인하세요.")
+  }
   
   # 각 factor 변수의 레벨 수 확인
   for (v in factor_vars) {
+    if (!v %in% colnames(meta_clean)) {
+      next
+    }
     n_levels <- length(levels(meta_clean[[v]]))
     levels_str <- paste(levels(meta_clean[[v]])[1:min(5, n_levels)], collapse=", ")
     if(n_levels > 5) {
@@ -2047,46 +2221,82 @@ runNEBULA2_v1_with_formula <- function(sobj,
   }
   
   # Formula에서 random effects 제거한 후 design matrix 생성
-  formula_for_design <- as.formula(paste("~", paste(fixed_effects_all, collapse = " + ")))
-  message(sprintf("... Design formula: %s", deparse(formula_for_design)))
+  interaction_terms <- fixed_effects_all[grepl(":", fixed_effects_all)]
+  main_effects_only <- setdiff(fixed_effects_all, interaction_terms)
   
-  design_matrix <- model.matrix(formula_for_design, data = meta_clean)
+  build_design <- function(effect_terms) {
+    if (!length(effect_terms)) {
+      stop("Formula에서 사용할 고정 효과가 없습니다. 교호작용을 모두 제거하지 않았는지 확인하세요.")
+    }
+    formula_obj <- as.formula(paste("~", paste(effect_terms, collapse = " + ")))
+    message(sprintf("... Design formula: %s", paste(deparse(formula_obj), collapse = " ")))
+    matrix <- model.matrix(formula_obj, data = meta_clean)
+    zero_var_cols <- which(apply(matrix, 2, function(x) length(unique(x)) <= 1))
+    intercept_idx <- which(colnames(matrix) == "(Intercept)")
+    zero_var_cols <- setdiff(zero_var_cols, intercept_idx)
+    if (length(zero_var_cols) > 0) {
+      message("... zero-variance predictors removed: ",
+              paste(colnames(matrix)[zero_var_cols], collapse = ", "))
+      matrix <- matrix[, -zero_var_cols, drop = FALSE]
+    }
+    list(matrix = matrix, formula = formula_obj)
+  }
   
-  # 설계 행렬의 특이성 확인
+  build_result <- build_design(fixed_effects_all)
+  design_matrix <- build_result$matrix
+  design_formula <- build_result$formula
   design_qr <- qr(design_matrix)
   design_rank <- design_qr$rank
   n_cols <- ncol(design_matrix)
   
-  # 완전 분리 확인
-  main_effects_only <- setdiff(fixed_effects_all, interaction_terms)
-  if (length(main_effects_only) >= 2) {
-    message("... 변수 간 완전 분리(complete separation) 확인 중...")
-    separation_issues <- FALSE
-    for (i in 1:(length(main_effects_only)-1)) {
-      for (j in (i+1):length(main_effects_only)) {
-        var1 <- main_effects_only[i]
-        var2 <- main_effects_only[j]
-        if (var1 %in% colnames(meta_clean) && var2 %in% colnames(meta_clean)) {
-          contingency <- table(meta_clean[[var1]], meta_clean[[var2]])
-          zero_cells <- sum(contingency == 0)
-          if (zero_cells > 0) {
-            separation_issues <- TRUE
-            warning(sprintf("%s와 %s 사이에 완전 분리된 조합이 있습니다 (0인 셀: %d개).", 
-                           var1, var2, zero_cells))
-            message(sprintf("  %s x %s contingency table:", var1, var2))
-            print(contingency)
-          }
-        }
+  message("... 변수 간 완전 분리(complete separation) 확인 중...")
+  separation_info <- ._nebula_detect_complete_separation(meta_clean, main_effects_only)
+  ._nebula_log_separation(separation_info)
+  dropped_interactions <- character(0)
+  if (simplify_interactions && separation_info$has_issue && length(interaction_terms) > 0) {
+    problem_vars <- separation_info$problem_vars
+    interactions_to_drop <- interaction_terms[vapply(
+      interaction_terms,
+      function(term) {
+        term_vars <- strsplit(term, ":")[[1]]
+        any(term_vars %in% problem_vars)
+      },
+      logical(1)
+    )]
+    if (length(interactions_to_drop)) {
+      message("... 완전 분리 해소를 위해 교호작용 항 제거: ",
+              paste(interactions_to_drop, collapse = ", "))
+      fixed_effects_all <- setdiff(fixed_effects_all, interactions_to_drop)
+      dropped_interactions <- interactions_to_drop
+      interaction_terms <- setdiff(interaction_terms, interactions_to_drop)
+      main_effects_only <- setdiff(fixed_effects_all, interaction_terms)
+      build_result <- build_design(fixed_effects_all)
+      design_matrix <- build_result$matrix
+      design_formula <- build_result$formula
+      design_qr <- qr(design_matrix)
+      design_rank <- design_qr$rank
+      n_cols <- ncol(design_matrix)
+      if (length(main_effects_only) >= 2) {
+        message("... 교호작용 제거 후 완전 분리 재확인...")
+        separation_info <- ._nebula_detect_complete_separation(meta_clean, main_effects_only)
+        ._nebula_log_separation(separation_info)
       }
     }
-    if (!separation_issues) {
-      message("... 완전 분리 문제 없음")
-    }
   }
+  separation_guard$simplified_interactions <- dropped_interactions
+  separation_guard$diagnostics <- separation_info
   
   if (design_rank < n_cols) {
     warning(sprintf("설계 행렬이 특이(singular)합니다. rank=%d < columns=%d.", 
                    design_rank, n_cols))
+    dependent_idx <- design_qr$pivot[seq.int(design_rank + 1, n_cols)]
+    drop_cols <- colnames(design_matrix)[dependent_idx]
+    message("... Removing linearly dependent predictors: ", paste(drop_cols, collapse = ", "))
+    keep_idx <- design_qr$pivot[seq_len(design_rank)]
+    design_matrix <- design_matrix[, keep_idx, drop = FALSE]
+    design_qr <- qr(design_matrix)
+    design_rank <- design_qr$rank
+    n_cols <- ncol(design_matrix)
     message("오류가 발생하면:")
     message("  1. 교호작용 항을 제거하거나 단순화하세요.")
     message("  2. 완전 분리된 조합을 제거하거나 데이터를 필터링하세요.")
@@ -2111,36 +2321,14 @@ runNEBULA2_v1_with_formula <- function(sobj,
   
   # --- 6. NEBULA 실행 ---
   message("5/8: NEBULA 실행 중 (NBLMM)...")
-  re_nebula <- tryCatch({
-    nebula::nebula(
-      count = data_grouped$count,
-      id = data_grouped$id,
-      pred = data_grouped$pred,
-      offset = data_grouped$offset,
-      model = "NBLMM",
-      method = "HL"
-    )
-  }, error = function(e) {
-    warning("NEBULA with HL method failed, trying with default settings...")
-    tryCatch({
-      nebula::nebula(
-        count = data_grouped$count,
-        id = data_grouped$id,
-        pred = data_grouped$pred,
-        offset = data_grouped$offset,
-        model = "NBLMM"
-      )
-    }, error = function(e2) {
-      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", 
-                   conditionMessage(e2)))
-    })
-  })
+  re_nebula <- ._nebula_fit_with_retry(data_grouped)
   
   # --- 7. 결과에 formula 정보 추가 ---
   re_nebula$formula <- deparse(formula_obj)
-  re_nebula$design_formula <- deparse(formula_for_design)
+  re_nebula$design_formula <- deparse(design_formula)
   re_nebula$patient_col <- patient_col
   re_nebula$fixed_effects <- fixed_effects_all
+  re_nebula$separation_guard <- separation_guard
   
   # --- 8. 완료 ---
   message("6/8: 분석 완료.")

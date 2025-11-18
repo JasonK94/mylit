@@ -15,7 +15,7 @@ message("========================================")
 message("함수 존재 확인...")
 message("========================================")
 
-functions_to_check <- c("runMUSCAT2_v1", "runNEBULA2_v1", "runNEBULA2_v1_with_pseudobulk")
+functions_to_check <- c("runMUSCAT", "runNEBULA")
 
 for (func_name in functions_to_check) {
   if (exists(func_name)) {
@@ -60,10 +60,10 @@ message("\n========================================")
 message("기본 파라미터 검증...")
 message("========================================")
 
-# runMUSCAT2_v1 파라미터 확인
-if (exists("runMUSCAT2_v1")) {
-  muscat2_params <- formals(runMUSCAT2_v1)
-  message("runMUSCAT2_v1 파라미터:")
+# runMUSCAT 파라미터 확인
+if (exists("runMUSCAT")) {
+  muscat2_params <- formals(runMUSCAT)
+  message("runMUSCAT 파라미터:")
   for (param_name in names(muscat2_params)) {
     param_value <- muscat2_params[[param_name]]
     if (is.null(param_value)) {
@@ -81,10 +81,10 @@ if (exists("runMUSCAT2_v1")) {
   }
 }
 
-# runNEBULA2_v1 파라미터 확인
-if (exists("runNEBULA2_v1")) {
-  nebula2_params <- formals(runNEBULA2_v1)
-  message("\nrunNEBULA2_v1 파라미터:")
+# runNEBULA 파라미터 확인
+if (exists("runNEBULA")) {
+  nebula2_params <- formals(runNEBULA)
+  message("\nrunNEBULA 파라미터:")
   for (param_name in names(nebula2_params)) {
     param_value <- nebula2_params[[param_name]]
     if (is.null(param_value)) {
@@ -102,10 +102,10 @@ if (exists("runNEBULA2_v1")) {
   }
 }
 
-# runNEBULA2_v1_with_pseudobulk 파라미터 확인
-if (exists("runNEBULA2_v1_with_pseudobulk")) {
-  nebula2_pb_params <- formals(runNEBULA2_v1_with_pseudobulk)
-  message("\nrunNEBULA2_v1_with_pseudobulk 파라미터:")
+# runNEBULA (pseudobulk) 파라미터 확인
+if (exists("runNEBULA")) {
+  nebula2_pb_params <- formals(runNEBULA)
+  message("\nrunNEBULA (pseudobulk) 관련 파라미터:")
   for (param_name in names(nebula2_pb_params)) {
     param_value <- nebula2_pb_params[[param_name]]
     if (is.null(param_value)) {

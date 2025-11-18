@@ -30,7 +30,7 @@
 - **테스트 데이터**: `/data/user3/sobj/IS_scvi_251107_ds2500.qs` (다운샘플링 버전)
 
 ### 3. Differential Expression 분석 함수
-- **`runMUSCAT_v5`**: 정상 작동 확인 ✅
+- **`runMUSCAT`**: 정상 작동 확인 ✅
   - 위치: `myR/R/test_analysis.R`
   - pseudobulking 자동 수행
 
@@ -50,7 +50,7 @@
 ### 완료된 것
 1. ✅ FGS_v5.2, v5.3 구현 및 테스트
 2. ✅ FGS_v5.2, v5.3을 signature.R에 추가
-3. ✅ runMUSCAT_v5 정상 작동 확인
+3. ✅ runMUSCAT 정상 작동 확인
 4. ✅ v5.3 GAM 동적 k 기능 확인
 5. ✅ pseudobulk 호환성 확인
 
@@ -67,7 +67,7 @@
 ### 핵심 함수
 - `myR/R/test.R`: `find_gene_signature_v5.2`, `find_gene_signature_v5.3`, `TML6`
 - `myR/R/signature.R`: `FGS_v5.2`, `FGS_v5.3` (별칭)
-- `myR/R/test_analysis.R`: `runMAST_v1`, `runNEBULA_v1`, `runMUSCAT_v5`
+- `myR/R/test_analysis.R`: `runMAST_v1`, `runNEBULA_v1`, `runMUSCAT`
 
 ### 헬퍼 함수
 - `fgs_preprocess_data_v5.2`: `myR/R/test.R` (line ~2939)

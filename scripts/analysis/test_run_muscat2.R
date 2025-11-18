@@ -1,7 +1,7 @@
 # ============================================================================
-# runMUSCAT2_v1 테스트 스크립트
+# runMUSCAT 테스트 스크립트
 # ============================================================================
-# 실제 데이터로 runMUSCAT2_v1 함수를 테스트합니다.
+# 실제 데이터로 runMUSCAT 함수를 테스트합니다.
 # ============================================================================
 
 # 작업 디렉터리 설정
@@ -22,8 +22,16 @@ if (file.exists("st/start.R")) {
 # 함수 소스 로드
 repo_root <- "/home/user3/data_user3/git_repo/_wt/analysis"
 if (dir.exists(repo_root)) {
-  source(file.path(repo_root, "myR/R/test_analysis.R"))
-  message("Functions loaded from: ", file.path(repo_root, "myR/R/test_analysis.R"))
+  pkg_root <- file.path(repo_root, "myR")
+  if ("package:myR" %in% search()) {
+    detach("package:myR", unload = TRUE, character.only = TRUE)
+  }
+  if (requireNamespace("devtools", quietly = TRUE)) {
+    devtools::load_all(pkg_root, quiet = TRUE)
+  } else {
+    source(file.path(pkg_root, "R", "analysis.R"))
+  }
+  message("Functions loaded from: ", pkg_root)
 } else {
   stop("Repository root not found: ", repo_root)
 }
@@ -37,7 +45,7 @@ if (length(missing_packages) > 0) {
 }
 
 message("========================================")
-message("runMUSCAT2_v1 테스트 시작")
+message("runMUSCAT 테스트 시작")
 message("========================================")
 
 # 데이터 로드
@@ -93,13 +101,13 @@ test_clusters <- as.character(sort(clusters)[1:min(3, length(clusters))])
 message(sprintf("\n테스트 클러스터: %s", paste(test_clusters, collapse=", ")))
 
 message("\n========================================")
-message("runMUSCAT2_v1 실행 중...")
+message("runMUSCAT 실행 중...")
 message("========================================")
 
 start_time <- Sys.time()
 
 tryCatch({
-  res_muscat2 <- runMUSCAT2_v1(
+  res_muscat2 <- runMUSCAT(
     sobj = sobj,
     cluster_id = "seurat_clusters",
     sample_id = "hos_no",
@@ -113,7 +121,7 @@ tryCatch({
   end_time <- Sys.time()
   elapsed_time <- difftime(end_time, start_time, units = "secs")
   
-  message(sprintf("\nrunMUSCAT2_v1 완료 (소요 시간: %.2f초)", as.numeric(elapsed_time)))
+  message(sprintf("\nrunMUSCAT 완료 (소요 시간: %.2f초)", as.numeric(elapsed_time)))
   message(sprintf("결과 행 수: %d", nrow(res_muscat2)))
   
   if (nrow(res_muscat2) > 0) {
@@ -133,7 +141,7 @@ tryCatch({
   }
   
 }, error = function(e) {
-  message(sprintf("\nrunMUSCAT2_v1 오류: %s", conditionMessage(e)))
+  message(sprintf("\nrunMUSCAT 오류: %s", conditionMessage(e)))
   traceback()
 })
 

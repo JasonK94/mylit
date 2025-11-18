@@ -1,5 +1,5 @@
 # ============================================================================
-# 테스트 스크립트: MUSCAT2_v1, NEBULA2_v1, runNEBULA2_v1_with_pseudobulk
+# 테스트 스크립트: MUSCAT, NEBULA (classic), NEBULA (pseudobulk)
 # ============================================================================
 # 이 스크립트는 새로 개발된 함수들을 테스트합니다.
 # 
@@ -41,17 +41,17 @@ if ("g3" %in% colnames(sobj@meta.data)) {
 }
 
 # ============================================================================
-# 2. runMUSCAT2_v1 테스트
+# 2. runMUSCAT 테스트
 # ============================================================================
 message("\n========================================")
-message("runMUSCAT2_v1 테스트 시작...")
+message("runMUSCAT 테스트 시작...")
 message("========================================")
 
 # 테스트 실행 (작은 클러스터만)
 test_muscat2 <- FALSE  # TRUE로 변경하여 테스트 실행
 if (test_muscat2) {
   tryCatch({
-    res_muscat2 <- runMUSCAT2_v1(
+    res_muscat2 <- runMUSCAT(
       sobj = sobj,
       cluster_id = "seurat_clusters",
       sample_id = "hos_no",
@@ -62,7 +62,7 @@ if (test_muscat2) {
       keep_clusters = c("0", "1", "2")  # 처음 3개 클러스터만 테스트
     )
     
-    message(sprintf("\nrunMUSCAT2_v1 완료: %d 행", nrow(res_muscat2)))
+    message(sprintf("\nrunMUSCAT 완료: %d 행", nrow(res_muscat2)))
     message("결과 컬럼:")
     message(paste(colnames(res_muscat2), collapse = ", "))
     
@@ -72,17 +72,17 @@ if (test_muscat2) {
     message(sprintf("\n결과 저장: %s", output_path))
     
   }, error = function(e) {
-    message(sprintf("\nrunMUSCAT2_v1 오류: %s", conditionMessage(e)))
+    message(sprintf("\nrunMUSCAT 오류: %s", conditionMessage(e)))
   })
 } else {
-  message("runMUSCAT2_v1 테스트 건너뜀 (test_muscat2 = FALSE)")
+  message("runMUSCAT 테스트 건너뜀 (test_muscat2 = FALSE)")
 }
 
 # ============================================================================
-# 3. runNEBULA2_v1 테스트
+# 3. runNEBULA 테스트
 # ============================================================================
 message("\n========================================")
-message("runNEBULA2_v1 테스트 시작...")
+message("runNEBULA 테스트 시작...")
 message("========================================")
 
 # 테스트 실행
@@ -96,7 +96,7 @@ if (test_nebula2) {
       # 작은 서브셋으로 테스트 (처음 1000개 유전자만)
       sobj_sub <- sobj[1:min(1000, nrow(sobj)), ]
       
-      res_nebula2 <- runNEBULA2_v1(
+      res_nebula2 <- runNEBULA(
         sobj = sobj_sub,
         layer = "counts",
         fixed_effects = "g3",
@@ -107,28 +107,28 @@ if (test_nebula2) {
         remove_na_cells = TRUE
       )
       
-      message(sprintf("\nrunNEBULA2_v1 완료"))
+      message(sprintf("\nrunNEBULA 완료"))
       message("결과 구조:")
       str(res_nebula2, max.level = 2)
       
       # 결과 저장
-      output_path <- "/data/user3/sobj/test_nebula2_v1_result.qs"
+      output_path <- "/data/user3/sobj/test_nebula_result.qs"
       qs::qsave(res_nebula2, output_path)
       message(sprintf("\n결과 저장: %s", output_path))
     }
     
   }, error = function(e) {
-    message(sprintf("\nrunNEBULA2_v1 오류: %s", conditionMessage(e)))
+    message(sprintf("\nrunNEBULA 오류: %s", conditionMessage(e)))
   })
 } else {
-  message("runNEBULA2_v1 테스트 건너뜀 (test_nebula2 = FALSE)")
+  message("runNEBULA 테스트 건너뜀 (test_nebula2 = FALSE)")
 }
 
 # ============================================================================
-# 4. runNEBULA2_v1_with_pseudobulk 테스트
+# 4. runNEBULA (pseudobulk) 테스트
 # ============================================================================
 message("\n========================================")
-message("runNEBULA2_v1_with_pseudobulk 테스트 시작...")
+message("runNEBULA (pseudobulk) 테스트 시작...")
 message("========================================")
 
 # 테스트 실행
@@ -140,23 +140,25 @@ if (test_nebula2_pb) {
       message("g3 컬럼이 없습니다. 다른 변수를 사용하세요.")
     } else {
       # 작은 서브셋으로 테스트 (처음 몇 개 클러스터만)
-      res_nebula2_pb <- runNEBULA2_v1_with_pseudobulk(
+      res_nebula2_pb <- runNEBULA(
         sobj = sobj,
         layer = "counts",
-        cluster_id = "seurat_clusters",
-        sample_id = "hos_no",
-        group_id = "type",
         fixed_effects = "g3",
         covar_effects = NULL,
         patient_col = "hos_no",
-        offset_method = "sum",
         min_count = 10,
-        min_cells_per_pb = 3,
         remove_na_cells = TRUE,
-        keep_clusters = c("0", "1", "2")  # 처음 3개 클러스터만 테스트
+        pseudobulk = list(
+          cluster_id = "seurat_clusters",
+          sample_id = "hos_no",
+          group_id = "type",
+          offset_method = "sum",
+          min_cells_per_pb = 3,
+          keep_clusters = c("0", "1", "2")  # 처음 3개 클러스터만 테스트
+        )
       )
       
-      message(sprintf("\nrunNEBULA2_v1_with_pseudobulk 완료"))
+      message(sprintf("\nrunNEBULA (pseudobulk) 완료"))
       message("결과 구조:")
       str(res_nebula2_pb, max.level = 2)
       
@@ -164,16 +166,16 @@ if (test_nebula2_pb) {
       message(sprintf("Pseudobulk 유전자 수: %d", nrow(res_nebula2_pb$pseudobulk_counts)))
       
       # 결과 저장
-      output_path <- "/data/user3/sobj/test_nebula2_v1_with_pseudobulk_result.qs"
+      output_path <- "/data/user3/sobj/test_nebula_pseudobulk_result.qs"
       qs::qsave(res_nebula2_pb, output_path)
       message(sprintf("\n결과 저장: %s", output_path))
     }
     
   }, error = function(e) {
-    message(sprintf("\nrunNEBULA2_v1_with_pseudobulk 오류: %s", conditionMessage(e)))
+    message(sprintf("\nrunNEBULA (pseudobulk) 오류: %s", conditionMessage(e)))
   })
 } else {
-  message("runNEBULA2_v1_with_pseudobulk 테스트 건너뜀 (test_nebula2_pb = FALSE)")
+  message("runNEBULA (pseudobulk) 테스트 건너뜀 (test_nebula2_pb = FALSE)")
 }
 
 # ============================================================================

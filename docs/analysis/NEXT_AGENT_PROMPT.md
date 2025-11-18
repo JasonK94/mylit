@@ -6,7 +6,7 @@ R 패키지 `myR`의 gene signature discovery 및 differential expression 분석
 ## 최근 완료된 작업
 1. **`find_gene_signature_v5.2`, `v5.3`**: 완성 및 테스트 완료
 2. **`FGS_v5.2`, `FGS_v5.3`**: `signature.R`에 별칭 추가 완료
-3. **`runMUSCAT_v5`**: 정상 작동 확인
+3. **`runMUSCAT`**: 정상 작동 확인
 4. **v5.3 GAM 동적 k**: 정상 작동 확인
 5. **pseudobulk 호환성**: v5.2, v5.3 모두 확인
 
@@ -23,7 +23,7 @@ R 패키지 `myR`의 gene signature discovery 및 differential expression 분석
 - `FromMatrix` 직접 사용 또는 다른 변환 방법 구현
 - 또는 MAST 대신 다른 DE 방법 제안
 
-### 2. runNEBULA_v1 최종 테스트 (우선순위 중간)
+### 2. runNEBULA 최종 테스트 (우선순위 중간)
 **상태**: 코드 수정 완료 (HL method 추가, fallback 구현)
 - 위치: `myR/R/test_analysis.R` (line ~107-275)
 - 다운샘플링 데이터로 테스트 필요
@@ -32,7 +32,7 @@ R 패키지 `myR`의 gene signature discovery 및 differential expression 분석
 ## 핵심 파일
 - `myR/R/test.R`: `find_gene_signature_v5.2`, `v5.3`
 - `myR/R/signature.R`: `FGS_v5.2`, `FGS_v5.3`
-- `myR/R/test_analysis.R`: `runMAST_v1`, `runNEBULA_v1`, `runMUSCAT_v5`
+- `myR/R/test_analysis.R`: `runMAST_v1`, `runNEBULA`, `runMUSCAT`
 
 ## 테스트 데이터
 - 다운샘플링: `/data/user3/sobj/IS_scvi_251107_ds2500.qs`
@@ -45,7 +45,7 @@ R 패키지 `myR`의 gene signature discovery 및 differential expression 분석
 
 ## 다음 단계
 1. **runMAST_v1 수정**: MAST 패키지 호환성 문제 해결
-2. **runNEBULA_v1 테스트**: 다운샘플링 → full 데이터 순서로 테스트
+2. **runNEBULA 테스트**: 다운샘플링 → full 데이터 순서로 테스트
 3. **결과 저장**: 모든 테스트 결과는 `qs::qsave()`로 `/data/user3/sobj/`에 저장
 4. **커밋**: 작업 완료 후 변경사항 커밋
 

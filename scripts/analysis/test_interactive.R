@@ -1,11 +1,11 @@
 # ============================================================================
-# 테스트 스크립트: MUSCAT2_v1, NEBULA2_v1, runNEBULA2_v1_with_pseudobulk
+# 테스트 스크립트: MUSCAT, NEBULA (classic), NEBULA (pseudobulk)
 # ============================================================================
 # 이 스크립트는 /home/user3/GJC_KDW_250721 디렉터리에서 실행해야 합니다.
 # 
 # 사용법:
 #   cd /home/user3/GJC_KDW_250721
-#   Rscript "/home/user3/data_user3/git_repo/_wt/analysis/test_interactive.R"
+#   Rscript "/home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_interactive.R"
 # ============================================================================
 
 # 작업 디렉터리를 /home/user3/GJC_KDW_250721로 설정 (중요!)
@@ -52,7 +52,7 @@ message("\n========================================")
 message("함수 존재 확인")
 message("========================================")
 
-functions_to_check <- c("runMUSCAT2_v1", "runNEBULA2_v1", "runNEBULA2_v1_with_pseudobulk")
+functions_to_check <- c("runMUSCAT", "runNEBULA")
 for (func_name in functions_to_check) {
   if (exists(func_name)) {
     message(sprintf("✓ %s: 존재함", func_name))
@@ -163,19 +163,19 @@ if ("hos_no" %in% meta_cols) {
 }
 
 # ============================================================================
-# 2. runMUSCAT2_v1 테스트
+# 2. runMUSCAT 테스트
 # ============================================================================
 message("\n========================================")
-message("2. runMUSCAT2_v1 테스트")
+message("2. runMUSCAT 테스트")
 message("========================================")
 
-message("runMUSCAT2_v1 실행 중...")
+message("runMUSCAT 실행 중...")
 message("이 작업은 몇 분에서 수십 분이 걸릴 수 있습니다.")
 
 start_time <- Sys.time()
 
 test_result_muscat2 <- tryCatch({
-  res_muscat2 <- runMUSCAT2_v1(
+  res_muscat2 <- runMUSCAT(
     sobj = sobj,
     cluster_id = "seurat_clusters",
     sample_id = "hos_no",
@@ -189,7 +189,7 @@ test_result_muscat2 <- tryCatch({
   end_time <- Sys.time()
   elapsed_time <- difftime(end_time, start_time, units = "secs")
   
-  message(sprintf("\n✓ runMUSCAT2_v1 완료 (소요 시간: %.2f초)", as.numeric(elapsed_time)))
+  message(sprintf("\n✓ runMUSCAT 완료 (소요 시간: %.2f초)", as.numeric(elapsed_time)))
   message(sprintf("결과 행 수: %d", nrow(res_muscat2)))
   
   if (nrow(res_muscat2) > 0) {
@@ -216,20 +216,20 @@ test_result_muscat2 <- tryCatch({
 }, error = function(e) {
   end_time <- Sys.time()
   elapsed_time <- difftime(end_time, start_time, units = "secs")
-  message(sprintf("\n✗ runMUSCAT2_v1 오류 (소요 시간: %.2f초)", as.numeric(elapsed_time)))
+  message(sprintf("\n✗ runMUSCAT 오류 (소요 시간: %.2f초)", as.numeric(elapsed_time)))
   message(sprintf("오류 메시지: %s", conditionMessage(e)))
   traceback()
   list(success = FALSE, error = conditionMessage(e), elapsed_time = elapsed_time)
 })
 
 # ============================================================================
-# 3. runNEBULA2_v1_with_pseudobulk 테스트
+# 3. runNEBULA (pseudobulk 옵션) 테스트
 # ============================================================================
 message("\n========================================")
-message("3. runNEBULA2_v1_with_pseudobulk 테스트")
+message("3. runNEBULA (pseudobulk 옵션) 테스트")
 message("========================================")
 
-message("runNEBULA2_v1_with_pseudobulk 실행 중...")
+message("runNEBULA (pseudobulk) 실행 중...")
 message("이 작업은 몇 분에서 수십 분이 걸릴 수 있습니다.")
 
 start_time_pb <- Sys.time()
@@ -264,26 +264,28 @@ test_result_nebula2_pb <- tryCatch({
   # 유전자 수가 많으면 NEBULA가 실패할 수 있으므로, 더 강한 필터링 적용
   # 또는 처음 1000개 유전자만 테스트
   # min_count를 높이거나, 유전자를 제한할 수 있음
-  res_nebula2_pb <- runNEBULA2_v1_with_pseudobulk(
+  res_nebula2_pb <- runNEBULA(
     sobj = sobj,
     layer = "counts",
-    cluster_id = "seurat_clusters",
-    sample_id = "hos_no",
-    group_id = group_id_var,  # 동적으로 결정된 그룹 변수 사용
     fixed_effects = fixed_effects_var,
     covar_effects = NULL,
     patient_col = "hos_no",
-    offset_method = "sum",
     min_count = 20,  # 더 높은 min_count로 필터링 강화
-    min_cells_per_pb = 3,
     remove_na_cells = TRUE,
-    keep_clusters = test_clusters
+    pseudobulk = list(
+      cluster_id = "seurat_clusters",
+      sample_id = "hos_no",
+      group_id = group_id_var,
+      offset_method = "sum",
+      min_cells_per_pb = 3,
+      keep_clusters = test_clusters
+    )
   )
   
   end_time_pb <- Sys.time()
   elapsed_time_pb <- difftime(end_time_pb, start_time_pb, units = "secs")
   
-  message(sprintf("\n✓ runNEBULA2_v1_with_pseudobulk 완료 (소요 시간: %.2f초)", as.numeric(elapsed_time_pb)))
+  message(sprintf("\n✓ runNEBULA (pseudobulk) 완료 (소요 시간: %.2f초)", as.numeric(elapsed_time_pb)))
   
   # 결과 확인
   message("\n결과 구조:")
@@ -294,7 +296,7 @@ test_result_nebula2_pb <- tryCatch({
                   ncol(res_nebula2_pb$pseudobulk_counts)))
   
   # 결과 저장
-  output_path_pb <- "/data/user3/sobj/test_nebula2_v1_with_pseudobulk_result.qs"
+  output_path_pb <- "/data/user3/sobj/test_nebula_pseudobulk_result.qs"
   qs::qsave(res_nebula2_pb, output_path_pb)
   message(sprintf("\n결과 저장: %s", output_path_pb))
   if (file.exists(output_path_pb)) {
@@ -306,7 +308,7 @@ test_result_nebula2_pb <- tryCatch({
 }, error = function(e) {
   end_time_pb <- Sys.time()
   elapsed_time_pb <- difftime(end_time_pb, start_time_pb, units = "secs")
-  message(sprintf("\n✗ runNEBULA2_v1_with_pseudobulk 오류 (소요 시간: %.2f초)", as.numeric(elapsed_time_pb)))
+  message(sprintf("\n✗ runNEBULA (pseudobulk) 오류 (소요 시간: %.2f초)", as.numeric(elapsed_time_pb)))
   message(sprintf("오류 메시지: %s", conditionMessage(e)))
   traceback()
   list(success = FALSE, error = conditionMessage(e), elapsed_time = elapsed_time_pb)
@@ -319,24 +321,24 @@ message("\n========================================")
 message("4. 테스트 결과 요약")
 message("========================================")
 
-# runMUSCAT2_v1 결과
+# runMUSCAT 결과
 if (test_result_muscat2$success) {
-  message("✓ runMUSCAT2_v1: 성공")
+  message("✓ runMUSCAT: 성공")
   message(sprintf("  - 소요 시간: %.2f초", as.numeric(test_result_muscat2$elapsed_time)))
   message(sprintf("  - 결과 행 수: %d", nrow(test_result_muscat2$result)))
 } else {
-  message("✗ runMUSCAT2_v1: 실패")
+  message("✗ runMUSCAT: 실패")
   message(sprintf("  - 오류: %s", test_result_muscat2$error))
 }
 
-# runNEBULA2_v1_with_pseudobulk 결과
+# runNEBULA (pseudobulk) 결과
 if (test_result_nebula2_pb$success) {
-  message("✓ runNEBULA2_v1_with_pseudobulk: 성공")
+  message("✓ runNEBULA (pseudobulk): 성공")
   message(sprintf("  - 소요 시간: %.2f초", as.numeric(test_result_nebula2_pb$elapsed_time)))
   message(sprintf("  - Pseudobulk 샘플 수: %d", nrow(test_result_nebula2_pb$result$pseudobulk_meta)))
   message(sprintf("  - Pseudobulk 유전자 수: %d", nrow(test_result_nebula2_pb$result$pseudobulk_counts)))
 } else {
-  message("✗ runNEBULA2_v1_with_pseudobulk: 실패")
+  message("✗ runNEBULA (pseudobulk): 실패")
   message(sprintf("  - 오류: %s", test_result_nebula2_pb$error))
 }
 

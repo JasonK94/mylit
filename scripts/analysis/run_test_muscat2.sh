@@ -1,13 +1,13 @@
 #!/bin/bash
 # ============================================================================
-# runMUSCAT2_v1 테스트 실행 스크립트
+# runMUSCAT 테스트 실행 스크립트
 # ============================================================================
 
 # 작업 디렉터리로 이동
 cd /home/user3/GJC_KDW_250721
 
 # R 스크립트 실행
-Rscript /home/user3/data_user3/git_repo/_wt/analysis/test_run_muscat2.R 2>&1 | tee /tmp/test_muscat2.log
+Rscript /home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_run_muscat2.R 2>&1 | tee /tmp/test_muscat2.log
 
 # 결과 확인
 if [ $? -eq 0 ]; then
