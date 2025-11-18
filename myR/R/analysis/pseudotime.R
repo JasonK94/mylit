@@ -288,8 +288,20 @@ run_slingshot_from_seurat <- function(seurat_obj,
   
   # --- Step 4: Processing Slingshot output ---
   message("Processing Slingshot output...")
-  pst_matrix <- slingshot::slingPseudotime(slingshot_result, na = FALSE)
-  weights_matrix <- slingshot::slingCurveWeights(slingshot_result, na = FALSE)
+  # slingshot 버전에 따라 na 인자 지원 여부가 다를 수 있음
+  pst_matrix <- tryCatch({
+    slingshot::slingPseudotime(slingshot_result, na = FALSE)
+  }, error = function(e) {
+    # na 인자가 지원되지 않는 경우
+    slingshot::slingPseudotime(slingshot_result)
+  })
+  
+  weights_matrix <- tryCatch({
+    slingshot::slingCurveWeights(slingshot_result, na = FALSE)
+  }, error = function(e) {
+    # na 인자가 지원되지 않는 경우
+    slingshot::slingCurveWeights(slingshot_result)
+  })
   # Cell names for slingshot_result are based on the input dim_reduced_data_filt
   original_cell_names_for_slingshot_input <- rownames(dim_reduced_data_filt)
   
@@ -367,8 +379,8 @@ run_slingshot_from_seurat <- function(seurat_obj,
   )
   
   tryCatch({
-    reducedDim(sce, toupper(reduced_dim_name)) <- dim_reduced_data_sce
-    reducedDim(sce, "slingshot") <- pst_matrix_sce
+    SingleCellExperiment::reducedDim(sce, toupper(reduced_dim_name)) <- dim_reduced_data_sce
+    SingleCellExperiment::reducedDim(sce, "slingshot") <- pst_matrix_sce
   }, error = function(e){
     warning("Failed to set reducedDims on SCE object: ", e$message, call.=FALSE)
   })
@@ -382,19 +394,26 @@ run_slingshot_from_seurat <- function(seurat_obj,
   }
   
   # Carefully merge weights_df into existing colData(sce), which already has original_metadata_sce
+  current_colData <- SummarizedExperiment::colData(sce)
   for(w_col in colnames(weights_df)){
-    safe_w_col_name <- if(w_col %in% colnames(colData(sce))) paste0("slingWeight_", w_col) else w_col
-    tryCatch(colData(sce)[[safe_w_col_name]] <- weights_df[[w_col]],
-             error = function(e) warning("Could not add weight column '", safe_w_col_name, "' to colData: ", e$message, call. = FALSE))
+    safe_w_col_name <- if(w_col %in% colnames(current_colData)) paste0("slingWeight_", w_col) else w_col
+    tryCatch({
+      current_colData[[safe_w_col_name]] <- weights_df[[w_col]]
+    }, error = function(e) {
+      warning("Could not add weight column '", safe_w_col_name, "' to colData: ", e$message, call. = FALSE)
+    })
   }
   
   # Ensure the specific cluster_col is present and is a factor with original levels
   if(cluster_col %in% colnames(original_metadata_sce)){
-    colData(sce)[[cluster_col]] <- factor(original_metadata_sce[[cluster_col]],
+    current_colData[[cluster_col]] <- factor(original_metadata_sce[[cluster_col]],
                                           levels = levels(factor(seurat_obj@meta.data[[cluster_col]])))
   } else {
     warning("Original cluster column '", cluster_col, "' was lost from colData of SCE.", call. = FALSE)
   }
+  
+  # Update colData
+  SummarizedExperiment::colData(sce) <- current_colData
   
   message("SCE object created successfully with ", ncol(sce), " cells.")
   if(!is.null(slingshot_result) && "slingLineages" %in% ls(getNamespace("slingshot"))){ # Check if SlingshotDataSet was returned
@@ -1243,4 +1262,1274 @@ analyze_gene_dynamics_tradeSeq <- function(gene_id,
   
   return(list(gene = gene_id, status = "success", metrics = metrics_out,
               plot_path = plot_filepath, plot_object = plot_object))
+}
+
+
+#' Run Monocle3 trajectory inference from a Seurat object
+#'
+#' This function converts a Seurat object to a Monocle3 cell_data_set,
+#' performs preprocessing, dimensionality reduction, and trajectory inference.
+#' It provides a complete Monocle3 workflow with automatic parameter optimization.
+#'
+#' @param seurat_obj A Seurat object. Must have counts and metadata.
+#' @param counts_assay_name Character string, the name of the assay containing counts.
+#'   Default is "RNA".
+#' @param reduction_name Character string, the name of dimensionality reduction to use
+#'   from Seurat object (e.g., "pca", "umap"). If NULL, Monocle3 will compute its own.
+#'   Default is NULL.
+#' @param root_cells Optional. Character vector of cell IDs to use as root cells for
+#'   trajectory ordering. If NULL, Monocle3 will attempt to identify root cells automatically.
+#' @param root_cluster Optional. Character string or numeric value specifying a cluster
+#'   to use as root. All cells in this cluster will be used as root cells.
+#' @param gene_metadata Optional. Data frame with gene metadata (must have rownames matching
+#'   gene names). If NULL, a basic gene metadata will be created.
+#' @param preprocess_method Character string. Method for preprocessing: "PCA" (default) or "LSI".
+#' @param num_dimensions Integer. Number of dimensions for dimensionality reduction. Default is 50.
+#' @param reduction_method Character string. Method for dimensionality reduction: "UMAP" (default) or "tSNE".
+#' @param use_partition Logical. Whether to use partition-based trajectory learning. Default is TRUE.
+#' @param cluster_method Character string. Clustering method: "leiden" (default) or "louvain".
+#' @param resolution Numeric. Resolution parameter for clustering. Default is 0.0001.
+#' @param verbose Logical. Whether to print progress messages. Default is TRUE.
+#' @param ... Additional arguments to pass to Monocle3 functions.
+#'
+#' @return A Monocle3 cell_data_set object with trajectory inference results.
+#'   Returns NULL if a critical error occurs.
+#'
+#' @import monocle3
+#' @import Seurat
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Assuming 'seu' is a Seurat object
+#' cds <- run_monocle3_from_seurat(
+#'   seurat_obj = seu,
+#'   counts_assay_name = "RNA",
+#'   reduction_method = "UMAP",
+#'   root_cluster = "0"
+#' )
+#' 
+#' if (!is.null(cds)) {
+#'   print("Monocle3 analysis successful.")
+#'   # Extract pseudotime
+#'   pt <- monocle3::pseudotime(cds)
+#' }
+#' }
+run_monocle3_from_seurat <- function(seurat_obj,
+                                     counts_assay_name = "RNA",
+                                     reduction_name = NULL,
+                                     root_cells = NULL,
+                                     root_cluster = NULL,
+                                     gene_metadata = NULL,
+                                     preprocess_method = "PCA",
+                                     num_dimensions = 50,
+                                     reduction_method = "UMAP",
+                                     use_partition = TRUE,
+                                     cluster_method = "leiden",
+                                     resolution = 0.0001,
+                                     verbose = TRUE,
+                                     ...) {
+  
+  # --- 0. Load required packages ---
+  if (!requireNamespace("monocle3", quietly = TRUE)) {
+    stop("Package 'monocle3' is required. Please install it.", call. = FALSE)
+  }
+  
+  # --- 1. Input Validation ---
+  if (verbose) message("--- Step 1: Validating inputs ---")
+  if (!is(seurat_obj, "Seurat")) {
+    stop("seurat_obj must be a Seurat object.", call. = FALSE)
+  }
+  
+  # Check assay
+  available_assays <- Seurat::Assays(seurat_obj)
+  if (!counts_assay_name %in% available_assays) {
+    stop("Assay '", counts_assay_name, "' not found. Available assays: ",
+         paste(available_assays, collapse = ", "), call. = FALSE)
+  }
+  
+  # Get counts
+  if (verbose) message("Extracting counts from assay '", counts_assay_name, "'...")
+  counts_matrix <- Seurat::GetAssayData(seurat_obj, assay = counts_assay_name, slot = "counts")
+  
+  # Validate counts
+  if (is.null(counts_matrix) || nrow(counts_matrix) == 0 || ncol(counts_matrix) == 0) {
+    stop("Counts matrix is empty or NULL.", call. = FALSE)
+  }
+  
+  # Ensure counts are non-negative integers
+  if (any(counts_matrix < 0, na.rm = TRUE)) {
+    warning("Negative values found in counts. Setting to 0.", call. = FALSE)
+    counts_matrix[counts_matrix < 0] <- 0
+  }
+  
+  non_int_idx <- counts_matrix@x %% 1 != 0 & !is.na(counts_matrix@x)
+  if (any(non_int_idx)) {
+    if (verbose) message("Rounding non-integer counts to nearest integer.")
+    counts_matrix@x[non_int_idx] <- round(counts_matrix@x[non_int_idx])
+  }
+  
+  # Get cell metadata
+  cell_metadata <- seurat_obj@meta.data
+  if (is.null(rownames(cell_metadata))) {
+    rownames(cell_metadata) <- colnames(seurat_obj)
+  }
+  
+  # Align cell metadata with counts
+  common_cells <- intersect(colnames(counts_matrix), rownames(cell_metadata))
+  if (length(common_cells) == 0) {
+    stop("No common cells found between counts and metadata.", call. = FALSE)
+  }
+  if (length(common_cells) < ncol(counts_matrix) || length(common_cells) < nrow(cell_metadata)) {
+    if (verbose) message("Subsetting to ", length(common_cells), " common cells.")
+    counts_matrix <- counts_matrix[, common_cells]
+    cell_metadata <- cell_metadata[common_cells, , drop = FALSE]
+  }
+  
+  # Create gene metadata if not provided
+  if (is.null(gene_metadata)) {
+    if (verbose) message("Creating gene metadata...")
+    gene_metadata <- data.frame(
+      gene_short_name = rownames(counts_matrix),
+      row.names = rownames(counts_matrix),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    # Ensure gene metadata has correct rownames
+    if (!all(rownames(counts_matrix) %in% rownames(gene_metadata))) {
+      warning("Some genes in counts are missing from gene_metadata. Adding missing genes.", call. = FALSE)
+      missing_genes <- setdiff(rownames(counts_matrix), rownames(gene_metadata))
+      missing_df <- data.frame(
+        gene_short_name = missing_genes,
+        row.names = missing_genes,
+        stringsAsFactors = FALSE
+      )
+      if ("gene_short_name" %in% colnames(gene_metadata)) {
+        gene_metadata <- rbind(gene_metadata, missing_df)
+      } else {
+        gene_metadata <- rbind(gene_metadata, missing_df)
+        gene_metadata$gene_short_name <- rownames(gene_metadata)
+      }
+    }
+    gene_metadata <- gene_metadata[rownames(counts_matrix), , drop = FALSE]
+  }
+  
+  # --- 2. Create cell_data_set ---
+  if (verbose) message("--- Step 2: Creating Monocle3 cell_data_set ---")
+  cds <- tryCatch({
+    monocle3::new_cell_data_set(
+      expression_data = counts_matrix,
+      cell_metadata = cell_metadata,
+      gene_metadata = gene_metadata
+    )
+  }, error = function(e) {
+    stop("Failed to create cell_data_set: ", e$message, call. = FALSE)
+  })
+  
+  # --- 3. Preprocessing ---
+  if (verbose) message("--- Step 3: Preprocessing ---")
+  
+  # Estimate size factors
+  if (verbose) message("Estimating size factors...")
+  cds <- tryCatch({
+    monocle3::estimate_size_factors(cds)
+  }, error = function(e) {
+    warning("Size factor estimation failed: ", e$message, ". Continuing anyway.", call. = FALSE)
+    return(cds)
+  })
+  
+  # Preprocess (PCA or LSI)
+  if (verbose) message("Preprocessing using ", preprocess_method, "...")
+  cds <- tryCatch({
+    if (preprocess_method == "PCA") {
+      monocle3::preprocess_cds(cds, method = "PCA", num_dim = num_dimensions, verbose = verbose)
+    } else if (preprocess_method == "LSI") {
+      monocle3::preprocess_cds(cds, method = "LSI", num_dim = num_dimensions, verbose = verbose)
+    } else {
+      stop("preprocess_method must be 'PCA' or 'LSI'", call. = FALSE)
+    }
+  }, error = function(e) {
+    stop("Preprocessing failed: ", e$message, call. = FALSE)
+  })
+  
+  # --- 4. Dimensionality Reduction ---
+  if (verbose) message("--- Step 4: Dimensionality reduction ---")
+  
+  # Use existing reduction from Seurat if provided
+  if (!is.null(reduction_name) && reduction_name %in% names(seurat_obj@reductions)) {
+    if (verbose) message("Using existing reduction '", reduction_name, "' from Seurat object...")
+    reduction_data <- Seurat::Embeddings(seurat_obj, reduction = reduction_name)
+    common_cells_reduction <- intersect(rownames(reduction_data), colnames(cds))
+    if (length(common_cells_reduction) > 0) {
+      reduction_data <- reduction_data[common_cells_reduction, , drop = FALSE]
+      # Store in reducedDims
+      if (reduction_method == "UMAP") {
+        SingleCellExperiment::reducedDim(cds, "UMAP") <- reduction_data[, 1:min(ncol(reduction_data), 2)]
+      } else if (reduction_method == "tSNE") {
+        SingleCellExperiment::reducedDim(cds, "tSNE") <- reduction_data[, 1:min(ncol(reduction_data), 2)]
+      }
+      if (verbose) message("Reduction stored. Skipping Monocle3 reduction computation.")
+    } else {
+      if (verbose) message("No common cells found. Computing reduction with Monocle3...")
+      cds <- monocle3::reduce_dimension(cds, reduction_method = reduction_method, 
+                                       verbose = verbose, ...)
+    }
+  } else {
+    if (verbose) message("Computing ", reduction_method, " reduction...")
+    cds <- tryCatch({
+      monocle3::reduce_dimension(cds, reduction_method = reduction_method, 
+                                verbose = verbose, ...)
+    }, error = function(e) {
+      stop("Dimensionality reduction failed: ", e$message, call. = FALSE)
+    })
+  }
+  
+  # --- 5. Clustering ---
+  if (verbose) message("--- Step 5: Clustering ---")
+  cds <- tryCatch({
+    monocle3::cluster_cells(cds, resolution = resolution, method = cluster_method, 
+                            verbose = verbose, ...)
+  }, error = function(e) {
+    warning("Clustering failed: ", e$message, ". Continuing without clustering.", call. = FALSE)
+    return(cds)
+  })
+  
+  # --- 6. Learn Graph (Trajectory) ---
+  if (verbose) message("--- Step 6: Learning trajectory graph ---")
+  cds <- tryCatch({
+    if (use_partition) {
+      monocle3::learn_graph(cds, use_partition = TRUE, verbose = verbose, ...)
+    } else {
+      monocle3::learn_graph(cds, use_partition = FALSE, verbose = verbose, ...)
+    }
+  }, error = function(e) {
+    warning("Graph learning failed: ", e$message, ". Returning cds without trajectory.", call. = FALSE)
+    return(cds)
+  })
+  
+  # --- 7. Order Cells (Assign Pseudotime) ---
+  if (verbose) message("--- Step 7: Ordering cells and assigning pseudotime ---")
+  
+  # Determine root cells
+  final_root_cells <- NULL
+  if (!is.null(root_cells)) {
+    final_root_cells <- intersect(root_cells, colnames(cds))
+    if (length(final_root_cells) == 0) {
+      warning("None of the specified root_cells found in cds. Using automatic root detection.", call. = FALSE)
+      final_root_cells <- NULL
+    }
+  } else if (!is.null(root_cluster)) {
+    # Get cells from root cluster
+    if ("cluster" %in% colnames(monocle3::pData(cds))) {
+      cluster_col <- monocle3::pData(cds)$cluster
+      root_cluster_char <- as.character(root_cluster)
+      final_root_cells <- names(cluster_col)[cluster_col == root_cluster_char]
+      if (length(final_root_cells) == 0) {
+        warning("No cells found in root_cluster '", root_cluster, "'. Using automatic root detection.", call. = FALSE)
+        final_root_cells <- NULL
+      }
+    } else {
+      warning("No cluster information found. Using automatic root detection.", call. = FALSE)
+      final_root_cells <- NULL
+    }
+  }
+  
+  # Order cells
+  cds <- tryCatch({
+    if (!is.null(final_root_cells)) {
+      monocle3::order_cells(cds, root_cells = final_root_cells, verbose = verbose, ...)
+    } else {
+      if (verbose) message("No root cells specified. Monocle3 will attempt automatic root detection.")
+      monocle3::order_cells(cds, verbose = verbose, ...)
+    }
+  }, error = function(e) {
+    warning("Cell ordering failed: ", e$message, ". Returning cds without pseudotime.", call. = FALSE)
+    return(cds)
+  })
+  
+  if (verbose) message("Monocle3 trajectory inference completed successfully.")
+  return(cds)
+}
+
+
+#' Analyze dynamic correlation between gene expression and metadata across pseudotime
+#'
+#' This function calculates correlations between gene expression and metadata variables
+#' across different pseudotime segments, allowing detection of how relationships change
+#' along the trajectory.
+#'
+#' @param cds_obj A Monocle3 cell_data_set object with pseudotime calculated.
+#' @param gene_id Character string, the gene ID to analyze.
+#' @param metadata_col Character string, the column name in colData(cds_obj) containing
+#'   the metadata variable to correlate with gene expression.
+#' @param pseudotime_method Function or character string to extract pseudotime.
+#'   Defaults to `monocle3::pseudotime`.
+#' @param n_segments Integer. Number of pseudotime segments to divide the trajectory into.
+#'   Default is 5.
+#' @param correlation_method Character string. Correlation method: "pearson" (default) or "spearman".
+#' @param min_cells_per_segment Integer. Minimum number of cells required per segment
+#'   to calculate correlation. Default is 20.
+#' @param return_segment_data Logical. If TRUE, returns data for each segment.
+#'   Default is FALSE.
+#'
+#' @return A list containing:
+#'   \itemize{
+#'     \item `gene`: The input gene ID.
+#'     \item `metadata_col`: The metadata column analyzed.
+#'     \item `overall_correlation`: Overall correlation across all cells.
+#'     \item `segment_correlations`: Data frame with correlations per segment.
+#'     \item `correlation_change`: Statistics on how correlation changes across segments.
+#'     \item `segment_data`: (if return_segment_data=TRUE) Data for each segment.
+#'   }
+#'
+#' @import monocle3
+#' @import dplyr
+#' @importFrom stats cor.test
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Assuming 'cds' is a Monocle3 object with pseudotime
+#' result <- analyze_metadata_correlation_dynamics(
+#'   cds_obj = cds,
+#'   gene_id = "DDIT4",
+#'   metadata_col = "nih_change",
+#'   n_segments = 5
+#' )
+#' 
+#' # View segment correlations
+#' print(result$segment_correlations)
+#' }
+analyze_metadata_correlation_dynamics <- function(cds_obj,
+                                                  gene_id,
+                                                  metadata_col,
+                                                  pseudotime_method = monocle3::pseudotime,
+                                                  n_segments = 5,
+                                                  correlation_method = "pearson",
+                                                  min_cells_per_segment = 20,
+                                                  return_segment_data = FALSE) {
+  
+  # --- 0. Input Validation ---
+  if (!is(cds_obj, "cell_data_set")) {
+    stop("cds_obj must be a Monocle3 cell_data_set object.", call. = FALSE)
+  }
+  
+  if (!gene_id %in% rownames(counts(cds_obj))) {
+    stop("Gene '", gene_id, "' not found in cds_obj.", call. = FALSE)
+  }
+  
+  cell_metadata <- colData(cds_obj)
+  if (!metadata_col %in% colnames(cell_metadata)) {
+    stop("Metadata column '", metadata_col, "' not found in colData(cds_obj).", call. = FALSE)
+  }
+  
+  # Extract pseudotime
+  pt_values <- tryCatch({
+    if (is.character(pseudotime_method)) {
+      eval(parse(text = pseudotime_method))(cds_obj)
+    } else if (is.function(pseudotime_method)) {
+      pseudotime_method(cds_obj)
+    } else {
+      stop("pseudotime_method must be a function or character string.", call. = FALSE)
+    }
+  }, error = function(e) {
+    stop("Could not extract pseudotime: ", e$message, call. = FALSE)
+  })
+  
+  if (all(is.infinite(pt_values)) || all(is.na(pt_values))) {
+    stop("All pseudotime values are invalid (Inf or NA).", call. = FALSE)
+  }
+  
+  # Extract gene expression
+  gene_expr <- as.numeric(counts(cds_obj)[gene_id, ])
+  names(gene_expr) <- colnames(cds_obj)
+  
+  # Extract metadata
+  metadata_values <- cell_metadata[[metadata_col]]
+  names(metadata_values) <- rownames(cell_metadata)
+  
+  # --- 1. Align data ---
+  common_cells <- Reduce(intersect, list(
+    names(pt_values),
+    names(gene_expr),
+    names(metadata_values)
+  ))
+  
+  if (length(common_cells) == 0) {
+    stop("No common cells found between pseudotime, expression, and metadata.", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[common_cells]
+  gene_expr <- gene_expr[common_cells]
+  metadata_values <- metadata_values[common_cells]
+  
+  # Filter finite values
+  valid_idx <- is.finite(pt_values) & is.finite(gene_expr) & is.finite(metadata_values)
+  if (sum(valid_idx) < min_cells_per_segment) {
+    stop("Too few cells with finite values (", sum(valid_idx), "). Need at least ", 
+         min_cells_per_segment, ".", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[valid_idx]
+  gene_expr <- gene_expr[valid_idx]
+  metadata_values <- metadata_values[valid_idx]
+  
+  # --- 2. Overall correlation ---
+  overall_cor <- tryCatch({
+    cor.test(gene_expr, metadata_values, method = correlation_method)
+  }, error = function(e) {
+    warning("Overall correlation calculation failed: ", e$message, call. = FALSE)
+    return(NULL)
+  })
+  
+  overall_correlation <- if (!is.null(overall_cor)) {
+    list(
+      estimate = overall_cor$estimate,
+      p_value = overall_cor$p.value,
+      n_cells = length(gene_expr)
+    )
+  } else {
+    list(estimate = NA_real_, p_value = NA_real_, n_cells = length(gene_expr))
+  }
+  
+  # --- 3. Divide into segments ---
+  pt_quantiles <- quantile(pt_values, probs = seq(0, 1, length.out = n_segments + 1), na.rm = TRUE)
+  pt_quantiles[1] <- -Inf  # Include minimum
+  pt_quantiles[length(pt_quantiles)] <- Inf  # Include maximum
+  
+  segment_results <- list()
+  segment_data_list <- list()
+  
+  for (i in 1:n_segments) {
+    segment_idx <- pt_values >= pt_quantiles[i] & pt_values < pt_quantiles[i + 1]
+    # Handle last segment (include boundary)
+    if (i == n_segments) {
+      segment_idx <- pt_values >= pt_quantiles[i] & pt_values <= pt_quantiles[i + 1]
+    }
+    
+    segment_pt <- pt_values[segment_idx]
+    segment_expr <- gene_expr[segment_idx]
+    segment_meta <- metadata_values[segment_idx]
+    
+    n_segment_cells <- sum(segment_idx)
+    
+    if (n_segment_cells < min_cells_per_segment) {
+      segment_results[[i]] <- list(
+        segment = i,
+        pt_range_min = pt_quantiles[i],
+        pt_range_max = pt_quantiles[i + 1],
+        n_cells = n_segment_cells,
+        correlation = NA_real_,
+        p_value = NA_real_,
+        status = "insufficient_cells"
+      )
+      next
+    }
+    
+    # Calculate correlation for this segment
+    segment_cor <- tryCatch({
+      cor.test(segment_expr, segment_meta, method = correlation_method)
+    }, error = function(e) {
+      warning("Correlation calculation failed for segment ", i, ": ", e$message, call. = FALSE)
+      return(NULL)
+    })
+    
+    if (!is.null(segment_cor)) {
+      segment_results[[i]] <- list(
+        segment = i,
+        pt_range_min = pt_quantiles[i],
+        pt_range_max = pt_quantiles[i + 1],
+        n_cells = n_segment_cells,
+        correlation = as.numeric(segment_cor$estimate),
+        p_value = segment_cor$p.value,
+        status = "success"
+      )
+      
+      if (return_segment_data) {
+        segment_data_list[[i]] <- data.frame(
+          segment = i,
+          pseudotime = segment_pt,
+          expression = segment_expr,
+          metadata = segment_meta,
+          stringsAsFactors = FALSE
+        )
+      }
+    } else {
+      segment_results[[i]] <- list(
+        segment = i,
+        pt_range_min = pt_quantiles[i],
+        pt_range_max = pt_quantiles[i + 1],
+        n_cells = n_segment_cells,
+        correlation = NA_real_,
+        p_value = NA_real_,
+        status = "correlation_failed"
+      )
+    }
+  }
+  
+  # Convert to data frame
+  segment_correlations_df <- do.call(rbind, lapply(segment_results, function(x) {
+    data.frame(
+      segment = x$segment,
+      pt_range_min = x$pt_range_min,
+      pt_range_max = x$pt_range_max,
+      n_cells = x$n_cells,
+      correlation = x$correlation,
+      p_value = x$p_value,
+      status = x$status,
+      stringsAsFactors = FALSE
+    )
+  }))
+  
+  # --- 4. Analyze correlation change ---
+  valid_segments <- segment_correlations_df$status == "success" & 
+                    !is.na(segment_correlations_df$correlation)
+  
+  correlation_change <- list()
+  
+  if (sum(valid_segments) >= 2) {
+    valid_correlations <- segment_correlations_df$correlation[valid_segments]
+    valid_segment_nums <- segment_correlations_df$segment[valid_segments]
+    
+    # Calculate change statistics
+    correlation_change <- list(
+      mean_correlation = mean(valid_correlations, na.rm = TRUE),
+      sd_correlation = sd(valid_correlations, na.rm = TRUE),
+      range_correlation = diff(range(valid_correlations, na.rm = TRUE)),
+      first_segment_cor = valid_correlations[1],
+      last_segment_cor = valid_correlations[length(valid_correlations)],
+      correlation_trend = if (length(valid_correlations) >= 2) {
+        # Simple linear trend
+        trend_model <- tryCatch({
+          lm(valid_correlations ~ valid_segment_nums)
+        }, error = function(e) NULL)
+        if (!is.null(trend_model)) {
+          list(
+            slope = coef(trend_model)[2],
+            p_value = summary(trend_model)$coefficients[2, 4]
+          )
+        } else {
+          list(slope = NA_real_, p_value = NA_real_)
+        }
+      } else {
+        list(slope = NA_real_, p_value = NA_real_)
+      },
+      n_valid_segments = sum(valid_segments)
+    )
+  } else {
+    correlation_change <- list(
+      mean_correlation = NA_real_,
+      sd_correlation = NA_real_,
+      range_correlation = NA_real_,
+      first_segment_cor = NA_real_,
+      last_segment_cor = NA_real_,
+      correlation_trend = list(slope = NA_real_, p_value = NA_real_),
+      n_valid_segments = sum(valid_segments)
+    )
+  }
+  
+  # --- 5. Return results ---
+  result <- list(
+    gene = gene_id,
+    metadata_col = metadata_col,
+    correlation_method = correlation_method,
+    n_segments = n_segments,
+    overall_correlation = overall_correlation,
+    segment_correlations = segment_correlations_df,
+    correlation_change = correlation_change
+  )
+  
+  if (return_segment_data && length(segment_data_list) > 0) {
+    result$segment_data <- do.call(rbind, segment_data_list)
+  }
+  
+  return(result)
+}
+
+
+#' Detect complex expression patterns along pseudotime
+#'
+#' This function identifies various expression patterns (increasing, decreasing,
+#' oscillatory, bimodal) along pseudotime using statistical methods.
+#'
+#' @param cds_obj A Monocle3 cell_data_set object with pseudotime calculated.
+#' @param gene_id Character string, the gene ID to analyze.
+#' @param pseudotime_method Function or character string to extract pseudotime.
+#'   Defaults to `monocle3::pseudotime`.
+#' @param pattern_types Character vector. Patterns to detect: "increasing", "decreasing",
+#'   "oscillatory", "bimodal", "constant". Default is all patterns.
+#' @param min_cells_for_analysis Integer. Minimum number of cells required.
+#'   Default is 30.
+#' @param oscillatory_threshold Numeric. Threshold for oscillatory pattern detection
+#'   (based on Fourier analysis). Default is 0.3.
+#' @param bimodal_threshold Numeric. Threshold for bimodal pattern detection
+#'   (based on dip test). Default is 0.05.
+#'
+#' @return A list containing:
+#'   \itemize{
+#'     \item `gene`: The input gene ID.
+#'     \item `detected_patterns`: Character vector of detected patterns.
+#'     \item `pattern_scores`: Scores for each pattern type.
+#'     \item `pattern_details`: Detailed statistics for each pattern.
+#'   }
+#'
+#' @import monocle3
+#' @import mgcv
+#' @importFrom stats cor.test lm dip.test
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Detect patterns for a gene
+#' patterns <- detect_expression_patterns(
+#'   cds_obj = cds,
+#'   gene_id = "DDIT4"
+#' )
+#' 
+#' # View detected patterns
+#' print(patterns$detected_patterns)
+#' }
+detect_expression_patterns <- function(cds_obj,
+                                       gene_id,
+                                       pseudotime_method = monocle3::pseudotime,
+                                       pattern_types = c("increasing", "decreasing", 
+                                                        "oscillatory", "bimodal", "constant"),
+                                       min_cells_for_analysis = 30,
+                                       oscillatory_threshold = 0.3,
+                                       bimodal_threshold = 0.05) {
+  
+  # --- 0. Input Validation ---
+  if (!is(cds_obj, "cell_data_set")) {
+    stop("cds_obj must be a Monocle3 cell_data_set object.", call. = FALSE)
+  }
+  
+  if (!gene_id %in% rownames(counts(cds_obj))) {
+    stop("Gene '", gene_id, "' not found in cds_obj.", call. = FALSE)
+  }
+  
+  pattern_types <- match.arg(pattern_types, 
+                            c("increasing", "decreasing", "oscillatory", "bimodal", "constant"),
+                            several.ok = TRUE)
+  
+  # Extract pseudotime
+  pt_values <- tryCatch({
+    if (is.character(pseudotime_method)) {
+      eval(parse(text = pseudotime_method))(cds_obj)
+    } else if (is.function(pseudotime_method)) {
+      pseudotime_method(cds_obj)
+    } else {
+      stop("pseudotime_method must be a function or character string.", call. = FALSE)
+    }
+  }, error = function(e) {
+    stop("Could not extract pseudotime: ", e$message, call. = FALSE)
+  })
+  
+  # Extract gene expression
+  gene_expr <- as.numeric(counts(cds_obj)[gene_id, ])
+  names(gene_expr) <- colnames(cds_obj)
+  
+  # Align data
+  common_cells <- intersect(names(pt_values), names(gene_expr))
+  if (length(common_cells) < min_cells_for_analysis) {
+    stop("Too few cells (", length(common_cells), "). Need at least ", 
+         min_cells_for_analysis, ".", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[common_cells]
+  gene_expr <- gene_expr[common_cells]
+  
+  # Filter finite values
+  valid_idx <- is.finite(pt_values) & is.finite(gene_expr)
+  if (sum(valid_idx) < min_cells_for_analysis) {
+    stop("Too few cells with finite values (", sum(valid_idx), ").", call. = FALSE)
+  }
+  
+  pt_values <- pt_values[valid_idx]
+  gene_expr <- gene_expr[valid_idx]
+  
+  # Order by pseudotime
+  order_idx <- order(pt_values)
+  pt_values <- pt_values[order_idx]
+  gene_expr <- gene_expr[order_idx]
+  
+  # --- 1. Initialize results ---
+  pattern_scores <- list()
+  pattern_details <- list()
+  detected_patterns <- character(0)
+  
+  # --- 2. Increasing/Decreasing patterns ---
+  if ("increasing" %in% pattern_types || "decreasing" %in% pattern_types) {
+    # Fit linear model
+    linear_model <- tryCatch({
+      lm(gene_expr ~ pt_values)
+    }, error = function(e) NULL)
+    
+    if (!is.null(linear_model)) {
+      slope <- coef(linear_model)[2]
+      slope_pval <- summary(linear_model)$coefficients[2, 4]
+      r_squared <- summary(linear_model)$r.squared
+      
+      pattern_details$linear_trend <- list(
+        slope = slope,
+        p_value = slope_pval,
+        r_squared = r_squared
+      )
+      
+      if ("increasing" %in% pattern_types) {
+        increasing_score <- if (slope > 0 && slope_pval < 0.05) {
+          abs(slope) * r_squared
+        } else {
+          0
+        }
+        pattern_scores$increasing <- increasing_score
+        
+        if (increasing_score > 0.1) {
+          detected_patterns <- c(detected_patterns, "increasing")
+        }
+      }
+      
+      if ("decreasing" %in% pattern_types) {
+        decreasing_score <- if (slope < 0 && slope_pval < 0.05) {
+          abs(slope) * r_squared
+        } else {
+          0
+        }
+        pattern_scores$decreasing <- decreasing_score
+        
+        if (decreasing_score > 0.1) {
+          detected_patterns <- c(detected_patterns, "decreasing")
+        }
+      }
+    }
+  }
+  
+  # --- 3. Oscillatory pattern (Fourier analysis) ---
+  if ("oscillatory" %in% pattern_types) {
+    # Detrend the data first
+    if (exists("linear_model") && !is.null(linear_model)) {
+      detrended_expr <- residuals(linear_model)
+    } else {
+      detrended_expr <- gene_expr - mean(gene_expr)
+    }
+    
+    # Simple Fourier analysis
+    # Look for periodic patterns
+    n <- length(detrended_expr)
+    if (n >= 10) {
+      # Use FFT to detect periodicity
+      fft_result <- fft(detrended_expr)
+      power_spectrum <- Mod(fft_result)^2
+      
+      # Focus on low frequencies (periodic patterns)
+      # Exclude DC component (first element)
+      low_freq_power <- mean(power_spectrum[2:min(10, length(power_spectrum))])
+      total_power <- sum(power_spectrum[-1])
+      
+      oscillatory_score <- if (total_power > 0) {
+        low_freq_power / total_power
+      } else {
+        0
+      }
+      
+      pattern_scores$oscillatory <- oscillatory_score
+      pattern_details$oscillatory <- list(
+        low_freq_power = low_freq_power,
+        total_power = total_power,
+        score = oscillatory_score
+      )
+      
+      if (oscillatory_score > oscillatory_threshold) {
+        detected_patterns <- c(detected_patterns, "oscillatory")
+      }
+    } else {
+      pattern_scores$oscillatory <- 0
+      pattern_details$oscillatory <- list(score = 0, note = "insufficient_data")
+    }
+  }
+  
+  # --- 4. Bimodal pattern (dip test) ---
+  if ("bimodal" %in% pattern_types) {
+    # Test for bimodality using dip test
+    if (requireNamespace("diptest", quietly = TRUE)) {
+      dip_result <- tryCatch({
+        diptest::dip.test(gene_expr)
+      }, error = function(e) NULL)
+      
+      if (!is.null(dip_result)) {
+        dip_statistic <- dip_result$statistic
+        dip_pvalue <- dip_result$p.value
+        
+        bimodal_score <- if (dip_pvalue < bimodal_threshold) {
+          1 - dip_pvalue
+        } else {
+          0
+        }
+        
+        pattern_scores$bimodal <- bimodal_score
+        pattern_details$bimodal <- list(
+          dip_statistic = dip_statistic,
+          p_value = dip_pvalue,
+          score = bimodal_score
+        )
+        
+        if (bimodal_score > 0.5) {
+          detected_patterns <- c(detected_patterns, "bimodal")
+        }
+      } else {
+        pattern_scores$bimodal <- 0
+        pattern_details$bimodal <- list(score = 0, note = "test_failed")
+      }
+    } else {
+      # Fallback: simple variance-based heuristic
+      expr_var <- var(gene_expr, na.rm = TRUE)
+      expr_mean <- mean(gene_expr, na.rm = TRUE)
+      cv <- if (expr_mean > 0) sqrt(expr_var) / expr_mean else 0
+      
+      # High coefficient of variation might indicate bimodality
+      bimodal_score <- if (cv > 1.0) {
+        min(1.0, cv / 2.0)
+      } else {
+        0
+      }
+      
+      pattern_scores$bimodal <- bimodal_score
+      pattern_details$bimodal <- list(
+        coefficient_of_variation = cv,
+        score = bimodal_score,
+        note = "diptest_not_available"
+      )
+      
+      if (bimodal_score > 0.5) {
+        detected_patterns <- c(detected_patterns, "bimodal")
+      }
+    }
+  }
+  
+  # --- 5. Constant pattern ---
+  if ("constant" %in% pattern_types) {
+    # Test for constant expression (low variance relative to mean)
+    expr_var <- var(gene_expr, na.rm = TRUE)
+    expr_mean <- mean(gene_expr, na.rm = TRUE)
+    
+    # Coefficient of variation
+    cv <- if (expr_mean > 0) sqrt(expr_var) / expr_mean else 0
+    
+    # Low CV indicates constant expression
+    constant_score <- if (cv < 0.1) {
+      1 - cv * 10
+    } else {
+      0
+    }
+    
+    pattern_scores$constant <- constant_score
+    pattern_details$constant <- list(
+      coefficient_of_variation = cv,
+      variance = expr_var,
+      mean = expr_mean,
+      score = constant_score
+    )
+    
+    if (constant_score > 0.5) {
+      detected_patterns <- c(detected_patterns, "constant")
+    }
+  }
+  
+  # --- 6. Return results ---
+  if (length(detected_patterns) == 0) {
+    detected_patterns <- "none"
+  }
+  
+  return(list(
+    gene = gene_id,
+    detected_patterns = detected_patterns,
+    pattern_scores = pattern_scores,
+    pattern_details = pattern_details,
+    n_cells = length(gene_expr)
+  ))
+}
+
+
+#' Analyze branching dynamics in trajectory
+#'
+#' This function detects branching points in a Monocle3 trajectory and analyzes
+#' gene expression differences between branches. It can also analyze how metadata
+#' variables relate to branch selection.
+#'
+#' @param cds_obj A Monocle3 cell_data_set object with trajectory graph learned.
+#' @param gene_id Optional. Character string, a specific gene ID to analyze.
+#'   If NULL, analyzes all genes or a subset.
+#' @param metadata_col Optional. Character string, metadata column to analyze
+#'   for branch selection mechanism (e.g., condition, treatment).
+#' @param min_cells_per_branch Integer. Minimum number of cells required per branch.
+#'   Default is 20.
+#' @param test_method Character string. Method for testing branch-specific expression:
+#'   "graph_test" (default, uses Monocle3's graph_test) or "wilcoxon".
+#' @param q_value_threshold Numeric. Q-value threshold for branch-specific genes.
+#'   Default is 0.05.
+#' @param return_branch_assignments Logical. If TRUE, returns cell-to-branch assignments.
+#'   Default is FALSE.
+#'
+#' @return A list containing:
+#'   \itemize{
+#'     \item `branching_points`: Detected branching points information.
+#'     \item `branch_assignments`: (if return_branch_assignments=TRUE) Cell-to-branch mapping.
+#'     \item `branch_specific_genes`: Genes with branch-specific expression.
+#'     \item `gene_analysis`: (if gene_id provided) Detailed analysis for the gene.
+#'     \item `metadata_analysis`: (if metadata_col provided) Branch selection mechanism analysis.
+#'   }
+#'
+#' @import monocle3
+#' @importFrom stats wilcox.test
+#' @importFrom methods is
+#' @export
+#' @examples
+#' \dontrun{
+#' # Analyze branching dynamics
+#' branch_results <- analyze_branching_dynamics(
+#'   cds_obj = cds,
+#'   metadata_col = "condition"
+#' )
+#' 
+#' # Analyze specific gene across branches
+#' gene_branch <- analyze_branching_dynamics(
+#'   cds_obj = cds,
+#'   gene_id = "DDIT4"
+#' )
+#' }
+analyze_branching_dynamics <- function(cds_obj,
+                                      gene_id = NULL,
+                                      metadata_col = NULL,
+                                      min_cells_per_branch = 20,
+                                      test_method = "graph_test",
+                                      q_value_threshold = 0.05,
+                                      return_branch_assignments = FALSE) {
+  
+  # --- 0. Input Validation ---
+  if (!is(cds_obj, "cell_data_set")) {
+    stop("cds_obj must be a Monocle3 cell_data_set object.", call. = FALSE)
+  }
+  
+  # Check if graph is learned
+  if (is.null(monocle3::principal_graph(cds_obj))) {
+    stop("Principal graph not found. Please run learn_graph() first.", call. = FALSE)
+  }
+  
+  # --- 1. Assign cells to branches ---
+  message("--- Step 1: Assigning cells to branches ---")
+  
+  # Use partition information if available
+  partitions <- tryCatch({
+    monocle3::partitions(cds_obj)
+  }, error = function(e) {
+    NULL
+  })
+  
+  branch_assignments <- NULL
+  if (!is.null(partitions) && length(unique(partitions)) > 1) {
+    unique_partitions <- unique(partitions)
+    message("Found ", length(unique_partitions), " partition(s)")
+    
+    # Create branch assignments based on partitions
+    branch_assignments <- factor(partitions, levels = unique_partitions)
+    names(branch_assignments) <- colnames(cds_obj)
+    
+    # Filter branches with sufficient cells
+    branch_counts <- table(branch_assignments)
+    valid_branches <- names(branch_counts)[branch_counts >= min_cells_per_branch]
+    
+    if (length(valid_branches) < 2) {
+      warning("Less than 2 branches with sufficient cells (", min_cells_per_branch, "). ",
+              "Branch analysis may be limited.", call. = FALSE)
+    } else {
+      message("Valid branches (>= ", min_cells_per_branch, " cells): ", length(valid_branches))
+      branch_assignments <- branch_assignments[branch_assignments %in% valid_branches]
+    }
+  } else {
+    # Alternative: use cluster information if partitions not available
+    cluster_info <- tryCatch({
+      monocle3::pData(cds_obj)$cluster
+    }, error = function(e) NULL)
+    
+    if (!is.null(cluster_info) && length(unique(cluster_info)) > 1) {
+      message("Using cluster information for branch assignment")
+      branch_assignments <- factor(cluster_info)
+      names(branch_assignments) <- colnames(cds_obj)
+      
+      branch_counts <- table(branch_assignments)
+      valid_branches <- names(branch_counts)[branch_counts >= min_cells_per_branch]
+      
+      if (length(valid_branches) >= 2) {
+        branch_assignments <- branch_assignments[branch_assignments %in% valid_branches]
+        message("Valid branches: ", length(valid_branches))
+      } else {
+        warning("Less than 2 valid clusters found for branch assignment.", call. = FALSE)
+      }
+    } else {
+      # Last resort: try to use pseudotime-based splitting
+      message("Attempting pseudotime-based branch assignment...")
+      pt_values <- tryCatch({
+        monocle3::pseudotime(cds_obj)
+      }, error = function(e) NULL)
+      
+      if (!is.null(pt_values) && !all(is.infinite(pt_values))) {
+        # Split by pseudotime median
+        pt_median <- median(pt_values[is.finite(pt_values)], na.rm = TRUE)
+        branch_assignments <- factor(ifelse(pt_values <= pt_median, "early", "late"))
+        names(branch_assignments) <- colnames(cds_obj)
+        
+        branch_counts <- table(branch_assignments)
+        valid_branches <- names(branch_counts)[branch_counts >= min_cells_per_branch]
+        
+        if (length(valid_branches) >= 2) {
+          branch_assignments <- branch_assignments[branch_assignments %in% valid_branches]
+          message("Valid branches (pseudotime-based): ", length(valid_branches))
+        } else {
+          warning("Could not determine branch assignments. Insufficient cells in pseudotime-based branches.", call. = FALSE)
+        }
+      } else {
+        warning("Could not determine branch assignments. Partition, cluster, or pseudotime information not available.", call. = FALSE)
+      }
+    }
+  }
+  
+  # --- 2. Detect branching points (optional) ---
+  branching_points <- list()
+  
+  if (!is.null(branch_assignments) && length(unique(branch_assignments)) >= 2) {
+    # Try to detect branching points from graph structure
+    principal_graph <- tryCatch({
+      monocle3::principal_graph(cds_obj)
+    }, error = function(e) NULL)
+    
+    if (!is.null(principal_graph)) {
+      graph_adjacency <- tryCatch({
+        if (requireNamespace("igraph", quietly = TRUE)) {
+          igraph::as_adjacency_matrix(principal_graph, sparse = FALSE)
+        } else {
+          NULL
+        }
+      }, error = function(e) NULL)
+      
+      if (!is.null(graph_adjacency)) {
+        node_degrees <- rowSums(graph_adjacency > 0)
+        branching_node_indices <- which(node_degrees > 2)
+        
+        if (length(branching_node_indices) > 0) {
+          branching_points <- list(
+            node_indices = branching_node_indices,
+            node_degrees = node_degrees[branching_node_indices],
+            n_branching_points = length(branching_node_indices)
+          )
+          message("Found ", length(branching_node_indices), " branching point(s) in graph")
+        }
+      }
+    }
+  }
+  
+  # --- 3. Analyze branch-specific genes ---
+  branch_specific_genes <- NULL
+  
+  if (!is.null(branch_assignments) && length(unique(branch_assignments)) >= 2) {
+    message("--- Step 3: Finding branch-specific genes ---")
+    
+    if (test_method == "graph_test") {
+      # Use Monocle3's graph_test
+      tryCatch({
+        graph_test_result <- monocle3::graph_test(cds_obj, neighbor_graph = "principal_graph", cores = 1)
+        
+        if (!is.null(graph_test_result) && nrow(graph_test_result) > 0) {
+          # Filter by q-value
+          significant_genes <- graph_test_result[graph_test_result$q_value < q_value_threshold, ]
+          branch_specific_genes <- significant_genes
+          message("Found ", nrow(significant_genes), " branch-specific genes (q < ", q_value_threshold, ")")
+        }
+      }, error = function(e) {
+        warning("graph_test failed: ", e$message, ". Trying alternative method.", call. = FALSE)
+        test_method <- "wilcoxon"
+      })
+    }
+    
+    if (test_method == "wilcoxon" || is.null(branch_specific_genes)) {
+      # Alternative: Wilcoxon test between branches
+      message("Using Wilcoxon test for branch-specific genes...")
+      
+      branch_names <- unique(branch_assignments)
+      if (length(branch_names) >= 2) {
+        # Test each gene
+        all_genes <- rownames(cds_obj)
+        n_genes_to_test <- min(1000, length(all_genes))  # Limit for performance
+        genes_to_test <- sample(all_genes, n_genes_to_test)
+        
+        wilcoxon_results <- lapply(genes_to_test, function(g) {
+          gene_expr <- as.numeric(counts(cds_obj)[g, names(branch_assignments)])
+          
+          # Compare first two branches
+          branch1_expr <- gene_expr[branch_assignments == branch_names[1]]
+          branch2_expr <- gene_expr[branch_assignments == branch_names[2]]
+          
+          if (length(branch1_expr) >= min_cells_per_branch && 
+              length(branch2_expr) >= min_cells_per_branch) {
+            test_result <- tryCatch({
+              wilcox.test(branch1_expr, branch2_expr)
+            }, error = function(e) NULL)
+            
+            if (!is.null(test_result)) {
+              data.frame(
+                gene = g,
+                branch1 = branch_names[1],
+                branch2 = branch_names[2],
+                p_value = test_result$p.value,
+                branch1_mean = mean(branch1_expr, na.rm = TRUE),
+                branch2_mean = mean(branch2_expr, na.rm = TRUE),
+                log2_fold_change = log2((mean(branch2_expr, na.rm = TRUE) + 1) / (mean(branch1_expr, na.rm = TRUE) + 1)),
+                stringsAsFactors = FALSE
+              )
+            } else {
+              NULL
+            }
+          } else {
+            NULL
+          }
+        })
+        
+        branch_specific_genes <- do.call(rbind, Filter(Negate(is.null), wilcoxon_results))
+        if (!is.null(branch_specific_genes) && nrow(branch_specific_genes) > 0) {
+          branch_specific_genes <- branch_specific_genes[branch_specific_genes$p_value < q_value_threshold, ]
+          message("Found ", nrow(branch_specific_genes), " branch-specific genes (p < ", q_value_threshold, ")")
+        }
+      }
+    }
+  }
+  
+  # --- 4. Analyze specific gene (if provided) ---
+  gene_analysis <- NULL
+  
+  if (!is.null(gene_id)) {
+    message("--- Step 4: Analyzing gene '", gene_id, "' across branches ---")
+    
+    if (!gene_id %in% rownames(cds_obj)) {
+      warning("Gene '", gene_id, "' not found in cds_obj.", call. = FALSE)
+    } else if (!is.null(branch_assignments) && length(unique(branch_assignments)) >= 2) {
+      gene_expr <- as.numeric(counts(cds_obj)[gene_id, names(branch_assignments)])
+      
+      branch_stats <- lapply(unique(branch_assignments), function(branch) {
+        branch_expr <- gene_expr[branch_assignments == branch]
+        list(
+          branch = branch,
+          n_cells = length(branch_expr),
+          mean_expr = mean(branch_expr, na.rm = TRUE),
+          median_expr = median(branch_expr, na.rm = TRUE),
+          sd_expr = sd(branch_expr, na.rm = TRUE)
+        )
+      })
+      
+      # Statistical test between branches
+      branch_names <- unique(branch_assignments)
+      if (length(branch_names) >= 2) {
+        branch1_expr <- gene_expr[branch_assignments == branch_names[1]]
+        branch2_expr <- gene_expr[branch_assignments == branch_names[2]]
+        
+        if (length(branch1_expr) >= min_cells_per_branch && 
+            length(branch2_expr) >= min_cells_per_branch) {
+          test_result <- tryCatch({
+            wilcox.test(branch1_expr, branch2_expr)
+          }, error = function(e) NULL)
+          
+          gene_analysis <- list(
+            gene = gene_id,
+            branch_statistics = branch_stats,
+            branch_comparison = if (!is.null(test_result)) {
+              list(
+                branch1 = branch_names[1],
+                branch2 = branch_names[2],
+                p_value = test_result$p.value,
+                branch1_mean = mean(branch1_expr, na.rm = TRUE),
+                branch2_mean = mean(branch2_expr, na.rm = TRUE),
+                log2_fold_change = log2((mean(branch2_expr, na.rm = TRUE) + 1) / (mean(branch1_expr, na.rm = TRUE) + 1))
+              )
+            } else {
+              NULL
+            }
+          )
+        }
+      }
+    }
+  }
+  
+  # --- 5. Analyze metadata for branch selection mechanism ---
+  metadata_analysis <- NULL
+  
+  if (!is.null(metadata_col) && !is.null(branch_assignments)) {
+    message("--- Step 5: Analyzing branch selection mechanism (metadata: ", metadata_col, ") ---")
+    
+    cell_metadata <- monocle3::pData(cds_obj)
+    if (metadata_col %in% colnames(cell_metadata)) {
+      metadata_values <- cell_metadata[[metadata_col]][names(branch_assignments)]
+      
+      # Test association between metadata and branch assignment
+      if (is.numeric(metadata_values)) {
+        # Numeric: test if metadata differs between branches
+        branch_names <- unique(branch_assignments)
+        if (length(branch_names) >= 2) {
+          branch1_meta <- metadata_values[branch_assignments == branch_names[1]]
+          branch2_meta <- metadata_values[branch_assignments == branch_names[2]]
+          
+          if (length(branch1_meta) >= min_cells_per_branch && 
+              length(branch2_meta) >= min_cells_per_branch) {
+            test_result <- tryCatch({
+              wilcox.test(branch1_meta, branch2_meta)
+            }, error = function(e) NULL)
+            
+            metadata_analysis <- list(
+              metadata_col = metadata_col,
+              branch1_mean = mean(branch1_meta, na.rm = TRUE),
+              branch2_mean = mean(branch2_meta, na.rm = TRUE),
+              p_value = if (!is.null(test_result)) test_result$p.value else NA_real_,
+              association = if (!is.null(test_result) && test_result$p.value < 0.05) {
+                "significant"
+              } else {
+                "not_significant"
+              }
+            )
+          }
+        }
+      } else {
+        # Categorical: chi-square test
+        contingency_table <- table(branch_assignments, metadata_values)
+        if (nrow(contingency_table) >= 2 && ncol(contingency_table) >= 2) {
+          test_result <- tryCatch({
+            chisq.test(contingency_table)
+          }, error = function(e) NULL)
+          
+          metadata_analysis <- list(
+            metadata_col = metadata_col,
+            contingency_table = contingency_table,
+            p_value = if (!is.null(test_result)) test_result$p.value else NA_real_,
+            association = if (!is.null(test_result) && test_result$p.value < 0.05) {
+              "significant"
+            } else {
+              "not_significant"
+            }
+          )
+        }
+      }
+    } else {
+      warning("Metadata column '", metadata_col, "' not found in colData(cds_obj).", call. = FALSE)
+    }
+  }
+  
+  # --- 6. Return results ---
+  result <- list(
+    branching_points = branching_points,
+    n_branches = if (!is.null(branch_assignments)) length(unique(branch_assignments)) else 0,
+    branch_specific_genes = branch_specific_genes,
+    gene_analysis = gene_analysis,
+    metadata_analysis = metadata_analysis
+  )
+  
+  if (return_branch_assignments && !is.null(branch_assignments)) {
+    result$branch_assignments <- branch_assignments
+  }
+  
+  return(result)
 }
