@@ -13,27 +13,64 @@ library(pROC)
 # FGS 함수 로드
 devtools::load_all('/home/user3/data_user3/git_repo/_wt/fgs/myR', quiet = TRUE)
 
+# 명령줄 인자 파싱
+# Usage: Rscript run_tml7_quick_test.R [method1] [method2] ... [target_var] [data_path] [cv_group_var]
+# Example: Rscript run_tml7_quick_test.R glm ranger xgbTree
+# Example: Rscript run_tml7_quick_test.R glm ranger g3 /data/user3/sobj/is5.qs emrid
+
+args <- commandArgs(trailingOnly = TRUE)
+
+# 기본값
+l2_methods <- c('glm', 'ranger', 'xgbTree')
+TARGET_VAR <- "response"
+DATA_PATH <- "/data/user3/sobj/data_seurat_251104.qs"
+CV_GROUP_VAR <- "hos_no"
+
+# 인자 파싱: methods는 알려진 method 이름들, 나머지는 설정
+if (length(args) > 0) {
+  supported_methods <- c("glm", "ranger", "xgbTree", "glmnet", "svmRadial", 
+                         "mlp", "mlpKerasDropout", "nnet", "earth")
+  
+  # methods와 설정 구분
+  method_indices <- which(args %in% supported_methods)
+  if (length(method_indices) > 0) {
+    l2_methods <- args[method_indices]
+    args <- args[-method_indices]
+  }
+  
+  # 남은 인자 처리 (target_var, data_path, cv_group_var 순서)
+  if (length(args) >= 1) TARGET_VAR <- args[1]
+  if (length(args) >= 2) DATA_PATH <- args[2]
+  if (length(args) >= 3) CV_GROUP_VAR <- args[3]
+}
+
 # 데이터 로드
 message("Loading data...")
 fgs2 <- qs::qread("/data/user3/sobj/fgs/fgs2.qs")
-data_seurat <- qs::qread("/data/user3/sobj/data_seurat_251104.qs")
+message(sprintf("Loading Seurat data from: %s", DATA_PATH))
+data_seurat <- qs::qread(DATA_PATH)
 message("Data loaded.\n")
 
-# 명령줄 인자에서 methods 읽기 (없으면 기본값 사용)
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) > 0) {
-  l2_methods <- args
-} else {
-  # 기본 methods
-  l2_methods <- c('glm', 'ranger', 'xgbTree')
+# target_var 확인
+if (!TARGET_VAR %in% colnames(data_seurat@meta.data)) {
+  if ("response" %in% colnames(data_seurat@meta.data)) {
+    message(sprintf("Warning: '%s' not found, using 'response' instead", TARGET_VAR))
+    TARGET_VAR <- "response"
+  } else if ("g3" %in% colnames(data_seurat@meta.data)) {
+    message(sprintf("Warning: '%s' not found, using 'g3' instead", TARGET_VAR))
+    TARGET_VAR <- "g3"
+  } else {
+    stop(sprintf("Target variable '%s' not found in meta.data.", TARGET_VAR))
+  }
 }
 
 message("========================================")
 message("TML7 Quick Test")
 message("========================================")
 message(sprintf("Methods: %s", paste(l2_methods, collapse = ", ")))
-message("target_var: response")
-message("cv_group_var: hos_no")
+message(sprintf("target_var: %s", TARGET_VAR))
+message(sprintf("cv_group_var: %s", CV_GROUP_VAR))
+message(sprintf("data_path: %s", DATA_PATH))
 message("k_folds: 5")
 message("metric: AUC")
 message("========================================\n")
@@ -51,9 +88,9 @@ start_time <- Sys.time()
 tml_result <- TML7(
   l1_signatures = fgs2,
   holdout_data = data_seurat,
-  target_var = 'response',
+  target_var = TARGET_VAR,
   l2_methods = l2_methods,
-  cv_group_var = 'hos_no',
+  cv_group_var = CV_GROUP_VAR,
   fgs_seed = 42,
   metric = "AUC",
   k_folds = 5

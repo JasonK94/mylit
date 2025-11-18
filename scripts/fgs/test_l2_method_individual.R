@@ -20,24 +20,34 @@ library(pROC)
 devtools::load_all('/home/user3/data_user3/git_repo/_wt/fgs/myR', quiet = TRUE)
 
 # ===== 설정 =====
-# 테스트할 method를 여기서 지정하거나, 명령줄 인자로 전달
-# METHOD <- "glm"  # 예시: 이 줄의 주석을 해제하고 method 이름을 지정
+# 명령줄 인자 파싱
+# Usage: Rscript test_l2_method_individual.R <method> [target_var] [data_path] [cv_group_var]
+# Example: Rscript test_l2_method_individual.R glm response /data/user3/sobj/data_seurat_251104.qs hos_no
+# Example: Rscript test_l2_method_individual.R glm g3 /data/user3/sobj/is5.qs emrid
 
-# 명령줄 인자에서 method 읽기
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) > 0) {
-  METHOD <- args[1]
-} else if (exists("METHOD") && !is.null(METHOD)) {
-  # 스크립트 내에서 METHOD 변수가 설정되어 있으면 사용
-} else {
-  # 환경 변수에서 읽기
-  METHOD <- Sys.getenv("METHOD", unset = NA)
-  if (is.na(METHOD)) {
-    stop("Method name required. Usage: Rscript test_l2_method_individual.R <method_name>\n",
-         "  or set METHOD environment variable\n",
-         "  or set METHOD variable in script\n",
-         "\nSupported methods: glm, ranger, xgbTree, glmnet, svmRadial, mlp, mlpKerasDropout, nnet, earth")
+
+if (length(args) == 0) {
+  # 환경 변수나 스크립트 내 변수 확인
+  if (exists("METHOD") && !is.null(METHOD)) {
+    METHOD <- METHOD
+  } else {
+    METHOD <- Sys.getenv("METHOD", unset = NA)
+    if (is.na(METHOD)) {
+      stop("Method name required. Usage: Rscript test_l2_method_individual.R <method> [target_var] [data_path] [cv_group_var]\n",
+           "  Example: Rscript test_l2_method_individual.R glm response\n",
+           "  Example: Rscript test_l2_method_individual.R glm g3 /data/user3/sobj/is5.qs emrid\n",
+           "\nSupported methods: glm, ranger, xgbTree, glmnet, svmRadial, mlp, mlpKerasDropout, nnet, earth")
+    }
   }
+  TARGET_VAR <- Sys.getenv("TARGET_VAR", unset = "response")
+  DATA_PATH <- Sys.getenv("DATA_PATH", unset = "/data/user3/sobj/data_seurat_251104.qs")
+  CV_GROUP_VAR <- Sys.getenv("CV_GROUP_VAR", unset = "hos_no")
+} else {
+  METHOD <- args[1]
+  TARGET_VAR <- if (length(args) >= 2) args[2] else "response"
+  DATA_PATH <- if (length(args) >= 3) args[3] else "/data/user3/sobj/data_seurat_251104.qs"
+  CV_GROUP_VAR <- if (length(args) >= 4) args[4] else "hos_no"
 }
 
 # 지원되는 methods 확인
@@ -63,13 +73,30 @@ Sys.setenv(
 # 데이터 로드
 message("Loading data...")
 fgs2 <- qs::qread("/data/user3/sobj/fgs/fgs2.qs")
-data_seurat <- qs::qread("/data/user3/sobj/data_seurat_251104.qs")
+message(sprintf("Loading Seurat data from: %s", DATA_PATH))
+data_seurat <- qs::qread(DATA_PATH)
 message("Data loaded.\n")
+
+# target_var가 데이터에 존재하는지 확인
+if (!TARGET_VAR %in% colnames(data_seurat@meta.data)) {
+  # 자동 감지 시도: response 또는 g3
+  if ("response" %in% colnames(data_seurat@meta.data)) {
+    message(sprintf("Warning: '%s' not found, using 'response' instead", TARGET_VAR))
+    TARGET_VAR <- "response"
+  } else if ("g3" %in% colnames(data_seurat@meta.data)) {
+    message(sprintf("Warning: '%s' not found, using 'g3' instead", TARGET_VAR))
+    TARGET_VAR <- "g3"
+  } else {
+    stop(sprintf("Target variable '%s' not found in meta.data. Available columns: %s",
+                 TARGET_VAR, paste(colnames(data_seurat@meta.data)[1:min(10, ncol(data_seurat@meta.data))], collapse = ", ")))
+  }
+}
 
 # TML7 실행
 message(sprintf("Running TML7 with method: %s", METHOD))
-message("  - target_var: response")
-message("  - cv_group_var: hos_no")
+message(sprintf("  - target_var: %s", TARGET_VAR))
+message(sprintf("  - cv_group_var: %s", CV_GROUP_VAR))
+message(sprintf("  - data_path: %s", DATA_PATH))
 message("  - k_folds: 5")
 message("  - metric: AUC\n")
 
@@ -79,9 +106,9 @@ result <- tryCatch({
   tml_result <- TML7(
     l1_signatures = fgs2,
     holdout_data = data_seurat,
-    target_var = 'response',
+    target_var = TARGET_VAR,
     l2_methods = METHOD,  # 단일 method만 테스트
-    cv_group_var = 'hos_no',
+    cv_group_var = CV_GROUP_VAR,
     fgs_seed = 42,
     metric = "AUC",
     k_folds = 5
@@ -143,6 +170,25 @@ if (result$success) {
   message(sprintf("✗ FAILED: %s", METHOD))
   message(sprintf("  Elapsed time: %.2f seconds", elapsed))
   message(sprintf("  Error: %s", result$error))
+  
+  # 패키지 의존성 문제인 경우 안내
+  if (grepl("package required|package not available|No usable models", result$error, ignore.case = TRUE)) {
+    method_deps <- list(
+      glm = "base R (no extra package)",
+      ranger = "install.packages('ranger')",
+      xgbTree = "install.packages('xgboost')",
+      glmnet = "install.packages('glmnet')",
+      svmRadial = "install.packages('kernlab')",
+      mlp = "install.packages('RSNNS')",
+      mlpKerasDropout = "install.packages('keras')",
+      nnet = "install.packages('nnet')",
+      earth = "install.packages('earth')"
+    )
+    
+    if (METHOD %in% names(method_deps)) {
+      message(sprintf("\n  To install required package, run:\n    %s", method_deps[[METHOD]]))
+    }
+  }
 }
 
 message("\n========================================\n")

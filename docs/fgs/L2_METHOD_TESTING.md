@@ -6,12 +6,22 @@ TML7의 L2 methods를 개별적으로 테스트하고 디버깅하는 방법입�
 
 ### 방법 1: R 스크립트 직접 실행 (권장)
 
+**기본 사용법** (data_seurat_251104.qs, target_var="response"):
 ```bash
 # taskset을 사용하여 CPU 코어 제한 (xgboost 문제 해결)
 taskset -c 0-7 Rscript /home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/test_l2_method_individual.R glm
 
 # xgbTree 테스트 (taskset 필수)
 taskset -c 0-7 Rscript /home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/test_l2_method_individual.R xgbTree
+```
+
+**is5 데이터 사용** (target_var="g3"):
+```bash
+# g3를 target으로 사용
+taskset -c 0-7 Rscript /home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/test_l2_method_individual.R glm g3
+
+# 다른 데이터 파일과 cv_group_var 지정
+taskset -c 0-7 Rscript /home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/test_l2_method_individual.R glm g3 /data/user3/sobj/is5.qs emrid
 ```
 
 ### 방법 2: 환경 변수 사용
@@ -84,14 +94,20 @@ Rscript test_l2_method_individual.R xgbTree
 
 ## 테스트 데이터
 
-현재 스크립트는 다음 데이터를 사용합니다:
-
+**기본 설정**:
 - **FGS 결과**: `/data/user3/sobj/fgs/fgs2.qs`
-- **Seurat 데이터**: `/data/user3/sobj/data_seurat_251104.qs`
-- **target_var**: `response`
-- **cv_group_var**: `hos_no`
+- **Seurat 데이터**: `/data/user3/sobj/data_seurat_251104.qs` (기본값)
+- **target_var**: `response` (기본값, data_seurat_251104.qs용)
+- **cv_group_var**: `hos_no` (기본값)
 - **k_folds**: 5
 - **metric**: AUC
+
+**is5 데이터 사용 시**:
+- **Seurat 데이터**: `/data/user3/sobj/is5.qs` (또는 다른 경로)
+- **target_var**: `g3` (is5 데이터용)
+- **cv_group_var**: `emrid` (또는 다른 그룹 변수)
+
+스크립트는 `target_var`가 데이터에 없으면 자동으로 `response` 또는 `g3`를 찾아서 사용합니다.
 
 ## 결과 확인
 
