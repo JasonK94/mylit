@@ -15,7 +15,7 @@ source('/home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/init_fgs_env.R')
 # 필요한 패키지 로드
 library(qs)
 library(pROC)
-
+conflicts_prefer(base::setdiff)
 # FGS 함수 로드
 devtools::load_all('/home/user3/data_user3/git_repo/_wt/fgs/myR', quiet = TRUE)
 
