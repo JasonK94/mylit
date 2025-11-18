@@ -381,10 +381,29 @@ replot_nichenet_circos <- function(results_file,
       if (verbose) message("Replaying recorded plot...")
       # Ensure we're using the correct device
       if (device_opened) {
-        grDevices::dev.set(current_device)
+        active_dev <- grDevices::dev.set(current_device)
+        if (verbose) message("  Active device set to: ", active_dev)
       }
+      
       # Replay the recorded plot
-      grDevices::replayPlot(plot_circos)
+      # Use tryCatch to catch any errors during replay
+      replay_success <- tryCatch({
+        grDevices::replayPlot(plot_circos)
+        TRUE
+      }, error = function(e) {
+        if (verbose) warning("Error during replayPlot: ", e$message)
+        FALSE
+      })
+      
+      if (!replay_success) {
+        stop("Failed to replay plot")
+      }
+      
+      # Force flush the device to ensure plot is written
+      if (device_opened) {
+        grDevices::dev.flush()
+        if (verbose) message("  Device flushed")
+      }
       
       # Note: We cannot easily modify parameters of a recorded plot
       # The user would need to re-run the analysis with different parameters
@@ -397,26 +416,46 @@ replot_nichenet_circos <- function(results_file,
       # If it's not a recorded plot, try to plot it directly
       if (verbose) message("Plotting circos plot object...")
       if (device_opened) {
-        grDevices::dev.set(current_device)
+        active_dev <- grDevices::dev.set(current_device)
+        if (verbose) message("  Active device set to: ", active_dev)
       }
       graphics::plot(plot_circos)
+      
+      # Force flush the device
+      if (device_opened) {
+        grDevices::dev.flush()
+        if (verbose) message("  Device flushed")
+      }
     }
     
     # Ensure device is properly closed
     if (device_opened) {
-      if (verbose) message("Closing graphics device...")
+      if (verbose) {
+        message("Closing graphics device...")
+        message("  Current device before close: ", grDevices::dev.cur())
+      }
+      
+      # Close the device
       grDevices::dev.off()
+      
       # Wait a moment for file system to sync
-      Sys.sleep(0.1)
+      Sys.sleep(0.2)
       
       if (verbose && !is.null(output_file)) {
-        if (file.exists(output_file)) {
+        # Check if file exists (use absolute path)
+        abs_output_file <- normalizePath(output_file, mustWork = FALSE)
+        if (file.exists(abs_output_file)) {
+          file_size <- file.info(abs_output_file)$size
+          message("Plot saved to: ", abs_output_file, " (", file_size, " bytes)")
+        } else if (file.exists(output_file)) {
           file_size <- file.info(output_file)$size
           message("Plot saved to: ", output_file, " (", file_size, " bytes)")
         } else {
           warning("Warning: Output file was not created: ", output_file)
+          warning("  Absolute path: ", abs_output_file)
           warning("  Current working directory: ", getwd())
           warning("  Device was: ", current_device)
+          warning("  Device list before close: ", paste(grDevices::dev.list(), collapse = ", "))
         }
       }
     }
