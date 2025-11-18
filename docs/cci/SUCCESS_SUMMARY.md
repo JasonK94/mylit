@@ -66,7 +66,15 @@ _wt/cci/
 ```r
 # 함수 로드
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
-source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+} else {
+  stop("CCI.R not found in worktree or main repository.")
+}
 
 # 데이터 로드
 library(qs)
@@ -106,6 +114,7 @@ results <- run_cci_analysis(
 - `p_val_adj_cutoff`: 1.1 (완화된 기준, p_val_adj가 1.0 이상일 수 있음)
 - `logfc_cutoff`: 0.05 (완화된 기준)
 - `assay_name`: "RNA" (SCT 사용 시 PrepSCTFindMarkers 필요)
+- `receiver_de_table`: receiver DEG를 `.qs`로 저장해두면 `run_nichenet_analysis()` 호출 시 `receiver_gene_col`, `receiver_logfc_col`, `receiver_pval_col`과 함께 전달하여 FindMarkers 재실행 없이 바로 분석 재개 가능
 
 ## 다음 단계
 

@@ -1,3 +1,6 @@
+# Shared options
+nichenet_data_dir_default <- "/data/user3/git_repo/human"
+
 # ============================================================================
 # CCI 분석 도구 테스트 스크립트
 # ============================================================================
@@ -17,11 +20,12 @@ source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
 
 # 기존 CCI.R 함수도 필요 (run_nichenet_analysis)
-# 먼저 mylit에서 로드 시도
-if (file.exists("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")) {
-  source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
-} else if (file.exists("/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R")) {
-  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R")
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
 } else {
   warning("CCI.R not found. run_nichenet_analysis may not be available.")
 }
@@ -30,6 +34,10 @@ if (file.exists("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")) {
 library(Seurat)
 library(dplyr)
 library(qs)
+if (requireNamespace("conflicted", quietly = TRUE)) {
+  conflicted::conflicts_prefer(base::intersect)
+  conflicted::conflicts_prefer(base::setdiff)
+}
 
 # ============================================================================
 # 데이터 로드
@@ -59,12 +67,41 @@ message("Preparing DEG list...")
 # 실제 사용 시에는 muscat, edgeR, DESeq2 등으로 분석한 결과를 사용
 receiver_cluster_test <- clusters[1]  # 첫 번째 클러스터를 receiver로 사용
 
+# receiver 클러스터 내에서 발현된 유전자 + NicheNet 타깃 매트릭스 교집합 확보
+receiver_cells <- sobj_test@meta.data[["anno3.scvi"]] == receiver_cluster_test
+receiver_expr <- Seurat::GetAssayData(sobj_test, assay = "RNA", slot = "counts")[, receiver_cells, drop = FALSE]
+expressed_genes <- rownames(receiver_expr)[Matrix::rowSums(receiver_expr > 0) > 0]
+
+nichenet_gene_pool <- character(0)
+ligand_target_path <- file.path(nichenet_data_dir_default, "ligand_target_matrix_nsga2r_final.rds")
+if (file.exists(ligand_target_path)) {
+  nichenet_gene_pool <- tryCatch({
+    rownames(readRDS(ligand_target_path))
+  }, error = function(e) {
+    message("  ! Warning: Failed to read ligand_target_matrix from ", ligand_target_path, ": ", e$message)
+    character(0)
+  })
+}
+
+candidate_genes <- expressed_genes
+if (length(nichenet_gene_pool) > 0) {
+  candidate_genes <- base::intersect(expressed_genes, nichenet_gene_pool)
+}
+if (length(candidate_genes) == 0) {
+  candidate_genes <- expressed_genes
+}
+
+deg_genes <- head(candidate_genes, n = 5)
+if (length(deg_genes) < 3) {
+  warning("Fewer than 3 overlap genes found between receiver expression and NicheNet target matrix; tests may fail.")
+}
+
 # 예시 DEG 데이터프레임 생성 (실제로는 분석 결과를 사용)
 deg_df_example <- data.frame(
-  gene = c("GENE1", "GENE2", "GENE3", "GENE4", "GENE5"),
-  cluster = rep(receiver_cluster_test, 5),
-  avg_log2FC = c(1.5, 2.0, -1.2, 0.8, -0.5),
-  p_val_adj = c(0.001, 0.0001, 0.01, 0.05, 0.1),
+  gene = deg_genes,
+  cluster = rep(receiver_cluster_test, length(deg_genes)),
+  avg_log2FC = rep(1.5, length(deg_genes)),
+  p_val_adj = rep(0.01, length(deg_genes)),
   stringsAsFactors = FALSE
 )
 
@@ -85,6 +122,7 @@ tryCatch({
     condition_oi = "2",
     condition_ref = "1",
     species = "human",
+    nichenet_data_dir = nichenet_data_dir_default,
     verbose = TRUE,
     auto_save = TRUE
   )
@@ -116,6 +154,7 @@ if (length(clusters) >= 2) {
       condition_oi = "2",
       condition_ref = "1",
       species = "human",
+    nichenet_data_dir = nichenet_data_dir_default,
       verbose = TRUE
     )
     
@@ -142,6 +181,7 @@ tryCatch({
     condition_oi = "2",
     condition_ref = "1",
     species = "human",
+    nichenet_data_dir = nichenet_data_dir_default,
     verbose = TRUE
   )
   

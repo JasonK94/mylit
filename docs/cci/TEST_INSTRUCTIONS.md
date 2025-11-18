@@ -16,6 +16,15 @@ devtools::load_all("/home/user3/data_user3/git_repo/_wt/cci/myR")
 
 # 또는 함수 소스 직접 로드
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+} else {
+  stop("CCI.R not found in worktree or main repository.")
+}
 ```
 
 ## 데이터 준비
@@ -60,7 +69,45 @@ deg_df <- data.frame(
 )
 ```
 
+### 4. 사전 계산된 receiver DEG 재사용 (`receiver_de_table`)
+`cci_nichenet_results_*.qs` 또는 사용자가 별도로 저장한 `.qs` 파일에는 receiver DEG 테이블이 그대로 들어 있습니다. 동일한 receiver를 다시 분석할 때는 아래처럼 바로 다시 불러와 `run_nichenet_analysis()`에 전달하면 `FindMarkers()`가 재실행되지 않습니다.
+
+```r
+library(qs)
+
+receiver_deg_qs <- "/data/user3/sobj/receiver_CD4_deg_table.qs"  # 필요 시 갱신
+if (file.exists(receiver_deg_qs)) {
+  receiver_deg_table <- qs::qread(receiver_deg_qs)
+} else {
+  stop("Receiver DEG table (.qs) not found. Run run_cci_analysis once and save the table.")
+}
+
+nichenet_rerun <- run_nichenet_analysis(
+  seurat_obj = sobj_test,
+  species = "human",
+  sender_celltypes = c("Cluster2", "Cluster3"),
+  receiver_celltype = "Cluster1",
+  assay_name = "SCT",
+  cluster_col = "anno3.scvi",
+  receiver_DE_ident1 = "2",
+  receiver_DE_ident2 = "1",
+  receiver_DE_group_by = "g3",
+  receiver_de_table = receiver_deg_table,
+  receiver_gene_col = "gene",        # 필요 시 "symbol" 등으로 변경 가능
+  receiver_logfc_col = "avg_log2FC", # 외부 DEG면 "logFC"/"avg_logFC"도 허용
+  receiver_pval_col = "p_val_adj",
+  p_val_adj_cutoff = 1.1,
+  logfc_cutoff = 0.05,
+  verbose = TRUE
+)
+```
+
+- `run_cci_analysis()`는 위와 동일한 방식으로 자동 전달하므로, 테스트 시 메시지에 `Precomputed receiver DE tables...` 로그와 함께 FindMarkers 재호출이 생략되었는지 확인합니다.
+- receiver DEG를 새로 생성해야 할 때는 `save_cci_intermediate()`가 만든 `.qs` 파일에서 `receiver_degs` 요소를 추출하여 재사용하는 것이 가장 빠릅니다.
+
 ## 테스트 실행 방법
+
+> 참고: `run_cci_analysis()` Step 6 로그에는 sender/receiver 수, receiver DEG 수, 그리고 `Estimated runtime` 메시지가 포함됩니다. 테스트 시 해당 로그가 표준 출력에 나타나는지 확인하십시오.
 
 ### 방법 1: 대화형 R 세션에서 실행 (권장)
 
@@ -81,7 +128,15 @@ source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/prepare_cci_data.R")
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/utils_cci.R")
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
-source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+} else {
+  stop("CCI.R not found in worktree or main repository.")
+}
 
 # 2. 데이터 로드
 library(qs)

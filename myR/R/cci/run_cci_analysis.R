@@ -184,19 +184,24 @@ run_cci_analysis <- function(sobj,
   
   # Check if run_nichenet_analysis function is available
   if (!exists("run_nichenet_analysis")) {
-    # Try to source it
-    source_file <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
-    if (file.exists(source_file)) {
-      source(source_file)
-    } else {
-      # Try alternative path
-      source_file2 <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
-      if (file.exists(source_file2)) {
-        source(source_file2)
-      } else {
-        stop("Cannot find run_nichenet_analysis function. Please ensure CCI.R is sourced. ",
-             "Expected locations: ", source_file, " or ", source_file2)
+    source_candidates <- c(
+      "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R",
+      "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+    )
+    sourced <- FALSE
+    for (candidate in source_candidates) {
+      if (file.exists(candidate)) {
+        source(candidate)
+        sourced <- TRUE
+        if (isTRUE(verbose)) message("  Loaded run_nichenet_analysis from ", candidate)
+        break
       }
+    }
+    if (!sourced) {
+      stop(
+        "Cannot find run_nichenet_analysis function. Please ensure CCI.R is sourced. ",
+        "Tried: ", paste(source_candidates, collapse = ", ")
+      )
     }
   }
   

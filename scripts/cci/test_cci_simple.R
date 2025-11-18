@@ -32,9 +32,14 @@ tryCatch({
 # run_nichenet_analysis 로드
 message("Loading run_nichenet_analysis...")
 tryCatch({
-  if (file.exists("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")) {
-    source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
-    message("  ✓ run_nichenet_analysis loaded from mylit")
+  cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+  cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+  if (file.exists(cci_core_worktree)) {
+    source(cci_core_worktree)
+    message("  ✓ run_nichenet_analysis loaded from worktree")
+  } else if (file.exists(cci_core_mainrepo)) {
+    source(cci_core_mainrepo)
+    message("  ✓ run_nichenet_analysis loaded from main repo")
   } else {
     warning("CCI.R not found. run_nichenet_analysis may not be available.")
   }

@@ -22,9 +22,14 @@ cat("  ✓ CCI functions loaded\n\n")
 
 # Load run_nichenet_analysis
 cat("3. Loading run_nichenet_analysis...\n")
-if (file.exists("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")) {
-  source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
-  cat("  ✓ run_nichenet_analysis loaded\n\n")
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+  cat("  ✓ run_nichenet_analysis loaded from worktree\n\n")
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+  cat("  ✓ run_nichenet_analysis loaded from main repo\n\n")
 } else {
   stop("CCI.R not found!")
 }

@@ -22,9 +22,14 @@ source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
 
 # run_nichenet_analysis 로드
-if (file.exists("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")) {
-  source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
-  message("✓ run_nichenet_analysis loaded")
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+  message("✓ run_nichenet_analysis loaded (worktree)")
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+  message("✓ run_nichenet_analysis loaded (main repo)")
 } else {
   warning("CCI.R not found. Please source it manually.")
 }

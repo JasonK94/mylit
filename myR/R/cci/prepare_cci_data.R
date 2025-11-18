@@ -38,7 +38,7 @@ validate_cci_inputs <- function(sobj, cluster_col, deg_df, receiver_cluster, sen
   
   # Check required columns in DEG dataframe
   required_cols <- c("gene", "cluster")
-  missing_cols <- setdiff(required_cols, colnames(deg_df))
+  missing_cols <- base::setdiff(required_cols, colnames(deg_df))
   if (length(missing_cols) > 0) {
     stop("`deg_df` missing required columns: ", paste(missing_cols, collapse = ", "))
   }
@@ -78,7 +78,7 @@ validate_cci_inputs <- function(sobj, cluster_col, deg_df, receiver_cluster, sen
   # Validate sender clusters if provided
   if (!is.null(sender_clusters)) {
     if (!all(sender_clusters %in% sobj@meta.data[[cluster_col]])) {
-      missing_senders <- setdiff(sender_clusters, sobj@meta.data[[cluster_col]])
+      missing_senders <- base::setdiff(sender_clusters, sobj@meta.data[[cluster_col]])
       stop("Some sender clusters not found in Seurat object: ", paste(missing_senders, collapse = ", "))
     }
   }
@@ -169,7 +169,7 @@ identify_sender_clusters <- function(sobj, cluster_col, receiver_cluster, sender
   all_clusters <- all_clusters[!is.na(all_clusters)]
   
   # Remove receiver from potential senders
-  potential_senders <- setdiff(all_clusters, receiver_cluster)
+  potential_senders <- base::setdiff(all_clusters, receiver_cluster)
   
   if (is.null(sender_clusters)) {
     # Auto-identify: use all clusters except receiver
@@ -178,11 +178,11 @@ identify_sender_clusters <- function(sobj, cluster_col, receiver_cluster, sender
     return(potential_senders)
   } else {
     # Validate provided sender clusters
-    invalid_senders <- setdiff(sender_clusters, potential_senders)
+    invalid_senders <- base::setdiff(sender_clusters, potential_senders)
     if (length(invalid_senders) > 0) {
       warning("Some sender clusters are invalid or same as receiver: ", 
               paste(invalid_senders, collapse = ", "))
-      sender_clusters <- setdiff(sender_clusters, invalid_senders)
+      sender_clusters <- base::setdiff(sender_clusters, invalid_senders)
     }
     
     if (length(sender_clusters) == 0) {

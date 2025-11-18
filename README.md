@@ -12,7 +12,17 @@ devtools::load_all("/home/user3/data_user3/git_repo/_wt/cci/myR")
 
 # 또는 함수 소스 직접 로드
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
-source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")  # run_nichenet_analysis 필요
+
+# run_nichenet_analysis가 들어있는 CCI.R은 워크트리 파일을 우선 사용
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+} else {
+  stop("CCI.R not found in worktree or main repository.")
+}
 ```
 
 ### 2. 기본 사용법
@@ -65,6 +75,8 @@ _wt/cci/
         utils_cci.R             # CCI 유틸리티 함수
 ```
 
+> `guide.md` 기준: CCI 워크트리에서 사용하는 스크립트는 `scripts/cci/`, 문서는 `docs/cci/`에만 추가합니다.
+
 ## 주요 함수
 
 ### `run_cci_analysis()`
@@ -97,6 +109,11 @@ CCI 분석의 메인 함수입니다. Seurat 객체, 클러스터 정보, DEG �
 - 클러스터 정보 컬럼 (예: `anno3.scvi`)
 - 조건 정보 컬럼 (예: `g3`)
 
+### Receiver DEG 재사용
+- `run_nichenet_analysis()`는 `receiver_de_table`을 직접 전달받아 `FindMarkers()` 재실행 없이 바로 NicheNet을 돌릴 수 있습니다.
+- 컬럼명이 다르면 `receiver_gene_col`, `receiver_logfc_col`, `receiver_pval_col`로 매핑하세요.
+- `run_cci_analysis()`는 자체적으로 receiver DEG를 추출하여 동일한 방식으로 전달하므로, 동일 receiver를 반복 실행하더라도 중복 계산이 발생하지 않습니다.
+
 ## 출력
 
 결과는 리스트 형태로 반환되며, 다음을 포함합니다:
@@ -115,11 +132,12 @@ source("/home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci.R")
 ## 문서
 
 - **상세 문서**: `docs/cci/cci.md`
+- **모듈별 상세 가이드**: `docs/cci/CCI_module.md`
 - **테스트 가이드**: `docs/cci/TEST_INSTRUCTIONS.md`
 - **개발 로그**: `docs/cci/devlog.md`
 
 ## 참고 자료
 
 - NicheNet 공식 문서: https://github.com/saeyslab/nichenetr
-- 기존 CCI.R 함수: `/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R`
+- CCI.R 함수 (워크트리 우선): `/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R` (없으면 `/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R`)
 

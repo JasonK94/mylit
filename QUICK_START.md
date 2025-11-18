@@ -16,8 +16,16 @@ source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/utils_cci.R")
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
 
-# 기존 NicheNet 함수
-source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
+# 기존 NicheNet 함수 (워크트리 우선)
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+} else {
+  stop("CCI.R not found in worktree or main repository.")
+}
 
 # 필요한 패키지
 library(Seurat)
@@ -68,6 +76,32 @@ results <- run_cci_analysis(
   auto_save = TRUE
 )
 ```
+
+### 5-b. `run_nichenet_analysis()`를 직접 호출하며 `receiver_de_table` 재사용
+다운샘플 테스트에서 추출한 receiver DEG 테이블을 `.qs`로 저장했다면 동일한 데이터를 다시 계산하지 않고 그대로 사용할 수 있습니다.
+
+```r
+receiver_deg_qs <- "/data/user3/sobj/receiver_CD4_deg_table.qs"
+receiver_deg_table <- qs::qread(receiver_deg_qs)
+
+nichenet_results <- run_nichenet_analysis(
+  seurat_obj = sobj_test,
+  species = "human",
+  sender_celltypes = c("Cluster2", "Cluster3"),
+  receiver_celltype = receiver_cluster_test,
+  assay_name = "SCT",
+  cluster_col = "anno3.scvi",
+  receiver_DE_ident1 = "2",
+  receiver_DE_ident2 = "1",
+  receiver_DE_group_by = "g3",
+  receiver_de_table = receiver_deg_table,
+  receiver_gene_col = "gene",
+  receiver_logfc_col = "avg_log2FC",
+  receiver_pval_col = "p_val_adj",
+  verbose = TRUE
+)
+```
+`receiver_logfc_col`과 `receiver_pval_col`을 통해 외부 DEG 분석 엔진에서 생성한 컬럼명을 그대로 지정할 수 있습니다.
 
 ### 6. 결과 확인
 ```r

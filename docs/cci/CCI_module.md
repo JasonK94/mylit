@@ -190,7 +190,15 @@ _wt/cci/
 ```r
 # 함수 로드
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
-source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+if (file.exists(cci_core_worktree)) {
+  source(cci_core_worktree)
+} else if (file.exists(cci_core_mainrepo)) {
+  source(cci_core_mainrepo)
+} else {
+  stop("CCI.R not found in worktree or main repository.")
+}
 
 # 데이터 로드
 library(qs)
@@ -222,6 +230,38 @@ results <- run_cci_analysis(
   logfc_cutoff = 0.05
 )
 ```
+
+### `receiver_de_table` 및 컬럼 매핑 사용 예시
+`run_nichenet_analysis()`는 receiver DEG 테이블을 직접 전달받을 수 있으므로, 이미 계산한 DEG를 `.qs`로 저장해두었다면 FindMarkers를 반복 실행할 필요가 없습니다.
+
+```r
+library(qs)
+
+receiver_deg_qs <- "/data/user3/sobj/receiver_CD4_deg_table.qs"
+receiver_deg_table <- qs::qread(receiver_deg_qs)
+
+nichenet_results <- run_nichenet_analysis(
+  seurat_obj = sobj,
+  species = "human",
+  sender_celltypes = c("Monocytes / Macrophages", "NK Cells"),
+  receiver_celltype = "CD4+ T-cells",
+  assay_name = "SCT",
+  cluster_col = "anno3.scvi",
+  receiver_DE_ident1 = "2",
+  receiver_DE_ident2 = "1",
+  receiver_DE_group_by = "g3",
+  receiver_de_table = receiver_deg_table,
+  receiver_gene_col = "gene",        # 필요 시 "symbol" 등으로 변경
+  receiver_logfc_col = "avg_log2FC", # edgeR/limma 결과면 "logFC" 가능
+  receiver_pval_col = "p_val_adj",
+  p_val_adj_cutoff = 1.1,
+  logfc_cutoff = 0.05,
+  verbose = TRUE
+)
+```
+
+- `run_cci_analysis()`는 2단계에서 추출한 `receiver_degs`를 동일한 방식으로 `run_nichenet_analysis()`에 전달하므로, 동일한 receiver를 반복 실행해도 FindMarkers가 다시 호출되지 않습니다.
+- 자동 저장된 `nichenet_results.qs` 또는 사용자 정의 `.qs` 파일에 들어있는 DEG 테이블을 그대로 재사용할 수 있으며, 컬럼명이 다른 경우 `receiver_*_col` 파라미터로 매핑하면 됩니다.
 
 ### 파라미터 설명
 

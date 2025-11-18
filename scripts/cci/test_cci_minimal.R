@@ -38,19 +38,26 @@ for (f in func_files) {
 
 # Check if run_nichenet_analysis is available
 cat("\nChecking run_nichenet_analysis...\n")
-if (file.exists("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")) {
-  tryCatch({
-    source("/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R")
-    if (exists("run_nichenet_analysis")) {
-      cat("  ✓ run_nichenet_analysis loaded\n")
-    } else {
-      cat("  ✗ run_nichenet_analysis not found after sourcing\n")
-    }
-  }, error = function(e) {
-    cat("  ✗ Error loading CCI.R:", e$message, "\n")
-  })
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+cci_core_loaded <- FALSE
+for (candidate in c(cci_core_worktree, cci_core_mainrepo)) {
+  if (file.exists(candidate)) {
+    tryCatch({
+      source(candidate)
+      cci_core_loaded <- TRUE
+      break
+    }, error = function(e) {
+      cat("  ✗ Error loading", candidate, ":", e$message, "\n")
+    })
+  }
+}
+if (cci_core_loaded && exists("run_nichenet_analysis")) {
+  cat("  ✓ run_nichenet_analysis loaded\n")
+} else if (!cci_core_loaded) {
+  cat("  ✗ CCI.R file not found in worktree or main repository\n")
 } else {
-  cat("  ✗ CCI.R file not found\n")
+  cat("  ✗ run_nichenet_analysis not found after sourcing\n")
 }
 
 # Check function availability
