@@ -85,6 +85,13 @@ _wt/cci/
 - Ligand-receptor 상호작용 시각화
 - Circos plot 생성
 
+#### 최신 최적화
+- Receiver 별 DEG를 여러 번 계산하지 않도록 `receiver_de_table` 인자를 통해 사전 계산된 DEG를 재사용할 수 있습니다.
+- DEG 테이블 컬럼명이 `avg_log2FC`, `p_val_adj`와 달라도 `receiver_gene_col`, `receiver_logfc_col`, `receiver_pval_col` 파라미터로 매핑할 수 있습니다.
+- NicheNet 실행 전 Sender/Receiver 개수, DEG 수, 예상 소요 시간을 로그로 출력하여 진행 상황을 명확히 제공합니다.
+- 실행 중간 결과는 자동으로 `.qs` 체크포인트(예: `nichenet_results.qs`)로 저장되어, 중단 시 해당 파일로부터 재현 가능합니다.
+- 대용량 객체는 체크포인트 저장 후 `rm()` + `gc()`를 통해 정리하여 메모리 사용량을 최소화합니다.
+
 ### 4. 시각화 기능
 
 다음 플롯들이 자동 생성됩니다:

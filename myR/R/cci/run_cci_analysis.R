@@ -85,7 +85,9 @@ run_cci_analysis <- function(sobj,
     stop("No DEGs found for receiver cluster '", receiver_cluster, "' after filtering")
   }
   
-  if (verbose) message("  Found ", nrow(receiver_degs), " DEGs for receiver cluster")
+  if (verbose) {
+    message("  Found ", nrow(receiver_degs), " DEGs for receiver cluster after filtering")
+  }
   
   # Step 3: Identify sender clusters
   if (verbose) message("Step 3: Identifying sender clusters...")
@@ -205,8 +207,10 @@ run_cci_analysis <- function(sobj,
     # is done by run_nichenet_analysis internally
     
     if (verbose) {
-      message("  Note: run_nichenet_analysis will perform DE analysis using FindMarkers.")
-      message("  The provided deg_df is used for validation, but internal DE analysis will be used.")
+      message("  Preparing NicheNet run with ", length(sender_clusters_final), " sender cluster(s) and ", nrow(receiver_degs), " receiver DEGs.")
+      message("  Precomputed receiver DE tables will be reused when available to avoid redundant FindMarkers calls.")
+      est_minutes <- max(1, round(nrow(receiver_degs) / 250, 1))
+      message("  Estimated runtime: ~", est_minutes, " min (heuristic).")
     }
     
     # Extract circos-related parameters from function arguments and ...
@@ -263,6 +267,7 @@ run_cci_analysis <- function(sobj,
         receiver_DE_ident1 = condition_oi,
         receiver_DE_ident2 = condition_ref,
         receiver_DE_group_by = condition_col,
+        receiver_de_table = receiver_degs,
         min_pct_expressed = max(0.05, min_pct_expressed),  # More lenient min_pct
         p_val_adj_cutoff = p_val_adj_cutoff,
         logfc_cutoff = max(0.1, logfc_cutoff),  # More lenient logfc threshold for FindMarkers

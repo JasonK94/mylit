@@ -120,6 +120,10 @@ run_nichenet_analysis <- function(seurat_obj,
                                   receiver_DE_ident1,
                                   receiver_DE_ident2 = NULL,
                                   receiver_DE_group_by,
+                                  receiver_de_table = NULL,
+                                  receiver_gene_col = "gene",
+                                  receiver_logfc_col = NULL,
+                                  receiver_pval_col = NULL,
                                   min_pct_expressed = 0.10,
                                   p_val_adj_cutoff = 0.05,
                                   logfc_cutoff = 0.25,
@@ -141,7 +145,7 @@ run_nichenet_analysis <- function(seurat_obj,
     call_obj <- match.call()
     species <- match.arg(species)
     
-    required_pkgs <- c("nichenetr", "Seurat", "dplyr", "tidyr", "tibble", "ggplot2")
+    required_pkgs <- c("nichenetr", "Seurat", "dplyr", "tidyr", "tibble", "ggplot2", "rlang")
     missing_pkgs <- required_pkgs[!sapply(required_pkgs, requireNamespace, quietly = TRUE)]
     if (length(missing_pkgs) > 0) {
       stop("Required package(s) not found: ", paste(missing_pkgs, collapse=", "), ". Please install them.", call. = FALSE)
@@ -297,14 +301,71 @@ run_nichenet_analysis <- function(seurat_obj,
     if(length(background_expressed_genes) < 20) warning("NN_Warning: Very few (<20) background expressed genes found in receiver (", length(background_expressed_genes), "). NicheNet might not perform well.")
     
     # --- III. Define Gene Set of Interest (DEGs in receiver) ---
-    if (verbose) message("Performing DE analysis for receiver: ", receiver_celltype, " (", receiver_DE_ident1, " vs ", if(!is.null(receiver_DE_ident2)) receiver_DE_ident2 else "all others", " in group ", receiver_DE_group_by,")")
-    if (!receiver_DE_group_by %in% colnames(seurat_obj@meta.data)) stop("`receiver_DE_group_by` column '", receiver_DE_group_by, "' not found in Seurat object metadata.", call. = FALSE)
-    start_time_de <- Sys.time()
-    DE_table_receiver <- Seurat::FindMarkers(seurat_obj, ident.1 = receiver_DE_ident1, ident.2 = receiver_DE_ident2, group.by = receiver_DE_group_by, subset.ident = receiver_celltype, assay = assay_name, min.pct = min_pct_expressed, logfc.threshold = 0 ) %>%
-      tibble::rownames_to_column("gene") %>%
-      dplyr::filter(p_val_adj < p_val_adj_cutoff, avg_log2FC > logfc_cutoff)
-    elapsed_de <- difftime(Sys.time(), start_time_de, units = "secs")
-    if (verbose) message("  DE analysis completed (", round(elapsed_de, 1), " seconds)")
+    if (!is.null(receiver_de_table)) {
+      if (verbose) message("Using precomputed receiver DE table (", nrow(receiver_de_table), " genes)")
+      DE_table_receiver <- receiver_de_table
+    } else {
+      if (verbose) message("Performing DE analysis for receiver: ", receiver_celltype, " (", receiver_DE_ident1, " vs ", if(!is.null(receiver_DE_ident2)) receiver_DE_ident2 else "all others", " in group ", receiver_DE_group_by,")")
+      if (!receiver_DE_group_by %in% colnames(seurat_obj@meta.data)) stop("`receiver_DE_group_by` column '", receiver_DE_group_by, "' not found in Seurat object metadata.", call. = FALSE)
+      start_time_de <- Sys.time()
+      DE_table_receiver <- Seurat::FindMarkers(
+        seurat_obj,
+        ident.1 = receiver_DE_ident1,
+        ident.2 = receiver_DE_ident2,
+        group.by = receiver_DE_group_by,
+        subset.ident = receiver_celltype,
+        assay = assay_name,
+        min.pct = min_pct_expressed,
+        logfc.threshold = 0
+      ) %>%
+        tibble::rownames_to_column("gene")
+      elapsed_de <- difftime(Sys.time(), start_time_de, units = "secs")
+      if (verbose) message("  DE analysis completed (", round(elapsed_de, 1), " seconds)")
+    }
+
+    DE_table_receiver <- tibble::as_tibble(DE_table_receiver)
+    if (receiver_gene_col %in% colnames(DE_table_receiver) && receiver_gene_col != "gene") {
+      DE_table_receiver <- DE_table_receiver %>% dplyr::rename(gene = !!rlang::sym(receiver_gene_col))
+    } else if (!"gene" %in% colnames(DE_table_receiver)) {
+      if (!is.null(rownames(DE_table_receiver))) {
+        DE_table_receiver <- DE_table_receiver %>% tibble::rownames_to_column("gene")
+      } else {
+        stop("Receiver DE table must contain a 'gene' column or gene rownames.", call. = FALSE)
+      }
+    }
+
+    detect_logfc_col <- function(df) {
+      if ("avg_log2FC" %in% colnames(df)) return("avg_log2FC")
+      if ("avg_logFC" %in% colnames(df)) return("avg_logFC")
+      if ("logFC" %in% colnames(df)) return("logFC")
+      NULL
+    }
+    detect_pval_col <- function(df) {
+      if ("p_val_adj" %in% colnames(df)) return("p_val_adj")
+      if ("FDR" %in% colnames(df)) return("FDR")
+      if ("p_val" %in% colnames(df)) return("p_val")
+      NULL
+    }
+
+    logfc_col <- if (!is.null(receiver_logfc_col)) receiver_logfc_col else detect_logfc_col(DE_table_receiver)
+    pval_col <- if (!is.null(receiver_pval_col)) receiver_pval_col else detect_pval_col(DE_table_receiver)
+
+    if (!is.null(logfc_col) && logfc_col %in% colnames(DE_table_receiver)) {
+      DE_table_receiver <- DE_table_receiver %>%
+        dplyr::filter(!!rlang::sym(logfc_col) > logfc_cutoff)
+    } else if (is.null(receiver_de_table)) {
+      warning("NN_Warning: Receiver DE table lacks a logFC column. Skipping logFC filtering.")
+    }
+
+    if (!is.null(pval_col) && pval_col %in% colnames(DE_table_receiver)) {
+      DE_table_receiver <- DE_table_receiver %>%
+        dplyr::filter(!!rlang::sym(pval_col) < p_val_adj_cutoff)
+    } else if (is.null(receiver_de_table)) {
+      warning("NN_Warning: Receiver DE table lacks a p-value column. Skipping p-value filtering.")
+    }
+
+    if (verbose) message("  Receiver DEGs after column filtering: ", nrow(DE_table_receiver))
+
     geneset_oi <- DE_table_receiver$gene[DE_table_receiver$gene %in% rownames(ligand_target_matrix)]
     if(length(geneset_oi) == 0) stop("No DEGs found in the receiver cell type that are also in the NicheNet ligand_target_matrix. Number of DEGs before NicheNet filter: ", nrow(DE_table_receiver), call. = FALSE)
     if (verbose) message(length(geneset_oi), " DEGs (upregulated in ident.1) from receiver '", receiver_celltype, "' identified for NicheNet analysis.")
@@ -326,7 +387,11 @@ run_nichenet_analysis <- function(seurat_obj,
     elapsed_ligand <- difftime(Sys.time(), start_time_ligand, units = "secs")
     if (verbose) message("  Ligand activity prediction completed (", round(elapsed_ligand, 1), " seconds)")
     best_upstream_ligands <- ligand_activities %>% dplyr::top_n(min(top_n_ligands, nrow(ligand_activities)), aupr_corrected) %>% dplyr::pull(test_ligand) %>% unique()
-    if (verbose) message("Top ", length(best_upstream_ligands), " ligands selected based on AUPR.")
+    if (verbose) {
+      message("Top ", length(best_upstream_ligands), " ligands selected based on AUPR.")
+      target_est <- max(1, round(length(best_upstream_ligands) * top_n_targets_per_ligand / 800, 1))
+      message("  (Ligand-target inference ~", target_est, " min heuristic)")
+    }
     
     # --- VI. Infer Active Target Genes of Top Ligands ---
     if (verbose) message("Inferring active target genes for top ligands...")
@@ -591,12 +656,31 @@ run_nichenet_analysis <- function(seurat_obj,
       nichenet_data_loaded_info = nichenet_data_loaded_info,
       output_path_run = if(!is.null(current_run_output_dir)) current_run_output_dir else "Output not saved to files."
     )
+
+    if (!is.null(current_run_output_dir)) {
+      checkpoint_path <- file.path(current_run_output_dir, "nichenet_results.qs")
+      if (requireNamespace("qs", quietly = TRUE)) {
+        tryCatch({
+          qs::qsave(results_list, checkpoint_path)
+          if (verbose) message("NicheNet checkpoint saved to: ", checkpoint_path)
+        }, error = function(e) warning("NN_Warning: Failed to save NicheNet checkpoint: ", e$message))
+      }
+    }
+
     
     if (!is.null(current_run_output_dir)) {
       plot_list_gg <- list(NicheNet_Ligand_Target_Heatmap = results_list$plot_ligand_target_network, NicheNet_Ligand_Receptor_Heatmap = results_list$plot_ligand_receptor_network, NicheNet_Ligand_Activity_Histogram = results_list$plot_ligand_activity_hist, NicheNet_Ligand_AUPR_Heatmap = results_list$plot_ligand_aupr_heatmap)
       plot_dims <- list(NicheNet_Ligand_Target_Heatmap = list(w=10,h=8), NicheNet_Ligand_Receptor_Heatmap = list(w=8,h=6), NicheNet_Ligand_Activity_Histogram = list(w=6,h=5), NicheNet_Ligand_AUPR_Heatmap = list(w=6,h=8))
       for(plot_name in names(plot_list_gg)){ p_obj <- plot_list_gg[[plot_name]]; if(!is.null(p_obj) && inherits(p_obj, "ggplot")){ tryCatch(ggplot2::ggsave(filename = file.path(current_run_output_dir, paste0(plot_name, ".png")), plot = p_obj, width = plot_dims[[plot_name]]$w, height = plot_dims[[plot_name]]$h), error = function(e) warning("NN_Warning: Failed to save plot ", plot_name, ": ", e$message))}}
     }
+
+    objects_to_clear <- c("ligand_activities", "active_ligand_target_links_df", "active_ligand_target_links_matrix",
+                          "lr_network_top_df_large", "list_expressed_genes_sender", "expressed_genes_sender",
+                          "expressed_genes_receiver", "ligand_df_circos", "receptor_df_circos",
+                          "links_df_circos", "captured_circlize_messages")
+    rm(list = intersect(objects_to_clear, ls()), envir = environment())
+    gc(verbose = FALSE)
+
     return(results_list)
   },
   warning = function(w) {

@@ -151,7 +151,7 @@ neb1 <- runNEBULA2_v1(
 문제를 진단하고 해결 방법을 테스트하려면:
 
 ```r
-source("/home/user3/data_user3/git_repo/_wt/main2/test_nebula_issue.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/test_nebula_issue.R")
 ```
 
 ## 참고
