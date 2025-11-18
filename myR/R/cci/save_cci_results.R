@@ -9,19 +9,43 @@ NULL
 #' Save CCI Intermediate Results
 #'
 #' Saves intermediate results from CCI analysis preparation.
+#' If output_dir contains run folders, saves to the latest run folder's prepared_data subdirectory.
 #'
 #' @param prepared_data List with prepared data (from prepare_cci_data functions)
-#' @param output_dir Character string, output directory (default: "/data/user3/sobj/cci")
-#' @param prefix Character string, filename prefix (default: "cci_prepared_data")
+#' @param output_dir Character string, output directory. If NULL, uses default "/data/user3/sobj/cci".
+#'                   If provided and contains run folders, saves to run*/prepared_data/.
+#' @param prefix Character string, filename prefix (default: "prepared_data")
 #'
 #' @return Character string, path to saved file
 #' @export
 save_cci_intermediate <- function(prepared_data, 
-                                   output_dir = "/data/user3/sobj/cci",
-                                   prefix = "cci_prepared_data") {
+                                   output_dir = NULL,
+                                   prefix = "prepared_data") {
   
   if (!requireNamespace("qs", quietly = TRUE)) {
     stop("qs package is required for saving results")
+  }
+  
+  if (is.null(output_dir)) {
+    output_dir <- "/data/user3/sobj/cci"
+  }
+  
+  # Check if output_dir contains run folders
+  if (dir.exists(output_dir)) {
+    existing_runs <- list.dirs(output_dir, full.names = FALSE, recursive = FALSE)
+    run_numbers <- grep("^run[0-9]+$", existing_runs, value = TRUE) %>%
+      sub("run", "", .) %>%
+      as.numeric()
+    
+    if (length(run_numbers) > 0 && !all(is.na(run_numbers))) {
+      # Save to the latest run folder's prepared_data subdirectory
+      latest_run <- max(run_numbers, na.rm = TRUE)
+      run_folder <- file.path(output_dir, paste0("run", latest_run))
+      prepared_data_dir <- file.path(run_folder, "prepared_data")
+      if (dir.exists(run_folder)) {
+        output_dir <- prepared_data_dir
+      }
+    }
   }
   
   if (!dir.exists(output_dir)) {

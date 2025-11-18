@@ -851,19 +851,8 @@ run_nichenet_analysis <- function(seurat_obj,
               legend_colors <- c(legend_colors, receptor_color)
             }
             
-            # Define the plotting function
-            do_circos_plotting <- function() {
-              # Set up plot margins to accommodate legend
-              if (circos_show_legend && length(legend_labels) > 0) {
-                # Adjust margins: bottom, left, top, right
-                # Increase right margin if legend is on the right
-                if (circos_legend_position %in% c("topright", "right", "bottomright")) {
-                  graphics::par(mar = c(5, 4, 4, 8) + 0.1, xpd = TRUE)
-                } else {
-                  graphics::par(mar = c(5, 4, 4, 4) + 0.1, xpd = TRUE)
-                }
-              }
-              
+            # Define the plotting function (without legend)
+            do_circos_plotting <- function(show_legend = FALSE) {
               circlize::circos.clear()
               circlize::chordDiagram(links_df_circos,
                                      order = sector_order,
@@ -881,21 +870,38 @@ run_nichenet_analysis <- function(seurat_obj,
               }, bg.border = NA)
               
               # Add legend if requested - MUST be after chordDiagram
-              if (circos_show_legend && length(legend_labels) > 0) {
-                # Ensure xpd=TRUE to allow plotting outside plot region
+              if (show_legend && length(legend_labels) > 0) {
+                # Set xpd=TRUE to allow plotting outside plot region
+                # Use inset = c(0, 0) to place legend at the edge
                 graphics::par(xpd = TRUE)
                 graphics::legend(
                   x = circos_legend_position,
                   legend = legend_labels,
                   fill = legend_colors,
                   cex = circos_legend_size,
-                  inset = circos_legend_inset,
+                  inset = c(0, 0),  # No inset - place at edge
                   bg = "white",
                   box.lty = 1,
                   box.lwd = 1,
                   title = "Cell Types"
                 )
               }
+            }
+            
+            # Function to plot legend only
+            do_legend_only <- function() {
+              graphics::par(xpd = TRUE, mar = c(0, 0, 0, 0))
+              graphics::plot.new()
+              graphics::legend(
+                x = "center",
+                legend = legend_labels,
+                fill = legend_colors,
+                cex = circos_legend_size,
+                bg = "white",
+                box.lty = 1,
+                box.lwd = 1,
+                title = "Cell Types"
+              )
             }
             
             # Capture messages (notes) from circlize
@@ -918,20 +924,33 @@ run_nichenet_analysis <- function(seurat_obj,
             
             tryCatch({
               if(!is.null(current_run_output_dir)){
-                grDevices::pdf(file.path(current_run_output_dir, "NicheNet_Circos_LR.pdf"), width=circos_pdf_width, height=circos_pdf_height); do_circos_plotting(); grDevices::dev.off()
-                grDevices::png(file.path(current_run_output_dir, "NicheNet_Circos_LR.png"), width=circos_png_width, height=circos_png_height, res=circos_png_res); do_circos_plotting(); grDevices::dev.off()
+                # Save plot without legend
+                grDevices::pdf(file.path(current_run_output_dir, "NicheNet_Circos_LR_no_legend.pdf"), width=circos_pdf_width, height=circos_pdf_height); do_circos_plotting(show_legend = FALSE); grDevices::dev.off()
+                grDevices::png(file.path(current_run_output_dir, "NicheNet_Circos_LR_no_legend.png"), width=circos_png_width, height=circos_png_height, res=circos_png_res); do_circos_plotting(show_legend = FALSE); grDevices::dev.off()
                 
+                # Save plot with legend
+                if (circos_show_legend && length(legend_labels) > 0) {
+                  grDevices::pdf(file.path(current_run_output_dir, "NicheNet_Circos_LR_with_legend.pdf"), width=circos_pdf_width, height=circos_pdf_height); do_circos_plotting(show_legend = TRUE); grDevices::dev.off()
+                  grDevices::png(file.path(current_run_output_dir, "NicheNet_Circos_LR_with_legend.png"), width=circos_png_width, height=circos_png_height, res=circos_png_res); do_circos_plotting(show_legend = TRUE); grDevices::dev.off()
+                  
+                  # Save legend only
+                  grDevices::pdf(file.path(current_run_output_dir, "NicheNet_Circos_LR_legend_only.pdf"), width=4, height=6); do_legend_only(); grDevices::dev.off()
+                  grDevices::png(file.path(current_run_output_dir, "NicheNet_Circos_LR_legend_only.png"), width=400, height=600, res=circos_png_res); do_legend_only(); grDevices::dev.off()
+                }
+                
+                # Save legend text file
                 legend_text <- "Circos Legend (Sender Cell Type for Ligands):\n"
                 for(s_group in names(sender_palette)){ # Iterate over actual palette used
                   legend_text <- paste0(legend_text, s_group, " (Ligands): Color ", sender_palette[s_group], "\n")
                 }
                 legend_text <- paste0(legend_text, "Receptor: Color ", receptor_color, "\n")
                 cat(legend_text, file=file.path(current_run_output_dir, "NicheNet_Circos_LR_legend.txt"))
-                if(verbose) message("Circos plot & legend info saved to: ", current_run_output_dir)
+                if(verbose) message("Circos plots & legend saved to: ", current_run_output_dir)
               }
               
               circlize::circos.clear() # Clear before plotting for recordPlot
-              do_circos_plotting()     # Plot again for recordPlot
+              # Record plot with legend if requested
+              do_circos_plotting(show_legend = circos_show_legend && length(legend_labels) > 0)
               recorded_circos_plot <- grDevices::recordPlot()
               circlize::circos.clear() # Clear after recordPlot
               

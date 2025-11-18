@@ -167,10 +167,8 @@ run_cci_analysis <- function(sobj,
       summary = prepared_summary
     )
     # Use output_dir if provided, otherwise use default cci directory
-    prep_output_dir <- if (!is.null(output_dir)) file.path(output_dir, "..", "cci") else NULL
-    if (is.null(prep_output_dir)) {
-      prep_output_dir <- "/data/user3/sobj/cci"
-    }
+    # save_cci_intermediate will automatically detect run folders and save to run*/prepared_data/
+    prep_output_dir <- if (!is.null(output_dir)) output_dir else "/data/user3/sobj/cci"
     save_cci_intermediate(prepared_data, output_dir = prep_output_dir)
   }
   

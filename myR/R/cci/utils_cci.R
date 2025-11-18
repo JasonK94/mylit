@@ -357,19 +357,35 @@ replot_nichenet_circos <- function(results_file,
   # For now, we'll replay the original plot with new parameters
   if (verbose) message("Replaying circos plot with new parameters...")
   
+  # Check for existing devices and close non-null devices if needed
+  existing_devices <- grDevices::dev.list()
+  if (verbose && length(existing_devices) > 0) {
+    message("  Existing devices before opening: ", paste(existing_devices, collapse = ", "))
+  }
+  
   # Open graphics device
   device_opened <- FALSE
   current_device <- NULL
   
   if (format == "png" && !is.null(output_file)) {
     if (verbose) message("Opening PNG device: ", output_file)
-    grDevices::png(output_file, width = width * res, height = height * res, res = res)
+    # Ensure absolute path
+    abs_output_file <- normalizePath(output_file, mustWork = FALSE)
+    if (!file.exists(dirname(abs_output_file))) {
+      dir.create(dirname(abs_output_file), recursive = TRUE, showWarnings = FALSE)
+    }
+    grDevices::png(abs_output_file, width = width * res, height = height * res, res = res)
     device_opened <- TRUE
     current_device <- grDevices::dev.cur()
     if (verbose) message("  Device opened: ", current_device)
   } else if (format == "pdf" && !is.null(output_file)) {
     if (verbose) message("Opening PDF device: ", output_file)
-    grDevices::pdf(output_file, width = width, height = height)
+    # Ensure absolute path
+    abs_output_file <- normalizePath(output_file, mustWork = FALSE)
+    if (!file.exists(dirname(abs_output_file))) {
+      dir.create(dirname(abs_output_file), recursive = TRUE, showWarnings = FALSE)
+    }
+    grDevices::pdf(abs_output_file, width = width, height = height)
     device_opened <- TRUE
     current_device <- grDevices::dev.cur()
     if (verbose) message("  Device opened: ", current_device)
@@ -383,6 +399,9 @@ replot_nichenet_circos <- function(results_file,
       if (device_opened) {
         active_dev <- grDevices::dev.set(current_device)
         if (verbose) message("  Active device set to: ", active_dev)
+        if (active_dev != current_device) {
+          warning("Warning: Device mismatch. Expected ", current_device, " but got ", active_dev)
+        }
       }
       
       # Replay the recorded plot
@@ -435,11 +454,17 @@ replot_nichenet_circos <- function(results_file,
         message("  Current device before close: ", grDevices::dev.cur())
       }
       
+      # Verify we're closing the correct device
+      if (grDevices::dev.cur() != current_device) {
+        if (verbose) warning("Warning: Current device (", grDevices::dev.cur(), ") differs from expected (", current_device, ")")
+        grDevices::dev.set(current_device)
+      }
+      
       # Close the device
       grDevices::dev.off()
       
       # Wait a moment for file system to sync
-      Sys.sleep(0.2)
+      Sys.sleep(0.3)
       
       if (verbose && !is.null(output_file)) {
         # Check if file exists (use absolute path)
@@ -455,16 +480,36 @@ replot_nichenet_circos <- function(results_file,
           warning("  Absolute path: ", abs_output_file)
           warning("  Current working directory: ", getwd())
           warning("  Device was: ", current_device)
-          warning("  Device list before close: ", paste(grDevices::dev.list(), collapse = ", "))
+          warning("  Device list after close: ", paste(grDevices::dev.list(), collapse = ", "))
+          # Try to check if file exists in parent directory
+          parent_dir <- dirname(abs_output_file)
+          if (dir.exists(parent_dir)) {
+            files_in_dir <- list.files(parent_dir, pattern = basename(output_file))
+            if (length(files_in_dir) > 0) {
+              warning("  Found similar files in directory: ", paste(files_in_dir, collapse = ", "))
+            }
+          }
         }
       }
     }
   }, error = function(e) {
     if (device_opened) {
       try({
-        if (!is.null(current_device) && current_device %in% grDevices::dev.list()) {
-          grDevices::dev.set(current_device)
-          grDevices::dev.off()
+        # Try to close the device we opened
+        if (!is.null(current_device)) {
+          if (current_device %in% grDevices::dev.list()) {
+            grDevices::dev.set(current_device)
+            grDevices::dev.off()
+          }
+        }
+        # Also try to close any remaining non-null devices
+        remaining_devices <- grDevices::dev.list()
+        if (length(remaining_devices) > 0 && !is.null(remaining_devices)) {
+          for (dev in remaining_devices) {
+            if (dev != grDevices::dev.cur()) {
+              try(grDevices::dev.off(dev), silent = TRUE)
+            }
+          }
         }
       }, silent = TRUE)
     }
