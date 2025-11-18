@@ -214,6 +214,21 @@
   - `cv_group_var`가 matrix 입력에서도 사용할 수 있도록 벡터 인자를 허용할지 검토
   - 문서/사용 예시 업데이트
 
+## 2025-01-XX — FGS v5.4 및 시그니처 스택 테스트 (`fgs` 브랜치)
+- **작성자**: GPT-5.1 Codex  
+- **요약**: `find_gene_signature_v5.4()` 추가로 ranger/glmnet/NMF 경로의 안정화 옵션을 기본화하고, IS6 Seurat 객체(`is5s`)를 대상으로 end-to-end 검증을 수행.
+- **세부 사항**:
+  - `FGS()` 기본 진입점을 `find_gene_signature_v5.4()`로 전환해 `method_impl = "v5.4"`를 항상 사용
+  - v5.4에서는 `random_forest_ranger`의 permutation 중요도 + fallback, `ridge`/`elastic_net`의 `glmnet` 행렬 강제 변환과 0/1 타깃 변환, `nmf_loadings`의 양수 이동·랭크 가드가 활성화됨
+  - `TML7` + `compute_meta_gene_importance` + `add_meta_signature_score` 조합으로 IS6 데이터(`response`, `hos_no` 보정, 상위 200 genes) 테스트
+  - meta-signature score와 TML 예측(logit)의 상관, AUC(`pROC::roc`) 계산 및 `qs::qsave()`로 산출물 저장
+- **출력**:
+  - `docs/work_context/TML6_IMPROVEMENTS_CONTEXT.md`에 실행 컨텍스트 업데이트
+  - `outputs/fgs_is5s/`에 `fgs.each.is5s.qs`, `tml.each.is5s.qs` 저장
+- **다음 단계**:
+  - `find_gene_signature_v5.4()`를 문서/README에도 반영하고, `test.R`의 legacy 함수명을 `_test` 접미사로 전환
+  - ranger/glmnet/NMF 외의 메서드에서도 v5.4 경로가 필요한지 검토
+
 ---
 
 ### 향후 계획
