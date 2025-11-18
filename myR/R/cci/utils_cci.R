@@ -359,17 +359,30 @@ replot_nichenet_circos <- function(results_file,
   
   # Open graphics device
   device_opened <- FALSE
+  current_device <- NULL
+  
   if (format == "png" && !is.null(output_file)) {
+    if (verbose) message("Opening PNG device: ", output_file)
     grDevices::png(output_file, width = width * res, height = height * res, res = res)
     device_opened <- TRUE
+    current_device <- grDevices::dev.cur()
+    if (verbose) message("  Device opened: ", current_device)
   } else if (format == "pdf" && !is.null(output_file)) {
+    if (verbose) message("Opening PDF device: ", output_file)
     grDevices::pdf(output_file, width = width, height = height)
     device_opened <- TRUE
+    current_device <- grDevices::dev.cur()
+    if (verbose) message("  Device opened: ", current_device)
   }
   
   tryCatch({
     # Replay the original plot
     if (inherits(plot_circos, "recordedplot")) {
+      if (verbose) message("Replaying recorded plot...")
+      # Ensure we're using the correct device
+      if (device_opened) {
+        grDevices::dev.set(current_device)
+      }
       # Replay the recorded plot
       grDevices::replayPlot(plot_circos)
       
@@ -383,24 +396,38 @@ replot_nichenet_circos <- function(results_file,
     } else {
       # If it's not a recorded plot, try to plot it directly
       if (verbose) message("Plotting circos plot object...")
+      if (device_opened) {
+        grDevices::dev.set(current_device)
+      }
       graphics::plot(plot_circos)
     }
     
     # Ensure device is properly closed
     if (device_opened) {
+      if (verbose) message("Closing graphics device...")
       grDevices::dev.off()
+      # Wait a moment for file system to sync
+      Sys.sleep(0.1)
+      
       if (verbose && !is.null(output_file)) {
         if (file.exists(output_file)) {
           file_size <- file.info(output_file)$size
           message("Plot saved to: ", output_file, " (", file_size, " bytes)")
         } else {
           warning("Warning: Output file was not created: ", output_file)
+          warning("  Current working directory: ", getwd())
+          warning("  Device was: ", current_device)
         }
       }
     }
   }, error = function(e) {
     if (device_opened) {
-      try(grDevices::dev.off(), silent = TRUE)
+      try({
+        if (!is.null(current_device) && current_device %in% grDevices::dev.list()) {
+          grDevices::dev.set(current_device)
+          grDevices::dev.off()
+        }
+      }, silent = TRUE)
     }
     stop("Error during plot generation: ", e$message)
   })
