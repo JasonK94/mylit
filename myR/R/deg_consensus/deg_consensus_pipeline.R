@@ -73,7 +73,11 @@ run_deg_consensus_with_plots <- function(
     "muscat-limma-voom",
     "muscat-limma-trend",
     "limma-voom",
-    "edgeR-LRT"
+    "limma-trend",
+    "edgeR-LRT",
+    "edgeR-QLF",
+    "DESeq2-Wald",
+    "DESeq2-LRT"
   ),
   cluster_id = "anno3.scvi",
   sample_id  = "hos_no",
@@ -94,8 +98,10 @@ run_deg_consensus_with_plots <- function(
   if (is.null(output_dir)) {
     output_dir <- getwd()
   }
-  if (!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  # Always use a "consensus" subdirectory under the specified output_dir
+  cons_dir <- file.path(output_dir, "consensus")
+  if (!dir.exists(cons_dir)) {
+    dir.create(cons_dir, recursive = TRUE, showWarnings = FALSE)
   }
   
   # Build a default prefix if not provided
@@ -103,7 +109,7 @@ run_deg_consensus_with_plots <- function(
     n_cells <- tryCatch(ncol(sobj), error = function(e) NA_integer_)
     dataset_tag <- if (!is.na(n_cells) && n_cells <= 3000) "ds" else "full"
     timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-    prefix <- file.path(output_dir, paste0("deg_consensus_", dataset_tag, "_", timestamp))
+    prefix <- file.path(cons_dir, paste0("deg_consensus_", dataset_tag, "_", timestamp))
   }
   
   if (!requireNamespace("qs", quietly = TRUE)) {
@@ -150,6 +156,9 @@ run_deg_consensus_with_plots <- function(
   if (!exists("runDESEQ2_Wald_v1") || !exists("runDESEQ2_LRT_v1")) {
     source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_deseq2.R")
   }
+  # NEBULA/Dream 함수는 항상 최신 버전을 로드하여 패키지 기본 구현을 덮어쓴다.
+  source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_base.R")
+  source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_dream.R")
   
   # --- 1. Run multiple DEG methods ---
   res <- run_deg_consensus(

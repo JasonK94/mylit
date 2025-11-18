@@ -25,7 +25,8 @@ runDESEQ2_Wald_v1 <- function(
   pb_min_cells = 3,
   keep_clusters = NULL,
   cluster_label_map = NULL,
-  remove_na_groups = TRUE
+  remove_na_groups = TRUE,
+  min_samples_per_group = 2
 ){
   if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
 
@@ -190,7 +191,39 @@ runDESEQ2_Wald_v1 <- function(
       message(sprintf("  클러스터 %s: 그룹 수 부족 (%d), 건너뜁니다.", clust, length(levels(pb_clust_group))))
       next
     }
+    grp_counts <- table(pb_clust_group)
+    if (any(grp_counts < min_samples_per_group)) {
+      message(sprintf("  클러스터 %s: 그룹별 샘플 수 부족 (%s), 건너뜁니다.",
+                      clust,
+                      paste(sprintf("%s=%d", names(grp_counts), grp_counts), collapse = ", ")))
+      next
+    }
     
+    # 정수 카운트 보장 및 유효 샘플 확인
+    pb_clust_mat <- round(as.matrix(pb_clust))
+    storage.mode(pb_clust_mat) <- "integer"
+    pb_clust_mat[pb_clust_mat < 0] <- 0
+    lib_sizes <- colSums(pb_clust_mat)
+    valid_samples <- lib_sizes > 0
+    if (sum(valid_samples) < length(lib_sizes)) {
+      pb_clust_mat <- pb_clust_mat[, valid_samples, drop = FALSE]
+      pb_clust_meta <- pb_clust_meta[valid_samples, , drop = FALSE]
+      pb_clust_group <- droplevels(factor(pb_clust_meta$group_id))
+      grp_counts <- table(pb_clust_group)
+      if (length(grp_counts) < 2 || any(grp_counts < min_samples_per_group)) {
+        message(sprintf("  클러스터 %s: 유효 샘플 재확인 후에도 부족, 건너뜁니다.", clust))
+        next
+      }
+    }
+    
+    gene_keep <- rowSums(pb_clust_mat) > 0
+    if (sum(gene_keep) == 0) {
+      message(sprintf("  클러스터 %s: 모든 유전자가 0으로 제거됩니다.", clust))
+      next
+    }
+    pb_clust_mat <- pb_clust_mat[gene_keep, , drop = FALSE]
+    
+    sample_ids <- colnames(pb_clust_mat)
     # DESeq2를 위한 메타데이터 준비
     pb_clust_meta_df <- as.data.frame(pb_clust_meta)
     pb_clust_meta_df$group <- pb_clust_group
@@ -207,8 +240,8 @@ runDESEQ2_Wald_v1 <- function(
     # DESeq2 데이터셋 생성
     dds <- tryCatch({
       DESeq2::DESeqDataSetFromMatrix(
-        countData = as.matrix(pb_clust),
-        colData = pb_clust_meta_df,
+        countData = pb_clust_mat,
+        colData = pb_clust_meta_df[rownames(pb_clust_meta_df) %in% colnames(pb_clust_mat), , drop = FALSE],
         design = design_formula
       )
     }, error = function(e) {
@@ -315,7 +348,8 @@ runDESEQ2_LRT_v1 <- function(
   pb_min_cells = 3,
   keep_clusters = NULL,
   cluster_label_map = NULL,
-  remove_na_groups = TRUE
+  remove_na_groups = TRUE,
+  min_samples_per_group = 2
 ){
   if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
 
@@ -479,6 +513,37 @@ runDESEQ2_LRT_v1 <- function(
       message(sprintf("  클러스터 %s: 그룹 수 부족 (%d), 건너뜁니다.", clust, length(levels(pb_clust_group))))
       next
     }
+    grp_counts <- table(pb_clust_group)
+    if (any(grp_counts < min_samples_per_group)) {
+      message(sprintf("  클러스터 %s: 그룹별 샘플 수 부족 (%s), 건너뜁니다.",
+                      clust,
+                      paste(sprintf("%s=%d", names(grp_counts), grp_counts), collapse = ", ")))
+      next
+    }
+    
+    pb_clust_mat <- round(as.matrix(pb_clust))
+    storage.mode(pb_clust_mat) <- "integer"
+    pb_clust_mat[pb_clust_mat < 0] <- 0
+    lib_sizes <- colSums(pb_clust_mat)
+    valid_samples <- lib_sizes > 0
+    if (sum(valid_samples) < length(lib_sizes)) {
+      pb_clust_mat <- pb_clust_mat[, valid_samples, drop = FALSE]
+      pb_clust_meta <- pb_clust_meta[valid_samples, , drop = FALSE]
+      pb_clust_group <- droplevels(factor(pb_clust_meta$group_id))
+      grp_counts <- table(pb_clust_group)
+      if (length(grp_counts) < 2 || any(grp_counts < min_samples_per_group)) {
+        message(sprintf("  클러스터 %s: 유효 샘플 재확인 후에도 부족, 건너뜁니다.", clust))
+        next
+      }
+    }
+    
+    gene_keep <- rowSums(pb_clust_mat) > 0
+    if (sum(gene_keep) == 0) {
+      message(sprintf("  클러스터 %s: 모든 유전자가 0으로 제거됩니다.", clust))
+      next
+    }
+    pb_clust_mat <- pb_clust_mat[gene_keep, , drop = FALSE]
+    sample_ids <- colnames(pb_clust_mat)
     
     pb_clust_meta_df <- as.data.frame(pb_clust_meta)
     pb_clust_meta_df$group <- pb_clust_group
@@ -495,7 +560,7 @@ runDESEQ2_LRT_v1 <- function(
     
     dds <- tryCatch({
       DESeq2::DESeqDataSetFromMatrix(
-        countData = as.matrix(pb_clust),
+        countData = pb_clust_mat,
         colData = pb_clust_meta_df,
         design = design_formula
       )

@@ -781,6 +781,8 @@ runMUSCAT2_v1 <- function(
 #' @param patient_col Column name for patient/sample ID (default: "hos_no")
 #' @param offset Column name for offset variable (default: "nCount_RNA")
 #' @param min_count Minimum number of cells expressing a gene (default: 10)
+#' @param max_genes Maximum number of genes to keep after filtering
+#'   (default: 5000). Set \code{NULL} to disable automatic capping.
 #' @param remove_na_cells Remove cells with NA in any required variable (default: TRUE)
 #'
 #' @return NEBULA result object from \code{nebula::nebula()}
@@ -798,7 +800,13 @@ runNEBULA2_v1 <- function(sobj,
                                 patient_col = "hos_no",
                                 offset = "nCount_RNA",
                                 min_count = 10,
-                                remove_na_cells = TRUE) {
+                                max_genes = 5000,
+                                remove_na_cells = TRUE,
+                                return_summary_only = FALSE) {
+  
+  req <- c("Seurat","nebula","Matrix")
+  miss <- req[!vapply(req, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse = ", "))
   
   # --- 0. 데이터 추출 ---
   meta <- sobj@meta.data
@@ -809,6 +817,13 @@ runNEBULA2_v1 <- function(sobj,
   keep_genes <- rowSums(counts > 0) >= min_count
   counts_filtered <- counts[keep_genes, ]
   message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(counts)))
+  if (!is.null(max_genes) && is.finite(max_genes) && max_genes > 0 &&
+      nrow(counts_filtered) > max_genes) {
+    message(sprintf("... 상위 %d개의 유전자만 사용 (max_genes 제한)", max_genes))
+    gene_scores <- Matrix::rowSums(counts_filtered)
+    keep_idx <- order(gene_scores, decreasing = TRUE)[seq_len(max_genes)]
+    counts_filtered <- counts_filtered[keep_idx, , drop = FALSE]
+  }
   
   # --- 2. NA 값 확인 및 제거 ---
   # NEBULA는 'covar_effects'도 고정 효과로 처리해야 함
@@ -1030,6 +1045,16 @@ runNEBULA2_v1 <- function(sobj,
   # --- 7. 완료 ---
   message("7/7: 분석 완료.")
   
+  if (return_summary_only) {
+    if (!("summary" %in% names(re_nebula))) {
+      warning("NEBULA 결과에 summary가 없어 raw 객체를 반환합니다.")
+      return(re_nebula)
+    }
+    summary_df <- as.data.frame(re_nebula$summary)
+    attr(summary_df, "nebula_result") <- re_nebula
+    return(summary_df)
+  }
+  
   return(re_nebula)
 }
 
@@ -1059,6 +1084,8 @@ runNEBULA2_v1 <- function(sobj,
 #'   "mean" (mean of counts), or "n_cells" (number of cells) (default: "sum")
 #' @param min_count Minimum number of cells expressing a gene (default: 10)
 #' @param min_cells_per_pb Minimum cells per pseudobulk sample (default: 3)
+#' @param max_genes Maximum number of genes to keep after filtering
+#'   (default: 5000). Set \code{NULL} to disable automatic capping.
 #' @param remove_na_cells Remove cells with NA in any required variable (default: TRUE)
 #' @param keep_clusters Optional vector of cluster IDs to keep
 #'
@@ -1085,8 +1112,14 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
                                 offset_method = c("sum", "mean", "n_cells"),
                                 min_count = 10,
                                 min_cells_per_pb = 3,
+                                max_genes = 5000,
                                 remove_na_cells = TRUE,
-                                keep_clusters = NULL) {
+                                keep_clusters = NULL,
+                                return_summary_only = FALSE) {
+  
+  req <- c("Seurat","nebula","Matrix")
+  miss <- req[!vapply(req, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse = ", "))
   
   offset_method <- match.arg(offset_method)
   
@@ -1229,6 +1262,13 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
   keep_genes <- rowSums(pb_counts > 0) >= min_count
   pb_counts_filtered <- pb_counts[keep_genes, ]
   message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(pb_counts)))
+  if (!is.null(max_genes) && is.finite(max_genes) && max_genes > 0 &&
+      nrow(pb_counts_filtered) > max_genes) {
+    message(sprintf("... 상위 %d개의 유전자만 사용 (max_genes 제한)", max_genes))
+    gene_scores <- Matrix::rowSums(pb_counts_filtered)
+    keep_idx <- order(gene_scores, decreasing = TRUE)[seq_len(max_genes)]
+    pb_counts_filtered <- pb_counts_filtered[keep_idx, , drop = FALSE]
+  }
   
   # --- 5. 디자인 행렬 생성 ---
   message("5/8: 디자인 행렬 생성 중...")
@@ -1298,6 +1338,18 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
   
   # --- 8. 결과 반환 ---
   message("8/8: 분석 완료.")
+  
+  if (return_summary_only) {
+    if (!("summary" %in% names(re_nebula))) {
+      warning("NEBULA 결과에 summary가 없어 raw 객체를 반환합니다.")
+      return(re_nebula)
+    }
+    summary_df <- as.data.frame(re_nebula$summary)
+    attr(summary_df, "nebula_result") <- re_nebula
+    attr(summary_df, "pseudobulk_meta") <- pb_meta
+    attr(summary_df, "pseudobulk_counts") <- pb_counts_filtered
+    return(summary_df)
+  }
   
   return(list(
     nebula_result = re_nebula,

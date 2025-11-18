@@ -25,7 +25,8 @@ runEDGER_LRT_v1 <- function(
   pb_min_cells = 3,
   keep_clusters = NULL,
   cluster_label_map = NULL,
-  remove_na_groups = TRUE
+  remove_na_groups = TRUE,
+  min_samples_per_group = 2
 ){
   if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
 
@@ -205,6 +206,13 @@ runEDGER_LRT_v1 <- function(
       message(sprintf("  클러스터 %s: 그룹 수 부족 (%d), 건너뜁니다.", clust, length(levels(pb_clust_group))))
       next
     }
+    grp_counts <- table(pb_clust_group)
+    if (any(grp_counts < min_samples_per_group)) {
+      message(sprintf("  클러스터 %s: 그룹별 샘플 수 부족 (%s), 건너뜁니다.",
+                      clust,
+                      paste(sprintf("%s=%d", names(grp_counts), grp_counts), collapse = ", ")))
+      next
+    }
     
     # 클러스터별 design matrix 생성
     pb_clust_meta$group <- pb_clust_group
@@ -253,6 +261,11 @@ runEDGER_LRT_v1 <- function(
       })
       contrast_fixed <- fix_contrast(contrast, colnames(design_clust))
       contrast_matrix_clust <- limma::makeContrasts(contrasts = contrast_fixed, levels = design_clust)
+      grp_counts <- table(pb_clust_group)
+      if (length(grp_counts) < 2 || any(grp_counts < min_samples_per_group)) {
+        message(sprintf("  클러스터 %s: 유효 샘플 재확인 후에도 부족, 건너뜁니다.", clust))
+        next
+      }
     }
     
     if (ncol(pb_clust) < 2 || length(unique(pb_clust_group)) < 2) {
@@ -344,7 +357,8 @@ runEDGER_QLF_v1 <- function(
   pb_min_cells = 3,
   keep_clusters = NULL,
   cluster_label_map = NULL,
-  remove_na_groups = TRUE
+  remove_na_groups = TRUE,
+  min_samples_per_group = 2
 ){
   if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
 
@@ -522,6 +536,13 @@ runEDGER_QLF_v1 <- function(
       message(sprintf("  클러스터 %s: 그룹 수 부족 (%d), 건너뜁니다.", clust, length(levels(pb_clust_group))))
       next
     }
+    grp_counts <- table(pb_clust_group)
+    if (any(grp_counts < min_samples_per_group)) {
+      message(sprintf("  클러스터 %s: 그룹별 샘플 수 부족 (%s), 건너뜁니다.",
+                      clust,
+                      paste(sprintf("%s=%d", names(grp_counts), grp_counts), collapse = ", ")))
+      next
+    }
     
     pb_clust_meta$group <- pb_clust_group
     if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta)) {
@@ -535,6 +556,30 @@ runEDGER_QLF_v1 <- function(
     
     contrast_fixed <- fix_contrast(contrast, colnames(design_clust))
     contrast_matrix_clust <- limma::makeContrasts(contrasts = contrast_fixed, levels = design_clust)
+    
+    lib_sizes <- colSums(pb_clust)
+    valid_samples <- lib_sizes > 0
+    if (sum(valid_samples) < length(valid_samples)) {
+      pb_clust <- pb_clust[, valid_samples, drop = FALSE]
+      pb_clust_group <- pb_clust_group[valid_samples]
+      pb_clust_meta <- pb_clust_meta[valid_samples, , drop = FALSE]
+      pb_clust_meta$group <- pb_clust_group
+      if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta)) {
+        pb_clust_meta$batch <- droplevels(factor(pb_clust_meta[[batch_id]]))
+        design_clust <- stats::model.matrix(~ 0 + group + batch,
+                                            data = as.data.frame(pb_clust_meta))
+      } else {
+        design_clust <- stats::model.matrix(~ 0 + group,
+                                            data = as.data.frame(pb_clust_meta))
+      }
+      contrast_fixed <- fix_contrast(contrast, colnames(design_clust))
+      contrast_matrix_clust <- limma::makeContrasts(contrasts = contrast_fixed, levels = design_clust)
+      grp_counts <- table(pb_clust_group)
+      if (length(grp_counts) < 2 || any(grp_counts < min_samples_per_group)) {
+        message(sprintf("  클러스터 %s: 유효 샘플 재확인 후에도 부족, 건너뜁니다.", clust))
+        next
+      }
+    }
     
     dge <- edgeR::DGEList(counts = pb_clust)
     keep <- edgeR::filterByExpr(dge, group = pb_clust_group)

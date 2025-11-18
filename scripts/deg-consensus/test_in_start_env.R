@@ -24,7 +24,7 @@ cat(sprintf("Loaded Seurat object: %d cells, %d genes\n", ncol(is5), nrow(is5)))
 
 cat("=== Running DEG consensus pipeline (run_consensus_simple.R) ===\n")
 
-source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/run_consensus_simple.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/deg-consensus/run_consensus_simple.R")
 
 cat("=== test_in_start_env.R completed ===\n")
 

@@ -2,7 +2,7 @@
 
 ## 1. 개요
 
-- **목적**: 여러 DEG 방법론(limma, edgeR, DESeq2, muscat, nebula 등)을 **같은 데이터**에 적용해서  
+- **목적**: 여러 DEG 방법론(limma, edgeR, DESeq2, muscat, nebula, dream 등)을 **같은 데이터**에 적용해서  
   - 방법론별 DEG 결과를 수집하고  
   - 형식을 표준화한 뒤  
   - 방법론 간 일치도/클러스터링을 기반으로 **Consensus DEG signature**를 만드는 엔진.
@@ -12,13 +12,14 @@
   2. 결과 표준화 (`standardize_deg_results`)
   3. gene × method 행렬 구성 (`build_deg_matrices`)
   4. 방법론 간 일치도/클러스터링 (`compute_agreement_scores`, `perform_deg_pca`, `cluster_deg_methods`)
-  5. 최종 Consensus DEG 리스트 (`compute_consensus_scores`, `generate_consensus_deg_list`)
+  5. 최종 Consensus DEG 리스트 및 시각화 (`compute_consensus_scores`, `generate_consensus_deg_list`, `plot_consensus_*`)
+- **출력 위치**: 모든 `.qs` 중간 결과와 플롯은 기본적으로 `<output_dir>/consensus/deg_consensus_<dataset>_<timestamp>_*` 경로 하위에 저장됨.
 
 ---
 
 ## 2. 주요 코드 파일 (어디에 무엇이 있는지 한눈에)
 
-> 경로는 repo root 기준: `myR/R/deg_consensus/*.R`, 스크립트는 `_wt/deg-consensus/scripts/*.R`
+> 경로는 repo root 기준: `myR/R/deg_consensus/*.R`, 스크립트는 `_wt/deg-consensus/scripts/deg-consensus/*.R`
 
 ### 2.1 DEG 메인/핵심 함수들
 
@@ -27,10 +28,10 @@
   - 여러 DEG 방법을 한 번에 실행하는 **통합 엔진**.
   - 지원 방법:
     - `muscat-edgeR`, `muscat-DESeq2`, `muscat-limma-voom`, `muscat-limma-trend`
-    - `nebula`
-    - `limma-voom`, `limma-trend`, (`limma-wt`, `dream`는 향후 확장)
-    - `edgeR-LRT`, `edgeR-QLF`, (`edgeR-robust` 향후)
+    - `limma-voom`, `limma-trend`, `dream` (variancePartition 기반 랜덤효과 포함)
+    - `edgeR-LRT`, `edgeR-QLF` (`edgeR-robust` 향후)
     - `DESeq2-Wald`, `DESeq2-LRT`
+    - `nebula` (single-cell), `nebula-pb` (cluster × sample pseudobulk)
   - 공통 인자:  
     - `sobj`: Seurat object  
     - `contrast`: 예 `"2 - 1"`  
@@ -59,6 +60,7 @@
     - batch confounding (group와 batch가 완전히 겹치는 경우) 자동 체크 후 batch 제외
     - library size 0인 샘플 제거 후 **다시 design/contrast matrix 생성**
   - 클러스터별로 독립적인 limma-voom / limma-trend 분석 수행, cluster별 DEG 결과를 하나의 data.frame으로 반환.
+  - trend 버전 역시 zero-library 샘플 제거 및 `min_samples_per_group` 검사로 자유도 부족 케이스를 사전에 필터링.
 
 - `myR/R/deg_consensus/deg_methods_edger.R`
   - **`runEDGER_LRT_v1()`**, **`runEDGER_QLF_v1()`** (향후 `runEDGER_robust_v1`)
@@ -66,15 +68,21 @@
   - **전처리**는 limma 버전과 거의 동일:
     - NA 제거, `prepSCE`, `aggregateData`로 pseudobulk
     - library size 0인 샘플 제거 + batch confounding 재평가
+    - `min_samples_per_group`(기본 2) 미만 클러스터는 자동 skip하여 dispersion `NA`/자유도 부족 문제를 방지.
 
 - `myR/R/deg_consensus/deg_methods_deseq2.R`
   - **`runDESEQ2_Wald_v1()`**, **`runDESEQ2_LRT_v1()`**
   - 동일한 pseudobulk 전처리를 거친 뒤 클러스터별로 DESeq2를 적용.
-  - 주의: DESeq2는 **정수 카운트**가 필요하므로, pseudobulk가 비정수인 경우 rounding 등 전처리가 필요할 수 있음(현재 데이터 특성 상 제약이 있을 수 있음).
+  - pseudobulk 카운트를 `round()`하여 정수화/음수 제거 후, zero-library 샘플과 `min_samples_per_group`(기본 2) 미만 클러스터는 자동 제외.
 
 - `myR/R/deg_consensus/deg_methods_base.R`
   - 기본/공통 유틸 및 NEBULA pseudobulk 변형 등 일부 실험적 함수가 포함.
   - 주로 내부 개발용/참고용으로 사용 (현재 메인 파이프라인은 위 3개 파일 중심).
+
+- `myR/R/deg_consensus/deg_methods_dream.R`
+  - **`runDREAM_v1()`**
+  - variancePartition `dream` 파이프라인을 활용하여 \`hos_no\`(=sample_id)를 랜덤 효과로 가진 LMM 기반 DEG를 계산.
+  - `voomWithDreamWeights` → `dream` → `contrastFit` → `topTable` 순으로 진행하며, `min_samples_per_group` 체크/zero-library 제거를 limma 계열과 공유.
 
 ---
 
@@ -128,11 +136,17 @@
     4. `compute_agreement_scores` → `compute_consensus_scores` → `generate_consensus_deg_list`
     5. `fdr_threshold = 0.1`, `agreement_threshold = 0.3`, `min_methods = 2` 기본
     6. 최종 결과를 `"/data/user3/sobj/deg_consensus_final_result.qs"`로 저장.
+  - **기본 methods**: `muscat-edgeR`, `muscat-DESeq2`, `muscat-limma-voom`, `muscat-limma-trend`,
+    `limma-voom`, `limma-trend`, `edgeR-LRT`, `edgeR-QLF`, `DESeq2-Wald`, `DESeq2-LRT`
+    (dream/nebula 계열은 토글 변수로 개별 활성화).
+  - `include_dream`, `include_nebula`, `include_nebula_pb` 토글을 통해 고급 방법을 추가할 수 있음
+    (기본값: dream만 TRUE, 나머지는 FALSE).
 
 - `run_consensus_analysis.R`
   - **조금 더 자세한 전체 파이프라인 스크립트**.
   - PCA/클러스터링 결과까지 포함해서 요약 출력.
   - FDR/threshold는 기본적으로 조금 더 엄격 (`fdr_threshold = 0.05`, `agreement_threshold = 0.5`, `min_methods ≈ 절반 방법 수`).
+  - `run_consensus_simple.R`와 동일한 기본 method 세트를 사용하며, `include_*` 토글로 dream/nebula/nebula-pb를 개별 제어.
 
 - `test_step_by_step.R`
   - **디버깅/검증용 단계별 스크립트**.
@@ -147,6 +161,13 @@
 - 그 외:
   - `test_phase2_limma.R`, `test_phase2_limma_interactive.R`: limma 계열 단독 테스트용
   - `test_full_pipeline.R`: 선택된 일부 방법론으로 full pipeline 테스트용
+- `myR/R/deg_consensus/deg_consensus_pipeline.R`
+  - **`run_deg_consensus_with_plots()`**: Phase 1~6 전체를 한 번에 실행하는 wrapper.
+    - 결과/플롯을 `<output_dir>/consensus`에 자동 저장
+    - meta p-value 분포, volcano, heatmap, method PCA, gene UMAP 등 요약 플롯 포함
+    - `methods` 인자를 통해 `nebula`, `nebula-pb`, `dream` 등의 조합을 쉽게 토글
+    - 기본 method 세트는 `muscat-*` 4종 + standalone `limma/edgeR/DESeq2` 6종 (총 10개);
+      heavy methods는 `methods` 인자를 통해 명시적으로 추가.
 
 ---
 
@@ -162,7 +183,7 @@ library(devtools)
 is5 <- qs::qread("/data/user3/sobj/IS6_sex_added_251110_ds2500.qs")
 
 # 2. 간단 스크립트 실행 (모든 함수와 파이프라인 한 번에)
-source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/run_consensus_simple.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/deg-consensus/run_consensus_simple.R")
 # -> 콘솔에 방법론별 요약 + Consensus DEG 개수 출력
 # -> 결과 객체는 /data/user3/sobj/deg_consensus_final_result.qs 로 저장됨### 4.2 본 데이터(전체)로 실행
 
@@ -173,7 +194,7 @@ library(devtools)
 is5 <- qs::qread("/data/user3/sobj/IS6_sex_added_251110.qs")
 
 # 2. 동일하게 실행
-source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/run_consensus_simple.R")### 4.3 파라미터(FDR, min_methods 등) 조금 만져보고 싶을 때
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/deg-consensus/run_consensus_simple.R")### 4.3 파라미터(FDR, min_methods 등) 조금 만져보고 싶을 때
 
 - `run_consensus_simple.R` 안에서:
   - `fdr_threshold` (기본 0.1): 낮추면 더 엄격, 올리면 더 많은 DEG.
@@ -208,7 +229,8 @@ methods_to_run <- c(
   "edgeR-LRT",
   "edgeR-QLF",
   "DESeq2-Wald",
-  "DESeq2-LRT"
+  "DESeq2-LRT",
+  "nebula"
 )
 
 result_consensus <- run_deg_consensus(
@@ -248,9 +270,18 @@ head(consensus_deg_list)---
 
 ## 5. 상태 메모
 
-- Phase 1~5 (통합 함수, 방법론별 구현, 결과 표준화, consensus 분석)는 구현 및 기본 테스트 완료.
-- **FDR/유의성 문제**:
-  - muscat의 `p_adj.loc`(local FDR)을 우선 사용하도록 수정하여 유의 유전자 수를 늘림.
-  - 클러스터별 결과가 겹치는 유전자에 대해서는 가장 유의한 결과만 사용하도록 `build_deg_matrices()` 수정.
-  - `run_consensus_simple.R`에서 기본 `fdr_threshold = 0.1`, `agreement_threshold = 0.3`, `min_methods = 2`로 설정해 조금 더 완화된 기준 사용.
-- Phase 6 (시각화/결과 출력 전용 함수)는 추후 별도 구현 예정.
+- Phase 1~6 (통합 함수, 방법론별 구현, 결과 표준화/행렬화, consensus 분석, 시각화/저장) 모두 구현 및 테스트 완료.
+- **Method coverage**: muscat×(edgeR/DESeq2/limma), standalone limma/edgeR/DESeq2, NEBULA(싱글셀·pseudobulk), DREAM(LMM)까지 지원하며 필요 시 `keep_clusters`로 특정 클러스터만 분석 가능.
+- **안정화 조치**:
+  - DESeq2/edgeR/limma 계열에 정수 카운트 강제, zero-library 샘플 제거, `min_samples_per_group`(기본 2) 체크를 추가하여 downsampled 데이터에서도 graceful fallback.
+  - NEBULA 의존 패키지 및 pseudobulk 경로를 최신 analysis 워크트리 버전과 동기화.
+  - NEBULA v2는 `max_genes` 파라미터(기본 5000)를 도입하여 gene 수가 너무 많을 때 자동으로 상위 gene만 사용, 2^31 오버플로우 오류를 방지 (single-cell + pseudobulk 공통 적용).
+- **Threshold 전략**:
+  - per-method significance는 기본적으로 raw p-value 기준(`significance_mode = "pvalue"`, `pvalue_threshold = 0.05`), consensus 레벨은 meta FDR 필터 없이 전체 gene rank를 제공.
+  - `run_consensus_simple.R` 기본값은 `fdr_threshold = 0.1`, `agreement_threshold = 0.3`, `min_methods = 2`; 필요 시 파라미터를 조정하면 됨.
+- **출력/시각화**:
+  - 모든 `.qs` 및 `.png` 결과는 `<output_dir>/consensus` 하위에 자동 저장.
+  - `plot_consensus_meta_distributions`, `plot_consensus_volcano`, `plot_consensus_heatmap`, `plot_method_pca`, `plot_gene_umap` 등을 통해 meta p-value 분포, volcano, heatmap, methods PCA, gene UMAP 요약을 한 번에 생성.
+- **Dream 안정화**:
+  - `runDREAM_v1`이 pseudobulk metadata를 sample_id 기준으로 재정렬하고 patient/random effect를 자동 복원하도록 수정.
+  - 그룹/환자 레벨이 부족한 클러스터는 조용히 건너뛰며, 최소 1개 클러스터라도 성공 시 결과를 반환.

@@ -90,6 +90,6 @@ qs::qsave(final_result, "/data/user3/sobj/deg_consensus_final_result.qs")
 ### 또는 스크립트 파일 실행
 
 ```r
-source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/run_consensus_simple.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/deg-consensus/run_consensus_simple.R")
 ```
 

@@ -11,6 +11,8 @@ devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_limma.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_edger.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_deseq2.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_base.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_dream.R")
 
 # Consensus 분석 함수들 로드
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_standardize.R")
@@ -32,9 +34,29 @@ contrast_str <- "2 - 1"
 
 # 실행할 방법론
 methods_to_run <- c(
-  "muscat-edgeR", "muscat-DESeq2", "muscat-limma-voom", "muscat-limma-trend",
-  "limma-voom", "edgeR-LRT"
+  "muscat-edgeR",
+  "muscat-DESeq2",
+  "muscat-limma-voom",
+  "muscat-limma-trend",
+  "limma-voom",
+  "limma-trend",
+  "edgeR-LRT",
+  "edgeR-QLF",
+  "DESeq2-Wald",
+  "DESeq2-LRT"
 )
+
+include_dream <- TRUE
+include_nebula <- FALSE
+include_nebula_pb <- FALSE
+
+optional_methods <- c(
+  if (isTRUE(include_dream)) "dream",
+  if (isTRUE(include_nebula)) "nebula",
+  if (isTRUE(include_nebula_pb)) "nebula-pb"
+)
+
+methods_to_run <- unique(c(methods_to_run, optional_methods))
 
 # FDR threshold (완화된 값 사용)
 fdr_threshold <- 0.1  # 기본값: 0.1 (0.05보다 완화)

@@ -11,6 +11,8 @@ devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_limma.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_edger.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_deseq2.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_base.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_dream.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_standardize.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_consensus_analysis.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/run_deg_consensus.R")
@@ -64,6 +66,18 @@ methods_to_run <- c(
   "DESeq2-Wald",
   "DESeq2-LRT"
 )
+
+include_dream <- TRUE
+include_nebula <- FALSE
+include_nebula_pb <- FALSE
+
+optional_methods <- c(
+  if (isTRUE(include_dream)) "dream",
+  if (isTRUE(include_nebula)) "nebula",
+  if (isTRUE(include_nebula_pb)) "nebula-pb"
+)
+
+methods_to_run <- unique(c(methods_to_run, optional_methods))
 
 result_consensus <- run_deg_consensus(
   sobj = is5,

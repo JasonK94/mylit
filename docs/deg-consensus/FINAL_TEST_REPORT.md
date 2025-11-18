@@ -19,7 +19,7 @@ source("/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/test_full_pipe
 
 ### 방법 3: 셸 스크립트 실행
 ```bash
-/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/run_full_test.sh
+/home/user3/data_user3/git_repo/_wt/deg-consensus/scripts/deg-consensus/run_full_test.sh
 ```
 
 ## 예상 출력 파일

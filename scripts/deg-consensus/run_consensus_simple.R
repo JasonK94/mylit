@@ -9,16 +9,22 @@ devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_limma.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_edger.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_deseq2.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_base.R")
+source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_methods_dream.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_standardize.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/deg_consensus_analysis.R")
 source("/home/user3/data_user3/git_repo/_wt/deg-consensus/myR/R/deg_consensus/run_deg_consensus.R")
 
 # 1-1. 출력 파일 prefix 설정 (데이터 크기 + 타임스탬프 기반)
 out_dir <- "/data/user3/sobj"
+cons_dir <- file.path(out_dir, "consensus")
+if (!dir.exists(cons_dir)) {
+  dir.create(cons_dir, recursive = TRUE, showWarnings = FALSE)
+}
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 n_cells_is5 <- tryCatch(ncol(is5), error = function(e) NA_integer_)
 dataset_tag <- if (!is.na(n_cells_is5) && n_cells_is5 <= 3000) "ds" else "full"
-file_prefix <- file.path(out_dir, paste0("deg_consensus_", dataset_tag, "_", timestamp))
+file_prefix <- file.path(cons_dir, paste0("deg_consensus_", dataset_tag, "_", timestamp))
 
 # 2. 메타데이터 설정 (is5가 이미 로드되어 있다고 가정)
 cluster_key <- if ("anno3.scvi" %in% colnames(is5@meta.data)) "anno3.scvi" else "seurat_clusters"
@@ -28,7 +34,7 @@ batch_key <- if ("GEM" %in% colnames(is5@meta.data)) "GEM" else NULL
 contrast_str <- "2 - 1"
 
 # 3. 여러 방법론 실행
-methods_to_run <- c(
+base_methods <- c(
   "muscat-edgeR",
   "muscat-DESeq2",
   "muscat-limma-voom",
@@ -40,6 +46,19 @@ methods_to_run <- c(
   "DESeq2-Wald",
   "DESeq2-LRT"
 )
+
+# 고급(선택) 방법론 토글
+include_dream <- TRUE
+include_nebula <- FALSE
+include_nebula_pb <- FALSE
+
+optional_methods <- c(
+  if (isTRUE(include_dream)) "dream",
+  if (isTRUE(include_nebula)) "nebula",
+  if (isTRUE(include_nebula_pb)) "nebula-pb"
+)
+
+methods_to_run <- unique(c(base_methods, optional_methods))
 
 result_consensus <- run_deg_consensus(
   sobj = is5,

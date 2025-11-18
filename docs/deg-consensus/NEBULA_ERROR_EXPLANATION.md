@@ -139,6 +139,8 @@ neb1 <- runNEBULA2_v1(
 2. **완전 분리 감지**: 변수 간 contingency table 확인
 3. **자동 유전자 제한**: 설계 행렬이 특이하면 유전자 수를 1000개로 제한
 4. **상세한 오류 메시지**: 문제 원인과 해결 방법 제시
+5. **max_genes 파라미터**: 기본 5000개 gene까지만 유지하여 `result would exceed 2^31-1`
+   오류를 방지하고, 필요 시 `max_genes = NULL`로 해제 가능
 
 ## 권장 사항
 
@@ -151,7 +153,7 @@ neb1 <- runNEBULA2_v1(
 문제를 진단하고 해결 방법을 테스트하려면:
 
 ```r
-source("/home/user3/data_user3/git_repo/_wt/main2/test_nebula_issue.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/test_nebula_issue.R")
 ```
 
 ## 참고
