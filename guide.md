@@ -37,3 +37,7 @@ g3이 target variable("2", "1", "NA"), 환자는 $hos_no(8자리 숫자), 클러
 7) plotting 함수 편의성: plots-dev 브랜치/워크트리.
 
 6. 추가 참조:
+1) Docs
+* 에이전트의 개발 & 디버깅 루틴을 위한 일반적인 내용은 /home/user3/data_user3/git_repo/mylit/docs/wt_test_general에 저장되어있음 
+* 각 워크트리용 docs는 docs에 하위 폴더에, scripts는 scripts 하위 폴더에 정리.
+2) 
