@@ -9,7 +9,7 @@ setwd("/home/user3/GJC_KDW_250721")
 source("start.R")
 
 # 함수 로드
-source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
 
 # 데이터 로드
 is5s <- qs::qread("/data/user3/sobj/IS_scvi_251107_ds2500.qs")
@@ -45,7 +45,7 @@ message("========================================")
 # 방법 1: GEM을 covar_effects에서 제거 (g3만 사용)
 message("\n방법 1: GEM을 제거하고 g3만 사용")
 tryCatch({
-  neb1_test1 <- runNEBULA2_v1(
+  neb1_test1 <- runNEBULA(
     is5s, 
     fixed_effects = c("g3"), 
     covar_effects = NULL,  # GEM 제거
@@ -61,7 +61,7 @@ tryCatch({
 # 방법 2: GEM을 fixed_effects로 사용 (g3 제거)
 message("\n방법 2: GEM을 fixed_effects로 사용 (g3 제거)")
 tryCatch({
-  neb1_test2 <- runNEBULA2_v1(
+  neb1_test2 <- runNEBULA(
     is5s, 
     fixed_effects = c("GEM"),  # GEM을 fixed_effects로
     covar_effects = NULL,
@@ -85,7 +85,7 @@ message("GEM x g3 after filtering:")
 print(table(sobj_filtered@meta.data$GEM, sobj_filtered@meta.data$g3))
 
 tryCatch({
-  neb1_test3 <- runNEBULA2_v1(
+  neb1_test3 <- runNEBULA(
     sobj_filtered, 
     fixed_effects = c("g3"), 
     covar_effects = "GEM",

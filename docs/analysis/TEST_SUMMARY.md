@@ -3,15 +3,15 @@
 ## 완료된 작업
 
 ### 1. 함수 개발
-- ✅ `runMUSCAT2_v1`: MUSCAT 분석 함수 (결측치 처리 개선)
-- ✅ `runNEBULA2_v1`: NEBULA 분석 함수 (결측치 처리 개선)
-- ✅ `runNEBULA2_v1_with_pseudobulk`: Pseudobulk와 NEBULA 결합 함수
+- ✅ `runMUSCAT`: MUSCAT 분석 함수 (결측치 처리 개선)
+- ✅ `runNEBULA`: NEBULA 분석 함수 (결측치 처리 개선)
+- ✅ `runNEBULA (pseudobulk mode)`: Pseudobulk와 NEBULA 결합 함수
 
 ### 2. 테스트 스크립트 작성
 - ✅ `test_interactive.R`: 대화형 테스트 스크립트 (권장)
 - ✅ `test_simple.R`: 기본 데이터 확인 스크립트
 - ✅ `test_step1_data_check.R`: 데이터 로드 및 검증 스크립트
-- ✅ `test_run_muscat2.R`: runMUSCAT2_v1 전용 테스트 스크립트
+- ✅ `test_run_muscat2.R`: runMUSCAT 전용 테스트 스크립트
 - ✅ `test_functions.R`: 전체 함수 테스트 스크립트
 - ✅ `test_functions_quick.R`: 빠른 함수 검증 스크립트
 
@@ -36,7 +36,7 @@ cd /home/user3/GJC_KDW_250721
 R
 
 # 3. R 세션에서 실행
-source("/home/user3/data_user3/git_repo/_wt/main2/test_interactive.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_interactive.R")
 ```
 
 ### 방법 2: 수동 실행
@@ -44,14 +44,14 @@ source("/home/user3/data_user3/git_repo/_wt/main2/test_interactive.R")
 ```r
 # 1. 환경 설정
 source("st/start.R")
-source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
 
 # 2. 데이터 로드
 library(qs)
 sobj <- qs::qread("/data/user3/sobj/IS_scvi_251107_ds2500.qs")
 
-# 3. runMUSCAT2_v1 테스트
-res_muscat2 <- runMUSCAT2_v1(
+# 3. runMUSCAT 테스트
+res_muscat2 <- runMUSCAT(
   sobj = sobj,
   cluster_id = "seurat_clusters",
   sample_id = "hos_no",
@@ -71,20 +71,20 @@ qs::qsave(res_muscat2, "/data/user3/sobj/test_muscat2_v1_result.qs")
 
 ### 1단계: 데이터 확인
 ```r
-source("/home/user3/data_user3/git_repo/_wt/main2/test_simple.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_simple.R")
 ```
 
-### 2단계: runMUSCAT2_v1 테스트
+### 2단계: runMUSCAT 테스트
 ```r
-source("/home/user3/data_user3/git_repo/_wt/main2/test_interactive.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_interactive.R")
 ```
 
-### 3단계: runNEBULA2_v1 테스트 (선택)
+### 3단계: runNEBULA 테스트 (선택)
 ```r
 # 작은 서브셋으로 테스트
 sobj_sub <- sobj[1:min(1000, nrow(sobj)), ]
 
-res_nebula2 <- runNEBULA2_v1(
+res_nebula2 <- runNEBULA(
   sobj = sobj_sub,
   layer = "counts",
   fixed_effects = "g3",
@@ -96,9 +96,9 @@ res_nebula2 <- runNEBULA2_v1(
 qs::qsave(res_nebula2, "/data/user3/sobj/test_nebula2_v1_result.qs")
 ```
 
-### 4단계: runNEBULA2_v1_with_pseudobulk 테스트 (선택)
+### 4단계: runNEBULA (pseudobulk mode) 테스트 (선택)
 ```r
-res_nebula2_pb <- runNEBULA2_v1_with_pseudobulk(
+res_nebula2_pb <- runNEBULA (pseudobulk mode)(
   sobj = sobj,
   layer = "counts",
   cluster_id = "seurat_clusters",
@@ -135,9 +135,9 @@ colnames(res_muscat2)
 
 ## 예상 실행 시간
 
-- **runMUSCAT2_v1**: 몇 분 ~ 수십 분 (클러스터 수와 데이터 크기에 따라)
-- **runNEBULA2_v1**: 수십 분 ~ 수 시간 (유전자 수와 데이터 크기에 따라)
-- **runNEBULA2_v1_with_pseudobulk**: 수십 분 ~ 수 시간 (클러스터 수와 데이터 크기에 따라)
+- **runMUSCAT**: 몇 분 ~ 수십 분 (클러스터 수와 데이터 크기에 따라)
+- **runNEBULA**: 수십 분 ~ 수 시간 (유전자 수와 데이터 크기에 따라)
+- **runNEBULA (pseudobulk mode)**: 수십 분 ~ 수 시간 (클러스터 수와 데이터 크기에 따라)
 
 ## 주요 파일
 
@@ -147,7 +147,7 @@ colnames(res_muscat2)
 ### 테스트 스크립트
 - `test_interactive.R`: 대화형 테스트 (권장)
 - `test_simple.R`: 기본 데이터 확인
-- `test_run_muscat2.R`: runMUSCAT2_v1 전용 테스트
+- `test_run_muscat2.R`: runMUSCAT 전용 테스트
 - `test_functions.R`: 전체 함수 테스트
 
 ### 문서
@@ -182,7 +182,7 @@ install.packages(c("Seurat", "nebula", "qs", "dplyr", "Matrix"))
 ### 함수가 로드되지 않음
 ```r
 # 함수 소스 직접 로드
-source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
 ```
 
 ### 데이터 로드 오류

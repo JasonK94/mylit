@@ -12,7 +12,7 @@
 
 **권장 설정:**
 ```r
-neb1 <- runNEBULA2_v1(
+neb1 <- runNEBULA(
   is5s, 
   fixed_effects = c("g3"), 
   covar_effects = NULL,  # GEM 제외

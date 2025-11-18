@@ -12,12 +12,12 @@ if (file.exists("st/start.R")) {
   source("st/start.R")
 } else if (file.exists("../st/start.R")) {
   source("../st/start.R")
-} else if (file.exists("/home/user3/data_user3/git_repo/_wt/main2/st/start.R")) {
-  source("/home/user3/data_user3/git_repo/_wt/main2/st/start.R")
+} else if (file.exists("/home/user3/data_user3/git_repo/_wt/analysis/st/start.R")) {
+  source("/home/user3/data_user3/git_repo/_wt/analysis/st/start.R")
 }
 
 # 함수 소스 로드
-repo_root <- "/home/user3/data_user3/git_repo/_wt/main2"
+repo_root <- "/home/user3/data_user3/git_repo/_wt/analysis"
 if (dir.exists(repo_root)) {
   source(file.path(repo_root, "myR/R/test_analysis.R"))
 }
@@ -94,7 +94,7 @@ message("\n========================================")
 message("함수 존재 확인")
 message("========================================")
 
-functions_to_check <- c("runMUSCAT2_v1", "runNEBULA2_v1", "runNEBULA2_v1_with_pseudobulk")
+functions_to_check <- c("runMUSCAT", "runNEBULA")
 
 for (func_name in functions_to_check) {
   if (exists(func_name)) {
@@ -124,6 +124,6 @@ message("데이터 확인 완료")
 message("========================================")
 message("\n다음 단계:")
 message("1. 필요한 패키지가 모두 설치되어 있는지 확인")
-message("2. runMUSCAT2_v1 함수 테스트 실행")
+message("2. runMUSCAT 함수 테스트 실행")
 message("3. 결과 확인")
 

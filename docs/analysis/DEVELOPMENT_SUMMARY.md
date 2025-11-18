@@ -1,16 +1,16 @@
-# 개발 요약: MUSCAT2_v1, NEBULA2_v1, runNEBULA2_v1_with_pseudobulk
+# 개발 요약: MUSCAT2_v1, NEBULA2_v1, runNEBULA (pseudobulk mode)
 
 ## 개요
-main2 워크트리에서 runMAST 시리즈 함수 개발을 진행했습니다. MAST2_v1은 문제가 많아 제외하고, MUSCAT2_v1, NEBULA2_v1, runNEBULA2_v1_with_pseudobulk 함수를 개발했습니다.
+main2 워크트리에서 runMAST 시리즈 함수 개발을 진행했습니다. MAST2_v1은 문제가 많아 제외하고, MUSCAT2_v1, NEBULA2_v1, runNEBULA (pseudobulk mode) 함수를 개발했습니다.
 
 ## 개발된 함수
 
-### 1. runMUSCAT2_v1
+### 1. runMUSCAT
 **위치**: `myR/R/test_analysis.R` (line 528-745)
 
 **기능**:
 - MUSCAT 기반 pseudobulk differential expression 분석
-- runMUSCAT_v5 개선 버전
+- runMUSCAT (legacy mode) 개선 버전
 - 결측치 처리 강화 (g3 등)
 - NA 필터링 개선
 - 오류 메시지 개선
@@ -32,7 +32,7 @@ main2 워크트리에서 runMAST 시리즈 함수 개발을 진행했습니다. 
 - `method`: DE 방법 ("edgeR", "DESeq2", "limma-trend", "limma-voom")
 - `remove_na_groups`: NA 값이 있는 셀 제거 여부 (기본: TRUE)
 
-### 2. runNEBULA2_v1
+### 2. runNEBULA
 **위치**: `myR/R/test_analysis.R` (line 779-934)
 
 **기능**:
@@ -59,7 +59,7 @@ main2 워크트리에서 runMAST 시리즈 함수 개발을 진행했습니다. 
 - `min_count`: 최소 발현 세포 수 (기본: 10)
 - `remove_na_cells`: NA 값이 있는 셀 제거 여부 (기본: TRUE)
 
-### 3. runNEBULA2_v1_with_pseudobulk
+### 3. runNEBULA (pseudobulk mode)
 **위치**: `myR/R/test_analysis.R` (line 977-1206)
 
 **기능**:
@@ -98,15 +98,15 @@ main2 워크트리에서 runMAST 시리즈 함수 개발을 진행했습니다. 
 ### 수정된 파일
 1. **myR/R/test_analysis.R**
    - 725줄 추가
-   - runMUSCAT2_v1 함수 추가 (217줄)
-   - runNEBULA2_v1 함수 추가 (155줄)
-   - runNEBULA2_v1_with_pseudobulk 함수 추가 (229줄)
+   - runMUSCAT 함수 추가 (217줄)
+   - runNEBULA 함수 추가 (155줄)
+   - runNEBULA (pseudobulk mode) 함수 추가 (229줄)
 
 2. **myR/NAMESPACE**
    - export 추가:
-     - `runMUSCAT2_v1`
-     - `runNEBULA2_v1`
-     - `runNEBULA2_v1_with_pseudobulk`
+     - `runMUSCAT`
+     - `runNEBULA`
+     - `runNEBULA (pseudobulk mode)`
 
 ### 새로 생성된 파일
 1. **test_functions.R**
@@ -164,8 +164,8 @@ source("test_functions.R")
 library(qs)
 sobj <- qs::qread("/data/user3/sobj/IS_scvi_251107_ds2500.qs")
 
-# runMUSCAT2_v1 테스트
-res_muscat2 <- runMUSCAT2_v1(
+# runMUSCAT 테스트
+res_muscat2 <- runMUSCAT(
   sobj = sobj,
   cluster_id = "seurat_clusters",
   sample_id = "hos_no",
@@ -176,8 +176,8 @@ res_muscat2 <- runMUSCAT2_v1(
   keep_clusters = c("0", "1", "2")  # 처음 3개 클러스터만
 )
 
-# runNEBULA2_v1 테스트
-res_nebula2 <- runNEBULA2_v1(
+# runNEBULA 테스트
+res_nebula2 <- runNEBULA(
   sobj = sobj,
   layer = "counts",
   fixed_effects = "g3",
@@ -186,8 +186,8 @@ res_nebula2 <- runNEBULA2_v1(
   remove_na_cells = TRUE
 )
 
-# runNEBULA2_v1_with_pseudobulk 테스트
-res_nebula2_pb <- runNEBULA2_v1_with_pseudobulk(
+# runNEBULA (pseudobulk mode) 테스트
+res_nebula2_pb <- runNEBULA (pseudobulk mode)(
   sobj = sobj,
   layer = "counts",
   cluster_id = "seurat_clusters",
@@ -205,7 +205,7 @@ res_nebula2_pb <- runNEBULA2_v1_with_pseudobulk(
 
 - **브랜치**: main2
 - **커밋 해시**: f51d825
-- **커밋 메시지**: "Add MUSCAT2_v1, NEBULA2_v1, and runNEBULA2_v1_with_pseudobulk functions"
+- **커밋 메시지**: "Add MUSCAT2_v1, NEBULA2_v1, and runNEBULA (pseudobulk mode) functions"
 
 ## 다음 단계
 

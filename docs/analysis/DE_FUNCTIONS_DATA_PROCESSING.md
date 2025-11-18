@@ -2,7 +2,7 @@
 
 ## 개요
 
-본 문서는 `runMAST_v1`, `runNEBULA_v1`, `runMUSCAT_v5` 함수들의 데이터 프로세싱 절차와 사용 함수를 상세히 설명합니다.
+본 문서는 `runMAST_v1`, `runNEBULA_v1`, `runMUSCAT` 함수들의 데이터 프로세싱 절차와 사용 함수를 상세히 설명합니다.
 
 ## 1. runMAST_v1
 
@@ -159,7 +159,7 @@ Grouped data (patient별로 정렬)
 NEBULA 결과 객체
 ```
 
-## 3. runMUSCAT_v5
+## 3. runMUSCAT
 
 ### 3.1 데이터 프로세싱 절차
 
@@ -246,7 +246,7 @@ DE 분석 결과 (edgeR/DESeq2/limma)
 
 **사용 함수:**
 - `runMAST_v1`: ✓ 사용 (SCE를 SCA로 추가 변환)
-- `runMUSCAT_v5`: ✓ 사용 (직접 사용)
+- `runMUSCAT`: ✓ 사용 (직접 사용)
 - `runNEBULA_v1`: ✗ 사용 안 함 (직접 GetAssayData 사용)
 
 #### 2. 유전자 필터링
@@ -256,7 +256,7 @@ DE 분석 결과 (edgeR/DESeq2/limma)
 **차이점:**
 - `runMAST_v1`: `MAST::freq() * ncol(sca) >= min_cells_expr`
 - `runNEBULA_v1`: `rowSums(counts > 0) >= min_count`
-- `runMUSCAT_v5`: `muscat::pbDS()` 내부에서 처리
+- `runMUSCAT`: `muscat::pbDS()` 내부에서 처리
 
 #### 3. 메타데이터 처리
 **공통 패턴:**
@@ -266,7 +266,7 @@ DE 분석 결과 (edgeR/DESeq2/limma)
 **차이점:**
 - `runMAST_v1`: SCA 내부에 메타데이터 포함
 - `runNEBULA_v1`: `complete.cases()` 사용, `as.factor()` 적용
-- `runMUSCAT_v5`: `muscat::prepSCE()` 내부 처리, `droplevels()` 적용
+- `runMUSCAT`: `muscat::prepSCE()` 내부 처리, `droplevels()` 적용
 
 #### 4. 설계 행렬 생성
 **공통 패턴:**
@@ -275,7 +275,7 @@ DE 분석 결과 (edgeR/DESeq2/limma)
 **차이점:**
 - `runMAST_v1`: Formula 기반 (사용자 제공)
 - `runNEBULA_v1`: Fixed effects 기반 (자동 생성)
-- `runMUSCAT_v5`: `stats::model.matrix()` 사용 (batch 포함 가능)
+- `runMUSCAT`: `stats::model.matrix()` 사용 (batch 포함 가능)
 
 ### 4.2 공통 R 패키지
 
@@ -284,15 +284,15 @@ DE 분석 결과 (edgeR/DESeq2/limma)
 - **용도:** 입력 데이터 처리
 
 #### SummarizedExperiment 패키지
-- **사용:** `runMAST_v1`, `runMUSCAT_v5`
+- **사용:** `runMAST_v1`, `runMUSCAT`
 - **용도:** SCE 객체 처리
 
 #### SingleCellExperiment 패키지
-- **사용:** `runMAST_v1`, `runMUSCAT_v5`
+- **사용:** `runMAST_v1`, `runMUSCAT`
 - **용도:** SCE 객체 생성 및 조작
 
 #### S4Vectors 패키지
-- **사용:** `runMUSCAT_v5`
+- **사용:** `runMUSCAT`
 - **용도:** DataFrame 생성
 
 ### 4.3 공통 처리 패턴
@@ -302,7 +302,7 @@ DE 분석 결과 (edgeR/DESeq2/limma)
 # 패턴 1: complete.cases() 사용 (runNEBULA_v1)
 keep_cells_idx <- complete.cases(meta[, vars_to_check])
 
-# 패턴 2: is.na() 체크 (runMUSCAT_v5)
+# 패턴 2: is.na() 체크 (runMUSCAT)
 na_mask <- is.na(meta[[group_id]]) | is.na(meta[[cluster_id]])
 ```
 
@@ -311,7 +311,7 @@ na_mask <- is.na(meta[[group_id]]) | is.na(meta[[cluster_id]])
 # 패턴 1: lapply + as.factor (runNEBULA_v1)
 meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], as.factor)
 
-# 패턴 2: 직접 변환 (runMUSCAT_v5)
+# 패턴 2: 직접 변환 (runMUSCAT)
 sce$cluster_id <- droplevels(factor(colData(sce)$cluster_id))
 ```
 
@@ -329,7 +329,7 @@ filtered_data <- data[keep_idx, ]
 |------|------------|------|
 | `runMAST_v1` | Single-cell | 각 세포를 개별적으로 분석 |
 | `runNEBULA_v1` | Single-cell | 각 세포를 개별적으로 분석 (random effects 포함) |
-| `runMUSCAT_v5` | Pseudobulk | 클러스터와 샘플별로 집계 후 분석 |
+| `runMUSCAT` | Pseudobulk | 클러스터와 샘플별로 집계 후 분석 |
 
 ### 5.2 정규화 방법
 
@@ -337,7 +337,7 @@ filtered_data <- data[keep_idx, ]
 |------|------------|------|
 | `runMAST_v1` | Log2(CPM+1) | `MAST::cpm(log = TRUE)` |
 | `runNEBULA_v1` | None (offset 사용) | Offset 변수로 정규화 |
-| `runMUSCAT_v5` | DE 방법에 따라 다름 | edgeR/DESeq2/limma 내부 정규화 |
+| `runMUSCAT` | DE 방법에 따라 다름 | edgeR/DESeq2/limma 내부 정규화 |
 
 ### 5.3 모델 타입
 
@@ -345,7 +345,7 @@ filtered_data <- data[keep_idx, ]
 |------|----------|------|
 | `runMAST_v1` | Hurdle model | Zero-inflated + continuous |
 | `runNEBULA_v1` | Negative Binomial mixed-effects | Random effects 포함 |
-| `runMUSCAT_v5` | edgeR/DESeq2/limma | Pseudobulk 기반 |
+| `runMUSCAT` | edgeR/DESeq2/limma | Pseudobulk 기반 |
 
 ## 6. 공통 개선 가능 사항
 
@@ -368,20 +368,20 @@ filtered_data <- data[keep_idx, ]
 ## 7. 요약
 
 ### 공통 부분
-1. **Seurat → 다른 객체 변환**: `runMAST_v1`, `runMUSCAT_v5`
+1. **Seurat → 다른 객체 변환**: `runMAST_v1`, `runMUSCAT`
 2. **유전자 필터링**: 모든 함수 (방법만 다름)
 3. **메타데이터 처리**: 모든 함수 (NA 제거, factor 변환)
-4. **설계 행렬 생성**: `runNEBULA_v1`, `runMUSCAT_v5`
+4. **설계 행렬 생성**: `runNEBULA_v1`, `runMUSCAT`
 
 ### 고유 부분
 1. **runMAST_v1**: SCA 변환, MAST::zlm, Hurdle model
 2. **runNEBULA_v1**: group_cell, nebula::nebula, Random effects
-3. **runMUSCAT_v5**: Pseudobulking, muscat::pbDS, edgeR/DESeq2/limma
+3. **runMUSCAT**: Pseudobulking, muscat::pbDS, edgeR/DESeq2/limma
 
 ### 공통 사용 패키지
 - `Seurat`: 모든 함수
-- `SummarizedExperiment`: `runMAST_v1`, `runMUSCAT_v5`
-- `SingleCellExperiment`: `runMAST_v1`, `runMUSCAT_v5`
-- `dplyr`: `runMUSCAT_v5`
-- `stats`: `runNEBULA_v1`, `runMUSCAT_v5`
+- `SummarizedExperiment`: `runMAST_v1`, `runMUSCAT`
+- `SingleCellExperiment`: `runMAST_v1`, `runMUSCAT`
+- `dplyr`: `runMUSCAT`
+- `stats`: `runNEBULA_v1`, `runMUSCAT`
 

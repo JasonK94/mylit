@@ -136,7 +136,7 @@ Patient 1과 Patient 2를 비교하면:
 ### 3.1 GEM을 포함하지 않는 경우 (권장)
 
 ```r
-neb1 <- runNEBULA2_v1(
+neb1 <- runNEBULA(
   is5s, 
   fixed_effects = c("g3"), 
   covar_effects = NULL,  # GEM 제거
@@ -169,7 +169,7 @@ neb1 <- runNEBULA2_v1(
 ### 3.2 GEM을 포함하는 경우
 
 ```r
-neb1 <- runNEBULA2_v1(
+neb1 <- runNEBULA(
   is5s, 
   fixed_effects = c("g3"), 
   covar_effects = "GEM",  # GEM 포함
@@ -308,7 +308,7 @@ neb1 <- runNEBULA2_v1(
 
 ```r
 # 권장 설정
-neb1 <- runNEBULA2_v1(
+neb1 <- runNEBULA(
   is5s, 
   fixed_effects = c("g3"),           # 주요 관심 변수만
   covar_effects = NULL,              # 완전 분리 문제 있는 변수 제외
@@ -375,7 +375,7 @@ neb1 <- runNEBULA2_v1(
 
 ```r
 # 가장 안정적인 설정
-neb1 <- runNEBULA2_v1(
+neb1 <- runNEBULA(
   is5s, 
   fixed_effects = c("g3"), 
   covar_effects = NULL,  # GEM 제외
