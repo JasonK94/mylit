@@ -236,5 +236,5 @@ aug$report  # missing IDs, NA counts, duplicates 등
 
 - 원본 구현: `st/KDW_251110.Rmd` (lines 4303-4428)
 - 관련 함수: `myR/R/patient_dim_reduction.R`
-- 테스트 스크립트: `scripts/patient_dim_reduction_downsample.R`
+- 테스트 스크립트: `scripts/pt.umap/patient_dim_reduction_downsample.R`, `scripts/pt.umap/test_is5s.R`, `scripts/pt.umap/test_is5.R`
 
