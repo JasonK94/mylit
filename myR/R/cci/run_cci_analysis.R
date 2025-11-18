@@ -67,6 +67,12 @@ run_cci_analysis <- function(sobj,
   
   species <- match.arg(species)
   
+  # Auto-adjust output_dir to /data/user3/sobj/cci if not specified or if it's /data/user3/sobj
+  if (is.null(output_dir) || output_dir == "/data/user3/sobj") {
+    output_dir <- "/data/user3/sobj/cci"
+    if (verbose) message("Output directory set to: ", output_dir)
+  }
+  
   if (verbose) {
     message("=== Starting CCI Analysis ===")
     message("Total steps: 7 (Validation → DEG extraction → Sender ID → Expressed genes → Summary → NicheNet → Compile)")
