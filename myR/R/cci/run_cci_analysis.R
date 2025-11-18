@@ -28,7 +28,8 @@
 #' @param circos_legend_position Character string, legend position (default: "topright")
 #' @param circos_legend_size Numeric, legend text size (default: 0.9)
 #' @param circos_legend_inset Numeric vector, legend inset (default: c(-0.15, 0))
-#' @param auto_save Logical, whether to automatically save results (default: TRUE)
+#' @param auto_save Logical, whether to automatically save final results (default: TRUE)
+#' @param save_prepared_data Logical, whether to save intermediate prepared data (default: FALSE)
 #' @param verbose Logical, whether to print progress messages (default: TRUE)
 #' @param ... Additional arguments passed to run_nichenet_analysis (circos params excluded)
 #'
@@ -60,6 +61,7 @@ run_cci_analysis <- function(sobj,
                               circos_legend_size = 0.9,
                               circos_legend_inset = c(-0.15, 0),
                               auto_save = TRUE,
+                              save_prepared_data = FALSE,
                               verbose = TRUE,
                               ...) {
   
@@ -154,8 +156,8 @@ run_cci_analysis <- function(sobj,
     expressed_genes_receiver
   )
   
-  # Save intermediate results if auto_save is TRUE
-  if (auto_save) {
+  # Save intermediate results if save_prepared_data is TRUE
+  if (save_prepared_data) {
     prepared_data <- list(
       receiver_degs = receiver_degs,
       sender_clusters = sender_clusters_final,
@@ -164,7 +166,12 @@ run_cci_analysis <- function(sobj,
       expressed_genes_receiver = expressed_genes_receiver,
       summary = prepared_summary
     )
-    save_cci_intermediate(prepared_data)
+    # Use output_dir if provided, otherwise use default cci directory
+    prep_output_dir <- if (!is.null(output_dir)) file.path(output_dir, "..", "cci") else NULL
+    if (is.null(prep_output_dir)) {
+      prep_output_dir <- "/data/user3/sobj/cci"
+    }
+    save_cci_intermediate(prepared_data, output_dir = prep_output_dir)
   }
   
   # Step 6: Run NicheNet analysis
@@ -368,10 +375,15 @@ run_cci_analysis <- function(sobj,
     output_path = if (!is.null(output_dir)) output_dir else NULL
   )
   
-  # Step 10: Save results if auto_save is TRUE
+  # Step 10: Save final results if auto_save is TRUE
+  # Note: run_nichenet_analysis already saves results to output_dir/run*/nichenet_results.qs
+  # This saves the full CCI results (including wrapper info) to the same location
   if (auto_save) {
-    saved_path <- save_cci_final(results)
-    results$saved_path <- saved_path
+    saved_path <- save_cci_final(results, output_dir = output_dir)
+    if (!is.null(saved_path)) {
+      results$saved_path <- saved_path
+      if (verbose) message("Final CCI results saved to: ", saved_path)
+    }
   }
   
   if (verbose) message("=== CCI Analysis Complete ===")
