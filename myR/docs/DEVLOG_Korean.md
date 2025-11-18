@@ -214,6 +214,32 @@
   - `cv_group_var`가 matrix 입력에서도 사용할 수 있도록 벡터 인자를 허용할지 검토
   - 문서/사용 예시 업데이트
 
+## 2025-01-18 — TML7 완성 및 CPU 제한/진행도 개선 (`fgs` 브랜치)
+- **작성자**: Auto  
+- **요약**: TML7 group-wise CV 및 확장 L2 메서드 구현 완료, CPU 사용량 제한 및 진행도 표시 기능 추가.
+- **세부 사항**:
+  - **TML7 완성**:
+    - `cv_group_var` 파라미터로 환자 단위 누수 방지 (기본값 "emrid"/"hos_no")
+    - L2 메서드 확장: `glmnet`, `svmRadial`, `mlp`, `mlpKerasDropout`, `nnet`, `earth` 추가
+    - 패키지 의존성 자동 검사 및 제외
+    - `compute_meta_gene_importance`에서 확장된 모델 지원 강화
+  - **CPU 사용량 제한**:
+    - `start.R`에 `MYLIT_DISABLE_PARALLEL` 환경 변수 추가로 병렬 처리 제어
+    - `init_fgs_env.R` 생성: start.R을 사용하되 병렬 처리 비활성화
+    - 자식 프로세스의 연쇄 병렬화 방지
+    - 메모리 한도 200GB 설정
+  - **스크립트 구조 개선**:
+    - `scripts/fgs/` 디렉토리로 FGS 관련 스크립트 정리
+    - `docs/fgs/` 디렉토리로 문서 정리
+    - `benchmark_l2_methods.R`: 각 L2 방법론별 벤치마크
+    - `run_tml7_is5s_full.R`: 전체 파이프라인 실행
+  - **문서화**:
+    - `docs/fgs/README.md`: 사용법 및 구조 설명
+    - `docs/fgs/R_SCRIPTS_REFERENCE.md`: R 스크립트 참조 가이드
+- **다음 단계**:
+  - CPU 수 유연한 설정 기능 추가
+  - 진행도 표시 강화 (예상 시간, 실제 시간, 다음 run 예측)
+
 ## 2025-01-XX — FGS v5.4 및 시그니처 스택 테스트 (`fgs` 브랜치)
 - **작성자**: GPT-5.1 Codex  
 - **요약**: `find_gene_signature_v5.4()` 추가로 ranger/glmnet/NMF 경로의 안정화 옵션을 기본화하고, IS6 Seurat 객체(`is5s`)를 대상으로 end-to-end 검증을 수행.

@@ -38,6 +38,34 @@ fgs/
 
 ## 사용법
 
+### 기본 초기화 (복사-붙여넣기)
+
+```r
+# FGS 환경 초기화
+source('/home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/init_fgs_env.R')
+
+# 필요한 패키지 로드
+library(qs)
+library(pROC)
+
+# FGS 함수 로드
+devtools::load_all('/home/user3/data_user3/git_repo/_wt/fgs/myR', quiet = TRUE)
+```
+
+### CPU 설정 커스터마이징
+
+```r
+# 병렬 처리 활성화 (최대 8코어, BLAS 4스레드)
+Sys.setenv(
+  FGS_MAX_CPU_CORES = "8",
+  FGS_BLAS_THREADS = "4",
+  FGS_DISABLE_PARALLEL = "FALSE"
+)
+source('/home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/init_fgs_env.R')
+```
+
+자세한 내용은 [CPU_CONFIGURATION.md](CPU_CONFIGURATION.md) 참조.
+
 ### 벤치마크 실행
 
 각 L2 방법론의 소요시간을 측정:
@@ -55,6 +83,15 @@ IS6 데이터셋에 대한 전체 FGS + TML7 파이프라인:
 ```bash
 cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/run_tml7_is5s_full.R
 ```
+
+### 진행도 표시
+
+FGS v5.4와 TML7은 자동으로 진행도를 표시합니다:
+- 각 메서드별 예상 시간 (이전 실행 기록 기반)
+- 실제 실행 시간
+- 남은 시간 예측
+
+자세한 내용은 [PROGRESS_TRACKING.md](PROGRESS_TRACKING.md) 참조.
 
 ## 데이터셋 정보
 

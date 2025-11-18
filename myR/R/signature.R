@@ -1014,34 +1014,34 @@ find_gene_signature_v5_impl <- function(data,
   # === 1. [V5] 전처리 (단 1회 실행) ===
   
   # [Req 4] 신규 모델 스케일링 요구사항 업데이트
-  methods_requiring_scale <- c("lasso", "ridge", "elastic_net", 
-                               "gam", "pca_loadings", "xgboost")
-  methods_requiring_correction <- c("wilcoxon", "pca_loadings")
-  
+    methods_requiring_scale <- c("lasso", "ridge", "elastic_net", 
+                                 "gam", "pca_loadings", "xgboost")
+    methods_requiring_correction <- c("wilcoxon", "pca_loadings")
+    
   preprocessed_data <- fgs_preprocess_data_v5(
-    data = data, meta.data = meta.data, target_var = target_var, 
-    target_group = target_group, control_vars = control_vars, 
-    test_n = test_n, preprocess = preprocess, min_cells = min_cells,
-    min_pct = min_pct,
+      data = data, meta.data = meta.data, target_var = target_var, 
+      target_group = target_group, control_vars = control_vars, 
+      test_n = test_n, preprocess = preprocess, min_cells = min_cells,
+      min_pct = min_pct,
     methods_requiring_scale = base::intersect(method, methods_requiring_scale),
     methods_requiring_correction = base::intersect(method, methods_requiring_correction)
-  )
-
-  expr_mat_base <- preprocessed_data$expr_mat
-  meta.data_clean <- preprocessed_data$meta.data
-  target_binary <- preprocessed_data$target_binary
-  n_groups <- preprocessed_data$n_groups
-  
-  set.seed(fgs_seed)
-  
-  covariate_mat_model <- NULL
-  if (!is.null(control_vars)) {
-     covariates_df_model <- meta.data_clean[, control_vars, drop = FALSE]
-     covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
-  }
-
-  results_list <- list()
-  
+    )
+    
+    expr_mat_base <- preprocessed_data$expr_mat
+    meta.data_clean <- preprocessed_data$meta.data
+    target_binary <- preprocessed_data$target_binary
+    n_groups <- preprocessed_data$n_groups
+    
+    set.seed(fgs_seed)
+    
+    covariate_mat_model <- NULL
+    if (!is.null(control_vars)) {
+       covariates_df_model <- meta.data_clean[, control_vars, drop = FALSE]
+       covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
+    }
+    
+    results_list <- list()
+    
   run_glmnet_signature <- function(X, alpha_value, apply_v54 = FALSE, ...) {
     if (!requireNamespace("glmnet", quietly = TRUE)) {
       stop("glmnet package required. Install with: install.packages('glmnet')")
@@ -1123,37 +1123,67 @@ find_gene_signature_v5_impl <- function(data,
   
   # === 2. [V5] 메서드 순회 (for 루프) ===
   
-  for (m in method) {
+  # Progress tracking: load previous timing data if available
+  timing_file <- file.path(getwd(), ".fgs_timing_cache.rds")
+  timing_cache <- if (file.exists(timing_file)) {
+    tryCatch(readRDS(timing_file), error = function(e) list())
+  } else {
+    list()
+  }
+  
+  total_methods <- length(method)
+  completed_methods <- 0
+  total_start_time <- Sys.time()
+  
+  for (m_idx in seq_along(method)) {
+    m <- method[m_idx]
     
-    if (!m %in% all_methods) {
-      warning(sprintf("Invalid method '%s'. Skipping.", m))
-      next
+      if (!m %in% all_methods) {
+        warning(sprintf("Invalid method '%s'. Skipping.", m))
+        next
+      }
+      
+    # Estimate time based on previous runs
+    method_key <- paste0("fgs_v5.4_", m)
+    estimated_sec <- if (!is.null(timing_cache[[method_key]])) {
+      mean(timing_cache[[method_key]], na.rm = TRUE)
+    } else {
+      NA_real_
     }
     
-    message(sprintf("--- Running Method: %s ---", m))
+    if (!is.na(estimated_sec) && estimated_sec > 0) {
+      estimated_str <- sprintf("%.1f분", estimated_sec / 60)
+      message(sprintf("--- Running Method: %s [%d/%d] (예상: %s) ---", 
+                      m, m_idx, total_methods, estimated_str))
+    } else {
+      message(sprintf("--- Running Method: %s [%d/%d] ---", 
+                      m, m_idx, total_methods))
+    }
     
-    tryCatch({
+    method_start_time <- Sys.time()
+      
+      tryCatch({
       
       # === 3. 데이터 선택 (메서드별) ===
       
-      if (m %in% c("limma", "wilcoxon", "nmf_loadings", "random_forest", "random_forest_ranger")) {
-        expr_mat_method <- expr_mat_base
-      } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "xgboost")) {
+        if (m %in% c("limma", "wilcoxon", "nmf_loadings", "random_forest", "random_forest_ranger")) {
+          expr_mat_method <- expr_mat_base
+        } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "xgboost")) {
         # 'expr_mat_scaled'가 NULL이면 (필요한 메서드가 없었으면) 원본 사용
-        expr_mat_method <- if(is.null(preprocessed_data$expr_mat_scaled)) expr_mat_base else preprocessed_data$expr_mat_scaled
-      }
-      
-      if (m %in% c("wilcoxon", "pca_loadings")) {
-        if (!is.null(preprocessed_data$expr_mat_corrected)) {
-          expr_mat_method <- preprocessed_data$expr_mat_corrected
+          expr_mat_method <- if(is.null(preprocessed_data$expr_mat_scaled)) expr_mat_base else preprocessed_data$expr_mat_scaled
         }
-      }
+        
+        if (m %in% c("wilcoxon", "pca_loadings")) {
+          if (!is.null(preprocessed_data$expr_mat_corrected)) {
+            expr_mat_method <- preprocessed_data$expr_mat_corrected
+          }
+        }
       
       # (pca_loadings는 스케일링된 보정 데이터가 이상적이나, v5.2는 보정된 비-스케일링 데이터를 우선함)
-
-      X <- t(expr_mat_method)
-      y <- target_binary
-
+        
+        X <- t(expr_mat_method)
+        y <- target_binary
+        
       
       # === 4. Method-specific (v5.2 수정) ===
       
@@ -1536,7 +1566,7 @@ find_gene_signature_v5_impl <- function(data,
           } else {
             formula_base <- ""
           }
-
+          
           convergence_warnings <- 0
           genes_skipped <- 0
           genes_with_dynamic_k <- 0
@@ -1561,7 +1591,7 @@ find_gene_signature_v5_impl <- function(data,
             }
             
             formula_str <- paste("y_var_numeric ~ s(gene_expr, k=", k_value, ", bs='cr')", formula_base)
-
+            
             fit_result <- tryCatch({
               if (n_groups == 2) {
                 mgcv::bam(as.formula(formula_str), data = gam_data, family="binomial", ...)
@@ -1603,27 +1633,27 @@ find_gene_signature_v5_impl <- function(data,
             return(list(genes=character(0), weights=numeric(0), scores=numeric(0), performance=list()))
           }
           
-          weights_magnitude <- weights_magnitude[top_genes]
-
-          if (n_groups == 2) {
-            g1_cells <- y == levels(y)[1]
-            g2_cells <- y == levels(y)[2]
-            mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
-            mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
-            effect_size <- mean_g2 - mean_g1
-            weights <- weights_magnitude * sign(effect_size)
-          } else {
-            warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
-            weights <- weights_magnitude
-          }
-          
+            weights_magnitude <- weights_magnitude[top_genes]
+            
+            if (n_groups == 2) {
+              g1_cells <- y == levels(y)[1]
+              g2_cells <- y == levels(y)[2]
+              mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
+              mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
+              effect_size <- mean_g2 - mean_g1
+              weights <- weights_magnitude * sign(effect_size)
+            } else {
+              warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
+              weights <- weights_magnitude
+            }
+            
           scores <- as.numeric(X[, top_genes, drop=FALSE] %*% weights)
-          names(scores) <- rownames(X)
-          
-          perf <- list(deviance_explained = weights_magnitude)
-          
+            names(scores) <- rownames(X)
+            
+            perf <- list(deviance_explained = weights_magnitude)
+            
           list(genes = top_genes, weights = weights, scores = scores,
-               performance = perf, model = NULL)
+                         performance = perf, model = NULL)
         },
         
         limma = {
@@ -1638,7 +1668,7 @@ find_gene_signature_v5_impl <- function(data,
           if (!all(orig_levels == safe_levels)) {
             levels(target_binary_limma) <- safe_levels
             meta.data_clean$target_binary_limma <- target_binary_limma
-          } else {
+        } else {
             meta.data_clean$target_binary_limma <- target_binary_limma
           }
           
@@ -1748,22 +1778,67 @@ find_gene_signature_v5_impl <- function(data,
       ) # --- switch 끝 ---
 
       # === 5. 결과 저장 ===
-      result$method <- m
-      result$target_var <- target_var
-      result$n_groups <- n_groups
-      result$n_cells <- ncol(expr_mat_base)
+        result$method <- m
+        result$target_var <- target_var
+        result$n_groups <- n_groups
+        result$n_cells <- ncol(expr_mat_base)
+        
+        class(result) <- c("gene_signature", "list")
+        results_list[[m]] <- result
+        
+      # Record execution time
+      method_end_time <- Sys.time()
+      elapsed_sec <- as.numeric(difftime(method_end_time, method_start_time, units = "secs"))
+      completed_methods <- completed_methods + 1
       
-      class(result) <- c("gene_signature", "list")
-      results_list[[m]] <- result
+      # Update timing cache
+      method_key <- paste0("fgs_v5.4_", m)
+      if (is.null(timing_cache[[method_key]])) {
+        timing_cache[[method_key]] <- numeric()
+      }
+      timing_cache[[method_key]] <- c(timing_cache[[method_key]], elapsed_sec)
+      # Keep only last 5 runs for averaging
+      if (length(timing_cache[[method_key]]) > 5) {
+        timing_cache[[method_key]] <- tail(timing_cache[[method_key]], 5)
+      }
       
-    }, error = function(e) {
-      warning(sprintf("Method '%s' failed with error: %s", m, e$message))
-      results_list[[m]] <- list(method = m, error = e$message)
+      # Save timing cache
+      tryCatch({
+        saveRDS(timing_cache, timing_file)
+      }, error = function(e) {
+        # Ignore save errors
+      })
+      
+      # Calculate remaining time estimate
+      elapsed_total <- as.numeric(difftime(method_end_time, total_start_time, units = "secs"))
+      avg_time_per_method <- elapsed_total / completed_methods
+      remaining_methods <- total_methods - completed_methods
+      estimated_remaining <- avg_time_per_method * remaining_methods
+      
+      message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분",
+                      m, elapsed_sec, elapsed_sec / 60, completed_methods, total_methods, estimated_remaining / 60))
+        
+      }, error = function(e) {
+        warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+        results_list[[m]] <- list(method = m, error = e$message)
+      
+      # Record execution time even for errors
+      method_end_time <- Sys.time()
+      elapsed_sec <- as.numeric(difftime(method_end_time, method_start_time, units = "secs"))
+      completed_methods <<- completed_methods + 1
+      
+      message(sprintf("✗ %s 실패: %.1f초 | 진행: %d/%d", m, elapsed_sec, completed_methods, total_methods))
     })
     
   } # --- for 루프 끝 ---
-
-  return(results_list)
+  
+  # Final summary
+  total_end_time <- Sys.time()
+  total_elapsed <- as.numeric(difftime(total_end_time, total_start_time, units = "secs"))
+  message(sprintf("\n=== FGS v5.4 완료: 총 %d개 메서드, %.1f분 소요 ===", 
+                  completed_methods, total_elapsed / 60))
+    
+    return(results_list)
 }
 
 #' Train Meta-Learner (TML7): Stacked Ensemble Model for Signature Scores
@@ -2096,7 +2171,7 @@ TML7 <- function(
     KDW_START_AUTOLOAD_QS = "FALSE"
   )
   options(mc.cores = 1L)
-  
+
   allow_parallel <- isTRUE(allow_parallel)
   worker_count <- parallel_workers
   if (is.null(worker_count)) {
@@ -2105,16 +2180,16 @@ TML7 <- function(
     cores <- cores %||% fallback
     # Limit to max_cores_limit to prevent excessive CPU usage
     worker_count <- max(1L, min(max_cores_limit, as.integer(cores)))
-  } else {
+      } else {
     # Also cap user-specified workers
     worker_count <- min(max_cores_limit, as.integer(worker_count))
-  }
+      }
 
   # Disable parallel processing by default to prevent cascade effects
   # Even if allow_parallel=TRUE, we'll use sequential execution to avoid
   # child processes spawning more workers via start.R
-  allow_parallel <- FALSE
-  register_sequential()
+      allow_parallel <- FALSE
+      register_sequential()
   
   # Note: We disable parallel processing to prevent cascade parallelization
   # when child processes load start.R. If parallel processing is needed,
@@ -2387,9 +2462,40 @@ TML7 <- function(
     try(doMC::registerDoMC(cores = 1), silent = TRUE)
   }
   
+  # Progress tracking for TML7
+  tml_timing_file <- file.path(getwd(), ".tml7_timing_cache.rds")
+  tml_timing_cache <- if (file.exists(tml_timing_file)) {
+    tryCatch(readRDS(tml_timing_file), error = function(e) list())
+  } else {
+    list()
+  }
+  
+  total_l2_methods <- length(l2_methods)
+  completed_l2_methods <- 0
+  tml_start_time <- Sys.time()
+
   model_list <- list()
-  for (m in l2_methods) {
-    message(sprintf("Training L2 candidate: %s (metric=%s)", m, caret_metric))
+  for (m_idx in seq_along(l2_methods)) {
+    m <- l2_methods[m_idx]
+    
+    # Estimate time based on previous runs
+    method_key <- paste0("tml7_l2_", m)
+    estimated_sec <- if (!is.null(tml_timing_cache[[method_key]])) {
+      mean(tml_timing_cache[[method_key]], na.rm = TRUE)
+    } else {
+      NA_real_
+    }
+    
+    if (!is.na(estimated_sec) && estimated_sec > 0) {
+      estimated_str <- sprintf("%.1f분", estimated_sec / 60)
+      message(sprintf("Training L2 candidate: %s [%d/%d] (예상: %s, metric=%s)", 
+                      m, m_idx, total_l2_methods, estimated_str, caret_metric))
+    } else {
+      message(sprintf("Training L2 candidate: %s [%d/%d] (metric=%s)", 
+                      m, m_idx, total_l2_methods, caret_metric))
+    }
+    
+    l2_method_start_time <- Sys.time()
     
     # Method-specific parallel disabling
     if (m == "xgbTree" && requireNamespace("xgboost", quietly = TRUE)) {
@@ -2442,12 +2548,50 @@ TML7 <- function(
         ), silent = TRUE
       )
     }
+    l2_method_end_time <- Sys.time()
+    elapsed_sec <- as.numeric(difftime(l2_method_end_time, l2_method_start_time, units = "secs"))
+    
     if (inherits(fit, "try-error")) {
       warning(sprintf("Failed to train '%s': %s", m, as.character(fit)))
+      completed_l2_methods <- completed_l2_methods + 1
+      message(sprintf("✗ %s 실패: %.1f초 | 진행: %d/%d", m, elapsed_sec, completed_l2_methods, total_l2_methods))
     } else {
       model_list[[m]] <- fit
+      completed_l2_methods <- completed_l2_methods + 1
+      
+      # Update timing cache
+      method_key <- paste0("tml7_l2_", m)
+      if (is.null(tml_timing_cache[[method_key]])) {
+        tml_timing_cache[[method_key]] <- numeric()
+      }
+      tml_timing_cache[[method_key]] <- c(tml_timing_cache[[method_key]], elapsed_sec)
+      if (length(tml_timing_cache[[method_key]]) > 5) {
+        tml_timing_cache[[method_key]] <- tail(tml_timing_cache[[method_key]], 5)
+      }
+      
+      # Save timing cache
+      tryCatch({
+        saveRDS(tml_timing_cache, tml_timing_file)
+      }, error = function(e) {
+        # Ignore
+      })
+      
+      # Calculate remaining time estimate
+      elapsed_total <- as.numeric(difftime(l2_method_end_time, tml_start_time, units = "secs"))
+      avg_time_per_method <- elapsed_total / completed_l2_methods
+      remaining_methods <- total_l2_methods - completed_l2_methods
+      estimated_remaining <- avg_time_per_method * remaining_methods
+      
+      message(sprintf("✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분",
+                      m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods, estimated_remaining / 60))
     }
   }
+  
+  # Final TML7 summary
+  tml_end_time <- Sys.time()
+  tml_total_elapsed <- as.numeric(difftime(tml_end_time, tml_start_time, units = "secs"))
+  message(sprintf("\n=== TML7 L2 학습 완료: 총 %d개 모델, %.1f분 소요 ===", 
+                  completed_l2_methods, tml_total_elapsed / 60))
   if (length(model_list) == 0) stop("No L2 models were successfully trained.")
 
   if (length(model_list) == 1) {
@@ -2573,27 +2717,27 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
       stop(sprintf("caret::varImp() failed for model type '%s'. Error: %s",
                    model_type, as.character(vi)), call. = FALSE)
     }
-    importance_df <- vi$importance
+      importance_df <- vi$importance
     if (is.null(importance_df) || !is.data.frame(importance_df)) {
       stop(sprintf("varImp for model '%s' did not produce a data.frame.", model_type), call. = FALSE)
     }
-    # rownames 확인 및 매칭
-    imp_rownames <- rownames(importance_df)
+      # rownames 확인 및 매칭
+      imp_rownames <- rownames(importance_df)
     available_sigs <- base::intersect(sig_names, imp_rownames)
-    if (length(available_sigs) == 0) {
-      stop("No matching signatures found in varImp results. Expected: ", 
-           paste(sig_names, collapse=", "), 
-           "; Found: ", paste(imp_rownames, collapse=", "))
-    }
-    
-    if ("Overall" %in% colnames(importance_df)) {
-      signature_importance <- importance_df[available_sigs, "Overall", drop = TRUE]
-    } else if (ncol(importance_df) >= 1) {
-      signature_importance <- importance_df[available_sigs, 1, drop = TRUE]
-    }
-    # named vector로 변환
-    if (is.null(names(signature_importance))) {
-      names(signature_importance) <- available_sigs
+      if (length(available_sigs) == 0) {
+        stop("No matching signatures found in varImp results. Expected: ", 
+             paste(sig_names, collapse=", "), 
+             "; Found: ", paste(imp_rownames, collapse=", "))
+      }
+      
+      if ("Overall" %in% colnames(importance_df)) {
+        signature_importance <- importance_df[available_sigs, "Overall", drop = TRUE]
+      } else if (ncol(importance_df) >= 1) {
+        signature_importance <- importance_df[available_sigs, 1, drop = TRUE]
+      }
+      # named vector로 변환
+      if (is.null(names(signature_importance))) {
+        names(signature_importance) <- available_sigs
     }
   }
 

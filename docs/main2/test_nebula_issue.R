@@ -9,7 +9,7 @@ setwd("/home/user3/GJC_KDW_250721")
 source("start.R")
 
 # 함수 로드
-source("/home/user3/data_user3/git_repo/_wt/main2/myR/R/test_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/analysis/myR/R/test_analysis.R")
 
 # 데이터 로드
 is5s <- qs::qread("/data/user3/sobj/IS_scvi_251107_ds2500.qs")
