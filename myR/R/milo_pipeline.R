@@ -22,21 +22,11 @@
 #'   beeswarm plot. Same options as `cell_metric`.
 #' @param beeswarm_alpha Threshold passed to `plotDAbeeswarm()`.
 #' @param fdr_breaks,fdr_labels Bin specification for colouring cells by metric.
-#' @param target_levels Optional character vector that fixes the factor order of
-#'   `target_var` (e.g. `c("low", "high")`). The first level becomes the
-#'   reference (logFC < 0 ⇒ enrichment there) and the second level becomes the
-#'   test (logFC > 0 ⇒ enrichment there).
-#' @param target_include Optional character vector. When supplied, only cells
-#'   whose `target_var` matches one of the values are kept before running Milo.
 #' @param save Logical; if `TRUE` (default) intermediate objects are written to
 #'   disk using `qs::qsave()`.
 #' @param output_dir,prefix,suffix Configure save location. When `suffix` is
 #'   `NULL`, a numeric suffix (`"", "_1", ...`) is auto-generated to avoid
 #'   overwriting existing files.
-#' @param cache_files Optional named list that overrides auto-generated cache
-#'   paths. Supported names: `nhoods`, `distances`, `da_milo`, `da_results`,
-#'   `plots`. This is useful when you want to pin a specific `.qs` file instead
-#'   of relying on the default suffix-based naming.
 #' @param force_run Logical scalar or named logical vector controlling whether
 #'   each step (`nhoods`, `distances`, `testing`) is recomputed even if cached
 #'   files are present.
@@ -46,14 +36,8 @@
 #' @param seed Integer passed to `set.seed()` before sampling or Milo routines.
 #' @param verbose Logical; emits progress messages when `TRUE`.
 #'
-#' @return A list with:
-#'   - `milo`: Milo object with `metadata(milo)$commands[['.milo_run_da']]`
-#'     capturing the parameters, cache files, and comparison labels used.
-#'   - `da_results`: data frame returned by `miloR::testNhoods()` plus
-#'     `comparison_reference`, `comparison_test`, `comparison_label`,
-#'     `enriched_in` columns that spell out the logFC direction.
-#'   - `plots`: list of ggplot objects (`NULL` when `plotting = FALSE`),
-#'     cached as `.qs` when `save = TRUE`.
+#' @return A list with `milo` (the Milo object), `da_results` (data frame), and
+#'   `plots` (list of ggplot objects; `NULL` when `plotting = FALSE`).
 #'
 #' @export
 run_milo_pipeline <- function(
@@ -74,13 +58,10 @@ run_milo_pipeline <- function(
     beeswarm_alpha = alpha,
     fdr_breaks = c(0, 0.1, 0.2, 0.3, 0.5, 1),
     fdr_labels = c("< 0.1", "0.1 - 0.2", "0.2 - 0.3", "0.3 - 0.5", ">= 0.5"),
-    target_levels = NULL,
-    target_include = NULL,
     save = TRUE,
     output_dir = file.path(tempdir(), "milo"),
     prefix = "milo",
     suffix = NULL,
-    cache_files = NULL,
     force_run = FALSE,
     plotting = TRUE,
     max_cells = NULL,
@@ -107,10 +88,6 @@ run_milo_pipeline <- function(
     seurat_obj <- if (!is.null(input_seurat_obj)) seurat_supplier() else NULL
     set.seed(seed)
 
-    if (save && is.null(suffix) && !is.null(cache_files) && length(cache_files) > 0) {
-        suffix <- format(Sys.time(), "run%y%m%d_%H%M%S")
-    }
-
     force_flags <- .milo_normalize_force_flags(force_run)
     paths <- .milo_resolve_paths(
         output_dir = output_dir,
@@ -118,168 +95,85 @@ run_milo_pipeline <- function(
         suffix = suffix,
         save = save
     )
-    paths <- .milo_apply_cache_overrides(paths, cache_files, verbose)
-
-    manual_cache_names <- if (!is.null(cache_files)) names(cache_files) else character(0)
-    manual_mode <- length(manual_cache_names) > 0
-    step_names <- c("nhoods", "distances", "testing")
-    step_manual <- c(
-        nhoods = "nhoods" %in% manual_cache_names,
-        distances = "distances" %in% manual_cache_names,
-        testing = any(c("da_milo", "da_results") %in% manual_cache_names)
-    )
 
     if (save) {
         dir.create(paths$output_dir, recursive = TRUE, showWarnings = FALSE)
     }
 
-    # Check cache status for all steps
-    step_files_exist <- c(
-        nhoods = !is.null(paths$files$nhoods) && file.exists(paths$files$nhoods),
-        distances = !is.null(paths$files$distances) && file.exists(paths$files$distances),
-        testing = !is.null(paths$files$da_milo) && file.exists(paths$files$da_milo) &&
-            !is.null(paths$files$da_results) && file.exists(paths$files$da_results)
-    )
-
-    cache_status <- list()
-    for (step in step_names) {
-        use_cache <- save && !force_flags[step]
-        if (use_cache) {
-            if (step_manual[step]) {
-                use_cache <- step_files_exist[step]
-            } else if (manual_mode) {
-                use_cache <- FALSE
-            } else {
-                use_cache <- step_files_exist[step]
-            }
-        }
-        cache_status[[step]] <- isTRUE(use_cache)
+    if (!is.null(seurat_obj)) {
+        if (verbose) cli::cli_inform(c("Preparing metadata for Milo conversion."))
+        seurat_obj <- .milo_prepare_metadata(seurat_obj, patient_var, cluster_var, target_var, batch_var)
     }
 
-    if (verbose && save) {
-        cache_msg <- c("Cache status:")
-        for (step in names(cache_status)) {
-            status <- if (cache_status[[step]]) "✓" else "✗"
-            cache_msg <- c(cache_msg, paste0("  ", step, ": ", status))
-        }
-        cli::cli_inform(cache_msg)
-    }
-
-    # If all steps are cached, load final results directly
-    if (cache_status$testing) {
+    # ---- Step 1: Build Milo object with neighbourhoods ----
+    if (!force_flags["nhoods"] && save && file.exists(paths$files$nhoods)) {
         if (verbose) {
-            cli::cli_inform(c("step" = "All steps cached. Loading final results from {.path {paths$files$da_results}}"))
+            cli::cli_inform(c("step" = "Loading cached Milo object with neighbourhoods from {.path {paths$files$nhoods}}"))
+        }
+        milo <- qs::qread(paths$files$nhoods)
+    } else {
+        if (verbose) cli::cli_inform(c("step" = "Building Milo neighbourhoods."))
+        seurat_obj <- seurat_supplier()
+        if (is.null(seurat_obj)) {
+            stop("Seurat object required to build Milo neighbourhoods. Provide `seurat_obj` or `seurat_qs_path`.")
+        }
+        seurat_obj <- .milo_prepare_metadata(seurat_obj, patient_var, cluster_var, target_var, batch_var)
+        environment(seurat_supplier)$prepared <- seurat_obj
+        milo <- .milo_build_nhoods(
+            seurat_obj = seurat_obj,
+            graph_reduction = graph_reduction,
+            k = k,
+            d = d,
+            prop = prop
+        )
+        if (save) {
+            qs::qsave(milo, paths$files$nhoods)
+            if (verbose) cli::cli_inform(c("cache" = "Saved Milo object to {.path {paths$files$nhoods}}"))
+        }
+    }
+
+    # ---- Step 2: Distances ----
+    if (!force_flags["distances"] && save && file.exists(paths$files$distances)) {
+        if (verbose) {
+            cli::cli_inform(c("step" = "Loading cached Milo object with neighbourhood distances from {.path {paths$files$distances}}"))
+        }
+        milo <- qs::qread(paths$files$distances)
+    } else {
+        if (verbose) cli::cli_inform(c("step" = "Calculating Milo neighbourhood distances (this may take a while)."))
+        milo <- miloR::calcNhoodDistance(milo, d = d)
+        if (save) {
+            qs::qsave(milo, paths$files$distances)
+            if (verbose) cli::cli_inform(c("cache" = "Saved Milo object to {.path {paths$files$distances}}"))
+        }
+    }
+
+    # ---- Step 3: DA testing ----
+    da_results <- NULL
+    has_cached_da <- save && file.exists(paths$files$da_milo) && file.exists(paths$files$da_results)
+    if (!force_flags["testing"] && has_cached_da) {
+        if (verbose) {
+            cli::cli_inform(c("step" = "Loading cached Milo DA results from {.path {paths$files$da_results}}"))
         }
         milo <- qs::qread(paths$files$da_milo)
         da_results <- qs::qread(paths$files$da_results)
     } else {
-        if (!is.null(seurat_obj)) {
-            if (verbose) cli::cli_inform(c("Preparing metadata for Milo conversion."))
-            seurat_obj <- .milo_prepare_metadata(seurat_obj, patient_var, cluster_var, target_var, batch_var)
-        }
-
-        # ---- Step 1: Build Milo object with neighbourhoods ----
-        d_eff <- NULL  # Will be set after building nhoods
-        if (cache_status$nhoods) {
+        if (verbose) cli::cli_inform(c("step" = "Running Milo differential abundance test."))
+        da_bundle <- .milo_run_da(
+            milo = milo,
+            patient_var = patient_var,
+            target_var = target_var,
+            batch_var = batch_var,
+            cluster_var = cluster_var
+        )
+        milo <- da_bundle$milo
+        da_results <- da_bundle$da_results
+        if (save) {
+            qs::qsave(milo, paths$files$da_milo)
+            qs::qsave(da_results, paths$files$da_results)
             if (verbose) {
-                cli::cli_inform(c("step" = "Loading cached Milo object with neighbourhoods from {.path {paths$files$nhoods}}"))
-            }
-            milo <- qs::qread(paths$files$nhoods)
-            # Try to recover d_eff from the cached object
-            if ("GRAPH" %in% SingleCellExperiment::reducedDimNames(milo)) {
-                d_eff <- ncol(SingleCellExperiment::reducedDim(milo, "GRAPH"))
-            }
-        } else {
-            if (verbose) cli::cli_inform(c("step" = "Building Milo neighbourhoods."))
-            seurat_obj <- seurat_supplier()
-            if (is.null(seurat_obj)) {
-                stop("Seurat object required to build Milo neighbourhoods. Provide `seurat_obj` or `seurat_qs_path`.")
-            }
-            seurat_obj <- .milo_prepare_metadata(seurat_obj, patient_var, cluster_var, target_var, batch_var)
-            environment(seurat_supplier)$prepared <- seurat_obj
-            build_result <- .milo_build_nhoods(
-                seurat_obj = seurat_obj,
-                graph_reduction = graph_reduction,
-                k = k,
-                d = d,
-                prop = prop,
-                verbose = verbose
-            )
-            milo <- build_result$milo
-            d_eff <- build_result$d_eff
-            if (save) {
-                qs::qsave(milo, paths$files$nhoods)
-                if (verbose) {
-                    cli::cli_inform(c("cache" = "Saved Milo object to {.path {paths$files$nhoods}}"))
-                }
+                cli::cli_inform(c("cache" = "Saved Milo object and DA results to {.path {paths$files$da_milo}} / {.path {paths$files$da_results}}"))
             }
         }
-        
-        # Ensure d_eff is available
-        if (is.null(d_eff)) {
-            if ("GRAPH" %in% SingleCellExperiment::reducedDimNames(milo)) {
-                d_eff <- ncol(SingleCellExperiment::reducedDim(milo, "GRAPH"))
-            } else {
-                # Fallback: use the provided d parameter
-                d_eff <- d
-                if (verbose) {
-                    cli::cli_warn(paste0("Could not determine effective dimension from Milo object. Using provided d=", d, "."))
-                }
-            }
-        }
-
-        # ---- Step 2: Distances ----
-        if (cache_status$distances) {
-            if (verbose) {
-                cli::cli_inform(c("step" = "Loading cached Milo object with neighbourhood distances from {.path {paths$files$distances}}"))
-            }
-            milo <- qs::qread(paths$files$distances)
-        } else {
-            if (verbose) {
-                cli::cli_inform(c("step" = "Calculating Milo neighbourhood distances (this may take a while)."))
-            }
-            milo <- miloR::calcNhoodDistance(milo, d = d_eff, reduced.dim = "GRAPH")
-            if (save) {
-                qs::qsave(milo, paths$files$distances)
-                if (verbose) cli::cli_inform(c("cache" = "Saved Milo object to {.path {paths$files$distances}}"))
-            }
-        }
-
-        # ---- Step 3: DA testing ----
-        da_results <- NULL
-        if (cache_status$testing) {
-            if (verbose) {
-                cli::cli_inform(c("step" = "Loading cached Milo DA results from {.path {paths$files$da_results}}"))
-            }
-            milo <- qs::qread(paths$files$da_milo)
-            da_results <- qs::qread(paths$files$da_results)
-        } else {
-            if (verbose) cli::cli_inform(c("step" = "Running Milo differential abundance test."))
-            da_bundle <- .milo_run_da(
-                milo = milo,
-                patient_var = patient_var,
-                target_var = target_var,
-                batch_var = batch_var,
-                cluster_var = cluster_var,
-                target_levels = target_levels,
-                target_include = target_include,
-                cache_files_used = paths$files,
-                verbose = verbose
-            )
-            milo <- da_bundle$milo
-            da_results <- da_bundle$da_results
-            if (save) {
-                qs::qsave(milo, paths$files$da_milo)
-                qs::qsave(da_results, paths$files$da_results)
-                if (verbose) {
-                    cli::cli_inform(c("cache" = "Saved Milo object and DA results to {.path {paths$files$da_milo}} / {.path {paths$files$da_results}}"))
-                }
-            }
-        }
-    }
-
-    if (verbose) {
-        cli::cli_inform(c("info" = paste0("testNhoods returned ", nrow(da_results), " neighborhoods.")))
     }
 
     plots <- NULL
@@ -323,29 +217,6 @@ run_milo_pipeline <- function(
     }
 }
 
-.milo_set_nhood_counts <- function(milo, counts) {
-    milo@nhoodCounts <- counts
-    milo
-}
-
-.milo_log_command <- function(milo, command_name, args_list) {
-    if (is.null(args_list$timestamp)) {
-        args_list$timestamp <- format(Sys.time(), tz = "UTC", usetz = TRUE)
-    }
-    meta <- S4Vectors::metadata(milo)
-    if (is.null(meta) || !is.list(meta)) {
-        meta <- list()
-    }
-    commands <- meta$commands
-    if (is.null(commands) || !is.list(commands)) {
-        commands <- list()
-    }
-    commands[[command_name]] <- args_list
-    meta$commands <- commands
-    S4Vectors::metadata(milo) <- meta
-    milo
-}
-
 .milo_prepare_metadata <- function(sobj, patient_var, cluster_var, target_var, batch_var) {
     meta_vars <- c(patient_var, cluster_var, target_var, batch_var)
     missing <- meta_vars[!meta_vars %in% colnames(sobj@meta.data)]
@@ -358,260 +229,46 @@ run_milo_pipeline <- function(
     sobj
 }
 
-.milo_build_nhoods <- function(seurat_obj, graph_reduction, k, d, prop, verbose = TRUE) {
+.milo_build_nhoods <- function(seurat_obj, graph_reduction, k, d, prop) {
     if (!graph_reduction %in% Seurat::Reductions(seurat_obj)) {
         stop(sprintf("Reduction '%s' not found in Seurat object.", graph_reduction))
     }
 
     G_emb <- Seurat::Embeddings(seurat_obj, reduction = graph_reduction)
-    n_cells <- nrow(G_emb)
-    n_dims <- ncol(G_emb)
-    
-    if (n_cells == 0 || n_dims == 0) {
-        stop(sprintf("Reduction '%s' has invalid dimensions: %d cells x %d dimensions", 
-                     graph_reduction, n_cells, n_dims))
-    }
-    
-    # Validate k parameter
-    if (k < 2) {
-        stop(sprintf("k (%d) must be at least 2 for building k-nearest neighbor graph.", k))
-    }
-    if (k >= n_cells) {
-        warning(sprintf("k (%d) is >= number of cells (%d). Setting k to %d.", 
-                       k, n_cells, max(2, n_cells - 1)))
-        k <- max(2, n_cells - 1)
-    }
-    
-    d_eff <- min(n_dims, d)
-    if (d_eff < 2) {
-        stop(sprintf("Effective dimension (%d) is too small. Reduction '%s' has %d dimensions, but at least 2 are required.", 
-                     d_eff, graph_reduction, n_dims))
-    }
-    
-    if (verbose) {
-        if (d_eff < d) {
-            cli::cli_inform(c("info" = paste0("Using effective dimension ", d_eff, " (reduction has ", n_dims, " dimensions, requested d=", d, ").")))
-        } else {
-            cli::cli_inform(c("info" = paste0("Using effective dimension ", d_eff, " (requested d=", d, ").")))
-        }
-    }
-    
+    d_eff <- min(ncol(G_emb), d)
     G_use <- G_emb[, seq_len(d_eff), drop = FALSE]
 
     sce <- Seurat::as.SingleCellExperiment(seurat_obj, assay = Seurat::DefaultAssay(seurat_obj))
     SingleCellExperiment::reducedDim(sce, "GRAPH") <- as.matrix(G_use)
 
     milo <- miloR::Milo(sce)
-    # Use d_eff instead of d to match the actual embedding dimensions
-    milo <- miloR::buildGraph(milo, k = k, d = d_eff, reduced.dim = "GRAPH")
+    milo <- miloR::buildGraph(milo, k = k, d = d, reduced.dim = "GRAPH")
     miloR::makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
-    
-    list(milo = milo, d_eff = d_eff)
 }
 
-.milo_run_da <- function(
-    milo,
-    patient_var,
-    target_var,
-    batch_var,
-    cluster_var,
-    target_levels = NULL,
-    target_include = NULL,
-    cache_files_used = NULL,
-    verbose = TRUE
-) {
-    if (verbose) {
-        cli::cli_inform(c("info" = "Running countCells..."))
-    }
-    
-    meta_df <- as.data.frame(SingleCellExperiment::colData(milo))
-
-    target_include_effective <- NULL
-    if (!is.null(target_include)) {
-        include_vals <- intersect(target_include, unique(meta_df[[target_var]]))
-        if (!length(include_vals)) {
-            stop(
-                sprintf(
-                    "target_include (%s) does not match any values in '%s'.",
-                    paste(target_include, collapse = ", "),
-                    target_var
-                )
-            )
-        }
-        dropped <- setdiff(target_include, include_vals)
-        if (length(dropped) > 0 && verbose) {
-            cli::cli_warn(c(
-                "warning" = paste0(
-                    "Dropped target levels not present in data: ",
-                    paste(dropped, collapse = ", ")
-                )
-            ))
-        }
-        target_mask <- meta_df[[target_var]] %in% include_vals
-        if (!any(target_mask)) {
-            stop("No cells left after applying target_include filter.")
-        }
-        target_include_effective <- include_vals
-    }
+.milo_run_da <- function(milo, patient_var, target_var, batch_var, cluster_var) {
     milo <- miloR::countCells(
         milo,
         samples = patient_var,
-        meta.data = meta_df
+        meta.data = as.data.frame(SingleCellExperiment::colData(milo))
     )
 
-    if (verbose) {
-        cli::cli_inform(c("info" = "Creating sample design matrix..."))
-    }
-    
+    meta_df <- as.data.frame(SingleCellExperiment::colData(milo))
     keep_cols <- c(patient_var, target_var, batch_var)
-    missing_cols <- setdiff(keep_cols, colnames(meta_df))
-    if (length(missing_cols) > 0) {
-        stop("Missing required metadata columns: ", paste(missing_cols, collapse = ", "))
-    }
+    patient_info <- unique(meta_df[, keep_cols, drop = FALSE])
+    rownames(patient_info) <- patient_info[[patient_var]]
 
-    sample_ids <- colnames(miloR::nhoodCounts(milo))
-    if (length(sample_ids) == 0) {
-        stop("countCells returned zero samples. Check patient_var input.")
-    }
-
-    duplicated_samples <- any(duplicated(meta_df[[patient_var]]))
-    if (duplicated_samples && verbose) {
-        cli::cli_warn(c("warning" = paste0("patient_var '", patient_var, "' has duplicates. Using first occurrence for each sample.")))
-    }
-
-    sample_design_list <- lapply(sample_ids, function(sid) {
-        rows <- which(meta_df[[patient_var]] == sid)
-        if (length(rows) == 0) {
-            stop(sprintf("Sample ID '%s' not found in metadata column '%s'.", sid, patient_var))
-        }
-        row_data <- meta_df[rows[1], keep_cols, drop = FALSE]
-        row_data$sample_id <- sid
-        row_data
-    })
-
-    sample_design <- do.call(rbind, sample_design_list)
-    rownames(sample_design) <- sample_design$sample_id
-    sample_design$sample_id <- NULL
-
-    if (!is.null(target_include_effective)) {
-        sample_keep <- sample_design[[target_var]] %in% target_include_effective
-        sample_design <- sample_design[sample_keep, , drop = FALSE]
-        if (!nrow(sample_design)) {
-            stop("No samples remain after applying target_include filter.")
-        }
-        counts <- miloR::nhoodCounts(milo)
-        keep_cols <- colnames(counts) %in% rownames(sample_design)
-        if (!any(keep_cols)) {
-            stop("No matching samples found between nhoodCounts and filtered target levels.")
-        }
-        counts <- counts[, keep_cols, drop = FALSE]
-        milo <- .milo_set_nhood_counts(milo, counts)
-    }
-
-    sample_ids <- colnames(miloR::nhoodCounts(milo))
-
+    sample_design <- patient_info[colnames(miloR::nhoodCounts(milo)), , drop = FALSE]
+    sample_design[[target_var]] <- factor(sample_design[[target_var]])
     sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
 
-    sample_design[[target_var]] <- factor(sample_design[[target_var]])
-    target_levels_used <- levels(sample_design[[target_var]])
-
-    if (!is.null(target_levels)) {
-        present_levels <- intersect(target_levels, target_levels_used)
-        if (!length(present_levels)) {
-            stop(
-                sprintf(
-                    "target_levels (%s) not found in '%s'.",
-                    paste(target_levels, collapse = ", "),
-                    target_var
-                )
-            )
-        }
-        missing_levels <- setdiff(target_levels, present_levels)
-        if (length(missing_levels) > 0 && verbose) {
-            cli::cli_warn(c(
-                "warning" = paste0(
-                    "Levels not present in design and ignored: ",
-                    paste(missing_levels, collapse = ", ")
-                )
-            ))
-        }
-        other_levels <- setdiff(target_levels_used, present_levels)
-        sample_design[[target_var]] <- factor(
-            sample_design[[target_var]],
-            levels = c(present_levels, other_levels)
-        )
-    } else {
-        sample_design[[target_var]] <- droplevels(sample_design[[target_var]])
-    }
-
-    target_levels_used <- levels(sample_design[[target_var]])
-    if (length(target_levels_used) < 2) {
-        stop("target_var must have at least two levels after filtering.")
-    }
-    if (length(target_levels_used) > 2 && verbose) {
-        cli::cli_warn(c(
-            "warning" = paste0(
-                "target_var has ",
-                length(target_levels_used),
-                " levels; logFC reflects contrasts relative to the reference level '",
-                target_levels_used[1],
-                "'. Consider setting target_include/target_levels for binary comparisons."
-            )
-        ))
-    }
-    comparison_reference <- target_levels_used[1]
-    comparison_test <- if (length(target_levels_used) >= 2) target_levels_used[2] else NA_character_
-
-    if (verbose) {
-        cli::cli_inform(c("info" = "Running testNhoods..."))
-    }
-    
     formula_str <- sprintf("~ %s + %s", batch_var, target_var)
-    fdr_weighting_used <- "graph-overlap"
-    da_results <- tryCatch({
-        miloR::testNhoods(
-            milo,
-            design = as.formula(formula_str),
-            design.df = sample_design,
-            reduced.dim = "GRAPH",
-            fdr.weighting = "graph-overlap"
-        )
-    }, error = function(e) {
-        if (grepl("median\\(f75\\)|missing value|NA", conditionMessage(e), ignore.case = TRUE)) {
-            if (verbose) {
-                cli::cli_warn("TMM normalization failed. Trying with fdr.weighting='k-distance'...")
-            }
-            fdr_weighting_used <<- "k-distance"
-            result_k <- tryCatch({
-                miloR::testNhoods(
-                    milo,
-                    design = as.formula(formula_str),
-                    design.df = sample_design,
-                    reduced.dim = "GRAPH",
-                    fdr.weighting = "k-distance"
-                )
-            }, error = function(e2) {
-                if (verbose) {
-                    cli::cli_warn("Still failing. Trying without fdr.weighting...")
-                }
-                fdr_weighting_used <<- "none"
-                miloR::testNhoods(
-                    milo,
-                    design = as.formula(formula_str),
-                    design.df = sample_design,
-                    reduced.dim = "GRAPH"
-                )
-            })
-            return(result_k)
-        } else {
-            stop(e)
-        }
-    })
+    da_results <- miloR::testNhoods(
+        milo,
+        design = as.formula(formula_str),
+        design.df = sample_design
+    )
 
-    if (verbose) {
-        cli::cli_inform(c("info" = "Adding cluster annotations..."))
-    }
-    
     nhood_matrix <- miloR::nhoods(milo)
     cell_clusters <- SingleCellExperiment::colData(milo)[[cluster_var]]
     majority_cluster <- vapply(
@@ -626,43 +283,6 @@ run_milo_pipeline <- function(
         FUN.VALUE = character(1)
     )
     da_results$major_cluster <- majority_cluster[da_results$Nhood]
-
-    if (!is.null(comparison_reference) && !is.null(comparison_test)) {
-        da_results$comparison_reference <- comparison_reference
-        da_results$comparison_test <- comparison_test
-        da_results$comparison_label <- paste(comparison_test, "vs", comparison_reference)
-        da_results$enriched_in <- ifelse(
-            is.na(da_results$logFC),
-            NA_character_,
-            ifelse(da_results$logFC > 0, comparison_test, comparison_reference)
-        )
-    } else {
-        da_results$comparison_reference <- NA_character_
-        da_results$comparison_test <- NA_character_
-        da_results$comparison_label <- NA_character_
-        da_results$enriched_in <- NA_character_
-    }
-
-    milo <- .milo_log_command(
-        milo,
-        ".milo_run_da",
-        list(
-            patient_var = patient_var,
-            target_var = target_var,
-            batch_var = batch_var,
-            cluster_var = cluster_var,
-            reduced_dim = "GRAPH",
-            fdr_weighting = fdr_weighting_used,
-            sample_count = length(sample_ids),
-            duplicates_in_patient_var = duplicated_samples,
-            target_include = target_include_effective,
-            target_levels_requested = target_levels,
-            target_levels_used = target_levels_used,
-            comparison_reference = comparison_reference,
-            comparison_test = comparison_test,
-            cache_files = cache_files_used
-        )
-    )
 
     list(milo = milo, da_results = da_results)
 }
@@ -731,7 +351,7 @@ run_milo_pipeline <- function(
     )
 
     if (save) {
-        qs::qsave(plots, file = save_path)
+        saveRDS(plots, file = save_path)
         if (verbose) cli::cli_inform(c("cache" = "Saved plot bundle to {.path {save_path}}"))
     }
 
@@ -787,11 +407,8 @@ run_milo_pipeline <- function(
         include.lowest = TRUE
     )
 
-    # Update colData using SummarizedExperiment setter
-    cd <- SummarizedExperiment::colData(milo)
-    cd$milo_metric_value <- cell_metric
-    cd$milo_metric_bin <- metric_bins
-    SummarizedExperiment::colData(milo) <- cd
+    colData(milo)$milo_metric_value <- cell_metric
+    colData(milo)$milo_metric_bin <- metric_bins
 
     if (verbose) {
         bin_table <- table(metric_bins, useNA = "ifany")
@@ -943,7 +560,7 @@ run_milo_pipeline <- function(
         distances = "02_distances_calculated.qs",
         da_milo = "03_tested.qs",
         da_results = "03_da_results.qs",
-        plots = "04_plots.qs"
+        plots = "04_plots.rds"
     )
 
     suffix_info <- .milo_pick_suffix(output_dir, prefix, suffix, base_names)
@@ -955,25 +572,6 @@ run_milo_pipeline <- function(
 
     names(files) <- names(base_names)
     list(output_dir = output_dir, files = files, suffix = suffix_info$suffix)
-}
-
-.milo_apply_cache_overrides <- function(paths, cache_files, verbose) {
-    if (is.null(cache_files) || !length(cache_files)) {
-        return(paths)
-    }
-    if (is.null(paths$files)) {
-        paths$files <- list()
-    }
-    valid <- intersect(names(paths$files), names(cache_files))
-    for (nm in valid) {
-        override <- cache_files[[nm]]
-        if (is.null(override) || identical(override, "")) next
-        paths$files[[nm]] <- override
-        if (isTRUE(verbose)) {
-            cli::cli_inform(c("cache" = paste0("Using manual cache for ", nm, ": ", override)))
-        }
-    }
-    paths
 }
 
 .milo_strip_ext <- function(filename) sub(paste0(".", tools::file_ext(filename), "$"), "", filename)
@@ -1160,20 +758,17 @@ test_cluster_logfc_bias <- function(
     if ("permutation" %in% test_methods) {
         if (verbose) cli::cli_inform("Running block permutation tests...")
         perm_test_block <- function(df, block_var = "block_id", n = n_perm) {
-            block_summary <- df %>%
-                dplyr::group_by(.data[[block_var]]) %>%
-                dplyr::summarise(
-                    mean_logFC = mean(.data$logFC, na.rm = TRUE),
-                    weight = dplyr::n(),
-                    .groups = "drop"
-                )
-            if (nrow(block_summary) < 2) {
-                return(NA_real_)
-            }
-            obs <- sum(block_summary$mean_logFC * block_summary$weight) / sum(block_summary$weight)
+            obs <- mean(df$logFC, na.rm = TRUE)
             perm_means <- replicate(n, {
-                perm_idx <- sample.int(nrow(block_summary))
-                sum(block_summary$mean_logFC[perm_idx] * block_summary$weight) / sum(block_summary$weight)
+                df_perm <- df %>%
+                    dplyr::group_by(.data[[block_var]]) %>%
+                    dplyr::mutate(logFC_perm = sample(.data$logFC, size = dplyr::n(), replace = FALSE)) %>%
+                    dplyr::ungroup()
+                df_perm %>%
+                    dplyr::group_by(.data[[block_var]]) %>%
+                    dplyr::summarise(m = mean(.data$logFC_perm, na.rm = TRUE), .groups = "drop") %>%
+                    dplyr::summarise(mean(.data$m, na.rm = TRUE), .groups = "drop") %>%
+                    dplyr::pull()
             })
             (sum(abs(perm_means) >= abs(obs), na.rm = TRUE) + 1) / (n + 1)
         }
