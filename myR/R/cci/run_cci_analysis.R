@@ -17,7 +17,7 @@
 #' @param p_val_adj_cutoff Numeric, adjusted p-value cutoff (default: 0.05)
 #' @param logfc_cutoff Numeric, log fold-change cutoff (default: 0.25)
 #' @param top_n_ligands Integer, number of top ligands (default: 20)
-#' @param top_n_targets_per_ligand Integer, number of top targets per ligand (default: 200)
+#' @param top_n_targets_per_ligand Integer, number of top targets per ligand (default: NULL, auto-adjusted: 50 for >3000 DEGs, 100 for >1000 DEGs, 200 otherwise)
 #' @param ligand_target_cutoff Numeric, cutoff for ligand-target links (default: 0.33)
 #' @param nichenet_data_dir Character string, NicheNet data directory (default: NULL)
 #' @param nichenet_data_name Character string, NicheNet data name in global env (default: "NicheNetData")
@@ -48,7 +48,7 @@ run_cci_analysis <- function(sobj,
                               p_val_adj_cutoff = 0.05,
                               logfc_cutoff = 0.25,
                               top_n_ligands = 20,
-                              top_n_targets_per_ligand = 200,
+                              top_n_targets_per_ligand = NULL,  # Auto-adjusted based on DEG count if NULL
                               ligand_target_cutoff = 0.33,
                               nichenet_data_dir = NULL,
                               nichenet_data_name = "NicheNetData",
@@ -65,14 +65,17 @@ run_cci_analysis <- function(sobj,
   
   species <- match.arg(species)
   
-  if (verbose) message("=== Starting CCI Analysis ===")
+  if (verbose) {
+    message("=== Starting CCI Analysis ===")
+    message("Total steps: 7 (Validation → DEG extraction → Sender ID → Expressed genes → Summary → NicheNet → Compile)")
+  }
   
   # Step 1: Validate inputs
-  if (verbose) message("Step 1: Validating inputs...")
+  if (verbose) message("Step 1/7 (14%): Validating inputs...")
   validation <- validate_cci_inputs(sobj, cluster_col, deg_df, receiver_cluster, sender_clusters)
   
   # Step 2: Extract receiver DEGs
-  if (verbose) message("Step 2: Extracting receiver DEGs...")
+  if (verbose) message("Step 2/7 (29%): Extracting receiver DEGs...")
   receiver_degs <- extract_receiver_degs(
     deg_df, 
     receiver_cluster,
@@ -89,8 +92,23 @@ run_cci_analysis <- function(sobj,
     message("  Found ", nrow(receiver_degs), " DEGs for receiver cluster after filtering")
   }
   
+  # Auto-adjust top_n_targets_per_ligand if not explicitly set and DEG count is large
+  dots_list <- list(...)
+  if (is.null(top_n_targets_per_ligand) && !"top_n_targets_per_ligand" %in% names(dots_list)) {
+    n_degs <- nrow(receiver_degs)
+    if (n_degs > 3000) {
+      top_n_targets_per_ligand <- 50
+      if (verbose) message("  Large DEG set detected (", n_degs, " genes). Auto-adjusting top_n_targets_per_ligand to ", top_n_targets_per_ligand, " for faster computation.")
+    } else if (n_degs > 1000) {
+      top_n_targets_per_ligand <- 100
+      if (verbose) message("  Moderate DEG set (", n_degs, " genes). Auto-adjusting top_n_targets_per_ligand to ", top_n_targets_per_ligand, ".")
+    } else {
+      top_n_targets_per_ligand <- 200  # Keep default for small sets
+    }
+  }
+  
   # Step 3: Identify sender clusters
-  if (verbose) message("Step 3: Identifying sender clusters...")
+  if (verbose) message("Step 3/7 (43%): Identifying sender clusters...")
   sender_clusters_final <- identify_sender_clusters(
     sobj, 
     cluster_col, 
@@ -101,7 +119,7 @@ run_cci_analysis <- function(sobj,
   if (verbose) message("  Using ", length(sender_clusters_final), " sender cluster(s)")
   
   # Step 4: Get expressed genes
-  if (verbose) message("Step 4: Identifying expressed genes...")
+  if (verbose) message("Step 4/7 (57%): Identifying expressed genes...")
   
   # Set Idents for nichenetr::get_expressed_genes
   Seurat::DefaultAssay(sobj) <- assay_name
@@ -127,7 +145,7 @@ run_cci_analysis <- function(sobj,
   if (verbose) message("  Receiver: ", length(expressed_genes_receiver), " expressed genes")
   
   # Step 5: Prepare data summary
-  if (verbose) message("Step 5: Preparing data summary...")
+  if (verbose) message("Step 5/7 (71%): Preparing data summary...")
   prepared_summary <- prepare_cci_summary(
     receiver_degs,
     sender_clusters_final,
@@ -155,7 +173,19 @@ run_cci_analysis <- function(sobj,
   # Create a temporary condition column that will allow us to use FindMarkers
   # with our pre-computed DEGs, or we'll modify the approach
   
-  if (verbose) message("Step 6: Running NicheNet analysis...")
+  if (verbose) {
+    message("Step 6/7 (86%): Running NicheNet analysis...")
+    message("  [", paste0(rep("=", 30), collapse = ""), "] Starting NicheNet pipeline...")
+    message("  This step includes:")
+    message("    - NicheNet data loading")
+    message("    - Expressed genes identification")
+    message("    - Ligand activity prediction")
+    message("    - Ligand-target inference")
+    message("    - Visualization generation")
+    if (run_circos) {
+      message("    - Circos plot generation")
+    }
+  }
   
   # The challenge: run_nichenet_analysis does DE analysis internally
   # We have pre-computed DEGs, so we need to work around this
@@ -214,8 +244,20 @@ run_cci_analysis <- function(sobj,
     if (verbose) {
       message("  Preparing NicheNet run with ", length(sender_clusters_final), " sender cluster(s) and ", nrow(receiver_degs), " receiver DEGs.")
       message("  Precomputed receiver DE tables will be reused when available to avoid redundant FindMarkers calls.")
-      est_minutes <- max(1, round(nrow(receiver_degs) / 250, 1))
-      message("  Estimated runtime: ~", est_minutes, " min (heuristic).")
+      # More realistic estimate: DEG count significantly affects ligand activity prediction time
+      # Base time for small DEG sets, then scale
+      base_time_minutes <- 1
+      if (nrow(receiver_degs) > 3000) {
+        est_minutes <- max(10, round(nrow(receiver_degs) / 200, 1))  # Conservative for large sets
+        message("  Estimated runtime: ~", est_minutes, " min (conservative estimate for large DEG set).")
+        message("  [Note: Ligand activity prediction scales with DEG count - may take 10-20+ minutes]")
+      } else if (nrow(receiver_degs) > 1000) {
+        est_minutes <- max(3, round(nrow(receiver_degs) / 300, 1))
+        message("  Estimated runtime: ~", est_minutes, " min (heuristic).")
+      } else {
+        est_minutes <- base_time_minutes
+        message("  Estimated runtime: ~", est_minutes, " min (heuristic).")
+      }
     }
     
     # Extract circos-related parameters from function arguments and ...
@@ -314,7 +356,7 @@ run_cci_analysis <- function(sobj,
   deg_summary <- format_deg_summary(deg_df, receiver_cluster)
   
   # Step 9: Compile results
-  if (verbose) message("Step 7: Compiling results...")
+  if (verbose) message("Step 7/7 (100%): Compiling results...")
   results <- list(
     nichenet_results = nichenet_results,
     sender_receiver_map = sender_receiver_map,

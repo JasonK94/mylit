@@ -219,17 +219,23 @@ filter_expressed_genes <- function(sobj, cell_types, min_pct_expressed = 0.10, a
     Seurat::Idents(sobj) <- sobj@meta.data[[cluster_col]]
   }
   
-  # Get expressed genes for each cell type
-  expressed_genes_list <- lapply(cell_types, function(ct) {
+  # Get expressed genes for each cell type with progress logging
+  n_celltypes <- length(cell_types)
+  expressed_genes_list <- list()
+  for (i in seq_along(cell_types)) {
+    ct <- cell_types[i]
+    if (n_celltypes > 5 && i %% max(1, floor(n_celltypes / 10)) == 0) {
+      message("    Progress: ", round(i / n_celltypes * 100, 0), "% (", i, "/", n_celltypes, " cell types)")
+    }
     tryCatch({
       # nichenetr::get_expressed_genes expects the cell type to be in Idents
       # It uses Seurat::GetAssayData and checks expression percentage
-      nichenetr::get_expressed_genes(ct, sobj, min_pct_expressed)
+      expressed_genes_list[[i]] <- nichenetr::get_expressed_genes(ct, sobj, min_pct_expressed)
     }, error = function(e) {
       warning("Error getting expressed genes for ", ct, ": ", e$message)
       return(character(0))
     })
-  })
+  }
   
   # Combine and get unique genes
   expressed_genes <- unique(unlist(expressed_genes_list))

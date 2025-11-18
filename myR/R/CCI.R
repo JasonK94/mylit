@@ -109,6 +109,7 @@ ligand_to_target=function(ligand,target,NN_data=NicheNetData,ligand_tf_matrix=NU
 #' @importFrom rsvg rsvg_png
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom circlize circos.clear chordDiagram circos.track circos.text uy mm_h CELL_META
+#' @importFrom graphics legend
 #' @importFrom evaluate evaluate
 #' @export
 run_nichenet_analysis <- function(seurat_obj,
@@ -141,8 +142,27 @@ run_nichenet_analysis <- function(seurat_obj,
   warnings_collected <- character(0)
   circos_notes_collected <- character(0) # For circos specific notes
   
+  # Capture function arguments for saving (before withCallingHandlers)
+  function_args_list <- as.list(match.call(expand.dots = FALSE))[-1]  # Remove function name
+  # Get actual argument values from current environment
+  captured_args <- list()
+  for (arg_name in names(function_args_list)) {
+    if (arg_name == "...") {
+      captured_args[["..."]] <- args_option
+    } else {
+      # Try to evaluate the argument
+      tryCatch({
+        captured_args[[arg_name]] <- eval(function_args_list[[arg_name]], envir = parent.frame())
+      }, error = function(e) {
+        # If evaluation fails, store the expression as string
+        captured_args[[arg_name]] <- deparse(function_args_list[[arg_name]])
+      })
+    }
+  }
+  
   analysis_results <- withCallingHandlers({
-    call_obj <- match.call()
+    # Capture call early for argument saving
+    call_obj <- match.call(expand.dots = TRUE)
     species <- match.arg(species)
     
     required_pkgs <- c("nichenetr", "Seurat", "dplyr", "tidyr", "tibble", "ggplot2", "rlang")
@@ -172,11 +192,89 @@ run_nichenet_analysis <- function(seurat_obj,
       }
       args_file_path <- file.path(current_run_output_dir, paste0(run_folder_name, "_args.txt"))
       tryCatch({
-        con_args <- file(args_file_path, "w")
-        cat(paste(utils::capture.output(print(call_obj)), collapse = "\n"), file = con_args)
-        close(con_args)
-      }, error = function(e) warning("NN_Warning: Failed to save arguments to file: ", args_file_path, ". Error: ", e$message))
-      if (verbose && file.exists(args_file_path)) message("Arguments saved to: ", args_file_path)
+        # Use captured arguments from before withCallingHandlers
+        args_summary <- paste0(
+          "# NicheNet Analysis Arguments\n",
+          "# Generated: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n",
+          "# Function: run_nichenet_analysis\n\n",
+          "# Arguments:\n"
+        )
+        # Format each captured argument
+        for (arg_name in names(captured_args)) {
+          if (arg_name == "...") {
+            if (length(captured_args[["..."]]) > 0) {
+              args_summary <- paste0(args_summary, "\n# Additional arguments (...):\n")
+              for (opt_name in names(captured_args[["..."]])) {
+                arg_val <- captured_args[["..."]][[opt_name]]
+                if (is.character(arg_val) && length(arg_val) == 1) {
+                  args_summary <- paste0(args_summary, opt_name, " = \"", arg_val, "\"\n")
+                } else if (is.numeric(arg_val) && length(arg_val) == 1) {
+                  args_summary <- paste0(args_summary, opt_name, " = ", arg_val, "\n")
+                } else {
+                  args_summary <- paste0(args_summary, opt_name, " = ", paste(utils::capture.output(print(arg_val)), collapse = " "), "\n")
+                }
+              }
+            }
+            next
+          }
+          arg_val <- captured_args[[arg_name]]
+          
+          # Format based on type
+          if (is.character(arg_val) && length(arg_val) == 1) {
+            args_summary <- paste0(args_summary, arg_name, " = \"", arg_val, "\"\n")
+          } else if (is.character(arg_val) && length(arg_val) > 1) {
+            args_summary <- paste0(args_summary, arg_name, " = c(\"", paste(arg_val, collapse = "\", \""), "\")\n")
+          } else if (is.numeric(arg_val) && length(arg_val) == 1) {
+            args_summary <- paste0(args_summary, arg_name, " = ", arg_val, "\n")
+          } else if (is.numeric(arg_val) && length(arg_val) > 1) {
+            args_summary <- paste0(args_summary, arg_name, " = c(", paste(arg_val, collapse = ", "), ")\n")
+          } else if (is.logical(arg_val) && length(arg_val) == 1) {
+            args_summary <- paste0(args_summary, arg_name, " = ", arg_val, "\n")
+          } else if (is.null(arg_val)) {
+            args_summary <- paste0(args_summary, arg_name, " = NULL\n")
+          } else if (inherits(arg_val, "Seurat")) {
+            args_summary <- paste0(args_summary, arg_name, " = <Seurat object: ", ncol(arg_val), " cells, ", nrow(arg_val), " features>\n")
+          } else if (is.data.frame(arg_val)) {
+            args_summary <- paste0(args_summary, arg_name, " = <data.frame: ", nrow(arg_val), " rows, ", ncol(arg_val), " cols>\n")
+          } else if (is.character(arg_val) && length(arg_val) == 1 && grepl("^<", arg_val)) {
+            # Already a string representation
+            args_summary <- paste0(args_summary, arg_name, " = ", arg_val, "\n")
+          } else {
+            # Fallback: try to capture output
+            arg_str <- tryCatch({
+              paste(utils::capture.output(print(arg_val)), collapse = " ")
+            }, error = function(e) {
+              paste0("<", class(arg_val)[1], ">")
+            })
+            if (nchar(arg_str) > 200) {
+              arg_str <- paste0(substr(arg_str, 1, 197), "...")
+            }
+            args_summary <- paste0(args_summary, arg_name, " = ", arg_str, "\n")
+          }
+        }
+        writeLines(args_summary, args_file_path)
+      }, error = function(e) {
+        warning("NN_Warning: Failed to save arguments to file: ", args_file_path, ". Error: ", e$message)
+        # Fallback: try simple deparse of call
+        tryCatch({
+          call_str <- deparse(call_obj, width.cutoff = 500)
+          writeLines(c("# NicheNet Analysis Arguments (fallback)", 
+                       paste("# Generated:", format(Sys.time(), "%Y-%m-%d %H:%M:%S")),
+                       "",
+                       paste(call_str, collapse = "\n")), 
+                     args_file_path)
+        }, error = function(e2) {
+          warning("NN_Warning: Fallback save also failed: ", e2$message)
+        })
+      })
+      if (verbose && file.exists(args_file_path)) {
+        file_size <- file.info(args_file_path)$size
+        if (file_size > 0) {
+          message("Arguments saved to: ", args_file_path, " (", file_size, " bytes)")
+        } else {
+          warning("NN_Warning: Arguments file created but is empty: ", args_file_path)
+        }
+      }
     } else {
       if (verbose) message("`output_dir` is NULL. Plots will be returned as objects but not saved to files.")
     }
@@ -229,8 +327,27 @@ run_nichenet_analysis <- function(seurat_obj,
     if (!nichenet_data_loaded_from_global) {
       data_dir_to_use <- nichenet_data_dir
       if (is.null(data_dir_to_use)) {
-        data_dir_to_use <- file.path(getwd(), paste0("nichenet_data_", species))
-        if (verbose) message("`nichenet_data_dir` is NULL, using default local cache: ", data_dir_to_use)
+        # Try default paths: first check /data/user3/git_repo/human or /data/user3/git_repo/mouse
+        default_paths <- c(
+          file.path("/data/user3/git_repo", species),
+          file.path(getwd(), paste0("nichenet_data_", species))
+        )
+        data_dir_to_use <- NULL
+        for (path in default_paths) {
+          if (dir.exists(path)) {
+            # Check if at least one required file exists
+            test_file <- file.path(path, required_files_map[[1]])
+            if (file.exists(test_file)) {
+              data_dir_to_use <- path
+              if (verbose) message("Found NicheNet data directory: ", data_dir_to_use)
+              break
+            }
+          }
+        }
+        if (is.null(data_dir_to_use)) {
+          data_dir_to_use <- file.path(getwd(), paste0("nichenet_data_", species))
+          if (verbose) message("`nichenet_data_dir` is NULL, using default local cache: ", data_dir_to_use)
+        }
       }
       if (!dir.exists(data_dir_to_use)) {
         if (verbose) message("Creating NicheNet data directory: ", data_dir_to_use)
@@ -238,21 +355,61 @@ run_nichenet_analysis <- function(seurat_obj,
                  error = function(e) stop("Failed to create NicheNet data directory: ", data_dir_to_use, ". Error: ", e$message))
       }
       loaded_data_for_global_assignment <- list()
-      for (simple_name in names(required_files_map)) {
+      n_files <- length(required_files_map)
+      if (verbose) message("Loading ", n_files, " NicheNet data files from: ", data_dir_to_use)
+      for (i in seq_along(required_files_map)) {
+        simple_name <- names(required_files_map)[i]
         rds_filename <- required_files_map[[simple_name]]
         file_path <- file.path(data_dir_to_use, rds_filename)
-        if (!file.exists(file_path)) {
-          if (verbose) message("File ", rds_filename, " not found in '", data_dir_to_use, "'. Downloading from Zenodo...")
-          download_url <- paste0(base_url, rds_filename, "?download=1")
+        qs_file_path <- file.path(data_dir_to_use, sub("\\.rds$", ".qs", rds_filename))
+        
+        # Progress indicator
+        if (verbose) {
+          pct <- round(i / n_files * 100, 1)
+          bar_length <- 30
+          filled <- round(bar_length * i / n_files)
+          bar <- paste0(rep("=", filled), collapse = "")
+          spaces <- paste0(rep(" ", bar_length - filled), collapse = "")
+          message("  [", bar, spaces, "] ", pct, "% (", i, "/", n_files, ") Loading ", rds_filename)
+        }
+        
+        # Try .qs file first (faster), then .rds
+        data_loaded <- FALSE
+        if (file.exists(qs_file_path) && requireNamespace("qs", quietly = TRUE)) {
           tryCatch({
-            utils::download.file(url = download_url, destfile = file_path, mode = "wb", quiet = !verbose)
-            if (verbose) message("Downloaded ", rds_filename, " successfully to ", data_dir_to_use)
+            assign(simple_name, qs::qread(qs_file_path), envir = temp_data_env)
+            loaded_data_for_global_assignment[[simple_name]] <- get(simple_name, envir = temp_data_env)
+            data_loaded <- TRUE
+            if (verbose) message("    Loaded from .qs file (faster)")
           }, error = function(e) {
-            stop("Failed to download ", rds_filename, ". Error: ", e$message, call. = FALSE)
+            if (verbose) message("    Failed to load .qs, trying .rds: ", e$message)
           })
         }
-        assign(simple_name, readRDS(file_path), envir = temp_data_env)
-        loaded_data_for_global_assignment[[simple_name]] <- get(simple_name, envir = temp_data_env)
+        
+        if (!data_loaded) {
+          if (!file.exists(file_path)) {
+            if (verbose) message("    File ", rds_filename, " not found. Downloading from Zenodo...")
+            download_url <- paste0(base_url, rds_filename, "?download=1")
+            tryCatch({
+              utils::download.file(url = download_url, destfile = file_path, mode = "wb", quiet = !verbose)
+              if (verbose) message("    Downloaded ", rds_filename, " successfully")
+            }, error = function(e) {
+              stop("Failed to download ", rds_filename, ". Error: ", e$message, call. = FALSE)
+            })
+          }
+          assign(simple_name, readRDS(file_path), envir = temp_data_env)
+          loaded_data_for_global_assignment[[simple_name]] <- get(simple_name, envir = temp_data_env)
+          
+          # Optionally save as .qs for faster future loading
+          if (requireNamespace("qs", quietly = TRUE) && !file.exists(qs_file_path)) {
+            tryCatch({
+              qs::qsave(get(simple_name, envir = temp_data_env), qs_file_path)
+              if (verbose) message("    Saved as .qs for faster future loading")
+            }, error = function(e) {
+              # Silently fail - .qs conversion is optional
+            })
+          }
+        }
       }
       temp_data_env$lr_network <- temp_data_env$lr_network %>% dplyr::distinct(from, to)
       loaded_data_for_global_assignment[["lr_network"]] <- temp_data_env$lr_network
@@ -290,8 +447,25 @@ run_nichenet_analysis <- function(seurat_obj,
     if(!all(sender_celltypes %in% levels(Seurat::Idents(seurat_obj)))) stop("One or more sender_celltypes not found in Seurat Idents (column '", cluster_col, "').", call. = FALSE)
     if(!receiver_celltype %in% levels(Seurat::Idents(seurat_obj))) stop("Receiver_celltype '", receiver_celltype, "' not found in Seurat Idents (column '", cluster_col, "').", call. = FALSE)
     
-    if (verbose) message("  Checking expressed genes in ", length(sender_celltypes), " sender cell type(s)...")
-    list_expressed_genes_sender <- lapply(sender_celltypes, nichenetr::get_expressed_genes, seurat_obj, min_pct_expressed)
+    if (verbose) {
+      message("  Checking expressed genes in ", length(sender_celltypes), " sender cell type(s)...")
+      message("    [This may take a while for large datasets]")
+    }
+    # Process with progress logging for large sender lists
+    n_senders <- length(sender_celltypes)
+    list_expressed_genes_sender <- list()
+    for (i in seq_along(sender_celltypes)) {
+      s_type <- sender_celltypes[i]
+      if (verbose) {
+        pct <- round(i / n_senders * 100, 1)
+        bar_length <- 30
+        filled <- round(bar_length * i / n_senders)
+        bar <- paste0(rep("=", filled), collapse = "")
+        spaces <- paste0(rep(" ", bar_length - filled), collapse = "")
+        message("    [", bar, spaces, "] ", pct, "% (", i, "/", n_senders, ") Processing sender: ", s_type)
+      }
+      list_expressed_genes_sender[[i]] <- nichenetr::get_expressed_genes(s_type, seurat_obj, min_pct_expressed)
+    }
     expressed_genes_sender <- unique(unlist(list_expressed_genes_sender))
     if (verbose) message("  Checking expressed genes in receiver cell type...")
     expressed_genes_receiver <- nichenetr::get_expressed_genes(receiver_celltype, seurat_obj, min_pct_expressed)
@@ -374,18 +548,27 @@ run_nichenet_analysis <- function(seurat_obj,
     if (verbose) message("Defining potential ligands...")
     ligands_db <- lr_network %>% dplyr::pull(from) %>% unique()
     receptors_db <- lr_network %>% dplyr::pull(to) %>% unique()
-    expressed_ligands <- intersect(ligands_db, expressed_genes_sender)
-    expressed_receptors <- intersect(receptors_db, expressed_genes_receiver)
+    expressed_ligands <- base::intersect(ligands_db, expressed_genes_sender)
+    expressed_receptors <- base::intersect(receptors_db, expressed_genes_receiver)
     potential_ligands <- lr_network %>% dplyr::filter(from %in% expressed_ligands & to %in% expressed_receptors) %>% dplyr::pull(from) %>% unique()
     if(length(potential_ligands) == 0) stop("No potential ligands found based on expression in sender/receiver and L-R database.", call. = FALSE)
     if (verbose) message(length(potential_ligands), " potential ligands identified.")
     
     # --- V. Perform NicheNet Ligand Activity Analysis ---
-    if (verbose) message("Predicting ligand activities for ", length(potential_ligands), " potential ligands...")
+    if (verbose) {
+      message("Predicting ligand activities for ", length(potential_ligands), " potential ligands...")
+      message("  [Processing ", length(geneset_oi), " DEGs - this may take several minutes for large DEG sets]")
+      message("  [", paste0(rep("=", 30), collapse = ""), "] Starting ligand activity prediction...")
+    }
     start_time_ligand <- Sys.time()
     ligand_activities <- nichenetr::predict_ligand_activities(geneset = geneset_oi, background_expressed_genes = background_expressed_genes, ligand_target_matrix = ligand_target_matrix, potential_ligands = potential_ligands) %>% dplyr::arrange(dplyr::desc(aupr_corrected))
     elapsed_ligand <- difftime(Sys.time(), start_time_ligand, units = "secs")
-    if (verbose) message("  Ligand activity prediction completed (", round(elapsed_ligand, 1), " seconds)")
+    if (verbose) {
+      message("  [", paste0(rep("=", 30), collapse = ""), "] 100% Ligand activity prediction completed (", round(elapsed_ligand, 1), " seconds)")
+      if (elapsed_ligand > 60) {
+        message("  [Note: Large DEG sets take longer. Consider filtering DEGs if runtime is a concern.]")
+      }
+    }
     best_upstream_ligands <- ligand_activities %>% dplyr::top_n(min(top_n_ligands, nrow(ligand_activities)), aupr_corrected) %>% dplyr::pull(test_ligand) %>% unique()
     if (verbose) {
       message("Top ", length(best_upstream_ligands), " ligands selected based on AUPR.")
@@ -394,25 +577,58 @@ run_nichenet_analysis <- function(seurat_obj,
     }
     
     # --- VI. Infer Active Target Genes of Top Ligands ---
-    if (verbose) message("Inferring active target genes for top ligands...")
-    active_ligand_target_links_df <- best_upstream_ligands %>%
-      lapply(nichenetr::get_weighted_ligand_target_links, geneset = geneset_oi, ligand_target_matrix = ligand_target_matrix, n = top_n_targets_per_ligand) %>%
-      dplyr::bind_rows() %>% tidyr::drop_na()
+    if (verbose) {
+      message("Inferring active target genes for top ", length(best_upstream_ligands), " ligands...")
+      message("  [Each ligand will infer up to ", top_n_targets_per_ligand, " target genes]")
+    }
+    start_time_targets <- Sys.time()
+    # Process ligands with progress logging
+    active_ligand_target_links_list <- list()
+    n_ligands <- length(best_upstream_ligands)
+    for (i in seq_along(best_upstream_ligands)) {
+      lig <- best_upstream_ligands[i]
+      if (verbose) {
+        pct <- round(i / n_ligands * 100, 1)
+        bar_length <- 30
+        filled <- round(bar_length * i / n_ligands)
+        bar <- paste0(rep("=", filled), collapse = "")
+        spaces <- paste0(rep(" ", bar_length - filled), collapse = "")
+        message("  [", bar, spaces, "] ", pct, "% (", i, "/", n_ligands, ") Processing ligand: ", lig)
+      }
+      active_ligand_target_links_list[[i]] <- tryCatch({
+        nichenetr::get_weighted_ligand_target_links(
+          ligands = lig,
+          geneset = geneset_oi,
+          ligand_target_matrix = ligand_target_matrix,
+          n = top_n_targets_per_ligand
+        )
+      }, error = function(e) {
+        warning("NN_Warning: Failed to get links for ligand ", lig, ": ", e$message)
+        return(tibble::tibble())
+      })
+    }
+    active_ligand_target_links_df <- dplyr::bind_rows(active_ligand_target_links_list) %>% tidyr::drop_na()
+    elapsed_targets <- difftime(Sys.time(), start_time_targets, units = "secs")
+    if (verbose) message("  Ligand-target inference completed (", round(elapsed_targets, 1), " seconds, ", nrow(active_ligand_target_links_df), " links found)")
     p_ligand_target_network <- NULL
     if(nrow(active_ligand_target_links_df) > 0){
+      if (verbose) message("  Preparing ligand-target visualization matrix...")
+      start_time_viz <- Sys.time()
       active_ligand_target_links_matrix <- nichenetr::prepare_ligand_target_visualization(ligand_target_df = active_ligand_target_links_df, ligand_target_matrix = ligand_target_matrix, cutoff = ligand_target_cutoff)
+      elapsed_viz <- difftime(Sys.time(), start_time_viz, units = "secs")
+      if (verbose) message("  Visualization matrix prepared (", round(elapsed_viz, 1), " seconds)")
       if (is.null(active_ligand_target_links_matrix) || nrow(active_ligand_target_links_matrix) == 0 || ncol(active_ligand_target_links_matrix) == 0) {
         warning("NN_Warning: Ligand-target matrix is empty/small after preparation. Skipping L-T heatmap.")
         p_ligand_target_network <- ggplot2::ggplot() + ggplot2::labs(title="No L-T links for heatmap after preparation.")
       } else {
-        ligands_for_ordering <- intersect(best_upstream_ligands, colnames(active_ligand_target_links_matrix)) %>% rev()
-        targets_for_ordering <- active_ligand_target_links_df$target %>% unique() %>% intersect(rownames(active_ligand_target_links_matrix))
+        ligands_for_ordering <- base::intersect(best_upstream_ligands, colnames(active_ligand_target_links_matrix)) %>% rev()
+        targets_for_ordering <- active_ligand_target_links_df$target %>% unique() %>% base::intersect(rownames(active_ligand_target_links_matrix))
         rownames(active_ligand_target_links_matrix) <- make.names(rownames(active_ligand_target_links_matrix))
         colnames(active_ligand_target_links_matrix) <- make.names(colnames(active_ligand_target_links_matrix))
         order_ligands_final <- make.names(ligands_for_ordering)
         order_targets_final <- make.names(targets_for_ordering)
-        order_ligands_final_intersect <- intersect(order_ligands_final, colnames(active_ligand_target_links_matrix))
-        order_targets_final_intersect <- intersect(order_targets_final, rownames(active_ligand_target_links_matrix))
+        order_ligands_final_intersect <- base::intersect(order_ligands_final, colnames(active_ligand_target_links_matrix))
+        order_targets_final_intersect <- base::intersect(order_targets_final, rownames(active_ligand_target_links_matrix))
         if (length(order_targets_final_intersect) == 0 || length(order_ligands_final_intersect) == 0) {
           warning("NN_Warning: No common targets or ligands for L-T heatmap after make.names. Skipping.")
           p_ligand_target_network <- ggplot2::ggplot() + ggplot2::labs(title="No common targets/ligands for L-T heatmap.")
@@ -434,8 +650,8 @@ run_nichenet_analysis <- function(seurat_obj,
     best_upstream_receptors <- lr_network_top %>% dplyr::pull(to) %>% unique()
     if(length(best_upstream_ligands) > 0 && length(best_upstream_receptors) > 0){
       lr_network_top_df_large <- weighted_networks_lr %>% dplyr::filter(from %in% best_upstream_ligands & to %in% best_upstream_receptors)
-      valid_ligands_in_df <- intersect(best_upstream_ligands, unique(lr_network_top_df_large$from))
-      valid_receptors_in_df <- intersect(best_upstream_receptors, unique(lr_network_top_df_large$to))
+      valid_ligands_in_df <- base::intersect(best_upstream_ligands, unique(lr_network_top_df_large$from))
+      valid_receptors_in_df <- base::intersect(best_upstream_receptors, unique(lr_network_top_df_large$to))
       if(length(valid_ligands_in_df) > 0 && length(valid_receptors_in_df) > 0) {
         lr_network_top_df_filtered <- lr_network_top_df_large %>% dplyr::filter(from %in% valid_ligands_in_df, to %in% valid_receptors_in_df)
         if (nrow(lr_network_top_df_filtered) > 0) {
@@ -480,33 +696,74 @@ run_nichenet_analysis <- function(seurat_obj,
           if(nrow(circos_lr_data_raw) > 0) {
             # Data Preparation for Circos (ensure all pkg calls are prefixed if not in @importFrom)
             unique_ligands_in_circos <- unique(circos_lr_data_raw$from)
-            if (verbose) message("  Mapping ", length(unique_ligands_in_circos), " ligands to sender cell types (this may take a while)...")
+            n_ligands_circos <- length(unique_ligands_in_circos)
+            n_senders_circos <- length(sender_celltypes)
+            if (verbose) {
+              message("  Mapping ", n_ligands_circos, " ligands to ", n_senders_circos, " sender cell types...")
+              message("  [", paste0(rep("=", 30), collapse = ""), "] Starting ligand-sender mapping...")
+            }
             start_time_circos_map <- Sys.time()
             # Pre-compute cells per sender type to avoid repeated calls
+            if (verbose) message("    Step 1/3: Pre-computing cells per sender type...")
             cells_per_sender <- lapply(sender_celltypes, function(s_type) {
               Seurat::Cells(seurat_obj)[Seurat::Idents(seurat_obj) == s_type]
             })
             names(cells_per_sender) <- sender_celltypes
-            # Pre-compute assay data once
-            assay_data <- Seurat::GetAssayData(seurat_obj, assay = assay_name, slot = "data")
-            ligand_sender_map <- sapply(unique_ligands_in_circos, function(lig) {
-              expressing_senders <- c()
-              if (lig %in% rownames(assay_data)) {
-                for (s_type in sender_celltypes) {
-                  cells_in_sender <- cells_per_sender[[s_type]]
-                  if (length(cells_in_sender) > 0) {
-                    gene_expr_in_sender <- assay_data[lig, cells_in_sender, drop=FALSE]
-                    if (sum(gene_expr_in_sender > 0) / length(cells_in_sender) >= min_pct_expressed) {
-                      expressing_senders <- c(expressing_senders, s_type)
+            
+            # Optimize: Only load expression data for ligands that are actually in the assay
+            # Check which ligands are available in the assay first
+            if (verbose) message("    Step 2/3: Loading expression data and filtering available ligands...")
+            assay_data_available <- Seurat::GetAssayData(seurat_obj, assay = assay_name, slot = "data")
+            available_ligands <- base::intersect(unique_ligands_in_circos, rownames(assay_data_available))
+            if (verbose && length(available_ligands) < length(unique_ligands_in_circos)) {
+              message("    Note: ", length(unique_ligands_in_circos) - length(available_ligands), " ligands not found in assay, will skip mapping for those.")
+            }
+            
+            # Pre-compute expression percentages per sender for available ligands only
+            # This is much faster than checking each ligand individually
+            if (verbose) message("    Step 3/3: Computing expression percentages per sender...")
+            if (length(available_ligands) > 0 && length(sender_celltypes) > 0) {
+              # Use sparse matrix operations for efficiency
+              ligand_sender_map <- character(length(unique_ligands_in_circos))
+              names(ligand_sender_map) <- unique_ligands_in_circos
+              
+              # For each sender, compute expression percentage for all ligands at once
+              for (i in seq_along(sender_celltypes)) {
+                s_type <- sender_celltypes[i]
+                if (verbose && n_senders_circos > 5) {
+                  pct <- round(i / n_senders_circos * 100, 1)
+                  bar_length <- 20
+                  filled <- round(bar_length * i / n_senders_circos)
+                  bar <- paste0(rep("=", filled), collapse = "")
+                  spaces <- paste0(rep(" ", bar_length - filled), collapse = "")
+                  message("      [", bar, spaces, "] ", pct, "% (", i, "/", n_senders_circos, ") Processing sender: ", s_type)
+                }
+                cells_in_sender <- cells_per_sender[[s_type]]
+                if (length(cells_in_sender) > 0) {
+                  # Get expression for all available ligands in this sender
+                  expr_subset <- assay_data_available[available_ligands, cells_in_sender, drop = FALSE]
+                  # Compute percentage of cells expressing each ligand
+                  pct_expressing <- Matrix::rowSums(expr_subset > 0) / length(cells_in_sender)
+                  # Find ligands that meet threshold and haven't been assigned yet
+                  ligands_meeting_threshold <- names(pct_expressing)[pct_expressing >= min_pct_expressed]
+                  for (lig in ligands_meeting_threshold) {
+                    if (lig %in% names(ligand_sender_map) && ligand_sender_map[lig] == "") {
+                      ligand_sender_map[lig] <- s_type
                     }
                   }
                 }
               }
-              if (length(expressing_senders) > 0) return(expressing_senders[1])
-              return("UnknownSender")
-            }, USE.NAMES = TRUE)
+              # Assign "UnknownSender" to ligands that weren't assigned
+              ligand_sender_map[ligand_sender_map == ""] <- "UnknownSender"
+            } else {
+              ligand_sender_map <- setNames(rep("UnknownSender", length(unique_ligands_in_circos)), unique_ligands_in_circos)
+            }
+            
             elapsed_circos_map <- difftime(Sys.time(), start_time_circos_map, units = "secs")
-            if (verbose) message("  Ligand-sender mapping completed (", round(elapsed_circos_map, 1), " seconds)")
+            if (verbose) {
+              message("  [", paste0(rep("=", 30), collapse = ""), "] 100% Ligand-sender mapping completed (", round(elapsed_circos_map, 1), " seconds)")
+              message("  Generating Circos plot visualization...")
+            }
             
             ligand_df_circos <- tibble::tibble(
               item = unique_ligands_in_circos,
@@ -522,7 +779,7 @@ run_nichenet_analysis <- function(seurat_obj,
             
             # Color palette generation
             unique_sender_color_groups <- unique(ligand_df_circos$color_group)
-            n_actual_senders <- length(setdiff(unique_sender_color_groups, "UnknownSender"))
+            n_actual_senders <- length(base::setdiff(unique_sender_color_groups, "UnknownSender"))
             sender_palette_values <- character(0)
             if (n_actual_senders > 0) {
               pal_name <- "Set1"
@@ -533,7 +790,7 @@ run_nichenet_analysis <- function(seurat_obj,
                 sender_palette_values <- rep(sender_palette_values, length.out = n_actual_senders)
               }
             }
-            sender_palette <- stats::setNames(sender_palette_values, setdiff(unique_sender_color_groups, "UnknownSender"))
+            sender_palette <- stats::setNames(sender_palette_values, base::setdiff(unique_sender_color_groups, "UnknownSender"))
             if ("UnknownSender" %in% unique_sender_color_groups) {
               sender_palette["UnknownSender"] <- "grey50"
             }
@@ -555,7 +812,11 @@ run_nichenet_analysis <- function(seurat_obj,
             
             
             # Define defaults if not provided by the user
-            circos_cex_text <- args_option$circos_cex_text %||% 0.4 # Default from your code
+            circos_cex_text <- args_option$circos_cex_text %||% 0.8  # Increased from 0.4 for better visibility
+            circos_show_legend <- args_option$circos_show_legend %||% TRUE
+            circos_legend_position <- args_option$circos_legend_position %||% "topright"
+            circos_legend_size <- args_option$circos_legend_size %||% 0.9
+            circos_legend_inset <- args_option$circos_legend_inset %||% c(-0.15, 0)
             circos_png_width <- args_option$circos_png_width %||% 1000
             circos_png_height <- args_option$circos_png_height %||% 1000
             circos_png_res <- args_option$circos_png_res %||% 100
@@ -563,6 +824,20 @@ run_nichenet_analysis <- function(seurat_obj,
             circos_pdf_height <- args_option$circos_pdf_height %||% 10
             # Add any other parameters you want to control for circlize::chordDiagram, etc.
             # e.g., link_transparency <- args_option$link_transparency %||% 0.25
+            
+            # Prepare legend data
+            legend_labels <- character(0)
+            legend_colors <- character(0)
+            if (circos_show_legend) {
+              # Add sender groups to legend
+              for (s_group in names(sender_palette)) {
+                legend_labels <- c(legend_labels, paste0(s_group, " (Ligands)"))
+                legend_colors <- c(legend_colors, sender_palette[s_group])
+              }
+              # Add receptor to legend
+              legend_labels <- c(legend_labels, "Receptor")
+              legend_colors <- c(legend_colors, receptor_color)
+            }
             
             # Define the plotting function
             do_circos_plotting <- function() {
@@ -581,6 +856,20 @@ run_nichenet_analysis <- function(seurat_obj,
                                       facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5),
                                       cex=circos_cex_text)
               }, bg.border = NA)
+              
+              # Add legend if requested
+              if (circos_show_legend && length(legend_labels) > 0) {
+                graphics::legend(
+                  x = circos_legend_position,
+                  legend = legend_labels,
+                  fill = legend_colors,
+                  cex = circos_legend_size,
+                  inset = circos_legend_inset,
+                  bg = "white",
+                  box.lty = 1,
+                  box.lwd = 1
+                )
+              }
             }
             
             # Capture messages (notes) from circlize
@@ -678,7 +967,7 @@ run_nichenet_analysis <- function(seurat_obj,
                           "lr_network_top_df_large", "list_expressed_genes_sender", "expressed_genes_sender",
                           "expressed_genes_receiver", "ligand_df_circos", "receptor_df_circos",
                           "links_df_circos", "captured_circlize_messages")
-    rm(list = intersect(objects_to_clear, ls()), envir = environment())
+    rm(list = base::intersect(objects_to_clear, ls()), envir = environment())
     gc(verbose = FALSE)
 
     return(results_list)
@@ -861,7 +1150,7 @@ prepare_nichenet_circos_data <- function(lr_network_top_df_large,
   
   
   unique_sender_color_groups <- unique(ligand_df_circos$color_group)
-  n_actual_senders <- length(setdiff(unique_sender_color_groups, "UnknownSender"))
+  n_actual_senders <- length(base::setdiff(unique_sender_color_groups, "UnknownSender"))
   sender_palette_values <- character(0)
   
   if (n_actual_senders > 0) {
@@ -872,7 +1161,7 @@ prepare_nichenet_circos_data <- function(lr_network_top_df_large,
       sender_palette_values <- rep(sender_palette_values, length.out = n_actual_senders)
     }
   }
-  sender_palette_legend <- stats::setNames(sender_palette_values, setdiff(unique_sender_color_groups, "UnknownSender"))
+  sender_palette_legend <- stats::setNames(sender_palette_values, base::setdiff(unique_sender_color_groups, "UnknownSender"))
   if ("UnknownSender" %in% unique_sender_color_groups) {
     sender_palette_legend["UnknownSender"] <- "grey50"
   }
