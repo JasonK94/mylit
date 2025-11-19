@@ -5,7 +5,7 @@
 #'
 #' @param sobj Seurat object
 #' @param cluster_col Character string, name of metadata column with cluster annotations
-#' @param deg_df Data frame with DEG results. Must contain columns: gene, cluster, and either logFC/avg_log2FC, p_val_adj
+#' @param deg_df Data frame with DEG results. Must contain columns: gene, cluster, and either logFC/avg_log2FC, p_val_adj. If NULL, DEGs will be computed automatically using condition_col, condition_oi, and condition_ref.
 #' @param receiver_cluster Character string, receiver cluster ID
 #' @param sender_clusters Character vector, sender cluster IDs (optional, NULL for auto-identification)
 #' @param condition_col Character string, condition column for DE analysis (optional, if DEG already computed)
@@ -37,7 +37,7 @@
 #' @export
 run_cci_analysis <- function(sobj,
                               cluster_col,
-                              deg_df,
+                              deg_df = NULL,
                               receiver_cluster,
                               sender_clusters = NULL,
                               condition_col = NULL,
@@ -78,32 +78,113 @@ run_cci_analysis <- function(sobj,
     message("Total steps: 7 (Validation → DEG extraction → Sender ID → Expressed genes → Summary → NicheNet → Compile)")
   }
   
+  # Step 0: Compute DEGs if not provided
+  if (is.null(deg_df)) {
+    if (verbose) message("Step 0/7 (0%): Computing DEGs (deg_df not provided)...")
+    if (is.null(condition_col) || is.null(condition_oi)) {
+      stop("When `deg_df` is not provided, `condition_col` and `condition_oi` must be specified to compute DEGs automatically.")
+    }
+    
+    # Compute DEGs using FindMarkers
+    if (verbose) {
+      message("  Computing DEGs for receiver cluster '", receiver_cluster, "' using FindMarkers...")
+      message("  Condition: ", condition_col, " = ", condition_oi, " vs ", if (!is.null(condition_ref)) condition_ref else "all others")
+    }
+    
+    # Get cells for receiver cluster
+    receiver_cells <- sobj@meta.data[[cluster_col]] == receiver_cluster
+    if (sum(receiver_cells) == 0) {
+      stop("No cells found for receiver cluster '", receiver_cluster, "'")
+    }
+    
+    # Set up identity for FindMarkers
+    Seurat::Idents(sobj) <- condition_col
+    
+    # For SCT assay, prepare if needed
+    if (assay_name == "SCT" && "SCT" %in% names(sobj@assays)) {
+      if (verbose) message("  Preparing SCT assay for FindMarkers...")
+      prep_success <- tryCatch({
+        sobj <- Seurat::PrepSCTFindMarkers(sobj, assay = "SCT", verbose = FALSE)
+        TRUE
+      }, error = function(e) {
+        if (verbose) message("  Note: PrepSCTFindMarkers failed (", e$message, "), trying RNA assay instead")
+        FALSE
+      })
+      if (!prep_success) {
+        assay_name <- "RNA"
+        if (!"RNA" %in% names(sobj@assays)) {
+          stop("RNA assay not found in Seurat object. Cannot compute DEGs.")
+        }
+      }
+    } else if (assay_name == "SCT" && !"SCT" %in% names(sobj@assays)) {
+      if (verbose) message("  SCT assay not found, using RNA assay instead")
+      assay_name <- "RNA"
+      if (!"RNA" %in% names(sobj@assays)) {
+        stop("RNA assay not found in Seurat object. Cannot compute DEGs.")
+      }
+    }
+    
+    # Find markers
+    if (!is.null(condition_ref)) {
+      # Compare condition_oi vs condition_ref
+      deg_result <- Seurat::FindMarkers(
+        sobj,
+        ident.1 = condition_oi,
+        ident.2 = condition_ref,
+        subset.ident = receiver_cluster,
+        assay = assay_name,
+        min.pct = min_pct_expressed,
+        logfc.threshold = logfc_cutoff,
+        test.use = "wilcox",
+        verbose = FALSE
+      )
+    } else {
+      # Compare condition_oi vs all others
+      deg_result <- Seurat::FindMarkers(
+        sobj,
+        ident.1 = condition_oi,
+        subset.ident = receiver_cluster,
+        assay = assay_name,
+        min.pct = min_pct_expressed,
+        logfc.threshold = logfc_cutoff,
+        test.use = "wilcox",
+        verbose = FALSE
+      )
+    }
+    
+    # Format DEG result
+    deg_result$gene <- rownames(deg_result)
+    deg_result$cluster <- receiver_cluster
+    
+    # Standardize column names
+    if ("avg_log2FC" %in% colnames(deg_result)) {
+      deg_result$logFC <- deg_result$avg_log2FC
+    } else if (!"logFC" %in% colnames(deg_result)) {
+      if ("avg_logFC" %in% colnames(deg_result)) {
+        deg_result$logFC <- deg_result$avg_logFC
+      } else {
+        stop("FindMarkers result does not contain expected logFC column")
+      }
+    }
+    
+    deg_df <- deg_result
+    if (verbose) {
+      message("  Found ", nrow(deg_df), " DEGs (before filtering)")
+    }
+  }
+  
   # Step 1: Validate inputs
   if (verbose) message("Step 1/7 (14%): Validating inputs...")
   validation <- validate_cci_inputs(sobj, cluster_col, deg_df, receiver_cluster, sender_clusters)
   
-  # Step 2: Extract receiver DEGs
-  if (verbose) message("Step 2/7 (29%): Extracting receiver DEGs...")
-  receiver_degs <- extract_receiver_degs(
-    deg_df, 
-    receiver_cluster,
-    p_val_adj_cutoff = p_val_adj_cutoff,
-    logfc_cutoff = logfc_cutoff,
-    only_upregulated = TRUE
-  )
-  
-  if (nrow(receiver_degs) == 0) {
-    stop("No DEGs found for receiver cluster '", receiver_cluster, "' after filtering")
-  }
-  
-  if (verbose) {
-    message("  Found ", nrow(receiver_degs), " DEGs for receiver cluster after filtering")
-  }
-  
   # Auto-adjust top_n_targets_per_ligand if not explicitly set and DEG count is large
+  # This needs to be done before extract_receiver_degs to determine if we use top_n filtering
   dots_list <- list(...)
   if (is.null(top_n_targets_per_ligand) && !"top_n_targets_per_ligand" %in% names(dots_list)) {
-    n_degs <- nrow(receiver_degs)
+    # Get initial DEG count to estimate
+    initial_degs <- deg_df %>%
+      dplyr::filter(cluster == receiver_cluster)
+    n_degs <- nrow(initial_degs)
     if (n_degs > 3000) {
       top_n_targets_per_ligand <- 50
       if (verbose) message("  Large DEG set detected (", n_degs, " genes). Auto-adjusting top_n_targets_per_ligand to ", top_n_targets_per_ligand, " for faster computation.")
@@ -112,6 +193,46 @@ run_cci_analysis <- function(sobj,
       if (verbose) message("  Moderate DEG set (", n_degs, " genes). Auto-adjusting top_n_targets_per_ligand to ", top_n_targets_per_ligand, ".")
     } else {
       top_n_targets_per_ligand <- 200  # Keep default for small sets
+    }
+  }
+  
+  # Step 2: Extract receiver DEGs
+  if (verbose) message("Step 2/7 (29%): Extracting receiver DEGs...")
+  
+  # If top_n_targets_per_ligand is specified, use it as top_n for DEG filtering
+  # This means cutoff filters are ignored and top N DEGs by logFC are selected
+  # Note: top_n_targets_per_ligand is per ligand, but we use it as a rough estimate for total DEGs
+  # A more conservative approach: use top_n_targets_per_ligand * top_n_ligands as total DEG limit
+  deg_top_n <- NULL
+  if (!is.null(top_n_targets_per_ligand)) {
+    # Estimate: if we have top_n_ligands ligands, each with top_n_targets_per_ligand targets,
+    # we need at least top_n_ligands * top_n_targets_per_ligand unique DEGs
+    # But to be safe, we'll use a multiplier (e.g., 2x) to ensure enough DEGs
+    deg_top_n <- top_n_ligands * top_n_targets_per_ligand * 2
+    if (verbose) {
+      message("  top_n_targets_per_ligand is specified (", top_n_targets_per_ligand, "). ",
+              "Using top ", deg_top_n, " DEGs by logFC (cutoff filters ignored).")
+    }
+  }
+  
+  receiver_degs <- extract_receiver_degs(
+    deg_df, 
+    receiver_cluster,
+    p_val_adj_cutoff = p_val_adj_cutoff,
+    logfc_cutoff = logfc_cutoff,
+    only_upregulated = TRUE,
+    top_n = deg_top_n  # NULL if top_n_targets_per_ligand is NULL, otherwise use estimated top_n
+  )
+  
+  if (nrow(receiver_degs) == 0) {
+    stop("No DEGs found for receiver cluster '", receiver_cluster, "' after filtering")
+  }
+  
+  if (verbose) {
+    if (!is.null(deg_top_n)) {
+      message("  Selected top ", nrow(receiver_degs), " DEGs by logFC (cutoff filters ignored)")
+    } else {
+      message("  Found ", nrow(receiver_degs), " DEGs for receiver cluster after cutoff filtering")
     }
   }
   
@@ -311,6 +432,10 @@ run_cci_analysis <- function(sobj,
       circos_title_auto <- circos_params$circos_title
     }
     
+    # Determine column names for receiver_de_table
+    receiver_logfc_col <- if ("avg_log2FC" %in% colnames(receiver_degs)) "avg_log2FC" else if ("logFC" %in% colnames(receiver_degs)) "logFC" else NULL
+    receiver_pval_col <- if ("p_val_adj" %in% colnames(receiver_degs)) "p_val_adj" else if ("FDR" %in% colnames(receiver_degs)) "FDR" else if ("p_val" %in% colnames(receiver_degs)) "p_val" else NULL
+    
     # Call run_nichenet_analysis
     # Note: We pass more lenient parameters to FindMarkers to ensure DEGs are found
     # The actual filtering will be done by p_val_adj_cutoff and logfc_cutoff
@@ -326,6 +451,8 @@ run_cci_analysis <- function(sobj,
         receiver_DE_ident2 = condition_ref,
         receiver_DE_group_by = condition_col,
         receiver_de_table = receiver_degs,
+        receiver_logfc_col = receiver_logfc_col,
+        receiver_pval_col = receiver_pval_col,
         min_pct_expressed = max(0.05, min_pct_expressed),  # More lenient min_pct
         p_val_adj_cutoff = p_val_adj_cutoff,
         logfc_cutoff = max(0.1, logfc_cutoff),  # More lenient logfc threshold for FindMarkers

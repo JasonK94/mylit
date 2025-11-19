@@ -269,10 +269,12 @@ resume_cci_from_prepared <- function(prepared_data_file,
 
 #' Replot from Saved NicheNet Results
 #'
-#' Loads saved NicheNet results from a .qs file and replots the circos plot
-#' with customizable parameters.
+#' Replots the circos plot from NicheNet results, either from a saved .qs file
+#' or from a results object already in memory.
 #'
-#' @param results_file Character string, path to the saved results file (e.g., `nichenet_results.qs`)
+#' @param results_file Character string, path to the saved results file (e.g., `nichenet_results.qs`).
+#'                    If NULL, `results` parameter must be provided.
+#' @param results List, NicheNet results object already in memory. If provided, `results_file` is ignored.
 #' @param output_file Character string, optional path to save the replotted figure. If NULL, plots to current device.
 #' @param circos_cex_text Numeric, text size for circos plot labels (default: 0.8)
 #' @param circos_show_legend Logical, whether to show legend (default: TRUE)
@@ -290,16 +292,23 @@ resume_cci_from_prepared <- function(prepared_data_file,
 #'
 #' @examples
 #' \dontrun{
-#' # Replot from saved results
+#' # Replot from saved file
 #' replot_nichenet_circos(
 #'   results_file = "/data/user3/sobj/run6/nichenet_results.qs",
 #'   format = "png",
-#'   output_file = "/data/user3/sobj/run6/circos_replot.png",
-#'   circos_cex_text = 1.0,
-#'   circos_show_legend = TRUE
+#'   output_file = "/data/user3/sobj/run6/circos_replot.png"
+#' )
+#' 
+#' # Replot from results object in memory (faster for testing)
+#' results <- run_cci_analysis(...)
+#' replot_nichenet_circos(
+#'   results = results$nichenet_results,
+#'   format = "png",
+#'   output_file = "circos_replot.png"
 #' )
 #' }
-replot_nichenet_circos <- function(results_file,
+replot_nichenet_circos <- function(results_file = NULL,
+                                    results = NULL,
                                     output_file = NULL,
                                     circos_cex_text = 0.8,
                                     circos_show_legend = TRUE,
@@ -312,38 +321,46 @@ replot_nichenet_circos <- function(results_file,
                                     res = 100,
                                     verbose = TRUE) {
   
-  if (!requireNamespace("qs", quietly = TRUE)) {
-    stop("qs package is required for loading saved results")
-  }
-  
   if (!requireNamespace("circlize", quietly = TRUE)) {
     stop("circlize package is required for replotting")
   }
   
   format <- match.arg(format)
   
-  if (!file.exists(results_file)) {
-    stop("Results file not found: ", results_file)
+  # Load results from file or use provided results object
+  if (!is.null(results)) {
+    # Use provided results object (faster, no file I/O)
+    if (verbose) message("Using results object from memory")
+    results_obj <- results
+  } else if (!is.null(results_file)) {
+    # Load from file
+    if (!requireNamespace("qs", quietly = TRUE)) {
+      stop("qs package is required for loading saved results")
+    }
+    if (!file.exists(results_file)) {
+      stop("Results file not found: ", results_file)
+    }
+    if (verbose) message("Loading results from: ", results_file)
+    results_obj <- qs::qread(results_file)
+  } else {
+    stop("Either 'results_file' or 'results' must be provided")
   }
-  
-  if (verbose) message("Loading results from: ", results_file)
-  results <- qs::qread(results_file)
   
   # Check file structure - handle both nested and flat structures
   # Structure 1: results$nichenet_results$plot_circos (from run_cci_analysis)
   # Structure 2: results$plot_circos (direct NicheNet results)
-  if (!is.null(results$nichenet_results) && !is.null(results$nichenet_results$plot_circos)) {
+  if (!is.null(results_obj$nichenet_results) && !is.null(results_obj$nichenet_results$plot_circos)) {
     # Nested structure
-    nichenet_results <- results$nichenet_results
+    nichenet_results <- results_obj$nichenet_results
     plot_circos <- nichenet_results$plot_circos
     if (verbose) message("Found nested structure: results$nichenet_results$plot_circos")
-  } else if (!is.null(results$plot_circos)) {
+  } else if (!is.null(results_obj$plot_circos)) {
     # Flat structure (direct NicheNet results)
-    nichenet_results <- results
-    plot_circos <- results$plot_circos
+    nichenet_results <- results_obj
+    plot_circos <- results_obj$plot_circos
     if (verbose) message("Found flat structure: results$plot_circos")
   } else {
-    stop("No circos plot found in results. Please check the file structure. ",
+    stop("No circos plot found in results. Please check the structure. ",
          "Expected either 'results$nichenet_results$plot_circos' or 'results$plot_circos'.")
   }
   
@@ -404,6 +421,32 @@ replot_nichenet_circos <- function(results_file,
         }
       }
       
+      # Check if plot is valid before replaying
+      if (is.null(plot_circos)) {
+        stop("Plot object is NULL. Cannot replay plot.")
+      }
+      
+      if (inherits(plot_circos, "recordedplot")) {
+        if (length(plot_circos) == 0) {
+          stop("Plot object is empty (length 0). Cannot replay plot. ",
+               "This may indicate the plot was not properly recorded during analysis.")
+        }
+        # Check if plot has data: either [[1]] (plot commands) or [[2]] (raw graphics data) should exist
+        # Note: [[1]] can be empty (length 0) but [[2]] may contain raw graphics data
+        has_plot_data <- FALSE
+        if (length(plot_circos) >= 1 && !is.null(plot_circos[[1]]) && length(plot_circos[[1]]) > 0) {
+          has_plot_data <- TRUE
+        } else if (length(plot_circos) >= 2 && !is.null(plot_circos[[2]]) && length(plot_circos[[2]]) > 0) {
+          # [[2]] contains raw graphics data (can be raw bytes)
+          has_plot_data <- TRUE
+        }
+        if (!has_plot_data) {
+          stop("Plot object contains no plot data. Cannot replay plot. ",
+               "This may indicate the plot was not properly recorded during analysis. ",
+               "Please re-run the analysis to regenerate the plot.")
+        }
+      }
+      
       # Replay the recorded plot
       # Use tryCatch to catch any errors during replay
       replay_success <- tryCatch({
@@ -415,13 +458,18 @@ replot_nichenet_circos <- function(results_file,
       })
       
       if (!replay_success) {
-        stop("Failed to replay plot")
+        stop("Failed to replay plot. The recorded plot may be empty or corrupted.")
       }
       
       # Force flush the device to ensure plot is written
       if (device_opened) {
         grDevices::dev.flush()
-        if (verbose) message("  Device flushed")
+        # Verify device is still active
+        if (grDevices::dev.cur() != current_device) {
+          grDevices::dev.set(current_device)
+          if (verbose) message("  Device reset to: ", current_device)
+        }
+        if (verbose) message("  Device flushed and verified")
       }
       
       # Note: We cannot easily modify parameters of a recorded plot
@@ -460,11 +508,14 @@ replot_nichenet_circos <- function(results_file,
         grDevices::dev.set(current_device)
       }
       
+      # Force flush before closing to ensure all data is written
+      grDevices::dev.flush()
+      
       # Close the device
       grDevices::dev.off()
       
-      # Wait a moment for file system to sync
-      Sys.sleep(0.3)
+      # Wait a moment for file system to sync (increased from 0.3 to 0.5)
+      Sys.sleep(0.5)
       
       if (verbose && !is.null(output_file)) {
         # Check if file exists (use absolute path)

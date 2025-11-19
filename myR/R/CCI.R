@@ -524,25 +524,46 @@ run_nichenet_analysis <- function(seurat_obj,
     logfc_col <- if (!is.null(receiver_logfc_col)) receiver_logfc_col else detect_logfc_col(DE_table_receiver)
     pval_col <- if (!is.null(receiver_pval_col)) receiver_pval_col else detect_pval_col(DE_table_receiver)
 
-    if (!is.null(logfc_col) && logfc_col %in% colnames(DE_table_receiver)) {
-      DE_table_receiver <- DE_table_receiver %>%
-        dplyr::filter(!!rlang::sym(logfc_col) > logfc_cutoff)
-    } else if (is.null(receiver_de_table)) {
-      warning("NN_Warning: Receiver DE table lacks a logFC column. Skipping logFC filtering.")
-    }
+    # If top_n_targets_per_ligand is specified, skip cutoff filtering
+    # (DEGs were already filtered by top_n in extract_receiver_degs)
+    # Otherwise, apply cutoff filters
+    if (is.null(top_n_targets_per_ligand) || top_n_targets_per_ligand == 0) {
+      if (!is.null(logfc_col) && logfc_col %in% colnames(DE_table_receiver)) {
+        DE_table_receiver <- DE_table_receiver %>%
+          dplyr::filter(!!rlang::sym(logfc_col) > logfc_cutoff)
+      } else if (is.null(receiver_de_table)) {
+        warning("NN_Warning: Receiver DE table lacks a logFC column. Skipping logFC filtering.")
+      }
 
-    if (!is.null(pval_col) && pval_col %in% colnames(DE_table_receiver)) {
-      DE_table_receiver <- DE_table_receiver %>%
-        dplyr::filter(!!rlang::sym(pval_col) < p_val_adj_cutoff)
-    } else if (is.null(receiver_de_table)) {
-      warning("NN_Warning: Receiver DE table lacks a p-value column. Skipping p-value filtering.")
+      if (!is.null(pval_col) && pval_col %in% colnames(DE_table_receiver)) {
+        # Only apply p-value filter if cutoff is meaningful (< 1.0)
+        if (p_val_adj_cutoff < 1.0) {
+          DE_table_receiver <- DE_table_receiver %>%
+            dplyr::filter(!!rlang::sym(pval_col) < p_val_adj_cutoff)
+        }
+      } else if (is.null(receiver_de_table)) {
+        warning("NN_Warning: Receiver DE table lacks a p-value column. Skipping p-value filtering.")
+      }
+    } else {
+      if (verbose) message("  top_n_targets_per_ligand is specified (", top_n_targets_per_ligand, "). Skipping cutoff filtering (DEGs already filtered by top_n).")
     }
 
     if (verbose) message("  Receiver DEGs after column filtering: ", nrow(DE_table_receiver))
 
     geneset_oi <- DE_table_receiver$gene[DE_table_receiver$gene %in% rownames(ligand_target_matrix)]
-    if(length(geneset_oi) == 0) stop("No DEGs found in the receiver cell type that are also in the NicheNet ligand_target_matrix. Number of DEGs before NicheNet filter: ", nrow(DE_table_receiver), call. = FALSE)
-    if (verbose) message(length(geneset_oi), " DEGs (upregulated in ident.1) from receiver '", receiver_celltype, "' identified for NicheNet analysis.")
+    if(length(geneset_oi) == 0) {
+      if (verbose) {
+        message("  DEGs in DE_table_receiver: ", nrow(DE_table_receiver))
+        message("  Genes in ligand_target_matrix: ", nrow(ligand_target_matrix))
+        overlap_before <- base::intersect(DE_table_receiver$gene, rownames(ligand_target_matrix))
+        message("  Overlap: ", length(overlap_before), " genes")
+      }
+      stop("No DEGs found in the receiver cell type that are also in the NicheNet ligand_target_matrix. Number of DEGs before NicheNet filter: ", nrow(DE_table_receiver), call. = FALSE)
+    }
+    if (verbose) {
+      message(length(geneset_oi), " DEGs (upregulated in ident.1) from receiver '", receiver_celltype, "' identified for NicheNet analysis.")
+      message("  Sample genes in geneset_oi: ", paste(head(geneset_oi, 5), collapse = ", "), if(length(geneset_oi) > 5) "..." else "")
+    }
     
     # --- IV. Define Potential Ligands ---
     if (verbose) message("Defining potential ligands...")
@@ -596,12 +617,26 @@ run_nichenet_analysis <- function(seurat_obj,
         message("  [", bar, spaces, "] ", pct, "% (", i, "/", n_ligands, ") Processing ligand: ", lig)
       }
       active_ligand_target_links_list[[i]] <- tryCatch({
-        nichenetr::get_weighted_ligand_target_links(
-          ligands = lig,
+        links_result <- nichenetr::get_weighted_ligand_target_links(
+          ligand = lig,  # Note: parameter is 'ligand' (singular), not 'ligands'
           geneset = geneset_oi,
           ligand_target_matrix = ligand_target_matrix,
           n = top_n_targets_per_ligand
         )
+        # Debug: check if links were found
+        if (verbose && nrow(links_result) == 0 && i == 1) {
+          message("    Note: No links found for first ligand '", lig, "'. Checking geneset overlap...")
+          if (length(geneset_oi) > 0) {
+            message("      geneset_oi size: ", length(geneset_oi))
+            message("      Ligand in matrix: ", lig %in% colnames(ligand_target_matrix))
+            if (lig %in% colnames(ligand_target_matrix)) {
+              ligand_targets <- rownames(ligand_target_matrix)[ligand_target_matrix[, lig] > 0]
+              overlap <- base::intersect(geneset_oi, ligand_targets)
+              message("      Overlap with geneset_oi: ", length(overlap), " genes")
+            }
+          }
+        }
+        links_result
       }, error = function(e) {
         warning("NN_Warning: Failed to get links for ligand ", lig, ": ", e$message)
         return(tibble::tibble())
@@ -609,7 +644,15 @@ run_nichenet_analysis <- function(seurat_obj,
     }
     active_ligand_target_links_df <- dplyr::bind_rows(active_ligand_target_links_list) %>% tidyr::drop_na()
     elapsed_targets <- difftime(Sys.time(), start_time_targets, units = "secs")
-    if (verbose) message("  Ligand-target inference completed (", round(elapsed_targets, 1), " seconds, ", nrow(active_ligand_target_links_df), " links found)")
+    if (verbose) {
+      message("  Ligand-target inference completed (", round(elapsed_targets, 1), " seconds, ", nrow(active_ligand_target_links_df), " links found)")
+      if (nrow(active_ligand_target_links_df) == 0) {
+        message("  WARNING: No ligand-target links found. This may indicate:")
+        message("    - DEGs are not in NicheNet ligand_target_matrix")
+        message("    - Ligands have no predicted targets")
+        message("    - Consider checking DEG relevance or lowering ligand_target_cutoff")
+      }
+    }
     p_ligand_target_network <- NULL
     if(nrow(active_ligand_target_links_df) > 0){
       if (verbose) {
@@ -627,11 +670,40 @@ run_nichenet_analysis <- function(seurat_obj,
           message("  Visualization matrix is NULL after preparation")
         }
       }
+      # Auto-adjust cutoff if matrix is empty
+      current_cutoff <- ligand_target_cutoff
+      max_attempts <- 5
+      attempt <- 1
+      
+      while ((is.null(active_ligand_target_links_matrix) || nrow(active_ligand_target_links_matrix) == 0 || ncol(active_ligand_target_links_matrix) == 0) && attempt <= max_attempts) {
+        if (attempt > 1) {
+          # Lower cutoff progressively
+          current_cutoff <- max(0.1, current_cutoff - 0.05)
+          if (verbose) {
+            message("  Attempt ", attempt, ": Retrying with lower cutoff (", current_cutoff, ")...")
+          }
+          active_ligand_target_links_matrix <- nichenetr::prepare_ligand_target_visualization(
+            ligand_target_df = active_ligand_target_links_df, 
+            ligand_target_matrix = ligand_target_matrix, 
+            cutoff = current_cutoff
+          )
+        }
+        
+        if (is.null(active_ligand_target_links_matrix) || nrow(active_ligand_target_links_matrix) == 0 || ncol(active_ligand_target_links_matrix) == 0) {
+          attempt <- attempt + 1
+        } else {
+          if (verbose && attempt > 1) {
+            message("  Successfully created matrix with cutoff ", current_cutoff, " (", nrow(active_ligand_target_links_matrix), " targets x ", ncol(active_ligand_target_links_matrix), " ligands)")
+          }
+          break
+        }
+      }
+      
       if (is.null(active_ligand_target_links_matrix) || nrow(active_ligand_target_links_matrix) == 0 || ncol(active_ligand_target_links_matrix) == 0) {
-        warning("NN_Warning: Ligand-target matrix is empty/small after preparation (cutoff=", ligand_target_cutoff, "). ",
-                "Try lowering ligand_target_cutoff (current: ", ligand_target_cutoff, "). ",
-                "Input had ", nrow(active_ligand_target_links_df), " links.")
-        p_ligand_target_network <- ggplot2::ggplot() + ggplot2::labs(title=paste0("No L-T links for heatmap after preparation (cutoff=", ligand_target_cutoff, ")"))
+        warning("NN_Warning: Ligand-target matrix is empty/small after ", max_attempts, " attempts with cutoffs down to ", current_cutoff, ". ",
+                "Input had ", nrow(active_ligand_target_links_df), " links. ",
+                "Consider checking if DEGs are relevant for NicheNet analysis.")
+        p_ligand_target_network <- ggplot2::ggplot() + ggplot2::labs(title=paste0("No L-T links for heatmap after preparation (cutoff=", current_cutoff, ")"))
       } else {
         ligands_for_ordering <- base::intersect(best_upstream_ligands, colnames(active_ligand_target_links_matrix)) %>% rev()
         targets_for_ordering <- active_ligand_target_links_df$target %>% unique() %>% base::intersect(rownames(active_ligand_target_links_matrix))
@@ -915,10 +987,22 @@ run_nichenet_analysis <- function(seurat_obj,
             grDevices::dev.off() # Close the dummy PDF device
             if(file.exists(temp_pdf_for_capture_notes)) unlink(temp_pdf_for_capture_notes) # Clean up
             
-            # Filter for "Note:" lines
+            # Filter for "Note:" lines and limit display
             temp_notes <- grep("^Note:", captured_circlize_messages, value = TRUE)
             if (length(temp_notes) > 0) {
+              # Store all notes but only show first 5 in verbose output
               circos_notes_collected <<- c(circos_notes_collected, temp_notes)
+              if (verbose && length(temp_notes) > 5) {
+                message("  Note: ", length(temp_notes), " circlize notes captured (showing first 5):")
+                for (i in 1:min(5, length(temp_notes))) {
+                  message("    ", temp_notes[i])
+                }
+                message("    ... and ", length(temp_notes) - 5, " more (suppressed)")
+              } else if (verbose && length(temp_notes) <= 5) {
+                for (note in temp_notes) {
+                  message("  ", note)
+                }
+              }
             }
             
             
@@ -948,10 +1032,25 @@ run_nichenet_analysis <- function(seurat_obj,
                 if(verbose) message("Circos plots & legend saved to: ", current_run_output_dir)
               }
               
-              circlize::circos.clear() # Clear before plotting for recordPlot
               # Record plot with legend if requested
+              # Open a temporary device to record the plot
+              temp_pdf_for_record <- tempfile(fileext = ".pdf")
+              grDevices::pdf(temp_pdf_for_record, width = circos_pdf_width, height = circos_pdf_height)
+              circlize::circos.clear() # Clear before plotting
               do_circos_plotting(show_legend = circos_show_legend && length(legend_labels) > 0)
+              # Force flush to ensure plot is fully rendered before recording
+              grDevices::dev.flush()
+              # Record the plot while device is still open
               recorded_circos_plot <- grDevices::recordPlot()
+              # Verify plot was recorded
+              if (is.null(recorded_circos_plot) || (inherits(recorded_circos_plot, "recordedplot") && length(recorded_circos_plot) > 0 && length(recorded_circos_plot[[1]]) == 0)) {
+                if (verbose) warning("NN_Warning: recordPlot() produced empty plot. Attempting to re-record...")
+                # Try recording again
+                grDevices::dev.flush()
+                recorded_circos_plot <- grDevices::recordPlot()
+              }
+              grDevices::dev.off() # Close the temporary device
+              if(file.exists(temp_pdf_for_record)) unlink(temp_pdf_for_record) # Clean up
               circlize::circos.clear() # Clear after recordPlot
               
               circos_status_message <- "Circos plot generated and recorded (sender-grouped)."
@@ -1005,7 +1104,34 @@ run_nichenet_analysis <- function(seurat_obj,
     if (!is.null(current_run_output_dir)) {
       plot_list_gg <- list(NicheNet_Ligand_Target_Heatmap = results_list$plot_ligand_target_network, NicheNet_Ligand_Receptor_Heatmap = results_list$plot_ligand_receptor_network, NicheNet_Ligand_Activity_Histogram = results_list$plot_ligand_activity_hist, NicheNet_Ligand_AUPR_Heatmap = results_list$plot_ligand_aupr_heatmap)
       plot_dims <- list(NicheNet_Ligand_Target_Heatmap = list(w=10,h=8), NicheNet_Ligand_Receptor_Heatmap = list(w=8,h=6), NicheNet_Ligand_Activity_Histogram = list(w=6,h=5), NicheNet_Ligand_AUPR_Heatmap = list(w=6,h=8))
-      for(plot_name in names(plot_list_gg)){ p_obj <- plot_list_gg[[plot_name]]; if(!is.null(p_obj) && inherits(p_obj, "ggplot")){ tryCatch(ggplot2::ggsave(filename = file.path(current_run_output_dir, paste0(plot_name, ".png")), plot = p_obj, width = plot_dims[[plot_name]]$w, height = plot_dims[[plot_name]]$h), error = function(e) warning("NN_Warning: Failed to save plot ", plot_name, ": ", e$message))}}
+      for(plot_name in names(plot_list_gg)){ 
+        p_obj <- plot_list_gg[[plot_name]]
+        if(!is.null(p_obj) && inherits(p_obj, "ggplot")){ 
+          # Check if plot has actual data (not just empty plot with title)
+          plot_file <- file.path(current_run_output_dir, paste0(plot_name, ".png"))
+          tryCatch({
+            # Use print() to ensure plot is rendered before saving
+            ggplot2::ggsave(filename = plot_file, plot = p_obj, width = plot_dims[[plot_name]]$w, height = plot_dims[[plot_name]]$h)
+            # Verify file was created and has reasonable size (>1KB)
+            if (file.exists(plot_file)) {
+              file_size <- file.info(plot_file)$size
+              if (file_size < 1024) {
+                warning("NN_Warning: Plot ", plot_name, " file is very small (", file_size, " bytes). May be empty.")
+              } else if (verbose) {
+                message("  Saved ", plot_name, " (", round(file_size/1024, 1), " KB)")
+              }
+            } else {
+              warning("NN_Warning: Plot file was not created: ", plot_file)
+            }
+          }, error = function(e) {
+            warning("NN_Warning: Failed to save plot ", plot_name, ": ", e$message)
+          })
+        } else if (verbose && !is.null(p_obj)) {
+          message("  Skipping ", plot_name, " (not a ggplot object, class: ", class(p_obj)[1], ")")
+        } else if (verbose && is.null(p_obj)) {
+          message("  Skipping ", plot_name, " (NULL)")
+        }
+      }
     }
 
     objects_to_clear <- c("ligand_activities", "active_ligand_target_links_df", "active_ligand_target_links_matrix",
