@@ -2964,6 +2964,11 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
   }
 
   gene_tables <- lapply(available_sigs, function(sig) {
+    # signature_weights에 sig가 있는지 확인
+    if (!sig %in% names(signature_weights)) {
+      warning(sprintf("Signature '%s' not found in signature_weights. Skipping.", sig))
+      return(NULL)
+    }
     weights <- signature_weights[[sig]]
     if (length(weights) == 0) return(NULL)
     # named vector이므로 [ 사용 ([[ 아님)
