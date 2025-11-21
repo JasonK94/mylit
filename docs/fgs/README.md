@@ -15,7 +15,11 @@ fgs/
 └── docs/fgs/            # 문서
     ├── README.md                # 이 파일
     ├── TML6_IMPROVEMENTS_CONTEXT.md  # TML6/7 개선 작업 컨텍스트
-    └── FGS_TML6_ANALYSIS_CONTEXT.md  # FGS/TML6 분석 컨텍스트
+    ├── FGS_TML6_ANALYSIS_CONTEXT.md  # FGS/TML6 분석 컨텍스트
+    ├── COMPUTE_META_GENE_IMPORTANCE.md  # compute_meta_gene_importance 함수 문서
+    ├── CPU_CONFIGURATION.md     # CPU 설정 가이드
+    ├── PROGRESS_TRACKING.md     # 진행도 표시 기능
+    └── L2_METHOD_TESTING.md     # L2 메서드 테스트 가이드
 ```
 
 ## 주요 기능
@@ -35,6 +39,14 @@ fgs/
 3. **CPU 코어 제한**
    - 최대 16개 코어로 제한하여 과도한 리소스 사용 방지
    - `parallel_workers` 파라미터로 조정 가능
+
+4. **compute_meta_gene_importance 개선**
+   - `target_model` 파라미터 추가: 특정 모델의 importance 계산 가능
+   - Graceful error handling: importance 추출 실패 시 `NULL` 반환 (경고)
+   - 향상된 이름 매칭: `make.names()` 변환된 이름과 원본 이름 자동 매칭
+   - 모델별 특화 처리: `ranger`, `earth` 등 모델별 importance 추출 로직 개선
+   
+   자세한 내용은 [COMPUTE_META_GENE_IMPORTANCE.md](./COMPUTE_META_GENE_IMPORTANCE.md) 참조
 
 ## 사용법
 
