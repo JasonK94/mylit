@@ -3127,6 +3127,8 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE, target_m
     model_type <- meta_result$best_model_name
     model <- meta_result$best_model
   }
+
+  # Get signature names from l2_train (excluding target)
   sig_names <- base::setdiff(colnames(meta_result$l2_train), ".target")
 
   if (length(sig_names) == 0) {
@@ -3151,20 +3153,25 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE, target_m
 
     # Get original signature names corresponding to sig_names
     original_sig_names <- name_mapping[sig_names]
-    # If not found in mapping, try direct match
+    # If not found in mapping, try direct match (for those that were already original)
     missing_idx <- is.na(original_sig_names)
     if (any(missing_idx)) {
-      original_sig_names[missing_idx] <- sig_names[missing_idx][sig_names[missing_idx] %in% l1_sig_names]
+      # For missing ones, check if they exist in l1_sig_names directly
+      matches_direct <- sig_names[missing_idx] %in% l1_sig_names
+      original_sig_names[missing_idx][matches_direct] <- sig_names[missing_idx][matches_direct]
     }
+
     # Remove NA (signatures that don't match)
-    original_sig_names <- original_sig_names[!is.na(original_sig_names)]
+    if (any(is.na(original_sig_names))) {
+      warning(sprintf(
+        "Some l2_train columns could not be mapped to l1_signatures: %s",
+        paste(sig_names[is.na(original_sig_names)], collapse = ", ")
+      ))
+      original_sig_names <- original_sig_names[!is.na(original_sig_names)]
+    }
 
     if (length(original_sig_names) == 0) {
-      stop(sprintf(
-        "No matching signatures found between l2_train columns (%s) and l1_signatures (%s).",
-        paste(sig_names, collapse = ", "),
-        paste(l1_sig_names, collapse = ", ")
-      ))
+      stop(sprintf("No matching signatures found between l2_train columns and l1_signatures."))
     }
 
     # Use original names for accessing l1_signatures
@@ -3215,269 +3222,153 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE, target_m
   }
 
   signature_weights <- lapply(meta_result$l1_signatures[sig_names_for_l1], standardise_signature)
-  # Map back to transformed names for consistency
-  names(signature_weights) <- make.names(sig_names_for_l1)
+  # Map back to transformed names (or whatever sig_names uses) for consistency with importance extraction
+  # Actually, let's use the names we found in l2_train (sig_names) corresponding to these
+  # But sig_names might be a subset or superset.
+  # Let's use sig_names_for_l1 as keys for now.
+  names(signature_weights) <- sig_names_for_l1
 
   # obtain signature-level importance
   signature_importance <- NULL
+
+  # Strategy: Try to get importance vector with names matching sig_names (or sig_names_for_l1)
+
   if (identical(model_type, "glm") && inherits(model$finalModel, "glm")) {
     coefs <- stats::coef(model$finalModel)
     coefs <- coefs[names(coefs) != "(Intercept)"]
-    # sig_names와 일치하는 것만 추출
+    # GLM coefs usually match l2_train column names (sig_names)
     available_sigs <- base::intersect(sig_names, names(coefs))
     if (length(available_sigs) == 0) {
+      # Try mapping if names don't match
+      # e.g. if glm changed names
       warning("No matching signatures found in glm coefficients. Returning NULL.")
       return(NULL)
     }
     signature_importance <- coefs[available_sigs]
-    names(signature_importance) <- available_sigs
-  } else {
-    # Special handling for ranger models
-    if (identical(model_type, "ranger")) {
-      # Try to get importance directly from ranger model
-      if (inherits(model$finalModel, "ranger")) {
-        # Try to get importance from ranger model
-        ranger_model <- model$finalModel
-        ranger_imp <- try(ranger::importance(ranger_model), silent = TRUE)
+    # Map names to l1 names
+    # Find which l1 name corresponds to these available_sigs
+    # We can use the mapping logic we used before
+    # But simpler: we know sig_names maps to sig_names_for_l1
+    # We need to map available_sigs (subset of sig_names) to l1 names
 
-        # Check if importance is actually available
-        if (inherits(ranger_imp, "try-error")) {
-          # Check the error message
-          err_msg <- conditionMessage(attr(ranger_imp, "condition"))
-          if (grepl("No importance values available", err_msg, ignore.case = TRUE)) {
-            ranger_imp <- NULL # No importance available
-          } else {
-            # Other error, will try varImp
-            ranger_imp <- NULL
-          }
-        } else if (is.null(ranger_imp) || length(ranger_imp) == 0) {
-          ranger_imp <- NULL
-        }
-        if (!inherits(ranger_imp, "try-error") && !is.null(ranger_imp) && length(ranger_imp) > 0) {
-          # Match signature names (may need to handle make.names conversion)
-          imp_names <- names(ranger_imp)
-          # Try direct match first
-          available_sigs <- base::intersect(sig_names, imp_names)
-          # If no direct match, try make.names conversion
-          if (length(available_sigs) == 0) {
-            imp_names_made <- make.names(imp_names)
-            sig_names_made <- make.names(sig_names)
-            available_sigs_idx <- match(sig_names_made, imp_names_made)
-            available_sigs_idx <- available_sigs_idx[!is.na(available_sigs_idx)]
-            if (length(available_sigs_idx) > 0) {
-              available_sigs <- sig_names[!is.na(match(sig_names_made, imp_names_made))]
-              ranger_imp_matched <- ranger_imp[available_sigs_idx]
-              names(ranger_imp_matched) <- available_sigs
-              signature_importance <- ranger_imp_matched
-            }
-          } else {
-            signature_importance <- ranger_imp[available_sigs]
-            names(signature_importance) <- available_sigs
-          }
+    # Create a map from sig_names to sig_names_for_l1
+    # We need to reconstruct the map since we might have filtered
+    # sig_names corresponds to sig_names_for_l1 by index if we assume order?
+    # No, we constructed sig_names_for_l1 from sig_names.
+    # But we might have filtered NA.
+    # Let's rebuild a robust map.
 
-          if (length(available_sigs) > 0) {
-            # Successfully extracted from ranger
-            # Continue to next step
-          } else {
-            # Fall through to varImp
-            warning("ranger::importance() found no matching signatures. Trying caret::varImp()...")
-            vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
-            if (inherits(vi, "try-error") || is.null(vi)) {
-              warning(sprintf(
-                "Both ranger::importance() and caret::varImp() failed for 'ranger' model. Error: %s. Returning NULL.",
-                if (inherits(vi, "try-error")) as.character(vi) else "varImp returned NULL"
-              ))
-              return(NULL)
-            }
-            importance_df <- vi$importance
-            if (is.null(importance_df) || !is.data.frame(importance_df)) {
-              warning(sprintf("varImp for model 'ranger' did not produce a data.frame. Returning NULL."))
-              return(NULL)
-            }
-            imp_rownames <- rownames(importance_df)
-            available_sigs <- base::intersect(sig_names, imp_rownames)
-            if (length(available_sigs) == 0) {
-              warning(
-                "No matching signatures found in varImp results. Expected: ",
-                paste(sig_names, collapse = ", "),
-                "; Found: ", paste(imp_rownames, collapse = ", "), ". Returning NULL."
-              )
-              return(NULL)
-            }
-            if ("Overall" %in% colnames(importance_df)) {
-              signature_importance <- importance_df[available_sigs, "Overall", drop = TRUE]
-            } else if (ncol(importance_df) >= 1) {
-              signature_importance <- importance_df[available_sigs, 1, drop = TRUE]
-            }
-            if (is.null(names(signature_importance))) {
-              names(signature_importance) <- available_sigs
-            }
-          }
-        } else {
-          # ranger::importance failed or unavailable, try varImp
-          warning("ranger::importance() failed or unavailable. Trying caret::varImp()...")
-          vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
-          if (inherits(vi, "try-error") || is.null(vi)) {
-            # If varImp also fails, return NULL with warning instead of stopping
-            # This can happen if the model was trained without importance
-            error_msg <- if (inherits(vi, "try-error")) {
-              err_attr <- attr(vi, "condition")
-              if (!is.null(err_attr) && grepl("No importance values available", conditionMessage(err_attr))) {
-                "Model was trained without importance calculation. Re-train with importance='permutation' or importance='impurity'."
-              } else {
-                as.character(vi)
-              }
-            } else {
-              "varImp returned NULL"
-            }
-            warning(sprintf("Both ranger::importance() and caret::varImp() failed for 'ranger' model. Error: %s. Returning NULL.", error_msg))
-            return(NULL)
-          }
-          importance_df <- vi$importance
-          if (is.null(importance_df) || !is.data.frame(importance_df)) {
-            warning(sprintf("varImp for model 'ranger' did not produce a data.frame. Returning NULL."))
-            return(NULL)
-          }
-          imp_rownames <- rownames(importance_df)
-          available_sigs <- base::intersect(sig_names, imp_rownames)
-          if (length(available_sigs) == 0) {
-            warning(
-              "No matching signatures found in varImp results. Expected: ",
-              paste(sig_names, collapse = ", "),
-              "; Found: ", paste(imp_rownames, collapse = ", "), ". Returning NULL."
-            )
-            return(NULL)
-          }
-          if ("Overall" %in% colnames(importance_df)) {
-            signature_importance <- importance_df[available_sigs, "Overall", drop = TRUE]
-          } else if (ncol(importance_df) >= 1) {
-            signature_importance <- importance_df[available_sigs, 1, drop = TRUE]
-          }
-          if (is.null(names(signature_importance))) {
-            names(signature_importance) <- available_sigs
-          }
-        }
+    # We have name_mapping: make.names(l1) -> l1
+    # available_sigs are from l2_train columns.
+    # If they are make.names(l1), we map back.
+    # If they are l1, we keep.
+
+    mapped_imp_names <- character(length(available_sigs))
+    for (i in seq_along(available_sigs)) {
+      s <- available_sigs[i]
+      if (s %in% l1_sig_names) {
+        mapped_imp_names[i] <- s
+      } else if (s %in% names(name_mapping)) {
+        mapped_imp_names[i] <- name_mapping[[s]]
       } else {
-        # Not a ranger model, fall through to varImp
-        vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
-        if (inherits(vi, "try-error") || is.null(vi)) {
-          warning(sprintf(
-            "caret::varImp() failed for model type '%s'. Error: %s. Returning NULL.",
-            model_type, if (inherits(vi, "try-error")) as.character(vi) else "varImp returned NULL"
-          ))
-          return(NULL)
-        }
-        importance_df <- vi$importance
-        if (is.null(importance_df) || !is.data.frame(importance_df)) {
-          warning(sprintf("varImp for model '%s' did not produce a data.frame. Returning NULL.", model_type))
-          return(NULL)
-        }
-        imp_rownames <- rownames(importance_df)
-        available_sigs <- base::intersect(sig_names, imp_rownames)
-        if (length(available_sigs) == 0) {
-          warning(
-            "No matching signatures found in varImp results. Expected: ",
-            paste(sig_names, collapse = ", "),
-            "; Found: ", paste(imp_rownames, collapse = ", "), ". Returning NULL."
-          )
-          return(NULL)
-        }
-        if ("Overall" %in% colnames(importance_df)) {
-          signature_importance <- importance_df[available_sigs, "Overall", drop = TRUE]
-        } else if (ncol(importance_df) >= 1) {
-          signature_importance <- importance_df[available_sigs, 1, drop = TRUE]
-        }
-        if (is.null(names(signature_importance))) {
-          names(signature_importance) <- available_sigs
-        }
-      }
-    } else {
-      # Non-ranger models: use varImp
-      # Special handling for models that may not support importance
-      if (identical(model_type, "earth")) {
-        # earth models may not have importance - try varImp but gracefully fail
-        vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
-        if (inherits(vi, "try-error") || is.null(vi)) {
-          warning(sprintf(
-            "caret::varImp() failed for model type 'earth'. Error: %s. Returning NULL.",
-            if (inherits(vi, "try-error")) as.character(vi) else "varImp returned NULL"
-          ))
-          return(NULL)
-        }
-      } else {
-        vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
-        if (inherits(vi, "try-error") || is.null(vi)) {
-          warning(sprintf(
-            "caret::varImp() failed for model type '%s'. Error: %s. Returning NULL.",
-            model_type, if (inherits(vi, "try-error")) as.character(vi) else "varImp returned NULL"
-          ))
-          return(NULL)
-        }
-      }
-      importance_df <- vi$importance
-      if (is.null(importance_df) || !is.data.frame(importance_df)) {
-        warning(sprintf("varImp for model '%s' did not produce a data.frame. Returning NULL.", model_type))
-        return(NULL)
-      }
-      # rownames 확인 및 매칭
-      imp_rownames <- rownames(importance_df)
-      available_sigs <- base::intersect(sig_names, imp_rownames)
-      if (length(available_sigs) == 0) {
-        warning(
-          "No matching signatures found in varImp results. Expected: ",
-          paste(sig_names, collapse = ", "),
-          "; Found: ", paste(imp_rownames, collapse = ", "), ". Returning NULL."
-        )
-        return(NULL)
-      }
-
-      if ("Overall" %in% colnames(importance_df)) {
-        signature_importance <- importance_df[available_sigs, "Overall", drop = TRUE]
-      } else if (ncol(importance_df) >= 1) {
-        signature_importance <- importance_df[available_sigs, 1, drop = TRUE]
-      }
-      # named vector로 변환
-      if (is.null(names(signature_importance))) {
-        names(signature_importance) <- available_sigs
+        mapped_imp_names[i] <- NA
       }
     }
+    valid <- !is.na(mapped_imp_names)
+    signature_importance <- signature_importance[valid]
+    names(signature_importance) <- mapped_imp_names[valid]
+  } else {
+    # Generic importance extraction (ranger, earth, etc.)
+    imp_vals <- NULL
+
+    # 1. Try ranger::importance if applicable
+    if (identical(model_type, "ranger") && inherits(model$finalModel, "ranger")) {
+      imp_vals <- try(ranger::importance(model$finalModel), silent = TRUE)
+      if (inherits(imp_vals, "try-error")) imp_vals <- NULL
+    }
+
+    # 2. If failed or not ranger, try caret::varImp
+    if (is.null(imp_vals)) {
+      vi <- try(caret::varImp(model, scale = FALSE), silent = TRUE)
+      if (!inherits(vi, "try-error") && !is.null(vi)) {
+        if (is.data.frame(vi$importance)) {
+          if ("Overall" %in% colnames(vi$importance)) {
+            imp_vals <- vi$importance$Overall
+            names(imp_vals) <- rownames(vi$importance)
+          } else if (ncol(vi$importance) >= 1) {
+            imp_vals <- vi$importance[, 1]
+            names(imp_vals) <- rownames(vi$importance)
+          }
+        }
+      }
+    }
+
+    if (is.null(imp_vals)) {
+      warning(sprintf("Could not extract importance for model '%s'. Returning NULL.", model_type))
+      return(NULL)
+    }
+
+    # Map importance names to L1 signature names
+    imp_names <- names(imp_vals)
+
+    # We need to match imp_names to l1_sig_names
+    # imp_names usually come from l2_train columns (sig_names)
+
+    matched_l1_names <- character(length(imp_names))
+    for (i in seq_along(imp_names)) {
+      s <- imp_names[i]
+      # 1. Exact match with L1
+      if (s %in% l1_sig_names) {
+        matched_l1_names[i] <- s
+      }
+      # 2. Match via make.names mapping
+      else if (s %in% names(name_mapping)) {
+        matched_l1_names[i] <- name_mapping[[s]]
+      }
+      # 3. Try removing '`' if present (sometimes caret adds backticks)
+      else {
+        s_clean <- gsub("`", "", s)
+        if (s_clean %in% l1_sig_names) {
+          matched_l1_names[i] <- s_clean
+        } else if (s_clean %in% names(name_mapping)) {
+          matched_l1_names[i] <- name_mapping[[s_clean]]
+        } else {
+          matched_l1_names[i] <- NA
+        }
+      }
+    }
+
+    valid <- !is.na(matched_l1_names)
+    signature_importance <- imp_vals[valid]
+    names(signature_importance) <- matched_l1_names[valid]
   }
 
   if (is.null(signature_importance) || length(signature_importance) == 0) {
-    warning(sprintf("Could not derive signature importance for model type '%s'. Returning NULL.", model_type))
+    warning(sprintf("No matching signatures found in importance for model '%s'. Returning NULL.", model_type))
     return(NULL)
-  }
-
-  # 사용 가능한 signature만 필터링
-  available_sigs <- names(signature_importance)
-  missing_sigs <- base::setdiff(sig_names, available_sigs)
-  if (length(missing_sigs) > 0) {
-    warning(sprintf(
-      "Some signatures not found in importance: %s. They will be skipped.",
-      paste(missing_sigs, collapse = ", ")
-    ))
   }
 
   if (normalize) {
     signature_importance <- signature_importance / (max(abs(signature_importance), na.rm = TRUE) %||% 1)
   }
 
-  gene_tables <- lapply(available_sigs, function(sig) {
+  gene_tables <- lapply(names(signature_importance), function(sig) {
     # signature_weights에 sig가 있는지 확인
     if (!sig %in% names(signature_weights)) {
-      warning(sprintf("Signature '%s' not found in signature_weights. Skipping.", sig))
+      # This might happen if importance has extra variables not in l1_signatures (unlikely but possible)
       return(NULL)
     }
     weights <- signature_weights[[sig]]
     if (length(weights) == 0) {
       return(NULL)
     }
-    # named vector이므로 [ 사용 ([[ 아님)
-    sig_imp <- signature_importance[sig]
+
+    sig_imp <- signature_importance[[sig]] # double bracket for value
+
     if (is.na(sig_imp) || !is.finite(sig_imp)) {
-      warning(sprintf("Signature '%s' has invalid importance value. Skipping.", sig))
       return(NULL)
     }
+
     contrib <- sig_imp * weights
     if (normalize && any(is.finite(contrib))) {
       denom <- max(abs(contrib), na.rm = TRUE)
@@ -3494,7 +3385,8 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE, target_m
 
   gene_importance <- do.call(rbind, gene_tables)
   if (is.null(gene_importance) || nrow(gene_importance) == 0) {
-    stop("No gene contributions could be computed.")
+    warning("No gene contributions could be computed. Returning NULL.")
+    return(NULL)
   }
 
   gene_summary <- stats::aggregate(contribution ~ gene, data = gene_importance, sum)
