@@ -23,20 +23,23 @@
 - **Action**:
     - Created `myR/R/signature_dev.R` with `compute_meta_gene_importance_v2`.
     - Implemented normalization methods: `max_abs`, `min_max`, `softmax`, `rank`, `z_score`.
-    - Created `test_cmgi_dev.R` to verify implementation.
+    - Verified with `test_cmgi_dev.R`.
+    - **Integration**: Integrated the enhanced `compute_meta_gene_importance` into `myR/R/signature.R`.
+    - **Documentation**: Created `docs/tml/MODEL_SPECIFIC_NORMALIZATION.md`.
 - **Result**:
     - Successfully tested on real TML data (`CD4+ T-cells`).
-    - `softmax` and `z_score` provide distinct rankings compared to `max_abs`.
-    - Ready for integration into main codebase.
+    - Codebase now supports advanced normalization for gene importance.
 
 ## 4. Ranger vs Random Forest Comparison
 - **Objective**: Verify consistency between `randomForest` and `ranger` implementations.
 - **Action**:
     - Created `compare_ranger_rf_test.R`.
-    - Running on `Naive B-cells` (1600 cells).
-- **Status**: Running. `random_forest` step is taking time due to dataset size.
+    - Initial run confirmed FGS execution success (verifying `random_forest_ranger` works).
+    - Encountered `conflicted` package error during comparison step.
+    - Fixed script and re-running (`compare_ranger_rf_v2.log`).
+- **Status**: Running. Expected completion in ~6 minutes.
 
 ## Next Steps
 - Monitor `run_failed_clusters_v2.R` progress.
-- Analyze `compare_ranger_rf_test.R` results once complete.
-- Integrate `compute_meta_gene_importance_v2` into `signature.R` (after current runs finish).
+- Analyze `compare_ranger_rf_v2.log` results.
+- Once verified, push changes to remote (if applicable) or finalize session.
