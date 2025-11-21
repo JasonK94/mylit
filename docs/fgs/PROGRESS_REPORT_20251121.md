@@ -18,7 +18,25 @@
 - **Status**: Script is running. Processing 7 missing clusters out of 24 total.
     - Currently processing: `Monocytes / Macrophages`.
 
-## 3. Next Steps
+## 3. TML7 Development (Phase 1)
+- **Objective**: Implement model-specific normalization for gene importance.
+- **Action**:
+    - Created `myR/R/signature_dev.R` with `compute_meta_gene_importance_v2`.
+    - Implemented normalization methods: `max_abs`, `min_max`, `softmax`, `rank`, `z_score`.
+    - Created `test_cmgi_dev.R` to verify implementation.
+- **Result**:
+    - Successfully tested on real TML data (`CD4+ T-cells`).
+    - `softmax` and `z_score` provide distinct rankings compared to `max_abs`.
+    - Ready for integration into main codebase.
+
+## 4. Ranger vs Random Forest Comparison
+- **Objective**: Verify consistency between `randomForest` and `ranger` implementations.
+- **Action**:
+    - Created `compare_ranger_rf_test.R`.
+    - Running on `Naive B-cells` (1600 cells).
+- **Status**: Running. `random_forest` step is taking time due to dataset size.
+
+## Next Steps
 - Monitor `run_failed_clusters_v2.R` progress.
-- Verify NMF and Ranger L1 methods on full dataset (Step 3 of Plan).
-- Compare Ranger vs Random Forest results (Step 4 of Plan).
+- Analyze `compare_ranger_rf_test.R` results once complete.
+- Integrate `compute_meta_gene_importance_v2` into `signature.R` (after current runs finish).
