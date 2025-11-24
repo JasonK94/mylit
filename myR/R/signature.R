@@ -1565,9 +1565,8 @@ find_gene_signature_v5_impl <- function(data,
               filtered_dots
             )
 
-            # Use direct function reference instead of string
-            nmf_func <- NMF::nmf
-            nmf_res <- do.call(nmf_func, nmf_args)
+            # Use rlang::exec for robust function call
+            nmf_res <- rlang::exec(NMF::nmf, !!!nmf_args)
 
             W <- NMF::basis(nmf_res)
             H <- NMF::coef(nmf_res)
