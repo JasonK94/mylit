@@ -2088,8 +2088,13 @@ find_gene_signature_v5_impl <- function(data,
 #'   l1_signatures = sigs,
 #'   holdout_data = seurat_obj,
 #'   target_var = "g3",
-#'   l2_methods = c("glm", "ranger", "xgbTree"), # xgbTree는 성능이 좋지만 xgboost 경고가 나올 수 있음
+#'   l2_methods = c("glm", "ranger", "xgbTree"),
 #'   metric = "AUC",
+#'   cv_folds = 5,
+#'   cv_method = "cv",
+#'   repeats = 1,
+#'   cv_group_var = NULL,
+#'   fgs_seed = 42,
 #'   cv_group_var = "emrid" # Group-wise CV to prevent patient-level leakage
 #' )
 #'
@@ -2113,6 +2118,8 @@ TML7 <- function(
     "mlpKerasDropout", "nnet", "earth"
   ),
   k_folds = 5,
+  cv_method = "cv",
+  repeats = 1,
   metric = c("AUC", "ROC", "Accuracy", "Kappa"),
   fgs_seed = 42,
   layer = "data",
@@ -2626,49 +2633,68 @@ TML7 <- function(
       ))
     }
   }
-  use_group_cv <- !is.null(cv_group) && !all(is.na(cv_group))
+  # --- CV Folds Generation ---
+  set.seed(fgs_seed)
 
-  if (use_group_cv) {
-    group_factor <- factor(cv_group)
-    unique_groups <- levels(group_factor)
-
-    if (length(unique_groups) < k_folds) {
-      message(sprintf(
-        "cv_group_var '%s' has only %d unique values (< k_folds=%d); using standard cell-wise CV.",
-        cv_group_var, length(unique_groups), k_folds
-      ))
-      use_group_cv <- FALSE
-    } else {
-      set.seed(fgs_seed)
-      fold_assign <- sample(rep(seq_len(k_folds), length.out = length(unique_groups)))
-      names(fold_assign) <- unique_groups
-
-      index <- vector("list", k_folds)
-      indexOut <- vector("list", k_folds)
-
-      for (fold in seq_len(k_folds)) {
-        in_groups <- unique_groups[fold_assign != fold]
-        out_groups <- unique_groups[fold_assign == fold]
-        in_idx <- which(group_factor %in% in_groups)
-        out_idx <- which(group_factor %in% out_groups)
-        index[[fold]] <- in_idx
-        indexOut[[fold]] <- out_idx
-      }
-
-      message(sprintf(
-        "Using group-wise CV on '%s' (%d groups) for L2 (k_folds=%d).",
-        cv_group_var, length(unique_groups), k_folds
-      ))
-      log_group_fold_details(index, indexOut, group_factor)
+  # Sample size check for LOGO recommendation
+  if (!is.null(cv_group)) {
+    n_groups <- length(unique(cv_group))
+    if (n_groups < 20 && cv_method != "LOGO") {
+      message(sprintf("Suggestion: Sample size (groups) is small (n=%d). Consider using cv_method='LOGO' (Leave-One-Group-Out) for more robust validation.", n_groups))
     }
   }
-  if (!use_group_cv) {
-    message("Using standard cell-wise CV folds (explicitly generated).")
-    set.seed(fgs_seed)
-    # createFolds returns validation indices by default if returnTrain=FALSE.
-    # caret::trainControl index expects TRAINING indices.
-    index <- caret::createFolds(l2_target, k = k_folds, returnTrain = TRUE)
+
+  if (cv_method == "LOGO") {
+    if (is.null(cv_group)) stop("cv_method='LOGO' requires valid cv_group_var.")
+    unique_groups <- unique(cv_group)
+    message(sprintf("Using Leave-One-Group-Out CV (%d groups).", length(unique_groups)))
+
+    # groupKFold returns train indices
+    index <- caret::groupKFold(cv_group, k = length(unique_groups))
     indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+
+    log_group_fold_details(index, indexOut, cv_group)
+  } else if (cv_method == "repeatedcv") {
+    message(sprintf("Using Repeated CV (%d folds, %d repeats).", k_folds, repeats))
+    if (!is.null(cv_group)) {
+      warning("Repeated CV with groups is not fully supported. Using standard Repeated CV (ignoring groups).")
+    }
+    index <- caret::createMultiFolds(l2_target, k = k_folds, times = repeats)
+    indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+  } else {
+    # Standard CV or Group CV
+    use_group_cv <- !is.null(cv_group) && !all(is.na(cv_group))
+
+    if (use_group_cv) {
+      group_factor <- factor(cv_group)
+      unique_groups <- levels(group_factor)
+
+      if (length(unique_groups) < k_folds) {
+        message(sprintf(
+          "cv_group_var '%s' has only %d unique values (< k_folds=%d); using standard cell-wise CV.",
+          cv_group_var, length(unique_groups), k_folds
+        ))
+        use_group_cv <- FALSE
+      } else {
+        # Manual Group K-Fold to ensure balance if needed, or use caret::groupKFold
+        # Existing logic used manual sampling. Let's stick to it or use caret.
+        # Caret's groupKFold is simple.
+        index <- caret::groupKFold(cv_group, k = k_folds)
+        indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+
+        message(sprintf(
+          "Using group-wise CV on '%s' (%d groups) for L2 (k_folds=%d).",
+          cv_group_var, length(unique_groups), k_folds
+        ))
+        log_group_fold_details(index, indexOut, group_factor)
+      }
+    }
+
+    if (!use_group_cv) {
+      message("Using standard cell-wise CV folds (explicitly generated).")
+      index <- caret::createFolds(l2_target, k = k_folds, returnTrain = TRUE)
+      indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+    }
   }
 
   # Always disable parallel processing in caret to prevent cascade parallelization

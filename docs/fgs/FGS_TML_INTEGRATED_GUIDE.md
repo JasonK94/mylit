@@ -196,6 +196,11 @@ flowchart TD
 *   **NMF Stability**: Replaced `do.call` with `rlang::exec` for more robust NMF function calls.
 *   **Helper Functions**: Added `plot_tml_metrics` and `analyze_tml_outliers` in `utils_tml.R`.
 
+### Version 5.6 (Dev)
+*   **Advanced Validation**: Added support for Leave-One-Group-Out (`cv_method="LOGO"`) and Repeated CV (`cv_method="repeatedcv"`).
+*   **Outlier Analysis**: Enhanced `analyze_tml_outliers` to support IQR-based thresholding and detailed fold analysis.
+*   **Refactoring**: Cleaned up legacy code and improved modularity.
+
 ### Key Commit History
 *   `Fix compute_meta_gene_importance function definition syntax` (Recent)
 *   `Integrate TML7 Phase 1 (Normalization) into signature.R`

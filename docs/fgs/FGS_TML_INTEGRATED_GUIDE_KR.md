@@ -196,6 +196,11 @@ flowchart TD
 *   **NMF 안정성**: 더 견고한 NMF 함수 호출을 위해 `do.call`을 `rlang::exec`로 대체했습니다.
 *   **헬퍼 함수**: `utils_tml.R`에 `plot_tml_metrics` 및 `analyze_tml_outliers` 함수를 추가했습니다.
 
+### 버전 5.6 (개발 중)
+*   **고급 검증 (Advanced Validation)**: Leave-One-Group-Out (`cv_method="LOGO"`) 및 반복 교차 검증 (`cv_method="repeatedcv"`) 지원을 추가했습니다.
+*   **이상치 분석**: `analyze_tml_outliers` 함수를 개선하여 IQR 기반 임계값 설정 및 상세 폴드 분석을 지원합니다.
+*   **리팩토링**: 레거시 코드를 정리하고 모듈성을 개선했습니다.
+
 ### 주요 커밋 이력
 *   `Fix compute_meta_gene_importance function definition syntax` (최근)
 *   `Integrate TML7 Phase 1 (Normalization) into signature.R`

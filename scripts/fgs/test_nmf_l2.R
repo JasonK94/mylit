@@ -9,12 +9,12 @@ suppressPackageStartupMessages({
     library(Seurat)
     library(caret)
     library(dplyr)
-    library(myR)
 })
 
 # Source latest signature.R if needed (for dev)
 source("/home/user3/data_user3/git_repo/_wt/fgs/myR/R/signature.R")
 source("/home/user3/data_user3/git_repo/_wt/fgs/myR/R/utils_tml.R")
+devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 
 # --- Data Setup ---
 # Create a small dummy Seurat object or load existing one
@@ -102,6 +102,36 @@ tryCatch(
     error = function(e) {
         message("TML7 Failed: ", e$message)
         stop(e)
+    }
+)
+
+# --- Test 3: TML7 with LOGO CV ---
+message("\n=== Test 3: TML7 with LOGO CV ===")
+tryCatch(
+    {
+        # Ensure control var is factor
+        sobj$hos_no <- factor(sobj$hos_no)
+
+        tmla_logo <- TML7(
+            l1_signatures = fgsa,
+            holdout_data = sobj,
+            target_var = "g3",
+            control_vars = "hos_no",
+            l2_methods = c("glm", "ranger"),
+            cv_method = "LOGO",
+            cv_group_var = "hos_no"
+        )
+        message("TML7 LOGO completed successfully.")
+
+        # Check outliers
+        outliers <- analyze_tml_outliers(tmla_logo, metric = "ROC", threshold_method = "iqr")
+        if (!is.null(outliers)) {
+            print("Outliers found:")
+            print(outliers$outliers)
+        }
+    },
+    error = function(e) {
+        message("TML7 LOGO Failed: ", e$message)
     }
 )
 

@@ -48,24 +48,39 @@ plot_tml_metrics <- function(tml_object, metric = NULL) {
 
 #' Analyze TML Outlier Folds
 #'
-#' Identifies cross-validation folds with poor performance.
+#' Identifies cross-validation folds with poor performance and provides insights.
+#' Supports standard CV, LOGO, and Repeated CV.
 #'
 #' @param tml_object A result object from [TML7()].
 #' @param metric Metric to evaluate (default: "Sens").
-#' @param threshold Value below which a fold is considered an outlier (default: 0.5).
-#' @return A list containing outlier details.
+#' @param threshold_method Method to define outliers: "absolute" (use threshold value) or "iqr" (Q1 - 1.5*IQR).
+#' @param threshold Value for "absolute" method (default: 0.5).
+#' @return A list containing outlier details and potentially problematic samples/groups.
 #' @export
-analyze_tml_outliers <- function(tml_object, metric = "Sens", threshold = 0.5) {
+analyze_tml_outliers <- function(tml_object, metric = "Sens", threshold_method = "absolute", threshold = 0.5) {
     df <- tml_object$model_comparison$values
     cols <- colnames(df)
     metric_cols <- cols[grep(paste0("~", metric, "$"), cols)]
+
+    if (length(metric_cols) == 0) {
+        warning(sprintf("Metric '%s' not found.", metric))
+        return(NULL)
+    }
 
     outliers <- list()
 
     for (col in metric_cols) {
         model_name <- sub(paste0("~", metric), "", col)
         vals <- df[[col]]
-        bad_idx <- which(vals < threshold | is.na(vals))
+
+        if (threshold_method == "iqr") {
+            q1 <- stats::quantile(vals, 0.25, na.rm = TRUE)
+            iqr <- stats::IQR(vals, na.rm = TRUE)
+            cutoff <- q1 - 1.5 * iqr
+            bad_idx <- which(vals < cutoff | is.na(vals))
+        } else {
+            bad_idx <- which(vals < threshold | is.na(vals))
+        }
 
         if (length(bad_idx) > 0) {
             folds <- df$Resample[bad_idx]
@@ -77,9 +92,31 @@ analyze_tml_outliers <- function(tml_object, metric = "Sens", threshold = 0.5) {
     }
 
     if (length(outliers) == 0) {
-        message("No outliers found below threshold.")
+        message("No outliers found.")
         return(NULL)
     }
 
-    return(list(outliers = outliers))
+    # Analyze problematic groups/samples if cv_folds info is available
+    problematic_groups <- NULL
+    if (!is.null(tml_object$cv_folds) && !is.null(tml_object$cv_folds$indexOut)) {
+        fold_names <- names(tml_object$cv_folds$indexOut)
+        all_bad_folds <- unique(unlist(lapply(outliers, function(x) x$Fold)))
+
+        problematic_groups <- list()
+        for (f in all_bad_folds) {
+            if (f %in% fold_names) {
+                idx <- tml_object$cv_folds$indexOut[[f]]
+                problematic_groups[[f]] <- list(
+                    indices = idx,
+                    count = length(idx)
+                )
+            }
+        }
+    }
+
+    return(list(
+        outliers = outliers,
+        problematic_folds = problematic_groups,
+        threshold_used = if (threshold_method == "iqr") "Q1 - 1.5*IQR" else threshold
+    ))
 }
