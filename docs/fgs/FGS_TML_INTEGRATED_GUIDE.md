@@ -8,9 +8,39 @@ This document provides a comprehensive guide to the **Find Gene Signature (FGS)*
 - **CMGI (Compute Meta Gene Importance)**: A method to derive gene-level importance from the TML model, explaining *which* genes drive the prediction.
 - **AMSC (Aggregated Meta Signature Contribution)**: The specific metric used in CMGI.
 
+## 2. Workflow Visualization
+
+```mermaid
+flowchart TD
+    subgraph FGS["FGS (L1 Layer)"]
+        direction TB
+        Input[(Count Matrix<br/>Genes x Cells)] --> Preprocess[Preprocessing<br/>(Filter, Norm, Scale)]
+        Preprocess --> Methods{Select Methods}
+        Methods -->|Tree| RF[Random Forest / Ranger]
+        Methods -->|Reg| Lasso[Lasso / Ridge]
+        Methods -->|DimRed| NMF[NMF / PCA]
+        RF --> Sig1[Signature 1]
+        Lasso --> Sig2[Signature 2]
+        NMF --> Sig3[Signature 3]
+        Sig1 & Sig2 & Sig3 --> L1Sigs[(L1 Signatures)]
+    end
+
+    subgraph TML["TML (L2 Layer)"]
+        direction TB
+        L1Sigs --> Score[Score Signatures<br/>on Holdout Data]
+        Score --> L2Input[(L2 Input Matrix)]
+        L2Input --> MetaLearner{Meta Learner<br/>(GLM, Ranger, Earth)}
+        MetaLearner --> TrainedModel[Trained L2 Model]
+        TrainedModel --> CMGI[CMGI<br/>(Feature Importance)]
+        CMGI --> GeneImp[(Gene Importance<br/>AMSC Score)]
+    end
+
+    FGS --> TML
+```
+
 ---
 
-## 2. Development Log & Recent Improvements
+## 3. Development Log & Recent Improvements
 
 ### Version 5.4 (Current)
 *   **L1 Method Fixes**:
