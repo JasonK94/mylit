@@ -1565,8 +1565,12 @@ find_gene_signature_v5_impl <- function(data,
               filtered_dots
             )
 
-            # Use rlang::exec for robust function call
-            nmf_res <- rlang::exec(NMF::nmf, !!!nmf_args)
+            # Ensure NMF is loaded for registry access
+            if (!"package:NMF" %in% search()) {
+              suppressPackageStartupMessages(library(NMF))
+            }
+            # Use string "nmf" to allow S4 dispatch to work correctly with registry
+            nmf_res <- do.call("nmf", nmf_args)
 
             W <- NMF::basis(nmf_res)
             H <- NMF::coef(nmf_res)
@@ -2117,7 +2121,7 @@ TML7 <- function(
     "glmnet", "svmRadial", "mlp",
     "mlpKerasDropout", "nnet", "earth"
   ),
-  k_folds = 5,
+  cv_folds = 5,
   cv_method = "cv",
   repeats = 1,
   metric = c("AUC", "ROC", "Accuracy", "Kappa"),
@@ -2649,18 +2653,24 @@ TML7 <- function(
     unique_groups <- unique(cv_group)
     message(sprintf("Using Leave-One-Group-Out CV (%d groups).", length(unique_groups)))
 
-    # groupKFold returns train indices
-    index <- caret::groupKFold(cv_group, k = length(unique_groups))
-    indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+    # Manual LOGO implementation to ensure correctness
+    index <- list()
+    for (i in seq_along(unique_groups)) {
+      g <- unique_groups[i]
+      # Train indices: rows where cv_group is NOT g
+      train_idx <- which(cv_group != g)
+      index[[paste0("Fold", i)]] <- train_idx
+    }
+    indexOut <- lapply(index, function(train_idx) base::setdiff(seq_along(l2_target), train_idx))
 
     log_group_fold_details(index, indexOut, cv_group)
   } else if (cv_method == "repeatedcv") {
-    message(sprintf("Using Repeated CV (%d folds, %d repeats).", k_folds, repeats))
+    message(sprintf("Using Repeated CV (%d folds, %d repeats).", cv_folds, repeats))
     if (!is.null(cv_group)) {
       warning("Repeated CV with groups is not fully supported. Using standard Repeated CV (ignoring groups).")
     }
-    index <- caret::createMultiFolds(l2_target, k = k_folds, times = repeats)
-    indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+    index <- caret::createMultiFolds(l2_target, k = cv_folds, times = repeats)
+    indexOut <- lapply(index, function(train_idx) base::setdiff(seq_along(l2_target), train_idx))
   } else {
     # Standard CV or Group CV
     use_group_cv <- !is.null(cv_group) && !all(is.na(cv_group))
@@ -2669,22 +2679,22 @@ TML7 <- function(
       group_factor <- factor(cv_group)
       unique_groups <- levels(group_factor)
 
-      if (length(unique_groups) < k_folds) {
+      if (length(unique_groups) < cv_folds) {
         message(sprintf(
-          "cv_group_var '%s' has only %d unique values (< k_folds=%d); using standard cell-wise CV.",
-          cv_group_var, length(unique_groups), k_folds
+          "cv_group_var '%s' has only %d unique values (< cv_folds=%d); using standard cell-wise CV.",
+          cv_group_var, length(unique_groups), cv_folds
         ))
         use_group_cv <- FALSE
       } else {
         # Manual Group K-Fold to ensure balance if needed, or use caret::groupKFold
         # Existing logic used manual sampling. Let's stick to it or use caret.
         # Caret's groupKFold is simple.
-        index <- caret::groupKFold(cv_group, k = k_folds)
-        indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+        index <- caret::groupKFold(cv_group, k = cv_folds)
+        indexOut <- lapply(index, function(train_idx) base::setdiff(seq_along(l2_target), train_idx))
 
         message(sprintf(
-          "Using group-wise CV on '%s' (%d groups) for L2 (k_folds=%d).",
-          cv_group_var, length(unique_groups), k_folds
+          "Using group-wise CV on '%s' (%d groups) for L2 (cv_folds=%d).",
+          cv_group_var, length(unique_groups), cv_folds
         ))
         log_group_fold_details(index, indexOut, group_factor)
       }
@@ -2692,15 +2702,15 @@ TML7 <- function(
 
     if (!use_group_cv) {
       message("Using standard cell-wise CV folds (explicitly generated).")
-      index <- caret::createFolds(l2_target, k = k_folds, returnTrain = TRUE)
-      indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
+      index <- caret::createFolds(l2_target, k = cv_folds, returnTrain = TRUE)
+      indexOut <- lapply(index, function(train_idx) base::setdiff(seq_along(l2_target), train_idx))
     }
   }
 
   # Always disable parallel processing in caret to prevent cascade parallelization
   # Child processes from future/doParallel may load start.R and spawn more workers
   ctrl <- caret::trainControl(
-    method = "cv", number = k_folds,
+    method = "cv", number = cv_folds,
     classProbs = is_bin,
     summaryFunction = summary_fun,
     savePredictions = "final",
@@ -3026,7 +3036,7 @@ TML7 <- function(
 
       if (completed_l2_methods == 1 && remaining_methods > 0) {
         # First method completed: estimate based on this method's time
-        # For CV with k_folds, we can estimate: this method took elapsed_sec for all folds
+        # For CV with cv_folds, we can estimate: this method took elapsed_sec for all folds
         # So remaining methods will take approximately: elapsed_sec * remaining_methods
         estimated_remaining <- elapsed_sec * remaining_methods
         message(sprintf(
@@ -3039,12 +3049,12 @@ TML7 <- function(
         estimated_remaining <- avg_time_per_method * remaining_methods
 
         # Also show per-fold estimate if we have CV fold info
-        # Note: caret doesn't expose fold-level timing, but we can estimate based on k_folds
-        if (!is.null(k_folds) && k_folds > 1) {
-          # Estimate: if this method took elapsed_sec for k_folds, each fold takes ~elapsed_sec/k_folds
-          # For remaining methods: (elapsed_sec/k_folds) * k_folds * remaining_methods = elapsed_sec * remaining_methods
+        # Note: caret doesn't expose fold-level timing, but we can estimate based on cv_folds
+        if (!is.null(cv_folds) && cv_folds > 1) {
+          # Estimate: if this method took elapsed_sec for cv_folds, each fold takes ~elapsed_sec/cv_folds
+          # For remaining methods: (elapsed_sec/cv_folds) * cv_folds * remaining_methods = elapsed_sec * remaining_methods
           # But we use the average across completed methods for better accuracy
-          avg_per_fold <- avg_time_per_method / k_folds
+          avg_per_fold <- avg_time_per_method / cv_folds
           message(sprintf(
             "✓ %s 완료: %.1f초 (%.1f분) | 진행: %d/%d | 예상 남은 시간: %.1f분 (평균 %.1f초/모델, %.2f초/fold)",
             m, elapsed_sec, elapsed_sec / 60, completed_l2_methods, total_l2_methods,

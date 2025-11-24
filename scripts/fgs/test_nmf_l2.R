@@ -1,8 +1,9 @@
 # scripts/fgs/test_nmf_l2.R
 
 # --- Environment Setup ---
-if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")
-renv::activate("/home/user3/GJC_KDW_250721")
+# Use init_fgs_env.R to properly activate renv and load packages via start.R
+source("/home/user3/data_user3/git_repo/_wt/fgs/scripts/fgs/init_fgs_env.R")
+source("/home/user3/GJC_KDW_250721/start.R")
 
 # Load necessary libraries
 suppressPackageStartupMessages({
@@ -116,7 +117,6 @@ tryCatch(
             l1_signatures = fgsa,
             holdout_data = sobj,
             target_var = "g3",
-            control_vars = "hos_no",
             l2_methods = c("glm", "ranger"),
             cv_method = "LOGO",
             cv_group_var = "hos_no"
