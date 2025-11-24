@@ -73,12 +73,21 @@ results <- lapply(fgs_keys, function(x) {
             # FGS 실행
             message(sprintf("Running FGS for cluster %s...", x))
             # min_cells=3으로 설정하여 작은 클러스터도 허용
+            # random_forest는 너무 느리므로 제외하고 ranger 사용
+            methods_to_run <- c(
+                "random_forest_ranger", "xgboost",
+                "lasso", "ridge", "elastic_net",
+                "pca_loadings", "nmf_loadings",
+                "gam", "limma", "wilcoxon"
+            )
+
             fgsa <- find_gene_signature_v5.4(
                 sobj,
                 target_var = "g3",
                 control_vars = "hos_no",
                 n_features = 200,
-                min_cells = 3
+                min_cells = 3,
+                method = methods_to_run
             )
 
             # FGS 저장

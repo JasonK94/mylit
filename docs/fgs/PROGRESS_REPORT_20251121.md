@@ -14,9 +14,9 @@
 - **Action**:
     - Created `run_failed_clusters_v2.R` to identify and process missing clusters.
     - Used `min_cells=3` to handle small clusters.
-    - Directly sourced `myR/R/signature.R` to ensure latest code is used (overriding `start.R`'s loaded package).
-- **Status**: Script is running. Processing 7 missing clusters out of 24 total.
-    - Currently processing: `Monocytes / Macrophages`.
+    - Directly sourced `myR/R/signature.R` to ensure latest code is used.
+    - **Update**: Excluded `random_forest` method (too slow) and focused on `ranger` and `nmf`.
+- **Status**: Script is running (`run_failed_clusters_v4.log`).
 
 ## 3. TML7 Development (Phase 1)
 - **Objective**: Implement model-specific normalization for gene importance.
@@ -34,12 +34,13 @@
 - **Objective**: Verify consistency between `randomForest` and `ranger` implementations.
 - **Action**:
     - Created `compare_ranger_rf_test.R`.
-    - Initial run confirmed FGS execution success (verifying `random_forest_ranger` works).
-    - Encountered `conflicted` package error during comparison step.
-    - Fixed script and re-running (`compare_ranger_rf_v2.log`).
-- **Status**: Running. Expected completion in ~6 minutes.
+    - Downsampled to 300 cells for speed.
+    - Fixed `intersect` conflict issue.
+- **Result**:
+    - **Jaccard Index: 1.0000**
+    - `random_forest` and `random_forest_ranger` produced identical gene lists (Top 50 features).
+    - Confirms `random_forest_ranger` implementation is correct and can replace the slower `random_forest`.
 
 ## Next Steps
-- Monitor `run_failed_clusters_v2.R` progress.
-- Analyze `compare_ranger_rf_v2.log` results.
-- Once verified, push changes to remote (if applicable) or finalize session.
+- Monitor `run_failed_clusters_v2.R` completion.
+- Finalize and push changes.
