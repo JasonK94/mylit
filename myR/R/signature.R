@@ -2663,7 +2663,12 @@ TML7 <- function(
     }
   }
   if (!use_group_cv) {
-    message("Using standard cell-wise CV folds (caret-generated).")
+    message("Using standard cell-wise CV folds (explicitly generated).")
+    set.seed(fgs_seed)
+    # createFolds returns validation indices by default if returnTrain=FALSE.
+    # caret::trainControl index expects TRAINING indices.
+    index <- caret::createFolds(l2_target, k = k_folds, returnTrain = TRUE)
+    indexOut <- lapply(index, function(train_idx) setdiff(seq_along(l2_target), train_idx))
   }
 
   # Always disable parallel processing in caret to prevent cascade parallelization
@@ -3070,7 +3075,8 @@ TML7 <- function(
     trained_models = model_list,
     positive_class = positive_class,
     l2_train = data.frame(l2_train_df, .target = l2_target),
-    l1_signatures = l1_signatures
+    l1_signatures = l1_signatures,
+    cv_folds = list(index = index, indexOut = indexOut)
   )
 }
 
