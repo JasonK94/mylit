@@ -199,7 +199,7 @@ tryCatch(
             cv_folds = 5,
             cv_method = "cv",
             cv_group_var = group_var,
-            seed = 42
+            fgs_seed = 42
         )
 
         timing_end <- Sys.time()
@@ -285,7 +285,7 @@ tryCatch(
             cv_folds = 5,
             cv_method = "cv",
             cv_group_var = group_var,
-            seed = 42
+            fgs_seed = 42
         )
 
         timing_end <- Sys.time()
@@ -334,7 +334,7 @@ tryCatch(
             l2_methods = fast_methods,
             cv_method = "LOGO",
             cv_group_var = group_var,
-            seed = 42
+            fgs_seed = 42
         )
 
         timing_end <- Sys.time()
@@ -367,7 +367,7 @@ tryCatch(
             cv_method = "repeatedcv",
             repeats = 3,
             cv_group_var = group_var,
-            seed = 42
+            fgs_seed = 42
         )
 
         timing_end <- Sys.time()
