@@ -1,13 +1,8 @@
 개요
 scRNAseq / Spatial Transcriptomics 분석 툴 개발 토탈 패키지임.
 
-주의사항
-1. R을 지정된 곳에서 실행하지 않으면 의존성 문제가 생김을 제 1번으로 명심하라.
-2. 
-
 각론
 1. 테스트 환경:
-R을 지정된 곳에서 실행하지 않으면 의존성 문제가 생김을 제 1번으로 명심하라.
 cd /home/user3/GJC_KDW_250721 && Rscript 으로 스크립트를  실행하면, 패키지 의존성 문제는 없음. (renv에 모두 설치돼있음, start.R이 알아서 load해줌)
 cursor가 직접 테스트 & 디버깅 루프를 반복하여 분석 결과를 /data/user3/sobj에 저장해두길 바람. overriding은 가능한 한 회피하여야 함.
 2. 사용 데이터:
@@ -42,8 +37,6 @@ g3이 target variable("2", "1", "NA"), 환자는 $hos_no(8자리 숫자), 클러
 7) plotting 함수 편의성: plots-dev 브랜치/워크트리.
 
 6. 추가 참조:
-1) Docs
-* 에이전트의 개발 & 디버깅 루틴을 위한 일반적인 내용은 /home/user3/data_user3/git_repo/mylit/docs/wt_test_general에 저장되어있음 
-* 각 워크트리용 docs는 docs에 하위 폴더에, scripts는 scripts 하위 폴더에 정리.
-2) scripts
-* 각 하위 프로젝트의 script는 scripts/<하위브랜치명> 에 정리되어 있음.
+documentation rule은 이 것을 참고하자.
+
+@DOCS_ORGANIZATION_RULE.md 

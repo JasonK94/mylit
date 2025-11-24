@@ -46,7 +46,7 @@ GEM     1   2
 ### 방법 1: GEM을 covar_effects에서 제거 (권장)
 
 ```r
-neb1 <- runNEBULA(
+neb1 <- runNEBULA2_v1(
   is5s, 
   fixed_effects = c("g3"), 
   covar_effects = NULL,  # GEM 제거
@@ -73,7 +73,7 @@ sobj_filtered <- is5s[, is5s@meta.data$GEM %in% gem_levels_to_keep &
                        !is.na(is5s@meta.data$g3) & 
                        !is.na(is5s@meta.data$hos_no)]
 
-neb1 <- runNEBULA(
+neb1 <- runNEBULA2_v1(
   sobj_filtered, 
   fixed_effects = c("g3"), 
   covar_effects = "GEM",
@@ -94,7 +94,7 @@ neb1 <- runNEBULA(
 ### 방법 3: GEM을 fixed_effects로 사용
 
 ```r
-neb1 <- runNEBULA(
+neb1 <- runNEBULA2_v1(
   is5s, 
   fixed_effects = c("GEM"),  # GEM을 fixed_effects로
   covar_effects = NULL,
@@ -114,7 +114,7 @@ neb1 <- runNEBULA(
 ### 방법 4: min_count를 높여서 유전자 수 제한
 
 ```r
-neb1 <- runNEBULA(
+neb1 <- runNEBULA2_v1(
   is5s, 
   fixed_effects = c("g3"), 
   covar_effects = "GEM",
@@ -133,14 +133,12 @@ neb1 <- runNEBULA(
 
 ## 개선 사항
 
-`runNEBULA` 함수에 다음 기능을 추가했습니다:
+`runNEBULA2_v1` 함수에 다음 기능을 추가했습니다:
 
 1. **설계 행렬 특이성 확인**: `qr()`을 사용하여 rank 확인
 2. **완전 분리 감지**: 변수 간 contingency table 확인
 3. **자동 유전자 제한**: 설계 행렬이 특이하면 유전자 수를 1000개로 제한
 4. **상세한 오류 메시지**: 문제 원인과 해결 방법 제시
-5. **max_genes 파라미터**: 기본 5000개 gene까지만 유지하여 `result would exceed 2^31-1`
-   오류를 방지하고, 필요 시 `max_genes = NULL`로 해제 가능
 
 ## 권장 사항
 
@@ -153,8 +151,7 @@ neb1 <- runNEBULA(
 문제를 진단하고 해결 방법을 테스트하려면:
 
 ```r
-source("/home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_nebula_issue.R")
-
+source("/home/user3/data_user3/git_repo/_wt/analysis/test_nebula_issue.R")
 ```
 
 ## 참고
