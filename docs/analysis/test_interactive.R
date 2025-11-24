@@ -5,11 +5,8 @@
 # 
 # 사용법:
 #   cd /home/user3/GJC_KDW_250721
-<<<<<<<< HEAD:scripts/analysis/test_interactive.R
 #   Rscript "/home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_interactive.R"
-========
-#   Rscript "/home/user3/data_user3/git_repo/_wt/analysis/test_interactive.R"
->>>>>>>> deg-consensus-dev:docs/analysis/test_interactive.R
+
 # ============================================================================
 
 # 작업 디렉터리를 /home/user3/GJC_KDW_250721로 설정 (중요!)

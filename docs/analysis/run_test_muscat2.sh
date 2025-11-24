@@ -7,11 +7,8 @@
 cd /home/user3/GJC_KDW_250721
 
 # R 스크립트 실행
-<<<<<<<< HEAD:scripts/analysis/run_test_muscat2.sh
 Rscript /home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_run_muscat2.R 2>&1 | tee /tmp/test_muscat2.log
-========
-Rscript /home/user3/data_user3/git_repo/_wt/analysis/test_run_muscat2.R 2>&1 | tee /tmp/test_muscat2.log
->>>>>>>> deg-consensus-dev:docs/analysis/run_test_muscat2.sh
+
 
 # 결과 확인
 if [ $? -eq 0 ]; then

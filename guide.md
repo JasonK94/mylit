@@ -40,4 +40,5 @@ g3이 target variable("2", "1", "NA"), 환자는 $hos_no(8자리 숫자), 클러
 1) Docs
 * 에이전트의 개발 & 디버깅 루틴을 위한 일반적인 내용은 /home/user3/data_user3/git_repo/mylit/docs/wt_test_general에 저장되어있음 
 * 각 워크트리용 docs는 docs에 하위 폴더에, scripts는 scripts 하위 폴더에 정리.
-2) 
+2) scripts
+* 각 하위 프로젝트의 script는 scripts/<하위브랜치명> 에 정리되어 있음.

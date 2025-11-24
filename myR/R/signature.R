@@ -48,73 +48,76 @@ AddMultipleModuleScores <- function(seurat_object,
                                     seed = 1,
                                     search = FALSE,
                                     ...) {
-  
-  if (!requireNamespace("Seurat", quietly = TRUE))
+  if (!requireNamespace("Seurat", quietly = TRUE)) {
     stop("Package 'Seurat' is required but not installed.")
-  if (!is.list(feature_sets))
+  }
+  if (!is.list(feature_sets)) {
     stop("'feature_sets' must be a list of character vectors.")
-  
-  if (is.null(assay))
+  }
+
+  if (is.null(assay)) {
     assay <- Seurat::DefaultAssay(seurat_object)
-  
+  }
+
   all_genes <- rownames(Seurat::GetAssayData(seurat_object, assay = assay, layer = layer))
-  added_cols <- character(0)              # <- 여기에 최종 컬럼명 모음
-  
+  added_cols <- character(0) # <- 여기에 최종 컬럼명 모음
+
   for (i in seq_along(feature_sets)) {
-    
     genes_raw <- feature_sets[[i]]
     genes_use <- intersect(genes_raw, all_genes)
     if (length(genes_use) == 0) {
       warning(sprintf("feature set %d: no genes found – skipped", i))
       next
     }
-    
+
     set_name <- names(feature_sets)[i]
-    if (is.null(set_name) || set_name == "")
+    if (is.null(set_name) || set_name == "") {
       set_name <- paste(gsub("-", "_", genes_use), collapse = "+")
-    
-    #— 1) AddModuleScore 실행
+    }
+
+    # — 1) AddModuleScore 실행
     before_cols <- colnames(seurat_object[[]])
     seurat_object <- Seurat::AddModuleScore(
-      object   = seurat_object,
+      object = seurat_object,
       features = list(genes_use),
-      name     = set_name,                # AddModuleScore가 set_name1 을 만듦
-      assay    = assay,
-      layer     = layer,
-      nbin     = nbin,
-      ctrl     = ctrl,
-      seed     = seed,
-      search   = search,
+      name = set_name, # AddModuleScore가 set_name1 을 만듦
+      assay = assay,
+      layer = layer,
+      nbin = nbin,
+      ctrl = ctrl,
+      seed = seed,
+      search = search,
       ...
     )
-    after_cols  <- colnames(seurat_object[[]])
-    new_col     <- setdiff(after_cols, before_cols)  # 방금 생긴 컬럼
-    
-    #— 2) 뒤에 붙은 숫자 제거 & rename
-    tidy_col    <- sub("1$", "", new_col)            # 끝의 1 지우기
+    after_cols <- colnames(seurat_object[[]])
+    new_col <- setdiff(after_cols, before_cols) # 방금 생긴 컬럼
+
+    # — 2) 뒤에 붙은 숫자 제거 & rename
+    tidy_col <- sub("1$", "", new_col) # 끝의 1 지우기
     if (tidy_col != new_col) {
       colnames(seurat_object[[]])[match(new_col, after_cols)] <- tidy_col
       message(sprintf("renamed '%s' -> '%s'", new_col, tidy_col))
     }
-    
+
     added_cols <- c(added_cols, tidy_col)
   }
-  
-  #— 3) FeaturePlot 에 바로 써먹을 수 있게 출력
+
+  # — 3) FeaturePlot 에 바로 써먹을 수 있게 출력
   if (length(added_cols)) {
     msg1 <- "# Copy-&-paste for FeaturePlot:"
-    msg2 <- sprintf("FeaturePlot(obj, features = c(%s))",
-                    paste(sprintf("'%s'", added_cols), collapse=", "))
+    msg2 <- sprintf(
+      "FeaturePlot(obj, features = c(%s))",
+      paste(sprintf("'%s'", added_cols), collapse = ", ")
+    )
     message("\n", msg1, "\n", msg2, "\n")
     flush.console()
   } else {
     warning("No module scores were added.")
   }
-  
-  
+
+
   invisible(seurat_object)
 }
-
 
 
 #' Visualize Module Scores as Heatmap with Statistical Testing
@@ -136,56 +139,56 @@ AddMultipleModuleScores <- function(seurat_object,
 #' @return A list containing the heatmap plot and statistical results
 #'
 PlotModuleScoreHeatmap <- function(
-    sobj,
-    gene_sets,
-    group = "seurat_clusters",
-    assay = "SCT",
-    test_method = "wilcox",
-    p_adjust = "bonferroni",
-    show_pval = TRUE,
-    scale_method = "feature",
-    color_limits = NULL,
-    title = "Module Score Expression per Cluster",
-    x_label = "Cluster",
-    y_label = "Gene Set",
-    ...
+  sobj,
+  gene_sets,
+  group = "seurat_clusters",
+  assay = "SCT",
+  test_method = "wilcox",
+  p_adjust = "bonferroni",
+  show_pval = TRUE,
+  scale_method = "feature",
+  color_limits = NULL,
+  title = "Module Score Expression per Cluster",
+  x_label = "Cluster",
+  y_label = "Gene Set",
+  ...
 ) {
   library(Seurat)
   library(dplyr)
   library(tidyr)
   library(ggplot2)
   library(patchwork)
-  
+
   # Validate inputs
-  if(is.null(gene_sets) || length(gene_sets) == 0) {
+  if (is.null(gene_sets) || length(gene_sets) == 0) {
     stop("gene_sets must be provided")
   }
-  
+
   # Ensure gene_sets is a named list
-  if(!is.list(gene_sets)) {
+  if (!is.list(gene_sets)) {
     gene_sets <- list(GeneSet1 = gene_sets)
   }
-  
-  if(is.null(names(gene_sets)) || any(names(gene_sets) == "")) {
-    for(i in seq_along(gene_sets)) {
-      if(is.null(names(gene_sets)[i]) || names(gene_sets)[i] == "") {
+
+  if (is.null(names(gene_sets)) || any(names(gene_sets) == "")) {
+    for (i in seq_along(gene_sets)) {
+      if (is.null(names(gene_sets)[i]) || names(gene_sets)[i] == "") {
         names(gene_sets)[i] <- paste0("GeneSet", i)
       }
     }
   }
-  
+
   # Add module scores for each gene set
   module_names <- character()
-  for(i in seq_along(gene_sets)) {
+  for (i in seq_along(gene_sets)) {
     set_name <- names(gene_sets)[i]
-    
+
     # Check if genes exist in the dataset
     genes_present <- gene_sets[[i]][gene_sets[[i]] %in% rownames(sobj[[assay]])]
-    if(length(genes_present) == 0) {
+    if (length(genes_present) == 0) {
       warning(paste("No genes from", set_name, "found in the dataset."))
       next
     }
-    
+
     # AddModuleScore adds a number suffix, we'll track it
     before_cols <- colnames(sobj@meta.data)
     sobj <- AddModuleScore(
@@ -197,93 +200,100 @@ PlotModuleScoreHeatmap <- function(
     )
     after_cols <- colnames(sobj@meta.data)
     new_col <- setdiff(after_cols, before_cols)
-    
+
     # Remove the "1" suffix if desired
-    if(length(new_col) > 0) {
+    if (length(new_col) > 0) {
       clean_name <- sub("1$", "", new_col[1])
       colnames(sobj@meta.data)[colnames(sobj@meta.data) == new_col[1]] <- clean_name
       module_names <- c(module_names, clean_name)
     }
   }
-  
-  if(length(module_names) == 0) {
+
+  if (length(module_names) == 0) {
     stop("No valid module scores could be calculated")
   }
-  
+
   # Calculate average module scores per group
   Idents(sobj) <- group
   group_levels <- levels(Idents(sobj))
-  if(is.null(group_levels)) {
+  if (is.null(group_levels)) {
     group_levels <- unique(Idents(sobj))
   }
-  
+
   # Extract module score data
   module_data <- sobj@meta.data[, c(group, module_names), drop = FALSE]
-  
+
   # Calculate mean scores per group
   mean_scores <- module_data %>%
     group_by(!!sym(group)) %>%
     summarise(across(all_of(module_names), mean, na.rm = TRUE)) %>%
     as.data.frame()
-  
+
   # Z-score normalization based on scale_method
   z_scores <- mean_scores
-  
-  if(scale_method == "feature") {
+
+  if (scale_method == "feature") {
     # Scale each module across all clusters (recommended)
     # 각 module에 대해 모든 cluster의 평균과 표준편차로 정규화
-    for(module in module_names) {
+    for (module in module_names) {
       z_scores[[module]] <- scale(mean_scores[[module]])[, 1]
     }
-  } else if(scale_method == "group") {
+  } else if (scale_method == "group") {
     # Scale all modules within each cluster (original behavior)
     # 각 cluster 내에서 모든 module을 정규화
     z_scores[, module_names] <- t(scale(t(mean_scores[, module_names])))
   } else {
     stop("scale_method must be either 'feature' or 'group'")
   }
-  
+
   # Statistical testing between clusters
-  p_values <- matrix(NA, nrow = length(module_names), ncol = length(group_levels),
-                     dimnames = list(module_names, group_levels))
-  
-  for(module in module_names) {
-    for(cluster in group_levels) {
+  p_values <- matrix(NA,
+    nrow = length(module_names), ncol = length(group_levels),
+    dimnames = list(module_names, group_levels)
+  )
+
+  for (module in module_names) {
+    for (cluster in group_levels) {
       cluster_scores <- module_data[module_data[[group]] == cluster, module]
       other_scores <- module_data[module_data[[group]] != cluster, module]
-      
-      if(length(cluster_scores) > 2 && length(other_scores) > 2) {
-        if(test_method == "wilcox") {
+
+      if (length(cluster_scores) > 2 && length(other_scores) > 2) {
+        if (test_method == "wilcox") {
           test_result <- wilcox.test(cluster_scores, other_scores)
-        } else if(test_method == "t") {
+        } else if (test_method == "t") {
           test_result <- t.test(cluster_scores, other_scores)
         }
         p_values[module, as.character(cluster)] <- test_result$p.value
       }
     }
   }
-  
+
   # Adjust p-values
   p_adj <- matrix(p.adjust(as.vector(p_values), method = p_adjust),
-                  nrow = nrow(p_values), ncol = ncol(p_values),
-                  dimnames = dimnames(p_values))
-  
+    nrow = nrow(p_values), ncol = ncol(p_values),
+    dimnames = dimnames(p_values)
+  )
+
   # Prepare data for plotting
   plot_data <- z_scores %>%
-    pivot_longer(cols = all_of(module_names),
-                 names_to = "Module",
-                 values_to = "ZScore")
-  
+    pivot_longer(
+      cols = all_of(module_names),
+      names_to = "Module",
+      values_to = "ZScore"
+    )
+
   # Add significance indicators
   sig_data <- as.data.frame(p_adj) %>%
     mutate(Module = rownames(.)) %>%
-    pivot_longer(cols = -Module,
-                 names_to = group,
-                 values_to = "p_adj")
-  
+    pivot_longer(
+      cols = -Module,
+      names_to = group,
+      values_to = "p_adj"
+    )
+
   plot_data <- plot_data %>%
     left_join(sig_data, by = c("Module", group))
-  
+
   # Add significance symbols
   plot_data <- plot_data %>%
     mutate(sig_symbol = case_when(
@@ -292,25 +302,28 @@ PlotModuleScoreHeatmap <- function(
       p_adj < 0.05 ~ "*",
       TRUE ~ ""
     ))
-  
+
   # Sort clusters numerically if possible
   numeric_test <- suppressWarnings(as.numeric(as.character(plot_data[[group]])))
-  if(!all(is.na(numeric_test))) {
+  if (!all(is.na(numeric_test))) {
     plot_data[[group]] <- factor(plot_data[[group]],
-                                 levels = as.character(sort(unique(numeric_test))))
+      levels = as.character(sort(unique(numeric_test)))
+    )
   }
-  
+
   # Create heatmap with adjusted color scale
-  if(is.null(color_limits)) {
+  if (is.null(color_limits)) {
     # Use symmetric limits based on max absolute value
     max_abs <- max(abs(plot_data$ZScore), na.rm = TRUE)
     color_limits <- c(-max_abs, max_abs)
   }
-  
+
   p <- ggplot(plot_data, aes_string(x = group, y = "Module", fill = "ZScore")) +
     geom_tile() +
-    scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
-                         midpoint = 0, limits = color_limits, name = "Z-Score") +
+    scale_fill_gradient2(
+      low = "blue", mid = "white", high = "red",
+      midpoint = 0, limits = color_limits, name = "Z-Score"
+    ) +
     theme_minimal() +
     labs(title = title, x = x_label, y = y_label) +
     theme(
@@ -319,36 +332,41 @@ PlotModuleScoreHeatmap <- function(
       axis.title = element_text(size = 14, face = "bold"),
       plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
     )
-  
+
   # Add significance indicators if requested
-  if(show_pval) {
-    p <- p + geom_text(aes(label = sig_symbol), 
-                       color = "black", size = 4, vjust = 0.5)
+  if (show_pval) {
+    p <- p + geom_text(aes(label = sig_symbol),
+      color = "black", size = 4, vjust = 0.5
+    )
   }
-  
+
   # Create a summary plot showing raw module scores
   summary_data <- module_data %>%
-    pivot_longer(cols = all_of(module_names),
-                 names_to = "Module",
-                 values_to = "Score")
-  
+    pivot_longer(
+      cols = all_of(module_names),
+      names_to = "Module",
+      values_to = "Score"
+    )
+
   p_violin <- ggplot(summary_data, aes_string(x = group, y = "Score", fill = group)) +
     geom_violin(trim = FALSE, alpha = 0.8) +
     geom_boxplot(width = 0.1, outlier.size = 0.5) +
-    facet_wrap(~ Module, scales = "free_y", ncol = 2) +
+    facet_wrap(~Module, scales = "free_y", ncol = 2) +
     theme_minimal() +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       legend.position = "none"
     ) +
-    labs(title = "Raw Module Score Distribution",
-         x = x_label, y = "Module Score")
-  
+    labs(
+      title = "Raw Module Score Distribution",
+      x = x_label, y = "Module Score"
+    )
+
   # Combine plots
   combined_plot <- p / p_violin + plot_layout(heights = c(1, 2))
-  
+
   print(combined_plot)
-  
+
   # Return results
   return(list(
     plot = combined_plot,
@@ -365,65 +383,71 @@ PlotModuleScoreHeatmap <- function(
 #'
 #' @export
 CompareModuleScoringMethods <- function(
-    sobj,
-    gene_sets,
-    group = "seurat_clusters",
-    assay = "SCT"
+  sobj,
+  gene_sets,
+  group = "seurat_clusters",
+  assay = "SCT"
 ) {
   library(ggplot2)
   library(patchwork)
-  
+
   # Method 1: Simple averaging (original method)
   simple_results <- myhm_genesets4(sobj, group, "average", assay, gene_sets,
-                                   title = "Simple Averaging Method")
-  
+    title = "Simple Averaging Method"
+  )
+
   # Method 2: AddModuleScore-based
   module_results <- PlotModuleScoreHeatmap(sobj, gene_sets, group, assay,
-                                           title = "AddModuleScore Method")
-  
+    title = "AddModuleScore Method"
+  )
+
   # Create comparison plot
   comparison_data <- data.frame(
     Cluster = simple_results$Cluster,
     Method = "Simple"
   )
-  
-  for(gset in names(gene_sets)) {
-    if(gset %in% colnames(simple_results)) {
+
+  for (gset in names(gene_sets)) {
+    if (gset %in% colnames(simple_results)) {
       comparison_data[[gset]] <- simple_results[[gset]]
     }
   }
-  
+
   module_z <- module_results$z_scores
   module_comparison <- data.frame(
     Cluster = module_z[[group]],
     Method = "AddModuleScore"
   )
-  
-  for(module in module_results$module_names) {
-    if(module %in% colnames(module_z)) {
+
+  for (module in module_results$module_names) {
+    if (module %in% colnames(module_z)) {
       module_comparison[[module]] <- module_z[[module]]
     }
   }
-  
+
   # Combine data
   all_data <- bind_rows(comparison_data, module_comparison)
-  
+
   # Create faceted comparison plot
   all_data_long <- all_data %>%
-    pivot_longer(cols = -c(Cluster, Method),
-                 names_to = "GeneSet",
-                 values_to = "ZScore")
-  
+    pivot_longer(
+      cols = -c(Cluster, Method),
+      names_to = "GeneSet",
+      values_to = "ZScore"
+    )
+
   p_compare <- ggplot(all_data_long, aes(x = Cluster, y = ZScore, fill = Method)) +
     geom_bar(stat = "identity", position = "dodge") +
-    facet_wrap(~ GeneSet, scales = "free_y") +
+    facet_wrap(~GeneSet, scales = "free_y") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    labs(title = "Comparison of Scoring Methods",
-         x = "Cluster", y = "Z-Score")
-  
+    labs(
+      title = "Comparison of Scoring Methods",
+      x = "Cluster", y = "Z-Score"
+    )
+
   print(p_compare)
-  
+
   return(list(
     simple = simple_results,
     module = module_results,
@@ -437,7 +461,7 @@ CompareModuleScoringMethods <- function(
 #   Bcell = c("MS4A1", "CD79A", "CD79B"),
 #   Monocyte = c("CD14", "LYZ", "S100A8", "S100A9")
 # )
-# 
+#
 # results <- PlotModuleScoreHeatmap(pbmc, gene_sets, show_pval = TRUE)
 # comparison <- CompareModuleScoringMethods(pbmc, gene_sets)
 
@@ -448,7 +472,7 @@ CompareModuleScoringMethods <- function(
 #' @param seurat_obj A Seurat object.
 #' @param gene_source A character string specifying the path to a file OR an R object (data.frame, vector) containing gene IDs.
 #' @param signature_name A character string for the name of the new metadata column.
-#' @param input_keytype The type of the input gene IDs. Must be a valid keytype for org.Hs.eg.db. 
+#' @param input_keytype The type of the input gene IDs. Must be a valid keytype for org.Hs.eg.db.
 #'                      Common values are "ENSEMBL", "SYMBOL", "ENTREZID". Defaults to "ENSEMBL".
 #' @param gene_col If `gene_source` is a file path or a data.frame, specify the column index or name. Defaults to 1.
 #' @param sheet_name If `gene_source` is an xlsx file, specify the sheet name or index. Defaults to 1.
@@ -459,54 +483,54 @@ CompareModuleScoringMethods <- function(
 #' @return A Seurat object with the new signature score added to its metadata.
 #' @export
 add_signature_enrichit <- function(seurat_obj,
-                                      gene_source,
-                                      signature_name,
-                                      input_keytype = "ENSEMBL", # <--- 이 파라미터 추가!
-                                      gene_col = 1,
-                                      sheet_name = 1,
-                                      assay = "RNA",
-                                      layer = "data",
-                                      ...) {
+                                   gene_source,
+                                   signature_name,
+                                   input_keytype = "ENSEMBL", # <--- 이 파라미터 추가!
+                                   gene_col = 1,
+                                   sheet_name = 1,
+                                   assay = "RNA",
+                                   layer = "data",
+                                   ...) {
   # ... (이전 버전과 동일한 유전자 목록 로드 부분) ...
   if (is.character(gene_source) && length(gene_source) == 1 && file.exists(gene_source)) {
-     # 파일 경로일 때만 이 분기
+    # 파일 경로일 때만 이 분기
     ext <- tools::file_ext(gene_source)
     gene_list_raw <- switch(ext,
-                            xlsx = read_xlsx(gene_source, sheet = sheet_name)%>% pull(gene_col),
-                            csv = read.csv(gene_source, stringsAsFactors = FALSE)%>% pull(gene_col),
-                            txt = read.table(gene_source, stringsAsFactors = FALSE)%>% pull(gene_col),
-                            stop("Unsupported file type.")
+      xlsx = read_xlsx(gene_source, sheet = sheet_name) %>% pull(gene_col),
+      csv = read.csv(gene_source, stringsAsFactors = FALSE) %>% pull(gene_col),
+      txt = read.table(gene_source, stringsAsFactors = FALSE) %>% pull(gene_col),
+      stop("Unsupported file type.")
     )
   } else if (is.data.frame(gene_source)) {
-    gene_list_raw <- gene_source%>% pull(gene_col)
+    gene_list_raw <- gene_source %>% pull(gene_col)
   } else if (is.vector(gene_source)) {
     gene_list_raw <- gene_source
   } else {
     stop("`gene_source` must be a valid file path, data.frame, or vector.")
   }
-  
+
   # 입력된 keytype을 사용하여 항상 SYMBOL로 변환
   # 자동 감지는 권하지 않는다. 왜냐면 오류의 원인이 되기 쉽다. 데이터 정제는 따로 수행하는 것이 좋다.
-  
+
   message(paste("Input keytype is", input_keytype, ". Converting to Gene Symbols..."))
   gene_symbols <- mapIds(
     org.Hs.eg.db,
     keys = unique(na.omit(as.character(gene_list_raw))),
     keytype = input_keytype, # 사용자가 지정한 ID 타입을 사용
-    column = "SYMBOL",       # 최종 목표는 항상 SYMBOL
+    column = "SYMBOL", # 최종 목표는 항상 SYMBOL
     multiVals = "first"
   )
   gene_symbols <- na.omit(gene_symbols)
   # ---
-  
+
   if (length(gene_symbols) == 0) {
     stop(paste("No valid gene symbols could be mapped using keytype:", input_keytype))
   }
   message(paste(length(gene_symbols), "gene symbols were successfully mapped."))
-  
+
   gene_set <- GeneSet(gene_symbols, setName = signature_name)
   gene_sets_collection <- GeneSetCollection(gene_set)
-  
+
   message("Running enrichIt...")
   expr_matrix <- GetAssayData(seurat_obj, assay = assay, layer = layer)
   enrichment_scores <- enrichIt(
@@ -514,13 +538,13 @@ add_signature_enrichit <- function(seurat_obj,
     gene.sets = gene_sets_collection,
     ...
   )
-  
+
   message("Adding scores to Seurat metadata...")
   seurat_obj <- AddMetaData(
     object = seurat_obj,
     metadata = as.data.frame(enrichment_scores)
   )
-  
+
   return(seurat_obj)
 }
 
@@ -549,7 +573,6 @@ add_signature_enrichit <- function(seurat_obj,
 #' FeaturePlot(pbmc_with_progeny, features = "NFkB")
 #' }
 add_progeny_scores <- function(seurat_obj, organism = "Human", topn = 100, ...) {
-  
   # 1. Progeny를 실행하여 새로운 assay 추가
   message("Running progeny...")
   seurat_obj <- progeny(
@@ -560,25 +583,22 @@ add_progeny_scores <- function(seurat_obj, organism = "Human", topn = 100, ...) 
     return_assay = TRUE,
     ...
   )
-  
+
   # 2. Progeny assay를 스케일링
   message("Scaling progeny assay...")
   seurat_obj <- ScaleData(seurat_obj, assay = "progeny")
-  
+
   # 3. 스케일링된 데이터를 메타데이터로 변환하여 추가
   message("Adding scores to Seurat metadata...")
   progeny_scores <- as.data.frame(t(GetAssayData(seurat_obj, assay = "progeny", layer = "scale.data")))
-  
+
   seurat_obj <- AddMetaData(
     object = seurat_obj,
     metadata = progeny_scores
   )
-  
+
   return(seurat_obj)
 }
-
-
-
 
 
 # # Helper function to score new data with signature
@@ -586,75 +606,77 @@ add_progeny_scores <- function(seurat_obj, organism = "Human", topn = 100, ...) 
 # score_signature1 <- function(expr_data, signature, normalize=TRUE) {
 #   genes <- signature$genes
 #   weights <- signature$weights
-  
+
 #   # Extract expression matrix
 #   if (inherits(expr_data, "Seurat")) {
 #     expr_mat <- as.matrix(Seurat::GetAssayData(expr_data, layer="data"))
 #   } else {
 #     expr_mat <- as.matrix(expr_data)
 #   }
-  
+
 #   # Check gene availability
 #   available_genes <- intersect(genes, rownames(expr_mat))
 #   if (length(available_genes) == 0) {
 #     stop("None of the signature genes found in data")
 #   }
 #   if (length(available_genes) < length(genes)) {
-#     warning(sprintf("%d/%d signature genes not found in data", 
+#     warning(sprintf("%d/%d signature genes not found in data",
 #                     length(genes) - length(available_genes), length(genes)))
 #   }
-  
+
 #   # Calculate scores
 #   weights <- weights[available_genes]
 #   scores <- colSums(expr_mat[available_genes, , drop=FALSE] * weights)
-  
+
 #   if (normalize) {
 #     scores <- scale(scores)[,1]
 #   }
-  
+
 #   return(scores)
 # }
 
 # Helper function to score new data with signature (ver.2)
 #' @export
-score_signature2 <- function(expr_data, signature, normalize=TRUE) {
+score_signature2 <- function(expr_data, signature, normalize = TRUE) {
   # version2: as.matrix 제거,
   genes <- signature$genes
   weights <- signature$weights
-  
+
   # === 1. 표현 행렬 추출 (SPARSE 유지) ===
   if (inherits(expr_data, "Seurat")) {
     if (!requireNamespace("Seurat", quietly = TRUE)) {
       stop("Seurat package required.")
     }
     # as.matrix() 호출 제거!
-    expr_mat <- Seurat::GetAssayData(expr_data, layer="data")
+    expr_mat <- Seurat::GetAssayData(expr_data, layer = "data")
   } else {
     # 이미 행렬(희소 또는 조밀)이라고 가정
     expr_mat <- expr_data
   }
-  
+
   # === 2. 유전자 필터링 ===
   available_genes <- intersect(genes, rownames(expr_mat))
-  
+
   if (length(available_genes) == 0) {
     stop("None of the signature genes found in data")
   }
   if (length(available_genes) < length(genes)) {
-    warning(sprintf("%d/%d signature genes not found in data", 
-                    length(genes) - length(available_genes), length(genes)))
+    warning(sprintf(
+      "%d/%d signature genes not found in data",
+      length(genes) - length(available_genes), length(genes)
+    ))
   }
-  
+
   # === 3. 스코어 계산 (희소 행렬에서도 잘 작동) ===
   weights <- weights[available_genes]
-  
+
   # drop=FALSE는 1개 유전자만 선택되어도 행렬 구조를 유지시킴
-  scores <- colSums(expr_mat[available_genes, , drop=FALSE] * weights)
-  
+  scores <- colSums(expr_mat[available_genes, , drop = FALSE] * weights)
+
   if (normalize) {
-    scores <- scale(scores)[,1]
+    scores <- scale(scores)[, 1]
   }
-  
+
   return(scores)
 }
 
@@ -672,14 +694,13 @@ print.gene_signature <- function(x, ...) {
   cat(sprintf("Number of cells: %d\n", x$n_cells))
   cat(sprintf("Number of genes in signature: %d\n", length(x$genes)))
   cat(sprintf("\nTop 10 genes:\n"))
-  print(head(data.frame(gene=x$genes, weight=x$weights[x$genes]), 10))
-  
+  print(head(data.frame(gene = x$genes, weight = x$weights[x$genes]), 10))
+
   if (!is.null(x$performance)) {
     cat("\nPerformance:\n")
     print(x$performance)
   }
 }
-
 
 
 #' Find Gene Signature (FGS)
@@ -700,245 +721,256 @@ FGS <- function(...) {
 }
 
 #' @export
-find_gene_signature_v5.3 <- function(data, 
-                                 meta.data = NULL,
-                                 target_var,
-                                 target_group = NULL,
-                                 control_vars = NULL,   
-                                 method = c("random_forest", "random_forest_ranger",
-                                            "lasso", "ridge", "elastic_net",
-                                            "pca_loadings", "nmf_loadings",
-                                            "gam", "limma", "wilcoxon",
-                                            "xgboost"),
-                                 n_features = 50,
-                                 test_n = NULL,         
-                                 preprocess = TRUE,
-                                 min_cells = 10,
-                                 min_pct = 0.01,
-                                 return_model = FALSE,
-                                 fgs_seed = 42,
-                                 lambda_selection = "lambda.1se",
-                                 enet.alpha = 0.5,
-                                 pca.n_pcs = 1,
-                                 gam.min_unique = 15,
-                                 gam.k = NULL,  # v5.3: NULL이면 동적 k 사용
-                                 gam.k_dynamic_factor = 5,  # v5.3: 동적 k 계산 시 사용 (n_unique_vals / factor)
-                                 ...) {
-  
+find_gene_signature_v5.3 <- function(data,
+                                     meta.data = NULL,
+                                     target_var,
+                                     target_group = NULL,
+                                     control_vars = NULL,
+                                     method = c(
+                                       "random_forest", "random_forest_ranger",
+                                       "lasso", "ridge", "elastic_net",
+                                       "pca_loadings", "nmf_loadings",
+                                       "gam", "limma", "wilcoxon",
+                                       "xgboost"
+                                     ),
+                                     n_features = 50,
+                                     test_n = NULL,
+                                     preprocess = TRUE,
+                                     min_cells = 10,
+                                     min_pct = 0.01,
+                                     return_model = FALSE,
+                                     fgs_seed = 42,
+                                     lambda_selection = "lambda.1se",
+                                     enet.alpha = 0.5,
+                                     pca.n_pcs = 1,
+                                     gam.min_unique = 15,
+                                     gam.k = NULL, # v5.3: NULL이면 동적 k 사용
+                                     gam.k_dynamic_factor = 5, # v5.3: 동적 k 계산 시 사용 (n_unique_vals / factor)
+                                     ...) {
   # v5.3은 v5.2와 동일하지만 gam 부분만 동적 k를 사용
   # v5.2를 호출하되, gam 메서드일 때만 동적 k를 적용
-  
+
   all_methods <- c(
     "random_forest", "random_forest_ranger", "xgboost",
     "lasso", "ridge", "elastic_net",
     "pca_loadings", "nmf_loadings",
     "gam", "limma", "wilcoxon"
   )
-  
+
   if (is.null(method)) {
     method <- all_methods
   }
-  
+
   # gam 메서드가 포함되어 있고 gam.k가 NULL이면 동적 k를 사용
   use_dynamic_k <- "gam" %in% method && is.null(gam.k)
-  
+
   if (use_dynamic_k) {
     # v5.3: gam에 동적 k 적용을 위해 직접 구현
     # v5.2의 전처리 함수 재사용
-    methods_requiring_scale <- c("lasso", "ridge", "elastic_net", 
-                                 "gam", "pca_loadings", "xgboost")
+    methods_requiring_scale <- c(
+      "lasso", "ridge", "elastic_net",
+      "gam", "pca_loadings", "xgboost"
+    )
     methods_requiring_correction <- c("wilcoxon", "pca_loadings")
-    
+
     preprocessed_data <- fgs_preprocess_data_v5.2(
-      data = data, meta.data = meta.data, target_var = target_var, 
-      target_group = target_group, control_vars = control_vars, 
+      data = data, meta.data = meta.data, target_var = target_var,
+      target_group = target_group, control_vars = control_vars,
       test_n = test_n, preprocess = preprocess, min_cells = min_cells,
       min_pct = min_pct,
       methods_requiring_scale = intersect(method, methods_requiring_scale),
       methods_requiring_correction = intersect(method, methods_requiring_correction)
     )
-    
+
     expr_mat_base <- preprocessed_data$expr_mat
     meta.data_clean <- preprocessed_data$meta.data
     target_binary <- preprocessed_data$target_binary
     n_groups <- preprocessed_data$n_groups
-    
+
     set.seed(fgs_seed)
-    
+
     covariate_mat_model <- NULL
     if (!is.null(control_vars)) {
-       covariates_df_model <- meta.data_clean[, control_vars, drop = FALSE]
-       covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
+      covariates_df_model <- meta.data_clean[, control_vars, drop = FALSE]
+      covariate_mat_model <- model.matrix(~ . - 1, data = covariates_df_model)
     }
-    
+
     results_list <- list()
-    
+
     for (m in method) {
       if (!m %in% all_methods) {
         warning(sprintf("Invalid method '%s'. Skipping.", m))
         next
       }
-      
+
       message(sprintf("--- Running Method: %s ---", m))
-      
-      tryCatch({
-        if (m %in% c("limma", "wilcoxon", "nmf_loadings", "random_forest", "random_forest_ranger")) {
-          expr_mat_method <- expr_mat_base
-        } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "xgboost")) {
-          expr_mat_method <- if(is.null(preprocessed_data$expr_mat_scaled)) expr_mat_base else preprocessed_data$expr_mat_scaled
-        }
-        
-        if (m %in% c("wilcoxon", "pca_loadings")) {
-          if (!is.null(preprocessed_data$expr_mat_corrected)) {
-            expr_mat_method <- preprocessed_data$expr_mat_corrected
+
+      tryCatch(
+        {
+          if (m %in% c("limma", "wilcoxon", "nmf_loadings", "random_forest", "random_forest_ranger")) {
+            expr_mat_method <- expr_mat_base
+          } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "xgboost")) {
+            expr_mat_method <- if (is.null(preprocessed_data$expr_mat_scaled)) expr_mat_base else preprocessed_data$expr_mat_scaled
           }
-        }
-        
-        X <- t(expr_mat_method)
-        y <- target_binary
-        
-        if (m == "gam") {
-          # v5.3: 동적 k 적용
-          if (!requireNamespace("mgcv", quietly = TRUE)) {
-            stop("mgcv package required.")
-          }
-          
-          deviance_explained <- numeric(nrow(expr_mat_method))
-          names(deviance_explained) <- rownames(expr_mat_method)
-          
-          gam_data <- data.frame(y_var_numeric = as.numeric(target_binary) - 1)
-          if (!is.null(control_vars)) {
-            gam_data <- cbind(gam_data, covariate_mat_model)
-            formula_base <- paste(" +", paste(colnames(covariate_mat_model), collapse=" + "))
-          } else {
-            formula_base <- ""
-          }
-          
-          convergence_warnings <- 0
-          genes_skipped <- 0
-          genes_with_dynamic_k <- 0
-          
-          for (i in 1:nrow(expr_mat_method)) {
-            gam_data$gene_expr <- expr_mat_method[i, ]
-            
-            n_unique_vals <- length(unique(gam_data$gene_expr))
-            
-            # v5.3: unique value threshold 먼저 적용
-            if (n_unique_vals < gam.min_unique) {
-              deviance_explained[i] <- 0
-              genes_skipped <- genes_skipped + 1
-              next
+
+          if (m %in% c("wilcoxon", "pca_loadings")) {
+            if (!is.null(preprocessed_data$expr_mat_corrected)) {
+              expr_mat_method <- preprocessed_data$expr_mat_corrected
             }
-            
-            # v5.3: 동적 k 계산
-            k_dynamic <- max(3, min(10, floor(n_unique_vals / gam.k_dynamic_factor)))
-            if (k_dynamic != 10) genes_with_dynamic_k <- genes_with_dynamic_k + 1
-            
-            full_formula_str <- paste("y_var_numeric ~ s(gene_expr, k=", k_dynamic, ", bs='cr')", formula_base)
-            
-            fit_result <- tryCatch({
-              if (n_groups == 2) {
-                mgcv::bam(as.formula(full_formula_str), data = gam_data, family="binomial", ...)
+          }
+
+          X <- t(expr_mat_method)
+          y <- target_binary
+
+          if (m == "gam") {
+            # v5.3: 동적 k 적용
+            if (!requireNamespace("mgcv", quietly = TRUE)) {
+              stop("mgcv package required.")
+            }
+
+            deviance_explained <- numeric(nrow(expr_mat_method))
+            names(deviance_explained) <- rownames(expr_mat_method)
+
+            gam_data <- data.frame(y_var_numeric = as.numeric(target_binary) - 1)
+            if (!is.null(control_vars)) {
+              gam_data <- cbind(gam_data, covariate_mat_model)
+              formula_base <- paste(" +", paste(colnames(covariate_mat_model), collapse = " + "))
+            } else {
+              formula_base <- ""
+            }
+
+            convergence_warnings <- 0
+            genes_skipped <- 0
+            genes_with_dynamic_k <- 0
+
+            for (i in 1:nrow(expr_mat_method)) {
+              gam_data$gene_expr <- expr_mat_method[i, ]
+
+              n_unique_vals <- length(unique(gam_data$gene_expr))
+
+              # v5.3: unique value threshold 먼저 적용
+              if (n_unique_vals < gam.min_unique) {
+                deviance_explained[i] <- 0
+                genes_skipped <- genes_skipped + 1
+                next
+              }
+
+              # v5.3: 동적 k 계산
+              k_dynamic <- max(3, min(10, floor(n_unique_vals / gam.k_dynamic_factor)))
+              if (k_dynamic != 10) genes_with_dynamic_k <- genes_with_dynamic_k + 1
+
+              full_formula_str <- paste("y_var_numeric ~ s(gene_expr, k=", k_dynamic, ", bs='cr')", formula_base)
+
+              fit_result <- tryCatch(
+                {
+                  if (n_groups == 2) {
+                    mgcv::bam(as.formula(full_formula_str), data = gam_data, family = "binomial", ...)
+                  } else {
+                    mgcv::bam(as.formula(full_formula_str), data = gam_data, ...)
+                  }
+                },
+                warning = function(w) {
+                  if (grepl("did not converge", w$message)) {
+                    convergence_warnings <<- convergence_warnings + 1
+                  }
+                  invokeRestart("muffleWarning")
+                },
+                error = function(e) {
+                  warning(sprintf("GAM failed for gene %s: %s", rownames(expr_mat_method)[i], e$message))
+                  return(NULL)
+                }
+              )
+
+              if (is.null(fit_result)) {
+                deviance_explained[i] <- 0
               } else {
-                mgcv::bam(as.formula(full_formula_str), data = gam_data, ...)
+                deviance_explained[i] <- summary(fit_result)$dev.expl
               }
-            }, warning = function(w) {
-              if (grepl("did not converge", w$message)) {
-                convergence_warnings <<- convergence_warnings + 1
-              }
-              invokeRestart("muffleWarning")
-            }, error = function(e) {
-              warning(sprintf("GAM failed for gene %s: %s", rownames(expr_mat_method)[i], e$message))
-              return(NULL) 
-            })
-            
-            if (is.null(fit_result)) {
-              deviance_explained[i] <- 0
-            } else {
-              deviance_explained[i] <- summary(fit_result)$dev.expl
             }
-          }
-          
-          if (genes_skipped > 0) {
-            warning(sprintf("GAM: Skipped %d genes (unique values < gam.min_unique=%d).", genes_skipped, gam.min_unique))
-          }
-          if (convergence_warnings > 0) {
-            warning(sprintf("GAM: %d genes failed to converge.", convergence_warnings))
-          }
-          if (genes_with_dynamic_k > 0) {
-            message(sprintf("GAM: Applied dynamic k for %d genes (k < 10).", genes_with_dynamic_k))
-          }
-          
-          weights_magnitude <- deviance_explained
-          top_genes <- names(sort(weights_magnitude, decreasing=TRUE)[1:min(n_features, sum(weights_magnitude > 0, na.rm=TRUE))])
-          
-          if (length(top_genes) == 0) {
-            warning("GAM method found no genes with deviance > 0.")
-            result <- list(genes=character(0), weights=numeric(0), scores=numeric(0), performance=list())
+
+            if (genes_skipped > 0) {
+              warning(sprintf("GAM: Skipped %d genes (unique values < gam.min_unique=%d).", genes_skipped, gam.min_unique))
+            }
+            if (convergence_warnings > 0) {
+              warning(sprintf("GAM: %d genes failed to converge.", convergence_warnings))
+            }
+            if (genes_with_dynamic_k > 0) {
+              message(sprintf("GAM: Applied dynamic k for %d genes (k < 10).", genes_with_dynamic_k))
+            }
+
+            weights_magnitude <- deviance_explained
+            top_genes <- names(sort(weights_magnitude, decreasing = TRUE)[1:min(n_features, sum(weights_magnitude > 0, na.rm = TRUE))])
+
+            if (length(top_genes) == 0) {
+              warning("GAM method found no genes with deviance > 0.")
+              result <- list(genes = character(0), weights = numeric(0), scores = numeric(0), performance = list())
+            } else {
+              weights_magnitude <- weights_magnitude[top_genes]
+
+              if (n_groups == 2) {
+                g1_cells <- y == levels(y)[1]
+                g2_cells <- y == levels(y)[2]
+                mean_g1 <- colMeans(X[g1_cells, top_genes, drop = FALSE])
+                mean_g2 <- colMeans(X[g2_cells, top_genes, drop = FALSE])
+                effect_size <- mean_g2 - mean_g1
+                weights <- weights_magnitude * sign(effect_size)
+              } else {
+                warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
+                weights <- weights_magnitude
+              }
+
+              scores <- as.numeric(X[, top_genes] %*% weights)
+              names(scores) <- rownames(X)
+
+              perf <- list(deviance_explained = weights_magnitude)
+
+              result <- list(
+                genes = top_genes, weights = weights, scores = scores,
+                performance = perf, model = NULL
+              )
+            }
           } else {
-            weights_magnitude <- weights_magnitude[top_genes]
-            
-            if (n_groups == 2) {
-              g1_cells <- y == levels(y)[1]
-              g2_cells <- y == levels(y)[2]
-              mean_g1 <- colMeans(X[g1_cells, top_genes, drop=FALSE])
-              mean_g2 <- colMeans(X[g2_cells, top_genes, drop=FALSE])
-              effect_size <- mean_g2 - mean_g1
-              weights <- weights_magnitude * sign(effect_size)
-            } else {
-              warning("gam: n_groups > 2. Score represents magnitude (importance), not direction.")
-              weights <- weights_magnitude
-            }
-            
-            scores <- as.numeric(X[, top_genes] %*% weights)
-            names(scores) <- rownames(X)
-            
-            perf <- list(deviance_explained = weights_magnitude)
-            
-            result <- list(genes = top_genes, weights = weights, scores = scores,
-                         performance = perf, model = NULL)
+            # gam이 아닌 다른 메서드는 v5.2를 호출
+            # 환경 문제를 피하기 위해 직접 함수 호출
+            result <- find_gene_signature_v5.2(
+              data = data,
+              meta.data = meta.data,
+              target_var = target_var,
+              target_group = target_group,
+              control_vars = control_vars,
+              method = m,
+              n_features = n_features,
+              test_n = test_n,
+              preprocess = preprocess,
+              min_cells = min_cells,
+              min_pct = min_pct,
+              return_model = return_model,
+              fgs_seed = fgs_seed,
+              lambda_selection = lambda_selection,
+              enet.alpha = enet.alpha,
+              pca.n_pcs = pca.n_pcs,
+              gam.min_unique = gam.min_unique,
+              gam.k = if (is.null(gam.k)) 10 else gam.k,
+              ...
+            )
+            result <- result[[m]]
           }
-        } else {
-          # gam이 아닌 다른 메서드는 v5.2를 호출
-          # 환경 문제를 피하기 위해 직접 함수 호출
-          result <- find_gene_signature_v5.2(
-            data = data,
-            meta.data = meta.data,
-            target_var = target_var,
-            target_group = target_group,
-            control_vars = control_vars,
-            method = m,
-            n_features = n_features,
-            test_n = test_n,
-            preprocess = preprocess,
-            min_cells = min_cells,
-            min_pct = min_pct,
-            return_model = return_model,
-            fgs_seed = fgs_seed,
-            lambda_selection = lambda_selection,
-            enet.alpha = enet.alpha,
-            pca.n_pcs = pca.n_pcs,
-            gam.min_unique = gam.min_unique,
-            gam.k = if (is.null(gam.k)) 10 else gam.k,
-            ...
-          )
-          result <- result[[m]]
+
+          result$method <- m
+          result$target_var <- target_var
+          result$n_groups <- n_groups
+          result$n_cells <- ncol(expr_mat_base)
+
+          class(result) <- c("gene_signature", "list")
+          results_list[[m]] <- result
+        },
+        error = function(e) {
+          warning(sprintf("Method '%s' failed with error: %s", m, e$message))
+          results_list[[m]] <- list(method = m, error = e$message)
         }
-        
-        result$method <- m
-        result$target_var <- target_var
-        result$n_groups <- n_groups
-        result$n_cells <- ncol(expr_mat_base)
-        
-        class(result) <- c("gene_signature", "list")
-        results_list[[m]] <- result
-        
-      }, error = function(e) {
-        warning(sprintf("Method '%s' failed with error: %s", m, e$message))
-        results_list[[m]] <- list(method = m, error = e$message)
-      })
+      )
     }
-    
+
     return(results_list)
   } else {
     # gam.k가 지정되어 있으면 v5.2를 그대로 사용
@@ -1063,9 +1095,9 @@ find_gene_signature_v5.3 <- function(data,
 #' \dontrun{
 #' # Example: Combine multiple signature-finding methods
 #' sigs <- list(
-#'   lasso = find_gene_signature(data, target_var="g3", method="lasso"),
-#'   rf = find_gene_signature(data, target_var="g3", method="tree_based"),
-#'   limma = find_gene_signature(data, target_var="g3", method="limma")
+#'   lasso = find_gene_signature(data, target_var = "g3", method = "lasso"),
+#'   rf = find_gene_signature(data, target_var = "g3", method = "tree_based"),
+#'   limma = find_gene_signature(data, target_var = "g3", method = "limma")
 #' )
 #'
 #' # Train meta-learner on holdout data
@@ -1091,29 +1123,34 @@ TML6 <- function(
   l1_signatures,
   holdout_data,
   target_var,
-  l2_methods = c("glm","ranger","xgbTree"),
-  k_folds   = 5,
-  metric    = c("AUC","ROC","Accuracy","Kappa"),
-  fgs_seed  = 42,
-  layer     = "data",
+  l2_methods = c("glm", "ranger", "xgbTree"),
+  k_folds = 5,
+  metric = c("AUC", "ROC", "Accuracy", "Kappa"),
+  fgs_seed = 42,
+  layer = "data",
   allow_parallel = FALSE,
   parallel_workers = NULL
-){
-  `%||%` <- function(a,b) if (!is.null(a)) a else b
+) {
+  `%||%` <- function(a, b) if (!is.null(a)) a else b
 
   # ---- NEW: 표준화 유틸 ----
-  as_signature <- function(sig){
+  as_signature <- function(sig) {
     # 문자형 유전자 벡터
-    if (is.character(sig)) return(structure(rep(1, length(sig)), names = sig))
+    if (is.character(sig)) {
+      return(structure(rep(1, length(sig)), names = sig))
+    }
 
     # 이름달린 numeric (가중치)
-    if (is.numeric(sig) && !is.null(names(sig))) return(sig)
+    if (is.numeric(sig) && !is.null(names(sig))) {
+      return(sig)
+    }
 
     # list(up=..., down=...)
-    if (is.list(sig) && all(c("up","down") %in% names(sig))) {
-      up <- sig$up; down <- sig$down
+    if (is.list(sig) && all(c("up", "down") %in% names(sig))) {
+      up <- sig$up
+      down <- sig$down
       stopifnot(is.character(up) || is.null(up), is.character(down) || is.null(down))
-      up   <- up   %||% character()
+      up <- up %||% character()
       down <- down %||% character()
       nm <- c(up, down)
       wt <- c(rep(1, length(up)), rep(-1, length(down)))
@@ -1121,8 +1158,9 @@ TML6 <- function(
     }
 
     # list(genes=..., weights=...)
-    if (is.list(sig) && all(c("genes","weights") %in% names(sig))) {
-      g <- sig$genes; w <- sig$weights
+    if (is.list(sig) && all(c("genes", "weights") %in% names(sig))) {
+      g <- sig$genes
+      w <- sig$weights
       stopifnot(is.character(g), is.numeric(w), length(g) == length(w))
       names(w) <- g
       return(w)
@@ -1131,13 +1169,14 @@ TML6 <- function(
     # data.frame/tibble: gene/feature + weight/w/score
     if (is.data.frame(sig)) {
       cn <- tolower(colnames(sig))
-      gene_col   <- which(cn %in% c("gene","genes","feature","features","symbol","id"))[1]
-      weight_col <- which(cn %in% c("weight","weights","w","score","scores","coef","coefs"))[1]
+      gene_col <- which(cn %in% c("gene", "genes", "feature", "features", "symbol", "id"))[1]
+      weight_col <- which(cn %in% c("weight", "weights", "w", "score", "scores", "coef", "coefs"))[1]
       if (!is.na(gene_col) && !is.na(weight_col)) {
         g <- as.character(sig[[gene_col]])
         w <- as.numeric(sig[[weight_col]])
         ok <- !is.na(g) & !is.na(w)
-        w  <- w[ok]; g <- g[ok]
+        w <- w[ok]
+        g <- g[ok]
         names(w) <- g
         return(w)
       }
@@ -1170,21 +1209,27 @@ TML6 <- function(
   .metric_map <- function(user_metric, is_binary) {
     if (is_binary) {
       # caret twoClassSummary → columns: ROC, Sens, Spec
-      if (user_metric %in% c("AUC","ROC")) return(list(train_metric="ROC",  summary="twoClassSummary"))
-      if (user_metric %in% c("Accuracy","Kappa")) return(list(train_metric=user_metric, summary="twoClassSummary"))
+      if (user_metric %in% c("AUC", "ROC")) {
+        return(list(train_metric = "ROC", summary = "twoClassSummary"))
+      }
+      if (user_metric %in% c("Accuracy", "Kappa")) {
+        return(list(train_metric = user_metric, summary = "twoClassSummary"))
+      }
     } else {
       # 멀티클래스 → defaultSummary (Accuracy, Kappa)
       if (user_metric == "AUC") {
         message("WARNING: 'AUC/ROC' not defined for multi-class defaultSummary. Falling back to 'Accuracy'.")
-        return(list(train_metric="Accuracy", summary="defaultSummary"))
+        return(list(train_metric = "Accuracy", summary = "defaultSummary"))
       }
-      return(list(train_metric=user_metric, summary="defaultSummary"))
+      return(list(train_metric = user_metric, summary = "defaultSummary"))
     }
-    list(train_metric = if (is_binary) "ROC" else "Accuracy",
-         summary      = if (is_binary) "twoClassSummary" else "defaultSummary")
+    list(
+      train_metric = if (is_binary) "ROC" else "Accuracy",
+      summary = if (is_binary) "twoClassSummary" else "defaultSummary"
+    )
   }
 
-  .package_ok <- function(pkg){
+  .package_ok <- function(pkg) {
     suppressWarnings(suppressMessages(requireNamespace(pkg, quietly = TRUE)))
   }
 
@@ -1209,9 +1254,12 @@ TML6 <- function(
   if (allow_parallel) {
     if (.package_ok("future") && .package_ok("doFuture")) {
       oplan <- future::plan()
-      on.exit({
-        try(future::plan(oplan), silent = TRUE)
-      }, add = TRUE)
+      on.exit(
+        {
+          try(future::plan(oplan), silent = TRUE)
+        },
+        add = TRUE
+      )
 
       message(sprintf("Enabling parallel training with %d workers (future::multisession).", worker_count))
       tryCatch(
@@ -1228,7 +1276,6 @@ TML6 <- function(
       } else {
         register_sequential()
       }
-
     } else {
       message("NOTE: Parallel dependencies (future/doFuture) not available; falling back to sequential execution.")
       allow_parallel <- FALSE
@@ -1246,8 +1293,9 @@ TML6 <- function(
     if (!.package_ok("Seurat")) stop("Seurat package required for Seurat input.")
     expr_mat <- Seurat::GetAssayData(holdout_data, layer = layer)
     meta_data <- holdout_data@meta.data
-    if (!target_var %in% colnames(meta_data))
+    if (!target_var %in% colnames(meta_data)) {
       stop(sprintf("Target column '%s' not found in Seurat meta.data.", target_var))
+    }
     l2_target <- meta_data[[target_var]]
   } else {
     if (is.data.frame(holdout_data)) holdout_data <- as.matrix(holdout_data)
@@ -1270,9 +1318,11 @@ TML6 <- function(
   orig_lvls <- levels(l2_target)
   safe_lvls <- make.names(orig_lvls)
   if (!all(orig_lvls == safe_lvls)) {
-    message(sprintf("Sanitizing target levels: '%s' -> '%s'",
-                    paste(orig_lvls, collapse="'/'"),
-                    paste(safe_lvls, collapse="'/'")))
+    message(sprintf(
+      "Sanitizing target levels: '%s' -> '%s'",
+      paste(orig_lvls, collapse = "'/'"),
+      paste(safe_lvls, collapse = "'/'")
+    ))
     levels(l2_target) <- safe_lvls
   }
 
@@ -1284,7 +1334,7 @@ TML6 <- function(
   }
 
   row_ok <- stats::complete.cases(l2_train_df) &
-            apply(l2_train_df, 1, function(r) all(is.finite(r)))
+    apply(l2_train_df, 1, function(r) all(is.finite(r)))
   if (!all(row_ok)) {
     message(sprintf("Removing %d rows with NA/NaN/Inf features.", sum(!row_ok)))
     l2_target <- l2_target[row_ok]
@@ -1293,13 +1343,16 @@ TML6 <- function(
 
   nzv <- caret::nearZeroVar(l2_train_df, saveMetrics = FALSE)
   if (length(nzv) > 0) {
-    message(sprintf("Removing %d zero-variance features: %s",
-                    length(nzv), paste(colnames(l2_train_df)[nzv], collapse=", ")))
+    message(sprintf(
+      "Removing %d zero-variance features: %s",
+      length(nzv), paste(colnames(l2_train_df)[nzv], collapse = ", ")
+    ))
     l2_train_df <- l2_train_df[, -nzv, drop = FALSE]
   }
 
-  if (nrow(l2_train_df) == 0 || ncol(l2_train_df) == 0)
+  if (nrow(l2_train_df) == 0 || ncol(l2_train_df) == 0) {
     stop("No usable data remains after cleaning (check signatures and target).")
+  }
 
   # --- metric 매핑 & trainControl ---
   is_bin <- .is_binary(l2_target)
@@ -1341,7 +1394,8 @@ TML6 <- function(
         trControl = ctrl,
         metric = caret_metric,
         tuneLength = 5
-      ), silent = TRUE
+      ),
+      silent = TRUE
     )
     if (inherits(fit, "try-error")) {
       warning(sprintf("Failed to train '%s': %s", m, as.character(fit)))
@@ -1353,16 +1407,18 @@ TML6 <- function(
 
   if (length(model_list) == 1) {
     best_name <- names(model_list)[1]
-    best_fit  <- model_list[[1]]
-    best_val  <- suppressWarnings(max(best_fit$results[[caret_metric]], na.rm = TRUE))
-    message(sprintf("Only one model trained. Selected '%s' (CV %s=%.4f).",
-                    best_name, caret_metric, best_val))
+    best_fit <- model_list[[1]]
+    best_val <- suppressWarnings(max(best_fit$results[[caret_metric]], na.rm = TRUE))
+    message(sprintf(
+      "Only one model trained. Selected '%s' (CV %s=%.4f).",
+      best_name, caret_metric, best_val
+    ))
     resamp <- NULL
   } else {
     resamp <- caret::resamples(model_list)
     vals <- sapply(model_list, function(f) suppressWarnings(max(f$results[[caret_metric]], na.rm = TRUE)))
     best_name <- names(which.max(vals))
-    best_fit  <- model_list[[best_name]]
+    best_fit <- model_list[[best_name]]
     message(sprintf("Best model: %s (CV %s=%.4f).", best_name, caret_metric, max(vals, na.rm = TRUE)))
   }
 
@@ -1375,7 +1431,6 @@ TML6 <- function(
     l1_signatures    = l1_signatures
   )
 }
-
 
 
 #' Derive gene-level importance from a trained meta learner
@@ -1402,7 +1457,7 @@ TML6 <- function(
 #' @export
 compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
   if (!is.list(meta_result) ||
-      !all(c("best_model", "best_model_name", "l1_signatures", "l2_train") %in% names(meta_result))) {
+    !all(c("best_model", "best_model_name", "l1_signatures", "l2_train") %in% names(meta_result))) {
     stop("meta_result must be the object returned by TML6().")
   }
 
@@ -1418,9 +1473,15 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
 
   # helper to standardise signature definition into named numeric vector
   standardise_signature <- function(sig) {
-    if (is.null(sig)) return(numeric(0))
-    if (is.numeric(sig) && !is.null(names(sig))) return(sig)
-    if (is.character(sig)) return(structure(rep(1, length(sig)), names = sig))
+    if (is.null(sig)) {
+      return(numeric(0))
+    }
+    if (is.numeric(sig) && !is.null(names(sig))) {
+      return(sig)
+    }
+    if (is.character(sig)) {
+      return(structure(rep(1, length(sig)), names = sig))
+    }
     if (is.list(sig) && all(c("up", "down") %in% names(sig))) {
       up <- sig$up %||% character()
       down <- sig$down %||% character()
@@ -1438,13 +1499,14 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
     }
     if (is.data.frame(sig)) {
       cn <- tolower(colnames(sig))
-      gene_col <- which(cn %in% c("gene","genes","feature","features","symbol","id"))[1]
-      weight_col <- which(cn %in% c("weight","weights","w","score","scores","coef","coefs"))[1]
+      gene_col <- which(cn %in% c("gene", "genes", "feature", "features", "symbol", "id"))[1]
+      weight_col <- which(cn %in% c("weight", "weights", "w", "score", "scores", "coef", "coefs"))[1]
       if (!is.na(gene_col) && !is.na(weight_col)) {
         g <- as.character(sig[[gene_col]])
         w <- as.numeric(sig[[weight_col]])
         ok <- !is.na(g) & !is.na(w)
-        w <- w[ok]; g <- g[ok]
+        w <- w[ok]
+        g <- g[ok]
         names(w) <- g
         return(w)
       }
@@ -1482,7 +1544,9 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
 
   gene_tables <- lapply(sig_names, function(sig) {
     weights <- signature_weights[[sig]]
-    if (length(weights) == 0) return(NULL)
+    if (length(weights) == 0) {
+      return(NULL)
+    }
     contrib <- signature_importance[[sig]] * weights
     if (normalize && any(is.finite(contrib))) {
       denom <- max(abs(contrib), na.rm = TRUE)
@@ -1515,4 +1579,3 @@ compute_meta_gene_importance <- function(meta_result, normalize = TRUE) {
     model_type = model_type
   )
 }
-

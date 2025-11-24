@@ -153,11 +153,8 @@ neb1 <- runNEBULA(
 문제를 진단하고 해결 방법을 테스트하려면:
 
 ```r
-<<<<<<<< HEAD:docs/analysis/NEBULA_ERROR_EXPLANATION.md
 source("/home/user3/data_user3/git_repo/_wt/analysis/scripts/analysis/test_nebula_issue.R")
-========
-source("/home/user3/data_user3/git_repo/_wt/analysis/test_nebula_issue.R")
->>>>>>>> deg-consensus-dev:docs/deg-consensus/NEBULA_ERROR_EXPLANATION.md
+
 ```
 
 ## 참고
