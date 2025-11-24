@@ -1,6 +1,41 @@
-# CCI (Cell-to-Cell Interaction) Analysis Tool
+# myR: Single-Cell RNA-Seq Analysis Package
 
 ## 개요
+`myR`는 단일세포 RNA 시퀀싱(scRNAseq) 데이터를 위한 통합 분석 패키지입니다. 차등 발현 분석(DEG), 세포 간 상호작용(CCI), 차등 풍부도 분석, 환자 수준 분석, trajectory 분석 등 다양한 분석 모듈을 제공합니다.
+
+## 📚 통합 가이드 (Integrated Guide)
+
+**전체 모듈 개요 및 워크플로우는 다음 문서를 참조하세요:**
+
+- **영문**: [`docs/INTEGRATED_GUIDE.md`](docs/INTEGRATED_GUIDE.md)
+- **한글**: [`docs/INTEGRATED_GUIDE_KR.md`](docs/INTEGRATED_GUIDE_KR.md)
+
+통합 가이드에는 다음 내용이 포함되어 있습니다:
+- 전체 분석 파이프라인 시각화 (Mermaid 다이어그램)
+- 각 모듈의 역할, 입력/출력, 주요 방법론
+- 일반적인 분석 워크플로우 예시
+- 모듈별 상세 문서 링크
+
+## 주요 모듈
+
+| 모듈 | 목적 | 상세 문서 |
+|------|------|----------|
+| **analysis** | Mixed-Effects Model DEG (NEBULA) | `docs/analysis/` |
+| **deg-consensus** | Multi-model DEG Consensus | `docs/deg-consensus-dev/` |
+| **lds** | Limma-Dream-SVA | `docs/lds/` |
+| **milo** | Differential Abundance | `docs/milo/` |
+| **cci** | Cell-Cell Interaction (NicheNet) | `docs/cci/` |
+| **fgs** | Gene Signature Discovery | `docs/fgs/` |
+| **pt.umap** | Patient-Level Analysis | `docs/pt.umap/` |
+| **pseudotime** | Trajectory Inference | `docs/pseudotime-dev/` |
+
+각 모듈의 상세한 사용법은 통합 가이드의 "Module Documentation" 섹션을 참조하세요.
+
+---
+
+## CCI (Cell-to-Cell Interaction) Analysis Tool
+
+### 개요
 scRNAseq 데이터에서 Cell-to-Cell Interaction 분석을 수행하는 통합 도구입니다. NicheNet을 중심으로 하여 ligand-receptor 상호작용을 분석하고, DEG 리스트를 직접 입력받아 receiver cell type의 변화에 기여하는 sender cell type을 식별합니다.
 
 ## 빠른 시작

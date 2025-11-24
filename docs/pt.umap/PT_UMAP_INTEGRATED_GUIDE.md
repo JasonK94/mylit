@@ -1,133 +1,133 @@
 # Patient-Level Dimensionality Reduction and Anomaly Detection
 
-## 개요
+## Overview
 
-단일세포 RNA-seq 데이터에서 환자 수준의 차원 축소 및 이상 탐지를 위한 파이프라인입니다. 셀 레벨 데이터를 환자×클러스터 단위로 집계하여, 환자 간 유사성/차이를 분석하고 임상 변수(예: `g3`, `nih_change`)와의 연관성을 탐색합니다.
+A pipeline for patient-level dimensionality reduction and anomaly detection in single-cell RNA-seq data. Aggregates cell-level data at the patient×cluster level to analyze similarities/differences between patients and explore associations with clinical variables (e.g., `g3`, `nih_change`).
 
-## 핵심 개념
+## Key Concepts
 
-### "뷰(View)"란?
+### What is a "View"?
 
-환자 수준의 feature를 구성하는 **독립적인 정보 소스**를 의미합니다. 현재 파이프라인은 3가지 뷰를 지원합니다:
+An **independent information source** that constitutes patient-level features. The current pipeline supports 3 views:
 
-1. **Frequency view**: 클러스터 빈도 (CLR 변환)
-2. **Signature view**: 클러스터별 top marker 유전자들의 모듈 스코어
-3. **Latent view**: 차원 축소 임베딩(예: scVI)의 클러스터별 평균
+1. **Frequency view**: Cluster frequency (CLR transformation)
+2. **Signature view**: Module scores of top marker genes per cluster
+3. **Latent view**: Cluster-wise average of dimensionality reduction embeddings (e.g., scVI)
 
-**기본값**: `markers_df`를 제공하면 **모든 3가지 뷰를 모두 사용**합니다 (`include_frequency=TRUE`, `include_signatures=TRUE`, `include_latent=TRUE`).
+**Default**: If `markers_df` is provided, **all 3 views are used** (`include_frequency=TRUE`, `include_signatures=TRUE`, `include_latent=TRUE`).
 
-각 뷰는 서로 다른 측면의 정보를 담고 있으므로, 필요시 일부만 선택하거나 가중치를 조정하여 결합할 수 있습니다 (예: 특정 뷰가 노이즈가 많거나 사용 불가능한 경우).
+Since each view contains different aspects of information, you can select only some or adjust weights when combining them (e.g., when a specific view is too noisy or unavailable).
 
-### Feature 생성 과정
+### Feature Generation Process
 
-1. **Cluster frequency (CLR 변환)**
-   - 셀 레벨 메타데이터 → 환자×클러스터 빈도 행렬
-   - 조성 데이터 특성을 보존하기 위해 CLR(Centered Log-Ratio) 변환 적용
-   - 기본 가중치: 1.5 (빈도 정보의 중요도 반영)
+1. **Cluster frequency (CLR transformation)**
+   - Cell-level metadata → patient×cluster frequency matrix
+   - Applies CLR (Centered Log-Ratio) transformation to preserve compositional data characteristics
+   - Default weight: 1.5 (reflects importance of frequency information)
 
-2. **Signature scores (클러스터별 top 20 유전자 모듈 스코어)**
-   - `FindAllMarkers` 결과에서 클러스터별 상위 20개 유전자 선택
-   - `Seurat::AddModuleScore()`로 셀 레벨 스코어 계산
-   - 환자×클러스터 평균으로 집계
-   - 기본 가중치: 1.0
+2. **Signature scores (top 20 gene module scores per cluster)**
+   - Selects top 20 genes per cluster from `FindAllMarkers` results
+   - Calculates cell-level scores with `Seurat::AddModuleScore()`
+   - Aggregates to patient×cluster average
+   - Default weight: 1.0
 
-3. **Latent embeddings (reduction의 클러스터별 평균)**
-   - 기본 reduction: `integrated.scvi`
-   - 각 클러스터 내 셀들의 잠재 임베딩을 환자×클러스터 평균으로 집계
-   - 기본 가중치: 1.0
+3. **Latent embeddings (cluster-wise average of reduction)**
+   - Default reduction: `integrated.scvi`
+   - Aggregates latent embeddings of cells within each cluster to patient×cluster average
+   - Default weight: 1.0
 
-### 파이프라인 워크플로우
+### Pipeline Workflow
 
 ```
-셀 레벨 데이터
+Cell-level data
     ↓
-[뷰 생성] frequency + signatures + latent (기본: 모두 사용)
+[View Creation] frequency + signatures + latent (default: all used)
     ↓
-[블록 스케일링] 각 뷰를 독립적으로 Z-score 정규화
+[Block Scaling] Independently Z-score normalize each view
     ↓
-[가중치 적용] frequency_weight × frequency + signature_weight × signatures + latent_weight × latent
+[Weight Application] frequency_weight × frequency + signature_weight × signatures + latent_weight × latent
     ↓
-[결합] 환자 교집합만 유지하여 결합
+[Combination] Combine maintaining only patient intersection
     ↓
-[배치 보정] (선택) limma::removeBatchEffect
+[Batch Correction] (Optional) limma::removeBatchEffect
     ↓
-[PCA] 안전한 PC 수 선택 (elbow + rank fraction)
+[PCA] Select safe number of PCs (elbow + rank fraction)
     ↓
-[UMAP] PCA 공간에서 UMAP 임베딩
+[UMAP] UMAP embedding in PCA space
     ↓
-[메타데이터 결합] g3, nih_change 등 임상 변수 병합
+[Metadata Combination] Merge clinical variables like g3, nih_change
     ↓
-최종 plot_df + embedding
+Final plot_df + embedding
 ```
 
-## 주요 함수
+## Main Functions
 
-### End-to-end 파이프라인
+### End-to-end Pipeline
 
 #### `patient_dimensionality_reduction()`
 
-전체 워크플로우를 실행하는 메인 함수입니다.
+Main function that executes the entire workflow.
 
-**파라미터:**
-- `include_frequency`, `include_signatures`, `include_latent`: 각 뷰 포함 여부
-  - 기본값: `include_frequency=TRUE`, `include_signatures=!is.null(markers_df)`, `include_latent=TRUE`
-  - 즉, `markers_df`를 제공하면 **모든 뷰를 기본적으로 사용**
-- `frequency_weight`, `signature_weight`, `latent_weight`: 각 뷰의 가중치 (기본: 1.5, 1.0, 1.0)
-- `batch_var`: 배치 보정 변수 (NULL이면 스킵)
-- `reduction`: 잠재 임베딩 reduction 이름 (기본: `"integrated.scvi"`)
+**Parameters:**
+- `include_frequency`, `include_signatures`, `include_latent`: Whether to include each view
+  - Default: `include_frequency=TRUE`, `include_signatures=!is.null(markers_df)`, `include_latent=TRUE`
+  - That is, if `markers_df` is provided, **all views are used by default**
+- `frequency_weight`, `signature_weight`, `latent_weight`: Weights for each view (default: 1.5, 1.0, 1.0)
+- `batch_var`: Batch correction variable (skip if NULL)
+- `reduction`: Name of latent embedding reduction (default: `"integrated.scvi"`)
 
-**반환값:**
-- `embedding`: UMAP 좌표 행렬 (행=환자, 열=UMAP1/UMAP2)
-- `plot_df`: 플로팅용 데이터프레임 (UMAP 좌표 + 메타데이터)
-- `pca`: PCA 결과 객체
-- `combined_features`: 결합된 feature 행렬 (PCA 입력)
-- `view_columns`: 각 뷰의 컬럼명 리스트
+**Return Value:**
+- `embedding`: UMAP coordinate matrix (rows=patients, columns=UMAP1/UMAP2)
+- `plot_df`: Data frame for plotting (UMAP coordinates + metadata)
+- `pca`: PCA result object
+- `combined_features`: Combined feature matrix (PCA input)
+- `view_columns`: List of column names for each view
 
-### Feature 생성 함수들
+### Feature Generation Functions
 
 #### `make_cluster_signatures()`
-`FindAllMarkers` 결과를 `AddModuleScore`용 시그니처 리스트로 변환합니다.
+Converts `FindAllMarkers` results to signature list for `AddModuleScore`.
 
 #### `compute_patient_cluster_frequency()`
-셀 레벨 메타데이터를 환자×클러스터 빈도 행렬로 변환합니다 (CLR 변환 옵션).
+Converts cell-level metadata to patient×cluster frequency matrix (with CLR transformation option).
 
 #### `compute_patient_signature_matrix()`
-모듈 스코어를 환자×클러스터 평균으로 집계합니다.
+Aggregates module scores to patient×cluster average.
 
 #### `compute_patient_latent_matrix()`
-잠재 임베딩을 환자×클러스터 평균으로 집계합니다.
+Aggregates latent embeddings to patient×cluster average.
 
-### 유틸리티 함수들
+### Utility Functions
 
 #### `clr_transform()`
-조성 데이터를 CLR 변환합니다 (pseudo-count 포함).
+Transforms compositional data with CLR (includes pseudo-count).
 
 #### `combine_patient_feature_views()`
-여러 뷰를 블록 스케일링 후 결합합니다.
+Combines multiple views after block scaling.
 
 #### `remove_batch_effect_if()`
-선택적 배치 보정을 수행합니다 (`limma::removeBatchEffect`).
+Performs optional batch correction (`limma::removeBatchEffect`).
 
 #### `choose_pca_k()`, `run_pca_safely()`
-안전한 PC 수를 선택하고 PCA를 실행합니다 (데이터 크기에 따라 `irlba` 또는 `prcomp` 자동 선택).
+Selects safe number of PCs and runs PCA (automatically selects `irlba` or `prcomp` based on data size).
 
-### 시각화 및 보강
+### Visualization and Augmentation
 
 #### `plot_patient_umap()`
-환자 UMAP 플로팅 함수입니다. `plot_embedding()`을 래핑하여 연속/이산 변수 모두 지원합니다.
+Patient UMAP plotting function. Wraps `plot_embedding()` to support both continuous and discrete variables.
 
 #### `augment_plot_df()`
-메타데이터를 보강합니다:
-- ID 매칭 검증
-- 중복/충돌 검사 (같은 ID에 서로 다른 값이 있는지)
-- NA 카운트 리포트
+Augments metadata:
+- ID matching validation
+- Duplicate/conflict checking (whether same ID has different values)
+- NA count reporting
 
-## 사용 예시
+## Usage Examples
 
-### 기본 사용법
+### Basic Usage
 
 ```r
-# 1. FindAllMarkers 실행
+# 1. Run FindAllMarkers
 markers_df <- FindAllMarkers(
   seurat_obj,
   group.by = "anno3.scvi",
@@ -136,7 +136,7 @@ markers_df <- FindAllMarkers(
   min.pct = 0.1
 )
 
-# 2. 파이프라인 실행
+# 2. Run pipeline
 res <- patient_dimensionality_reduction(
   seurat_obj = seurat_obj,
   markers_df = markers_df,
@@ -144,26 +144,26 @@ res <- patient_dimensionality_reduction(
   verbose = TRUE
 )
 
-# 3. 플로팅
+# 3. Plotting
 plot_patient_umap(res$plot_df, color_by = "g3")
 plot_patient_umap(res$plot_df, color_by = "nih_change")
 ```
 
-### 뷰 선택 및 가중치 조정 (고급 옵션)
+### View Selection and Weight Adjustment (Advanced Options)
 
-기본적으로는 모든 뷰를 사용하지만, 필요시 일부만 선택하거나 가중치를 조정할 수 있습니다:
+By default, all views are used, but you can select only some or adjust weights as needed:
 
 ```r
-# frequency 뷰만 사용 (예: signatures가 노이즈가 많거나 latent가 없는 경우)
+# Use only frequency view (e.g., when signatures are noisy or latent is unavailable)
 res <- patient_dimensionality_reduction(
   seurat_obj = seurat_obj,
   markers_df = markers_df,
   include_signatures = FALSE,
   include_latent = FALSE,
-  frequency_weight = 2.0  # 빈도 정보에 더 높은 가중치
+  frequency_weight = 2.0  # Higher weight on frequency information
 )
 
-# signatures와 latent만 사용 (frequency 제외)
+# Use only signatures and latent (exclude frequency)
 res <- patient_dimensionality_reduction(
   seurat_obj = seurat_obj,
   markers_df = markers_df,
@@ -171,10 +171,10 @@ res <- patient_dimensionality_reduction(
 )
 ```
 
-### 메타데이터 보강
+### Metadata Augmentation
 
 ```r
-# 원본 Seurat 객체의 메타데이터에서 추가 변수 가져오기
+# Get additional variables from original Seurat object metadata
 aug <- augment_plot_df(
   plot_df = res$plot_df,
   metadata = is5@meta.data,
@@ -182,25 +182,25 @@ aug <- augment_plot_df(
   add = c("g3", "nih_change", "GEM")
 )
 
-# 보강된 데이터로 플로팅
+# Plot with augmented data
 plot_patient_umap(aug$data, color_by = "g3")
 
-# 진단 리포트 확인
-aug$report  # missing IDs, NA counts, duplicates 등
+# Check diagnostic report
+aug$report  # missing IDs, NA counts, duplicates, etc.
 ```
 
-## Unbiased Clustering 및 분리 평가
+## Unbiased Clustering and Separation Evaluation
 
-이 파이프라인은 **unsupervised** 방식으로 환자 수준의 임베딩을 생성합니다. 즉, 임상 변수(`g3`, `nih_change` 등)를 사용하지 않고 순수하게 feature 기반으로 차원 축소를 수행합니다.
+This pipeline generates patient-level embeddings in an **unsupervised** manner. That is, it performs dimensionality reduction purely based on features without using clinical variables (`g3`, `nih_change`, etc.).
 
-### 분리 평가 방법
+### Separation Evaluation Methods
 
-생성된 임베딩이 임상 변수와 얼마나 잘 연관되어 있는지 평가하려면:
+To evaluate how well the generated embeddings are associated with clinical variables:
 
 1. **PERMANOVA (Permutational Multivariate Analysis of Variance)**
-   - `vegan::adonis2()` 사용
-   - `g3` 그룹 간 거리 차이의 통계적 유의성 검정
-   - 예시:
+   - Uses `vegan::adonis2()`
+   - Tests statistical significance of distance differences between `g3` groups
+   - Example:
      ```r
      library(vegan)
      dist_mat <- dist(res$embedding)
@@ -208,20 +208,20 @@ aug$report  # missing IDs, NA counts, duplicates 등
      ```
 
 2. **LISI (Local Inverse Simpson's Index)**
-   - 각 환자 주변의 이웃들 중 `g3` 그룹 다양성 측정
-   - 낮은 LISI = 좋은 분리 (이웃들이 같은 그룹)
-   - 높은 LISI = 나쁜 분리 (이웃들이 여러 그룹에 섞임)
-   - 예시:
+   - Measures `g3` group diversity among neighbors around each patient
+   - Low LISI = good separation (neighbors are in same group)
+   - High LISI = poor separation (neighbors are mixed across multiple groups)
+   - Example:
      ```r
      library(lisi)
      lisi_scores <- compute_lisi(res$embedding, res$plot_df, c("g3"))
-     # 낮은 LISI 값이 좋은 분리를 의미
+     # Low LISI values indicate good separation
      ```
 
-### 해석
+### Interpretation
 
-- **PERMANOVA p-value < 0.05**: `g3` 그룹 간 거리 차이가 통계적으로 유의함 → feature/embedding이 `g3`를 어느 정도 분리함
-- **PERMANOVA p-value ≥ 0.05**: feature/embedding만으로는 `g3`를 분리하기 어려움 → 추가 feature나 다른 접근 필요
+- **PERMANOVA p-value < 0.05**: Distance differences between `g3` groups are statistically significant → features/embedding separate `g3` to some extent
+- **PERMANOVA p-value ≥ 0.05**: Difficult to separate `g3` with features/embedding alone → need additional features or different approach
 - **낮은 LISI**: 임베딩 공간에서 `g3` 그룹이 잘 분리됨
 - **높은 LISI**: 임베딩 공간에서 `g3` 그룹이 섞여 있음
 

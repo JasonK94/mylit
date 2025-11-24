@@ -33,10 +33,16 @@ docs/
 
 ### 2. Workflow Visualization (시각화)
 *   Mermaid를 사용한 파이프라인/로직 시각화.
-*   **주의**: Mermaid 작성 시 특수문자(`()`, `,`)가 포함된 노드는 `["Text"]`와 같이 따옴표와 대괄호를 사용하여 파싱 오류 방지.
+*   **중요: 특수 문자 처리 규칙**:
+    *   **파이프 문자 (`|`)**: `1|patient` → `["1|patient"]` 또는 `["1 pipe patient"]`로 변경
+    *   **등호 (`=`)**: 수식 표현 시 따옴표로 감싸기 `["A_g = mean(S_gm)"]`
+    *   **언더스코어 (`_`)**: 변수명에 포함된 경우 따옴표 권장 `["A_g"]`
+    *   **기타 특수문자**: `()`, `,`, `/` 등이 포함된 텍스트는 반드시 `["Text"]` 형식으로 작성
+    *   **예시**: `["Random Effect<br/>1|GEM/hos_no"]` → `["Random Effect<br/>1 pipe GEM slash hos_no"]` 또는 `["Random Effect<br/>1|GEM/hos_no"]` (따옴표로 감싸기)
 *   스타일 가이드:
     *   `flowchart TD` (Top-Down) 권장.
     *   `subgraph`를 사용하여 논리적 블록 구분.
+    *   노드 텍스트에 특수 문자가 포함되면 반드시 `["..."]` 형식 사용.
 
 ### 3. Development Log & Improvements (개발 로그)
 *   주요 버전별 변경 사항 요약.

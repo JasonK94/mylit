@@ -1,85 +1,85 @@
-# MiloR 차등 풍부도 분석 (Differential Abundance Analysis)
+# MiloR Differential Abundance Analysis
 
-## 개요
+## Overview
 
-MiloR는 단일세포 RNA 시퀀싱 데이터에서 세포 유형 또는 상태의 차등 풍부도(Differential Abundance, DA)를 분석하는 도구입니다. 이 패키지는 neighborhood 기반 접근법을 사용하여 공간적으로 인접한 세포 그룹의 풍부도 변화를 검출합니다.
+MiloR is a tool for analyzing differential abundance (DA) of cell types or states in single-cell RNA sequencing data. This package uses a neighborhood-based approach to detect abundance changes in spatially adjacent cell groups.
 
-## 주요 개념
+## Key Concepts
 
-### Neighborhood (이웃)
-- 각 세포 주변의 k-nearest neighbor 세포들로 구성된 지역적 세포 집단
-- `makeNhoods()` 함수로 생성되며, 각 neighborhood는 여러 세포를 포함할 수 있음
-- Neighborhood 간에는 그래프 구조로 연결되어 있어 독립적이지 않음
+### Neighborhood
+- Local cell groups consisting of k-nearest neighbor cells around each cell
+- Created with `makeNhoods()` function, each neighborhood can contain multiple cells
+- Neighborhoods are connected via graph structure, so they are not independent
 
-### Block Method (블록 방법)
-Neighborhood 간의 비독립성을 고려하기 위한 블록 생성 방법:
+### Block Method
+Methods for creating blocks to account for non-independence between neighborhoods:
 
-- **`"sample"`**: Block ID를 기반으로 같은 block에 속한 neighborhoods를 하나의 block으로 묶음
-  - **우선순위 1**: `block_var` 파라미터가 제공되면 `colData(milo)`에서 직접 사용 (권장)
-    - 예: `patient_var`, `batch_var`, `GEM`, `set` 등
-  - **우선순위 2**: Cell name에서 추출 (fallback)
-    - `S\d+$` 패턴 (예: "S1", "S2") 또는 처음 8자, 또는 첫 separator 이전 부분 추출
-    - **주의**: GEM well suffix (`-1`, `-2` 등)는 제거하지 않음 (중복 방지)
-  - 각 neighborhood에 가장 많은 세포를 포함하는 block을 할당
-  - Block-level 구조를 보존하여 permutation test의 타당성 확보
+- **`"sample"`**: Groups neighborhoods belonging to the same block based on Block ID
+  - **Priority 1**: If `block_var` parameter is provided, use directly from `colData(milo)` (recommended)
+    - Examples: `patient_var`, `batch_var`, `GEM`, `set`, etc.
+  - **Priority 2**: Extract from cell name (fallback)
+    - `S\d+$` pattern (e.g., "S1", "S2") or first 8 characters, or part before first separator
+    - **Note**: GEM well suffix (`-1`, `-2`, etc.) is not removed (to prevent duplicates)
+  - Assigns the block containing the most cells to each neighborhood
+  - Preserves block-level structure to ensure validity of permutation test
 
-- **`"community"`**: nhoodGraph의 community detection (Louvain 알고리즘)을 사용하여 그래프 구조상 연결된 neighborhoods를 block으로 묶음
-  - Sample 정보가 없거나 추출이 불가능한 경우 사용
-  - 그래프의 연결 구조를 기반으로 한 pseudo-block 생성
+- **`"community"`**: Uses community detection (Louvain algorithm) of nhoodGraph to group graph-connected neighborhoods into blocks
+  - Used when sample information is unavailable or cannot be extracted
+  - Creates pseudo-blocks based on graph connection structure
 
-- **`"none"`**: Blocking 없이 전체를 하나의 block으로 처리
-  - 가장 단순한 방법이지만 비독립성 문제를 완전히 해결하지 못할 수 있음
+- **`"none"`**: Processes entire dataset as one block without blocking
+  - Simplest method but may not fully resolve non-independence issues
 
-## 함수
+## Functions
 
 ### `run_milo_pipeline`
 
-MiloR 차등 풍부도 분석의 전체 파이프라인을 실행하는 통합 함수입니다.
+Integrated function that executes the entire MiloR differential abundance analysis pipeline.
 
-#### 기능
-- Seurat 객체를 Milo 객체로 변환
-- kNN 그래프 구축 및 neighborhood 생성
-- Neighborhood 간 거리 계산
-- 차등 풍부도 검정 (GLM 기반)
-- 결과 시각화 (UMAP, nhood graph, beeswarm plot)
-- 중간 결과 캐싱 지원
+#### Features
+- Converts Seurat object to Milo object
+- Builds kNN graph and creates neighborhoods
+- Calculates distances between neighborhoods
+- Performs differential abundance testing (GLM-based)
+- Visualizes results (UMAP, nhood graph, beeswarm plot)
+- Supports caching of intermediate results
 
-#### 주요 파라미터
+#### Key Parameters
 
-| 파라미터 | 설명 | 기본값 |
-|---------|------|--------|
-| `seurat_obj` | Seurat 객체 (메모리에 로드된 경우) | `NULL` |
-| `seurat_qs_path` | Seurat 객체 `.qs` 파일 경로 | `NULL` |
-| `patient_var` | 환자/샘플 식별자 컬럼명 | 필수 |
-| `cluster_var` | 클러스터 식별자 컬럼명 | 필수 |
-| `target_var` | 비교 대상 그룹 변수 (예: treatment) | 필수 |
-| `batch_var` | 배치 효과 변수 | 필수 |
-| `graph_reduction` | 그래프 구축에 사용할 차원 축소 | `"integrated.scvi"` |
-| `layout_reduction` | 시각화에 사용할 차원 축소 | `"umap.scvi"` |
-| `k` | kNN 그래프의 k 값 | `30` |
-| `d` | 차원 축소 차원 수 | `30` |
-| `prop` | Neighborhood 생성 비율 | `0.1` |
-| `alpha` | 유의성 임계값 | `0.1` |
-| `target_include` | `target_var` 값 중 포함할 그룹 (예: `c("low","high")`) | `NULL` |
-| `target_levels` | `target_var` factor 순서를 강제하는 벡터 (`c("low","high")`) | `NULL` |
-| `save` | 중간 결과 저장 여부 | `TRUE` |
-| `output_dir` | 결과 저장 디렉터리 | `tempdir()/milo` |
-| `prefix` | 파일명 접두사 | `"milo"` |
-| `suffix` | 파일명 접미사 (자동 증가) | `NULL` |
-| `cache_files` | `nhoods`, `distances`, `da_milo`, `da_results`, `plots` 등 지정한 단계만 캐시로 재사용 | `NULL` |
-| `force_run` | 캐시 무시하고 재실행 여부 | `FALSE` |
-| `plotting` | 시각화 수행 여부 | `TRUE` |
-| `max_cells` | 다운샘플링할 최대 세포 수 | `NULL` |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `seurat_obj` | Seurat object (if loaded in memory) | `NULL` |
+| `seurat_qs_path` | Path to Seurat object `.qs` file | `NULL` |
+| `patient_var` | Patient/sample identifier column name | Required |
+| `cluster_var` | Cluster identifier column name | Required |
+| `target_var` | Group variable for comparison (e.g., treatment) | Required |
+| `batch_var` | Batch effect variable | Required |
+| `graph_reduction` | Dimensionality reduction for graph construction | `"integrated.scvi"` |
+| `layout_reduction` | Dimensionality reduction for visualization | `"umap.scvi"` |
+| `k` | k value for kNN graph | `30` |
+| `d` | Number of dimensions for dimensionality reduction | `30` |
+| `prop` | Proportion for neighborhood creation | `0.1` |
+| `alpha` | Significance threshold | `0.1` |
+| `target_include` | Groups to include from `target_var` values (e.g., `c("low","high")`) | `NULL` |
+| `target_levels` | Vector forcing `target_var` factor order (`c("low","high")`) | `NULL` |
+| `save` | Whether to save intermediate results | `TRUE` |
+| `output_dir` | Directory to save results | `tempdir()/milo` |
+| `prefix` | Filename prefix | `"milo"` |
+| `suffix` | Filename suffix (auto-increment) | `NULL` |
+| `cache_files` | Reuse only specified stages as cache (`nhoods`, `distances`, `da_milo`, `da_results`, `plots`, etc.) | `NULL` |
+| `force_run` | Whether to ignore cache and re-run | `FALSE` |
+| `plotting` | Whether to perform visualization | `TRUE` |
+| `max_cells` | Maximum number of cells to downsample | `NULL` |
 
-#### 반환값
-- `milo`: Milo 객체
-- `da_results`: 차등 풍부도 검정 결과 (기존 열 + `comparison_reference`, `comparison_test`, `comparison_label`, `enriched_in`가 포함되어 logFC 방향을 바로 확인 가능)
-- `plots`: 시각화 객체 리스트 (UMAP, nhood graph, beeswarm plot)
+#### Return Value
+- `milo`: Milo object
+- `da_results`: Differential abundance test results (includes existing columns + `comparison_reference`, `comparison_test`, `comparison_label`, `enriched_in` for immediate logFC direction checking)
+- `plots`: List of visualization objects (UMAP, nhood graph, beeswarm plot)
 
-#### 사용 예시
+#### Usage Example
 
 ```r
-# Seurat 객체에서 직접 실행
+# Run directly on Seurat object
 result <- run_milo_pipeline(
     seurat_obj = seurat_object,
     patient_var = "patient_id",
@@ -97,7 +97,7 @@ result <- run_milo_pipeline(
     prefix = "milo_analysis"
 )
 
-# .qs 파일에서 로드하여 실행
+# Load from .qs file and run
 result <- run_milo_pipeline(
     seurat_qs_path = "/path/to/seurat.qs",
     patient_var = "patient_id",
@@ -109,39 +109,39 @@ result <- run_milo_pipeline(
 
 ### `test_cluster_logfc_bias`
 
-클러스터별 logFC 편중성을 검정하는 함수입니다. Neighborhood 간의 비독립성을 고려하여 여러 통계 검정 방법을 제공합니다.
+Function that tests logFC bias by cluster. Provides multiple statistical test methods accounting for non-independence between neighborhoods.
 
-#### 기능
-- 클러스터별 평균 logFC 계산
-- Block permutation test (권장)
-- Correlation-adjusted t-test (neff 보정)
-- Mixed-effects model (선택적, lme4 필요)
-- Empirical Bayes 추정 (선택적, ashr 필요)
+#### Features
+- Calculates mean logFC by cluster
+- Block permutation test (recommended)
+- Correlation-adjusted t-test (neff correction)
+- Mixed-effects model (optional, requires lme4)
+- Empirical Bayes estimation (optional, requires ashr)
 
-#### 주요 파라미터
+#### Key Parameters
 
-| 파라미터 | 설명 | 기본값 |
-|---------|------|--------|
-| `da_results` | `miloR::testNhoods()` 결과 데이터프레임 | 필수 |
-| `milo` | Milo 객체 | 필수 |
-| `cluster_col` | 클러스터 식별자 컬럼명 | `"major_cluster"` |
-| `block_method` | Block 생성 방법 (`"sample"`, `"community"`, `"none"`) | `"sample"` |
-| `test_methods` | 실행할 검정 방법 | `c("permutation", "neff")` |
-| `n_perm` | Permutation test 반복 횟수 | `2000` |
-| `max_nhoods` | 다운샘플링할 최대 neighborhood 수 | `NULL` |
-| `block_var` | `colData(milo)`의 block ID 컬럼명 (예: `patient_var`, `batch_var`, `GEM`, `set`) | `NULL` |
-| `seed` | 난수 시드 | `1` |
-| `verbose` | 진행 메시지 출력 여부 | `TRUE` |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `da_results` | Data frame of `miloR::testNhoods()` results | Required |
+| `milo` | Milo object | Required |
+| `cluster_col` | Cluster identifier column name | `"major_cluster"` |
+| `block_method` | Block creation method (`"sample"`, `"community"`, `"none"`) | `"sample"` |
+| `test_methods` | Test methods to execute | `c("permutation", "neff")` |
+| `n_perm` | Number of permutation test iterations | `2000` |
+| `max_nhoods` | Maximum number of neighborhoods to downsample | `NULL` |
+| `block_var` | Block ID column name in `colData(milo)` (e.g., `patient_var`, `batch_var`, `GEM`, `set`) | `NULL` |
+| `seed` | Random seed | `1` |
+| `verbose` | Whether to output progress messages | `TRUE` |
 
-#### 반환값
-클러스터별 통계량이 포함된 데이터프레임:
-- `major_cluster`: 클러스터 식별자
-- `mean_logFC`: 클러스터별 평균 logFC
-- `n_nhoods`: 클러스터에 속한 neighborhood 수
-- `p_perm`: Block permutation test p-value (선택적)
-- `p_neff`: Correlation-adjusted t-test p-value (선택적)
-- `p_lmm`: Mixed-effects model p-value (선택적)
-- `eb_mean`: Empirical Bayes posterior mean (선택적)
+#### Return Value
+Data frame containing statistics by cluster:
+- `major_cluster`: Cluster identifier
+- `mean_logFC`: Mean logFC by cluster
+- `n_nhoods`: Number of neighborhoods in cluster
+- `p_perm`: Block permutation test p-value (optional)
+- `p_neff`: Correlation-adjusted t-test p-value (optional)
+- `p_lmm`: Mixed-effects model p-value (optional)
+- `eb_mean`: Empirical Bayes posterior mean (optional)
 
 #### 사용 예시
 
@@ -348,28 +348,28 @@ eb_mean = mean(posterior_mean_i for all i in cluster)
 - Effect size의 방향성과 크기를 추정할 때 유용
 - 검정 결과를 보완하는 정보로 활용
 
-## 주의사항
+## Warnings
 
-### 1. Milo 객체 구조
-- **중요**: `milo@Nhoods` (대문자)가 올바른 slot 이름입니다. `milo@nhoods` (소문자)는 존재하지 않습니다.
-- `buildNhoodGraph()`를 호출한 후에만 `plotNhoodGraphDA()`를 사용할 수 있습니다.
+### 1. Milo Object Structure
+- **Important**: `milo@Nhoods` (uppercase) is the correct slot name. `milo@nhoods` (lowercase) does not exist.
+- `plotNhoodGraphDA()` can only be used after calling `buildNhoodGraph()`.
 
-### 2. Plotting 함수
-- `plotDAbeeswarm()`는 `alpha`와 `SpatialFDR` 값에 민감합니다. 모든 값이 비유의적이면 오류가 발생할 수 있으므로, `beeswarm_metric`을 `"PValue"` 또는 `"logFC_percentile"`로 변경하거나 `beeswarm_alpha`를 조정하세요.
+### 2. Plotting Functions
+- `plotDAbeeswarm()` is sensitive to `alpha` and `SpatialFDR` values. If all values are non-significant, errors may occur. Change `beeswarm_metric` to `"PValue"` or `"logFC_percentile"`, or adjust `beeswarm_alpha`.
 
-### 3. R 환경
-- R은 반드시 `st/` 디렉터리에서 실행하여 `st/start.R`이 자동으로 소싱되도록 해야 합니다.
-- 이렇게 해야 `renv` 환경이 올바르게 로드되고 필요한 패키지들이 사용 가능합니다.
+### 3. R Environment
+- R must be run from the `st/` directory so that `st/start.R` is automatically sourced.
+- This ensures the `renv` environment is correctly loaded and required packages are available.
 
 ### 4. Caching
-- `save=TRUE` (기본값)일 때 중간 결과가 `.qs` 형식으로 저장됩니다.
-- `force_run=FALSE`일 때는 기존 캐시 파일이 있으면 자동으로 재사용하여 시간을 절약합니다.
-- 각 단계(`nhoods`, `distances`, `testing`)별로 캐시 파일이 생성됩니다.
+- When `save=TRUE` (default), intermediate results are saved in `.qs` format.
+- When `force_run=FALSE`, existing cache files are automatically reused to save time.
+- Cache files are created for each stage (`nhoods`, `distances`, `testing`).
 
-## 워크플로우 예시
+## Workflow Example
 
 ```r
-# 1. Milo 파이프라인 실행
+# 1. Run Milo pipeline
 milo_result <- run_milo_pipeline(
     seurat_qs_path = "/path/to/seurat.qs",
     patient_var = "patient_id",
@@ -380,7 +380,7 @@ milo_result <- run_milo_pipeline(
     output_dir = "/path/to/output"
 )
 
-# 2. 클러스터별 편중성 검정
+# 2. Test cluster bias
 cluster_bias <- test_cluster_logfc_bias(
     da_results = milo_result$da_results,
     milo = milo_result$milo,
@@ -390,16 +390,16 @@ cluster_bias <- test_cluster_logfc_bias(
     n_perm = 2000
 )
 
-# 3. 결과 확인
+# 3. Check results
 print(cluster_bias)
-# 유의한 클러스터 필터링
+# Filter significant clusters
 significant_clusters <- cluster_bias %>%
     filter(p_perm < 0.05 | p_neff < 0.05)
 ```
 
-## 참고 자료
+## References
 
-- MiloR 공식 문서: https://www.bioconductor.org/packages/release/bioc/html/miloR.html
-- 원본 논문: Dann et al. (2022) Nature Biotechnology
-- 개발 과정의 주요 이슈와 해결 방법은 `myR/docs/DEVLOG_Korean.md`와 `myR/docs/context_Korean.md`를 참고하세요.
+- MiloR official documentation: https://www.bioconductor.org/packages/release/bioc/html/miloR.html
+- Original paper: Dann et al. (2022) Nature Biotechnology
+- For major issues and solutions during development, refer to `myR/docs/DEVLOG_Korean.md` and `myR/docs/context_Korean.md`.
 
