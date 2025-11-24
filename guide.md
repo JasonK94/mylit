@@ -37,3 +37,6 @@ g3이 target variable("2", "1", "NA"), 환자는 $hos_no(8자리 숫자), 클러
 7) plotting 함수 편의성: plots-dev 브랜치/워크트리.
 
 6. 추가 참조:
+documentation rule은 이 것을 참고하자.
+
+@DOCS_ORGANIZATION_RULE.md 
