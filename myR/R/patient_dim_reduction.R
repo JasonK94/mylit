@@ -149,24 +149,87 @@ clr_transform <- function(X, eps = 1e-6) {
   sweep(logX, 1, rowMeans(logX), FUN = "-")
 }
 
+#' Additive Log-Ratio Transform
+#'
+#' Apply an ALR transform (with pseudo-count) to compositional matrices.
+#' Uses the last column as the reference component.
+#'
+#' @param X Numeric matrix (rows = samples, columns = components).
+#' @param ref_idx Column index to use as reference (default: last column).
+#' @param eps Pseudo-count added before log transform.
+#'
+#' @return Matrix on ALR scale (one fewer column than input).
+#' @export
+alr_transform <- function(X, ref_idx = ncol(X), eps = 1e-6) {
+  stopifnot(is.matrix(X))
+  if (ref_idx < 1 || ref_idx > ncol(X)) {
+    stop("`ref_idx` must be between 1 and ncol(X)")
+  }
+  Xp <- X + eps
+  ref <- Xp[, ref_idx, drop = FALSE]
+  logX <- log(Xp[, -ref_idx, drop = FALSE])
+  sweep(logX, 1, log(ref), FUN = "-")
+}
+
+#' Isometric Log-Ratio Transform
+#'
+#' Apply an ILR transform (with pseudo-count) to compositional matrices.
+#' Uses a sequential binary partition (SBP) approach.
+#'
+#' @param X Numeric matrix (rows = samples, columns = components).
+#' @param eps Pseudo-count added before log transform.
+#'
+#' @return Matrix on ILR scale (one fewer column than input).
+#' @export
+ilr_transform <- function(X, eps = 1e-6) {
+  stopifnot(is.matrix(X))
+  if (ncol(X) < 2) {
+    stop("ILR transform requires at least 2 components")
+  }
+  Xp <- X + eps
+  logX <- log(Xp)
+  
+  # Sequential binary partition (SBP) approach
+  # For D components, we create D-1 ILR coordinates
+  D <- ncol(X)
+  ilr_mat <- matrix(0, nrow = nrow(X), ncol = D - 1)
+  
+  for (i in seq_len(D - 1)) {
+    # Numerator: geometric mean of first i components
+    num <- rowMeans(logX[, seq_len(i), drop = FALSE])
+    # Denominator: remaining components
+    if (i < D - 1) {
+      denom <- rowMeans(logX[, (i + 1):D, drop = FALSE])
+    } else {
+      denom <- logX[, D]
+    }
+    # ILR coordinate
+    ilr_mat[, i] <- sqrt(i / (i + 1)) * (num - denom)
+  }
+  
+  ilr_mat
+}
+
 #' Compute Patient-Level Cluster Frequencies
 #'
 #' Collapse cell-level metadata into patient-by-cluster frequency matrices
-#' (optionally CLR transformed).
+#' (transformed using CLR, ALR, or ILR).
 #'
 #' @param seurat_obj Seurat object containing at least `sample_col` and
 #'   `cluster_col` in `@meta.data`.
 #' @param sample_col Column with sample/patient identifiers.
 #' @param cluster_col Column with cluster identities.
-#' @param transform Either `"clr"` (default) or `"none"`.
-#' @param eps Pseudo-count used when `transform = "clr"`.
+#' @param transform Either `"clr"` (default), `"alr"`, or `"ilr"`.
+#' @param ref_idx For ALR transform, column index to use as reference (default: last column).
+#' @param eps Pseudo-count used for log transform.
 #'
 #' @return Numeric matrix with patients as rows and clusters as columns.
 #' @export
 compute_patient_cluster_frequency <- function(seurat_obj,
                                               sample_col = "hos_no",
                                               cluster_col = "anno3.scvi",
-                                              transform = c("clr", "none"),
+                                              transform = c("clr", "alr", "ilr"),
+                                              ref_idx = NULL,
                                               eps = 1e-6) {
   transform <- match.arg(transform)
   meta <- seurat_obj@meta.data
@@ -198,9 +261,81 @@ compute_patient_cluster_frequency <- function(seurat_obj,
 
   if (identical(transform, "clr")) {
     freq_mat <- clr_transform(freq_mat, eps = eps)
+  } else if (identical(transform, "alr")) {
+    if (is.null(ref_idx)) {
+      ref_idx <- ncol(freq_mat)
+    }
+    freq_mat <- alr_transform(freq_mat, ref_idx = ref_idx, eps = eps)
+  } else if (identical(transform, "ilr")) {
+    freq_mat <- ilr_transform(freq_mat, eps = eps)
   }
 
   freq_mat
+}
+
+#' Compute Patient-Level Signature Matrix from Pre-computed Module Scores
+#'
+#' Aggregate pre-computed signature scores (already in Seurat object metadata)
+#' to patient×cluster means.
+#'
+#' @param seurat_obj Seurat object with metadata columns `sample_col`,
+#'   `cluster_col`, and signature score columns.
+#' @param signature_score_cols Character vector of column names in `@meta.data`
+#'   containing signature scores.
+#' @param sample_col Column with sample/patient identifiers.
+#' @param cluster_col Column with cluster identities.
+#'
+#' @return Numeric matrix with patients as rows and signature×cluster features as columns.
+#' @export
+compute_patient_signature_from_scores <- function(seurat_obj,
+                                                  signature_score_cols,
+                                                  sample_col = "hos_no",
+                                                  cluster_col = "anno3.scvi") {
+  stopifnot(inherits(seurat_obj, "Seurat"))
+  meta <- seurat_obj@meta.data
+  required <- c(sample_col, cluster_col)
+  missing_cols <- setdiff(required, colnames(meta))
+  if (length(missing_cols)) {
+    stop("Missing columns in metadata: ", paste(missing_cols, collapse = ", "))
+  }
+  
+  missing_scores <- setdiff(signature_score_cols, colnames(meta))
+  if (length(missing_scores)) {
+    stop("Signature score columns not found in metadata: ", paste(missing_scores, collapse = ", "))
+  }
+  
+  sample_sym <- rlang::sym(sample_col)
+  cluster_sym <- rlang::sym(cluster_col)
+  
+  agg_tbl <- meta |>
+    dplyr::select(!!sample_sym, !!cluster_sym, dplyr::all_of(signature_score_cols)) |>
+    dplyr::group_by(!!sample_sym, !!cluster_sym) |>
+    dplyr::summarise(
+      dplyr::across(dplyr::all_of(signature_score_cols), ~ mean(.x, na.rm = TRUE)),
+      .groups = "drop"
+    ) |>
+    tidyr::pivot_longer(
+      cols = dplyr::all_of(signature_score_cols),
+      names_to = "signature",
+      values_to = "value"
+    ) |>
+    dplyr::mutate(
+      feature = paste(.data[[cluster_col]], .data$signature, sep = "__")
+    ) |>
+    tidyr::pivot_wider(
+      id_cols = !!sample_sym,
+      names_from = .data$feature,
+      values_from = .data$value,
+      values_fill = 0
+    ) |>
+    dplyr::arrange(!!sample_sym)
+  
+  sig_mat <- agg_tbl |>
+    dplyr::select(-dplyr::all_of(sample_col)) |>
+    as.matrix()
+  rownames(sig_mat) <- agg_tbl[[sample_col]]
+  
+  sig_mat
 }
 
 #' Compute Patient-Level Signature Matrix from Module Scores
@@ -593,13 +728,20 @@ run_pca_safely <- function(X, k, center = TRUE, scale. = FALSE, verbose = FALSE)
 #'   `cluster_col`, optional `batch_var`, and optional metadata for plotting
 #'   (e.g. `g3`, `nih_change`).
 #' @param markers_df Optional `FindAllMarkers` result; required when
-#'   `include_signatures = TRUE`.
+#'   `include_signatures = TRUE` and `signature_score_cols` is NULL.
+#' @param signature_score_cols Optional character vector of column names in
+#'   `seurat_obj@meta.data` containing pre-computed signature scores. If provided,
+#'   `markers_df` is ignored and these scores are used directly.
 #' @param include_frequency Logical; include frequency view (default TRUE).
 #' @param include_signatures Logical; include marker signatures (default TRUE
-#'   when `markers_df` is supplied).
+#'   when `markers_df` is supplied or `signature_score_cols` is provided).
 #' @param include_latent Logical; include latent reduction view (default TRUE).
 #' @param sample_col,cluster_col Metadata columns for patient/cluster.
 #' @param batch_var Batch column used in `removeBatchEffect`; set `NULL` to skip.
+#' @param frequency_transform Transform method for frequency view: `"clr"` (default),
+#'   `"alr"`, or `"ilr"`.
+#' @param frequency_ref_idx For ALR transform, column index to use as reference
+#'   (default: last column).
 #' @param frequency_weight,signature_weight,latent_weight Numeric weights applied
 #'   to each view during block scaling.
 #' @param reduction Reduction name for latent embeddings.
@@ -615,12 +757,15 @@ run_pca_safely <- function(X, k, center = TRUE, scale. = FALSE, verbose = FALSE)
 #' @export
 patient_dimensionality_reduction <- function(seurat_obj,
                                              markers_df = NULL,
+                                             signature_score_cols = NULL,
                                              include_frequency = TRUE,
-                                             include_signatures = !is.null(markers_df),
+                                             include_signatures = !is.null(markers_df) || !is.null(signature_score_cols),
                                              include_latent = TRUE,
                                              sample_col = "hos_no",
                                              cluster_col = "anno3.scvi",
                                              batch_var = "GEM",
+                                             frequency_transform = c("clr", "alr", "ilr"),
+                                             frequency_ref_idx = NULL,
                                              frequency_weight = 1.5,
                                              signature_weight = 1.0,
                                              latent_weight = 1.0,
@@ -635,6 +780,7 @@ patient_dimensionality_reduction <- function(seurat_obj,
                                              verbose = FALSE,
                                              ...) {
   stopifnot(inherits(seurat_obj, "Seurat"))
+  frequency_transform <- match.arg(frequency_transform)
 
   meta <- seurat_obj@meta.data
   required <- c(sample_col, cluster_col)
@@ -654,28 +800,42 @@ patient_dimensionality_reduction <- function(seurat_obj,
       seurat_obj = seurat_obj,
       sample_col = sample_col,
       cluster_col = cluster_col,
-      transform = "clr"
+      transform = frequency_transform,
+      ref_idx = frequency_ref_idx
     )
   }
 
   sig_info <- NULL
   if (isTRUE(include_signatures)) {
-    if (is.null(markers_df)) {
-      stop("`markers_df` is required when `include_signatures = TRUE`.")
+    if (!is.null(signature_score_cols)) {
+      # Use pre-computed signature scores
+      if (isTRUE(verbose)) {
+        cat("[patient_dimensionality_reduction] Using pre-computed signature scores...\n")
+      }
+      views$signatures <- compute_patient_signature_from_scores(
+        seurat_obj = seurat_obj,
+        signature_score_cols = signature_score_cols,
+        sample_col = sample_col,
+        cluster_col = cluster_col
+      )
+    } else if (!is.null(markers_df)) {
+      # Compute signature scores from markers_df
+      if (isTRUE(verbose)) {
+        cat("[patient_dimensionality_reduction] Computing signature view from markers_df...\n")
+      }
+      sig_info <- compute_patient_signature_matrix(
+        seurat_obj = seurat_obj,
+        markers_df = markers_df,
+        sample_col = sample_col,
+        cluster_col = cluster_col,
+        verbose = verbose,
+        ...
+      )
+      seurat_obj <- sig_info$seurat_obj
+      views$signatures <- sig_info$matrix
+    } else {
+      stop("Either `markers_df` or `signature_score_cols` must be provided when `include_signatures = TRUE`.")
     }
-    if (isTRUE(verbose)) {
-      cat("[patient_dimensionality_reduction] Computing signature view...\n")
-    }
-    sig_info <- compute_patient_signature_matrix(
-      seurat_obj = seurat_obj,
-      markers_df = markers_df,
-      sample_col = sample_col,
-      cluster_col = cluster_col,
-      verbose = verbose,
-      ...
-    )
-    seurat_obj <- sig_info$seurat_obj
-    views$signatures <- sig_info$matrix
   }
 
   if (isTRUE(include_latent)) {

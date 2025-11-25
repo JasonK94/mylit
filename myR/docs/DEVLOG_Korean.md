@@ -158,6 +158,103 @@
   - 검정 방법 간 결과 비교 및 검증
   - 실제 데이터셋에서의 성능 평가
 
+## 2025-01-XX — TML6 및 compute_meta_gene_importance 버그 수정 (`fgs` 브랜치)
+- **작성자**: Auto (GPT-5 Codex)  
+- **요약**: TML6 함수의 zero-variance signature 처리 및 compute_meta_gene_importance의 subscript out of bounds 에러 수정.
+- **세부 사항**:
+  - **TML6 함수 개선**:
+    - `.score_signature()` 함수에서 `scale()` 사용 시 zero-variance 문제 해결
+    - 분산이 0인 경우 normalize를 건너뛰고 0으로 설정
+    - `scale()` 결과가 NA/Inf인 경우 원래 점수 사용
+    - xgboost의 deprecated 경고(`ntree_limit` → `iteration_range`) 억제
+    - 모든 signature가 제거될 때 더 자세한 디버깅 정보 제공
+  - **compute_meta_gene_importance 함수 수정**:
+    - `signature_importance[[sig]]` → `signature_importance[sig]`로 변경 (named vector이므로 `[` 사용)
+    - `caret::varImp`의 rownames와 `sig_names` 매칭 개선
+    - 존재하지 않는 signature는 경고 후 건너뛰기
+    - NA/Inf importance 값 체크 및 처리
+  - **새로운 함수 추가**:
+    - `add_meta_signature_score()`: TML6와 compute_meta_gene_importance로 만든 gene weights를 사용하여 signature score를 계산하고 Seurat 객체에 AddMetaData로 추가
+    - Sparse/dense matrix 모두 지원
+    - 가중합 계산: `sum(w * expr) / sum(|w|)`
+    - 선택적 z-score normalization
+    - signed/absolute contribution 선택 가능
+- **기술적 세부사항**:
+  - Zero-variance signature: `scale()` 전에 `stats::sd()`로 분산 체크
+  - Signature 이름 매칭: `intersect()`로 실제 존재하는 signature만 추출
+  - 에러 메시지 개선: 예상/실제 signature 이름 표시
+- **주의사항**:
+  - 모든 signature가 zero-variance인 경우는 데이터나 signature 자체에 문제가 있을 수 있음
+  - `add_meta_signature_score()`는 `compute_meta_gene_importance()`의 결과를 입력으로 받음
+- **다음 단계**:
+  - 실제 데이터셋에서 테스트 및 검증
+  - 사용 예시 문서화
+
+## 2025-01-XX — TML6 환자 단위 CV 및 메타러너 확장 (`fgs` 브랜치)
+- **작성자**: Auto (GPT-5 Codex)  
+- **요약**: TML6에 `cv_group_var` 파라미터를 도입해 환자 단위 누수를 방지하고, L2 메타러너 후보에 `glmnet`, `svmRadial`, `mlp`, `mlpKerasDropout`를 추가.
+- **세부 사항**:
+  - **그룹 CV**:
+    - `cv_group_var` (기본값 `\"emrid\"`)로 같은 환자의 AOI가 항상 같은 fold에 들어가도록 `caret::trainControl(index/indexOut)` 구성
+    - 그룹 수가 `k_folds`보다 적으면 자동으로 기존 셀 단위 CV로 fallback
+    - 그룹 컬럼이 없으면 경고 후 셀 단위 CV 유지
+  - **L2 메서드 확장**:
+    - `glmnet`, `svmRadial`, `mlp`, `mlpKerasDropout` 패키지 의존성 체크 후 사용 가능
+    - 패키지가 없으면 경고만 출력하고 해당 모델을 자동으로 제거
+    - 기존 기본값(`glm`, `ranger`, `xgbTree`)은 그대로 유지
+  - **로그 개선**:
+    - 그룹 CV가 활성화될 때 fold 구성 메시지를 출력
+    - xgboost는 `xgb.set.config(verbosity = 0)`로 C-level 경고를 최대한 억제
+- **테스트**:
+  - R 4.3 환경에서 `Matrix` 및 Seurat 의존성 설치가 불가하여 Seurat 기반 통합 테스트는 진행하지 못함
+  - 매트릭스 입력 + `glm` 메타러너 케이스로 기본 동작을 추가 점검 (caret 미설치 문제로 부분 실패)
+  - 추후 R 4.4+ 또는 사전 구축된 컨테이너에서 full 테스트 필요
+- **다음 단계**:
+  - Seurat/Matrix 환경이 준비된 머신에서 group CV + 확장 메타러너 조합 테스트
+  - `cv_group_var`가 matrix 입력에서도 사용할 수 있도록 벡터 인자를 허용할지 검토
+  - 문서/사용 예시 업데이트
+
+## 2025-01-18 — TML7 완성 및 CPU 제한/진행도 개선 (`fgs` 브랜치)
+- **작성자**: Auto  
+- **요약**: TML7 group-wise CV 및 확장 L2 메서드 구현 완료, CPU 사용량 제한 및 진행도 표시 기능 추가.
+- **세부 사항**:
+  - **TML7 완성**:
+    - `cv_group_var` 파라미터로 환자 단위 누수 방지 (기본값 "emrid"/"hos_no")
+    - L2 메서드 확장: `glmnet`, `svmRadial`, `mlp`, `mlpKerasDropout`, `nnet`, `earth` 추가
+    - 패키지 의존성 자동 검사 및 제외
+    - `compute_meta_gene_importance`에서 확장된 모델 지원 강화
+  - **CPU 사용량 제한**:
+    - `start.R`에 `MYLIT_DISABLE_PARALLEL` 환경 변수 추가로 병렬 처리 제어
+    - `init_fgs_env.R` 생성: start.R을 사용하되 병렬 처리 비활성화
+    - 자식 프로세스의 연쇄 병렬화 방지
+    - 메모리 한도 200GB 설정
+  - **스크립트 구조 개선**:
+    - `scripts/fgs/` 디렉토리로 FGS 관련 스크립트 정리
+    - `docs/fgs/` 디렉토리로 문서 정리
+    - `benchmark_l2_methods.R`: 각 L2 방법론별 벤치마크
+    - `run_tml7_is5s_full.R`: 전체 파이프라인 실행
+  - **문서화**:
+    - `docs/fgs/README.md`: 사용법 및 구조 설명
+    - `docs/fgs/R_SCRIPTS_REFERENCE.md`: R 스크립트 참조 가이드
+- **다음 단계**:
+  - CPU 수 유연한 설정 기능 추가
+  - 진행도 표시 강화 (예상 시간, 실제 시간, 다음 run 예측)
+
+## 2025-01-XX — FGS v5.4 및 시그니처 스택 테스트 (`fgs` 브랜치)
+- **작성자**: GPT-5.1 Codex  
+- **요약**: `find_gene_signature_v5.4()` 추가로 ranger/glmnet/NMF 경로의 안정화 옵션을 기본화하고, IS6 Seurat 객체(`is5s`)를 대상으로 end-to-end 검증을 수행.
+- **세부 사항**:
+  - `FGS()` 기본 진입점을 `find_gene_signature_v5.4()`로 전환해 `method_impl = "v5.4"`를 항상 사용
+  - v5.4에서는 `random_forest_ranger`의 permutation 중요도 + fallback, `ridge`/`elastic_net`의 `glmnet` 행렬 강제 변환과 0/1 타깃 변환, `nmf_loadings`의 양수 이동·랭크 가드가 활성화됨
+  - `TML7` + `compute_meta_gene_importance` + `add_meta_signature_score` 조합으로 IS6 데이터(`response`, `hos_no` 보정, 상위 200 genes) 테스트
+  - meta-signature score와 TML 예측(logit)의 상관, AUC(`pROC::roc`) 계산 및 `qs::qsave()`로 산출물 저장
+- **출력**:
+  - `docs/work_context/TML6_IMPROVEMENTS_CONTEXT.md`에 실행 컨텍스트 업데이트
+  - `outputs/fgs_is5s/`에 `fgs.each.is5s.qs`, `tml.each.is5s.qs` 저장
+- **다음 단계**:
+  - `find_gene_signature_v5.4()`를 문서/README에도 반영하고, `test.R`의 legacy 함수명을 `_test` 접미사로 전환
+  - ranger/glmnet/NMF 외의 메서드에서도 v5.4 경로가 필요한지 검토
+
 ---
 
 ### 향후 계획
