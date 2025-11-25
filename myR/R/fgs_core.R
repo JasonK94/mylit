@@ -13,6 +13,7 @@ fgs_preprocess_data_v5 <- function(data,
                                    min_pct,
                                    methods_requiring_scale,
                                    methods_requiring_correction) {
+  # === 1. Input validation (v4.2의 안정적 로직) ===
   is_seurat <- inherits(data, "Seurat")
 
   if (is_seurat) {
@@ -45,9 +46,15 @@ fgs_preprocess_data_v5 <- function(data,
     expr_mat <- as.matrix(data)
   }
 
+  # === 2. [V5] NA 및 팩터 레벨 완벽 제거 ===
   message("V5 Preprocessing: 1. Cleaning NA values...")
 
-  vars_to_check <- if (is.null(control_vars)) target_var else c(target_var, control_vars)
+  if (is.null(control_vars)) {
+    vars_to_check <- target_var
+  } else {
+    vars_to_check <- c(target_var, control_vars)
+  }
+
   complete_cases_idx <- complete.cases(meta.data[, vars_to_check, drop = FALSE])
 
   n_removed <- sum(!complete_cases_idx)
@@ -64,7 +71,7 @@ fgs_preprocess_data_v5 <- function(data,
     stop("Expression matrix must have column names corresponding to cell IDs.")
   }
 
-  common_cells <- base::intersect(colnames(expr_mat), rownames(meta.data))
+  common_cells <- intersect(colnames(expr_mat), rownames(meta.data))
   if (length(common_cells) == 0) {
     stop("No overlapping cells between expression data and metadata.")
   }
@@ -119,18 +126,20 @@ fgs_preprocess_data_v5 <- function(data,
     }
   }
 
-  if (length(base::unique(target_binary)) < 2) {
-    stop("Target variable must have at least 2 groups after processing")
+  if (length(unique(target_binary)) < 2) {
+    stop("Target variable must have at least 2 groups after NA removal")
   }
 
+  # === 3. Gene Filter (min_cells, min_pct) ===
   message("V5 Preprocessing: 2. Filtering genes (min_cells, min_pct)...")
   n_cells_expr <- rowSums(expr_mat > 0)
   pct_cells_expr <- n_cells_expr / ncol(expr_mat)
   keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
-  expr_mat <- expr_mat[keep_genes, , drop = FALSE]
+  expr_mat <- expr_mat[keep_genes, ]
 
   if (nrow(expr_mat) == 0) stop("No genes pass filtering criteria")
 
+  # === 4. [V5] test_n 필터링 (단 한 번 실행) ===
   if (!is.null(test_n) && nrow(expr_mat) > test_n) {
     message(sprintf("V5 Preprocessing: 3. Pre-filtering to top %d genes (limma)...", test_n))
     if (!requireNamespace("limma", quietly = TRUE)) {
@@ -138,10 +147,10 @@ fgs_preprocess_data_v5 <- function(data,
     }
 
     if (is.null(control_vars)) {
-      design_test <- stats::model.matrix(~target_binary_var, data = meta.data)
+      design_test <- model.matrix(~target_binary_var, data = meta.data)
     } else {
-      formula_test <- stats::as.formula(paste("~ target_binary_var +", paste(control_vars, collapse = "+")))
-      design_test <- stats::model.matrix(formula_test, data = meta.data)
+      formula_test <- as.formula(paste("~ target_binary_var +", paste(control_vars, collapse = "+")))
+      design_test <- model.matrix(formula_test, data = meta.data)
     }
 
     fit_test <- limma::lmFit(expr_mat, design_test)
@@ -151,14 +160,17 @@ fgs_preprocess_data_v5 <- function(data,
     top_table_test <- limma::topTable(fit_test, coef = coef_indices, number = Inf, sort.by = "P")
 
     top_gene_names <- rownames(top_table_test)[1:min(test_n, nrow(top_table_test))]
-    expr_mat <- expr_mat[top_gene_names, , drop = FALSE]
+    expr_mat <- expr_mat[top_gene_names, ]
     message(sprintf("... reduced to %d genes.", nrow(expr_mat)))
   }
 
+  # === 5. Preprocessing (log1p, scale) ===
   message("V5 Preprocessing: 4. Applying log1p and scaling...")
 
-  if (preprocess && max(expr_mat) > 100) {
-    expr_mat <- log1p(expr_mat)
+  if (preprocess) {
+    if (max(expr_mat) > 100) {
+      expr_mat <- log1p(expr_mat)
+    }
   }
 
   expr_mat_scaled <- NULL
@@ -169,6 +181,7 @@ fgs_preprocess_data_v5 <- function(data,
     expr_mat_scaled <- (expr_mat - gene_means) / gene_sds
   }
 
+  # === 6. [V5] Confounder pre-correction (단 한 번 실행) ===
   message("V5 Preprocessing: 5. Applying confounder correction (if needed)...")
 
   expr_mat_corrected <- NULL
@@ -178,21 +191,21 @@ fgs_preprocess_data_v5 <- function(data,
     }
 
     covariates_df <- meta.data[, control_vars, drop = FALSE]
-    covariate_mat <- stats::model.matrix(~ . - 1, data = covariates_df)
+    covariate_mat <- model.matrix(~ . - 1, data = covariates_df)
     expr_mat_corrected <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
   }
 
+  # --- 반환 객체 ---
   list(
     expr_mat = expr_mat,
     expr_mat_scaled = expr_mat_scaled,
     expr_mat_corrected = expr_mat_corrected,
     meta.data = meta.data,
     target_binary = target_binary,
-    n_groups = length(base::unique(target_binary)),
+    n_groups = length(unique(target_binary)),
     control_vars = control_vars
   )
 }
-
 
 #' Find Gene signature v5.4 (bug fixes for ranger/glmnet/NMF paths)
 #'

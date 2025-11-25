@@ -25,7 +25,7 @@ library(dplyr)
 # Load Config & Utils
 # Note: init_fgs_env.R changes WD to GJC_KDW_250721 but saves 'original_wd'
 script_dir <- file.path(original_wd, "scripts/fgs")
-source(file.path(script_dir, "vars_config.R"))
+source(file.path(original_wd, "scripts/vars_config.R"))
 source(file.path(script_dir, "test_utils.R"))
 
 # Load FGS/TML functions
