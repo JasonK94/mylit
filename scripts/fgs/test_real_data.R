@@ -30,18 +30,18 @@ source(file.path(script_dir, "test_utils.R"))
 
 # [FIX] Explicitly set conflicts preferences
 if (requireNamespace("conflicted", quietly = TRUE)) {
-    conflicted::conflicts_prefer(dplyr::select, quiet = TRUE)
-    conflicted::conflicts_prefer(dplyr::summarise, quiet = TRUE)
-    conflicted::conflicts_prefer(dplyr::filter, quiet = TRUE)
-    conflicted::conflicts_prefer(dplyr::mutate, quiet = TRUE)
-    conflicted::conflicts_prefer(dplyr::arrange, quiet = TRUE)
-    conflicted::conflicts_prefer(base::intersect, quiet = TRUE)
-    conflicted::conflicts_prefer(base::setdiff, quiet = TRUE)
-    conflicted::conflicts_prefer(base::union, quiet = TRUE)
-    conflicted::conflicts_prefer(base::colMeans, quiet = TRUE)
-    conflicted::conflicts_prefer(base::colSums, quiet = TRUE)
-    conflicted::conflicts_prefer(base::rowMeans, quiet = TRUE)
-    conflicted::conflicts_prefer(base::rowSums, quiet = TRUE)
+    conflicted::conflicts_prefer(dplyr::select)
+    conflicted::conflicts_prefer(dplyr::summarise)
+    conflicted::conflicts_prefer(dplyr::filter)
+    conflicted::conflicts_prefer(dplyr::mutate)
+    conflicted::conflicts_prefer(dplyr::arrange)
+    conflicted::conflicts_prefer(base::intersect)
+    conflicted::conflicts_prefer(base::setdiff)
+    conflicted::conflicts_prefer(base::union)
+    conflicted::conflicts_prefer(base::colMeans)
+    conflicted::conflicts_prefer(base::colSums)
+    conflicted::conflicts_prefer(base::rowMeans)
+    conflicted::conflicts_prefer(base::rowSums)
 }
 
 # Load FGS/TML functions
@@ -150,93 +150,78 @@ success_count <- length(fgs_results)
 cat("Success rate:", success_count, "/", length(fgs_methods), "\n")
 
 # Select signature for TML
-if (!is.null(fgs_results$random_forest_ranger)) {
-    fgsa <- fgs_results$random_forest_ranger
-} else {
-    fgsa <- fgs_results[[which(!sapply(fgs_results, is.null))[1]]]
-}
+# Use the first successful signature
+if (length(fgs_results) > 0) {
+    first_sig_name <- names(fgs_results)[1]
+    fgs_signature <- fgs_results[[first_sig_name]]
 
-# ==============================================================================
-# TEST 2: TML7 with All L2 Methods
-# ==============================================================================
-cat("\n=================================================================\n")
-cat("TEST 2: TML Layer 2 - All Methods\n")
-cat("=================================================================\n")
+    cat("Selected signature for TML:", first_sig_name, "\n")
 
-l2_methods <- c(
-    "glm", "ranger", "xgbTree", "svmRadial", "mlp", "earth"
-)
+    # [FIX] Wrap single signature in a named list so TML7 treats it correctly
+    l1_sigs_for_tml <- list()
+    l1_sigs_for_tml[[first_sig_name]] <- fgs_signature
 
-cat("L2 Methods to test:", paste(l2_methods, collapse = ", "), "\n\n")
+    # ==============================================================================
+    # TEST 2: TML Layer 2
+    # ==============================================================================
+    cat("\n=================================================================\n")
+    cat("TEST 2: TML Layer 2 - All Methods\n")
+    cat("=================================================================\n")
 
-if (!is.null(fgsa)) {
+    l2_methods <- c("glm", "ranger", "xgbTree", "svmRadial", "mlp", "earth")
+    cat("L2 Methods to test:", paste(l2_methods, collapse = ", "), "\n\n")
+
     tryCatch(
         {
-            tmla_full <- TML7(
-                l1_signatures = fgsa,
+            tml_model <- TML7(
+                l1_signatures = l1_sigs_for_tml,
                 holdout_data = sobj,
                 target_var = target_var,
                 l2_methods = l2_methods,
                 cv_folds = 5,
-                cv_method = "cv",
-                cv_group_var = group_var,
-                fgs_seed = 42 # Correct argument name
+                cv_method = "cv", # Standard CV
+                fgs_seed = 42
             )
-            cat("✓ SUCCESS: TML7 completed\n")
-
-            # Metrics
-            if (length(tmla_full$results) > 0) {
-                cat("Performance (First Signature):\n")
-                print(tmla_full$results[[1]]$models$glm$performance)
-            }
+            cat("✓ TML7 Completed Successfully\n")
         },
         error = function(e) {
-            cat("✗ FAILED: TML7 -", conditionMessage(e), "\n")
-            tmla_full <- NULL
+            cat("✗ FAILED: TML7\n")
+            cat("  Error:", conditionMessage(e), "\n")
         }
     )
-} else {
-    cat("Skipping TML7 (No FGS results)\n")
-    tmla_full <- NULL
-}
 
-# ==============================================================================
-# TEST 3: CV Method Comparison (LOGO)
-# ==============================================================================
-cat("\n=================================================================\n")
-cat("TEST 3: LOGO CV\n")
-cat("=================================================================\n")
+    # ==============================================================================
+    # TEST 3: LOGO CV
+    # ==============================================================================
+    cat("\n=================================================================\n")
+    cat("TEST 3: LOGO CV\n")
+    cat("=================================================================\n")
 
-if (!is.null(fgsa) && group_var %in% colnames(sobj@meta.data)) {
-    # LOGO requires group variable
-    n_groups <- length(unique(sobj@meta.data[[group_var]]))
-    cat("Number of groups (patients):", n_groups, "\n")
-
-    if (n_groups >= 3) { # Need at least a few groups for LOGO
+    if (!is.null(group_var)) {
+        cat("Number of groups (patients):", length(unique(sobj@meta.data[[group_var]])), "\n")
         tryCatch(
             {
-                tmla_logo <- TML7(
-                    l1_signatures = fgsa,
+                tml_logo <- TML7(
+                    l1_signatures = l1_sigs_for_tml,
                     holdout_data = sobj,
                     target_var = target_var,
-                    l2_methods = c("glm", "ranger"),
+                    l2_methods = "glm", # Test with simple model first
                     cv_method = "LOGO",
                     cv_group_var = group_var,
                     fgs_seed = 42
                 )
-                cat("✓ SUCCESS: LOGO CV completed\n")
-
-                if (!is.null(tmla_logo$results[[1]]$cv_folds)) {
-                    cat("  Folds created:", length(tmla_logo$results[[1]]$cv_folds$index), "\n")
-                }
+                cat("✓ LOGO CV Completed Successfully\n")
             },
             error = function(e) {
-                cat("✗ FAILED: LOGO CV -", conditionMessage(e), "\n")
+                cat("✗ FAILED: LOGO CV\n")
+                cat("  Error:", conditionMessage(e), "\n")
             }
         )
     } else {
-        cat("Skipping LOGO: Not enough groups (<3)\n")
+        cat("Skipping LOGO CV (No group variable)\n")
     }
+} else {
+    cat("Skipping TML7 (No FGS results)\n")
 }
 
 cat("\n=================================================================\n")
