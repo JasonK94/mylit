@@ -10,6 +10,7 @@ docs-main/
 ├── guide_KR.md                # Main project guide (Korean)
 ├── README.md                   # Root README
 ├── README_SUBTREE.md          # This file
+├── CONTEXT_DOCUMENTATION.md   # Agent context documentation
 ├── integrated/
 │   ├── INTEGRATED_GUIDE.md     # Comprehensive module guide (English)
 │   └── INTEGRATED_GUIDE_KR.md  # Comprehensive module guide (Korean)
