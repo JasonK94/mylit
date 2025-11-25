@@ -167,8 +167,8 @@ plot_volcano <- function(data,
     ggplot2::scale_color_manual(values = plot_colors, name = "Category") +
     ggplot2::labs(
       title = title,
-      x = if (is.null(xlab)) "Effect Size (Estimate)" else xlab,
-      y = if (is.null(ylab)) "-log10(p-value)" else ylab
+      x = if (is.null(xlab)) paste0("Effect Size (Estimate:", x_col, ")") else xlab,
+      y = if (is.null(ylab)) paste0("-log10(", p_col, ")") else ylab
     ) +
     ggplot2::theme_bw(base_size = 12) +
     ggplot2::theme(
