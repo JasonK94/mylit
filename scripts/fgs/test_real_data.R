@@ -28,6 +28,27 @@ script_dir <- file.path(original_wd, "scripts/fgs")
 source(file.path(original_wd, "scripts/vars_config.R"))
 source(file.path(script_dir, "test_utils.R"))
 
+# [FIX] Explicitly set conflicts preferences
+if (requireNamespace("conflicted", quietly = TRUE)) {
+    try(
+        {
+            conflicted::conflicts_prefer(dplyr::select, quiet = TRUE)
+            conflicted::conflicts_prefer(dplyr::summarise, quiet = TRUE)
+            conflicted::conflicts_prefer(dplyr::filter, quiet = TRUE)
+            conflicted::conflicts_prefer(dplyr::mutate, quiet = TRUE)
+            conflicted::conflicts_prefer(dplyr::arrange, quiet = TRUE)
+            conflicted::conflicts_prefer(base::intersect, quiet = TRUE)
+            conflicted::conflicts_prefer(base::setdiff, quiet = TRUE)
+            conflicted::conflicts_prefer(base::union, quiet = TRUE)
+            conflicted::conflicts_prefer(base::colMeans, quiet = TRUE)
+            conflicted::conflicts_prefer(base::colSums, quiet = TRUE)
+            conflicted::conflicts_prefer(base::rowMeans, quiet = TRUE)
+            conflicted::conflicts_prefer(base::rowSums, quiet = TRUE)
+        },
+        silent = TRUE
+    )
+}
+
 # Load FGS/TML functions
 cat("Loading FGS/TML functions...\n")
 # Try to load from refactored location first
@@ -89,52 +110,48 @@ fgs_methods <- c(
     "pca_loadings" # Dim reduction
 )
 
-cat("Methods to test:", paste(fgs_methods, collapse = ", "), "\n\n")
+cat("Methods to test (Single Pass):", paste(fgs_methods, collapse = ", "), "\n\n")
 
 fgs_results <- list()
-fgs_timings <- list()
+timing_start <- Sys.time()
 
-for (method in fgs_methods) {
-    cat("\n>>> Testing method:", method, "\n")
+tryCatch(
+    {
+        # [OPTIMIZATION] Run all methods in ONE call to avoid redundant preprocessing
+        fgs_result_all <- FGS(
+            data = sobj,
+            target_var = target_var,
+            method = fgs_methods,
+            n_features = 20,
+            fgs_seed = 42
+        )
 
-    timing_start <- Sys.time()
+        timing_end <- Sys.time()
+        elapsed <- as.numeric(difftime(timing_end, timing_start, units = "secs"))
 
-    tryCatch(
-        {
-            fgs_result <- FGS(
-                data = sobj,
-                target_var = target_var,
-                method = method,
-                n_features = 20,
-                fgs_seed = 42
-            )
+        cat("✓ FGS Batch Completed in", round(elapsed, 2), "seconds\n")
 
-            timing_end <- Sys.time()
-            elapsed <- as.numeric(difftime(timing_end, timing_start, units = "secs"))
-
-            fgs_results[[method]] <- fgs_result
-            fgs_timings[[method]] <- elapsed
-
-            cat("✓ SUCCESS:", method, "completed in", round(elapsed, 2), "seconds\n")
-            cat("  Signatures found:", length(fgs_result$signatures), "\n")
-        },
-        error = function(e) {
-            timing_end <- Sys.time()
-            elapsed <- as.numeric(difftime(timing_end, timing_start, units = "secs"))
-
-            fgs_results[[method]] <- NULL
-            fgs_timings[[method]] <- elapsed
-
-            cat("✗ FAILED:", method, "\n")
-            cat("  Error:", conditionMessage(e), "\n")
-            cat("  Time elapsed:", round(elapsed, 2), "seconds\n")
+        # Check results
+        for (m in fgs_methods) {
+            if (!is.null(fgs_result_all[[m]])) {
+                cat("  -", m, ": Success (", length(fgs_result_all[[m]]$genes), "genes)\n")
+                fgs_results[[m]] <- fgs_result_all[[m]]
+            } else {
+                cat("  -", m, ": Failed or Returned NULL\n")
+            }
         }
-    )
-}
+    },
+    error = function(e) {
+        timing_end <- Sys.time()
+        elapsed <- as.numeric(difftime(timing_end, timing_start, units = "secs"))
+        cat("✗ FGS Batch FAILED:", conditionMessage(e), "\n")
+        cat("  Time elapsed:", round(elapsed, 2), "seconds\n")
+    }
+)
 
 # Summary
 cat("\n--- FGS Test Summary ---\n")
-success_count <- sum(sapply(fgs_results, function(x) !is.null(x)))
+success_count <- length(fgs_results)
 cat("Success rate:", success_count, "/", length(fgs_methods), "\n")
 
 # Select signature for TML
