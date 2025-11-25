@@ -13,7 +13,7 @@ fgs_preprocess_data_v5 <- function(data,
                                    min_pct,
                                    methods_requiring_scale,
                                    methods_requiring_correction) {
-  # === 1. Input validation (v4.2의 안정적 로직) ===
+  # === 1. Input validation ===
   is_seurat <- inherits(data, "Seurat")
 
   if (is_seurat) {
@@ -24,17 +24,18 @@ fgs_preprocess_data_v5 <- function(data,
       meta.data <- data@meta.data
     }
     default_assay <- Seurat::DefaultAssay(data)
+    # [OPTIMIZATION] Keep as sparse matrix initially to save memory
     expr_mat <- tryCatch(
       {
-        as.matrix(Seurat::GetAssayData(data, assay = default_assay, layer = "data"))
+        Seurat::GetAssayData(data, assay = default_assay, layer = "data")
       },
       error = function(e) {
         tryCatch(
           {
-            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "data"))
+            Seurat::GetAssayData(data, assay = default_assay, slot = "data")
           },
           error = function(e) {
-            as.matrix(Seurat::GetAssayData(data, assay = default_assay, slot = "counts"))
+            Seurat::GetAssayData(data, assay = default_assay, slot = "counts")
           }
         )
       }
@@ -43,7 +44,7 @@ fgs_preprocess_data_v5 <- function(data,
     if (is.null(meta.data)) {
       stop("meta.data must be provided when data is not a Seurat object")
     }
-    expr_mat <- as.matrix(data)
+    expr_mat <- data # Keep as is (could be sparse or dense)
   }
 
   # === 2. [V5] NA 및 팩터 레벨 완벽 제거 ===
@@ -76,7 +77,7 @@ fgs_preprocess_data_v5 <- function(data,
     stop("No overlapping cells between expression data and metadata.")
   }
   meta.data <- meta.data[common_cells, , drop = FALSE]
-  expr_mat <- expr_mat[, common_cells, drop = FALSE]
+  expr_mat <- expr_mat[, common_cells, drop = FALSE] # Sparse indexing is efficient
 
   target_values <- meta.data[[target_var]]
   if (is.numeric(target_values)) {
@@ -132,12 +133,18 @@ fgs_preprocess_data_v5 <- function(data,
 
   # === 3. Gene Filter (min_cells, min_pct) ===
   message("V5 Preprocessing: 2. Filtering genes (min_cells, min_pct)...")
-  n_cells_expr <- rowSums(expr_mat > 0)
+  # Use Matrix::rowSums for sparse support
+  n_cells_expr <- Matrix::rowSums(expr_mat > 0)
   pct_cells_expr <- n_cells_expr / ncol(expr_mat)
   keep_genes <- (n_cells_expr >= min_cells) & (pct_cells_expr >= min_pct)
-  expr_mat <- expr_mat[keep_genes, ]
+  expr_mat <- expr_mat[keep_genes, , drop = FALSE]
 
   if (nrow(expr_mat) == 0) stop("No genes pass filtering criteria")
+
+  # === [OPTIMIZATION] Convert to dense NOW ===
+  # Only after filtering genes and cells, we convert to dense matrix.
+  message(sprintf("V5 Preprocessing: Converting to dense matrix (%d genes x %d cells)...", nrow(expr_mat), ncol(expr_mat)))
+  expr_mat <- as.matrix(expr_mat)
 
   # === 4. [V5] test_n 필터링 (단 한 번 실행) ===
   if (!is.null(test_n) && nrow(expr_mat) > test_n) {
