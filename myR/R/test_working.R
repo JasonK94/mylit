@@ -964,310 +964,8 @@ PERMANOVA=function(sobj, patient_var, celltype_var, group_var, assay="RNA", na.d
 
 
 # --------- analyses: NEBULA, MUSCAT, CLMM, Spearman ---------
-#' @title NEBULA 파이프라인 함수
-#' @description Seurat 객체를 받아 NA 처리, 데이터 정렬, NEBULA GLMM을 실행.
-#'              Modeling에서, y~NB(mu,phi)이며, log(mu)=log(o)+BX+random effect 에서 "o"는 offset, random effect는 patient_col, X는 fixed effects와 covar_effects.
-#'
-#' @param sobj (Seurat) Seurat 객체
-#' @param layer (character) Raw count가 저장된 layer (예: "counts")
-#' @param fixed_effects (character vector) 고정 효과로 사용할 meta.data 컬럼명
-#'                    (예: c("target_col", "celltype_col"))
-#' @param covar_effects (character vector) 임의 효과처럼 보정하고 싶은 공변량.
-#'                    NEBULA의 한계로 인해 '고정 효과'로 처리됩니다.
-#'                    (예: c("batch_col", "percent.mt"))
-#' @param patient_col (character) 환자 ID 컬럼. NEBULA의 'id' (유일한 임의 효과)로 사용됨.
-#' @param offset (character) Offset으로 사용할 'numeric' 컬럼 (예: "nCount_RNA")
-#' @param min_count (numeric) 유전자 필터링 기준 (최소 발현 세포 수)
-#'
-#' @return (nebula) NEBULA 실행 결과 객체
-#'
-#' @export 
-runNEBULA <- function(...) {
-  .Deprecated("runNEBULA_v1", package = "myR", msg = "runNEBULA in test_working.R is deprecated. Use runNEBULA_v1 from test_analysis.R instead.")
-  if (exists("runNEBULA_v1", envir = asNamespace("myR"), inherits = FALSE)) {
-    fun <- get("runNEBULA_v1", envir = asNamespace("myR"))
-    return(fun(...))
-  } else {
-    stop("runNEBULA_v1 from test_analysis.R not found. Please ensure test_analysis.R is loaded.")
-  }
-}
-
-#' @title Muscat (Pseudo-bulking) 파이프라인 함수 (V5 - prepData 사용)
-#'
-#' @description prepData를 사용하여 SCE 객체를 포맷하고, pbDS로 GLM(edgeR/DESeq2) 실행
-#' @note 이 함수는 'pbDS'의 한계로 인해 혼합 효과(Random Effects/block)를 지원하지 않습니다.
-#'
-#' @param sobj (Seurat) Seurat 객체
-#' @param cluster_id (character) 세포 유형 컬럼명
-#' @param sample_id (character) 환자/샘플 ID 컬럼명
-#' @param group_id (character) 비교할 그룹 컬럼명
-#' @param formula_str (character) 포뮬러 (예: "~ 0 + group + set")
-#'                 'group' 키워드는 'group_id'로 자동 변환됩니다.
-#' @param contrast (character) Contrast (예: "groupA-groupB")
-#' @param method (character) "edgeR", "DESeq2", "limma-trend", "limma-voom" (block 없음)
-#'
-#' @export
-runMUSCAT <- function(...) {
-  .Deprecated("runMUSCAT_v5", package = "myR", msg = "runMUSCAT in test_working.R is deprecated. Use runMUSCAT_v5 or runMUSCAT2_v1 from test_analysis.R instead.")
-  if (exists("runMUSCAT_v5", envir = asNamespace("myR"), inherits = FALSE)) {
-    fun <- get("runMUSCAT_v5", envir = asNamespace("myR"))
-    return(fun(...))
-  } else {
-    stop("runMUSCAT_v5 from test_analysis.R not found. Please ensure test_analysis.R is loaded.")
-  }
-}
-
-# Original runMUSCAT function body removed - use runMUSCAT_v5 from test_analysis.R instead
-# The following code block is kept for reference but will not execute:
-if (FALSE) {
-  runMUSCAT_original <- function(
-  sobj,
-  cluster_id = "seurat_clusters",
-  sample_id  = "hos_no",
-  group_id   = "type",
-  batch_id   = NULL,                 # ex) "exp_batch"
-  contrast   = NULL,                 # ex) "IS - SAH"
-  method     = "edgeR",
-  pb_min_cells = 3,
-  filter_genes = c("none","genes","both","edgeR"),
-  keep_clusters = NULL,
-  cluster_label_map = NULL
-){
-  if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
-  filter_genes <- match.arg(filter_genes)
-
-  # deps
-  req <- c("Seurat","muscat","SingleCellExperiment","SummarizedExperiment","S4Vectors","limma","dplyr")
-  miss <- req[!vapply(req, requireNamespace, logical(1), quietly=TRUE)]
-  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse=", "))
-
-  # 1) Seurat -> SCE, prepSCE
-  sce <- Seurat::as.SingleCellExperiment(sobj)
-  sce <- muscat::prepSCE(sce, kid = cluster_id, sid = sample_id, gid = group_id)
-
-  # factor 보장
-  sce$cluster_id <- droplevels(factor(SummarizedExperiment::colData(sce)$cluster_id))
-  sce$sample_id  <- droplevels(factor(SummarizedExperiment::colData(sce)$sample_id))
-  sce$group_id   <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
-    sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
-  }
-
-  # 2) Pseudobulk
-  pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
-
-  # (선택) 특정 클러스터만
-  if (!is.null(keep_clusters)) {
-    keep_clusters <- as.character(keep_clusters)
-    pb <- pb[names(SummarizedExperiment::assays(pb)) %in% keep_clusters]
-    if (length(SummarizedExperiment::assays(pb)) == 0L) stop("keep_clusters에 해당하는 클러스터가 없습니다.")
-  }
-
-  # 2-1) pb 메타 보강 (sample_id / group_id / batch)
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-
-  # sample_id 없으면 assay의 colnames로 복구
-  if (!"sample_id" %in% names(pb_meta)) {
-    first_assay <- names(SummarizedExperiment::assays(pb))[1]
-    sid_guess <- colnames(SummarizedExperiment::assays(pb)[[first_assay]])
-    if (is.null(sid_guess)) stop("pb에 sample_id가 없습니다.")
-    pb_meta$sample_id <- sid_guess
-    rownames(pb_meta) <- pb_meta$sample_id
-    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta)
-  }
-
-  # sce에서 (sample_id -> group_id / batch) map
-  sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
-  map_cols <- c("sample_id","group_id")
-  if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
-  sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
-
-  # pb에 group_id / batch 보강
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-  need_fix <- (!"group_id" %in% names(pb_meta)) ||
-              (length(unique(pb_meta$group_id)) < 2) ||
-              (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
-  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
-    pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
-    if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
-      pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
-      pb_meta2$group_id.x <- NULL; pb_meta2$group_id.y <- NULL
-    }
-    rownames(pb_meta2) <- rownames(pb_meta)
-    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta2)
-  }
-
-  # factor화
-  pb$sample_id <- droplevels(factor(SummarizedExperiment::colData(pb)$sample_id))
-  pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
-    pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
-  }
-
-  # 3) contrast 그룹만 자동 subset
-  extract_groups <- function(contrast_str, levels_available){
-    z <- gsub("\\s+", "", contrast_str)
-    toks <- unique(gsub("^group(_id)?", "", unlist(strsplit(z, "[^A-Za-z0-9_]+"))))
-    toks <- toks[nchar(toks) > 0]
-    keep <- intersect(toks, levels_available)
-    if (length(keep) < 1) {
-      g2 <- levels_available[vapply(levels_available, function(g) grepl(g, z), logical(1))]
-      keep <- unique(g2)
-    }
-    keep
-  }
-  grp_lvls <- levels(SummarizedExperiment::colData(pb)$group_id)
-  tg <- extract_groups(contrast, grp_lvls)
-  if (length(tg) < 2) stop(sprintf("contrast에서 추출한 그룹이 부족합니다. contrast='%s', 사용가능레벨=%s",
-                                   contrast, paste(grp_lvls, collapse=", ")))
-
-  keep_idx <- SummarizedExperiment::colData(pb)$group_id %in% tg
-  pb_sub <- pb[, keep_idx]
-  pb_sub$group_id <- droplevels(factor(SummarizedExperiment::colData(pb_sub)$group_id))
-
-  # **sce도 동일 기준으로 subset (resDS용 필수)**
-  sce_sub <- sce[, sce$sample_id %in% SummarizedExperiment::colData(pb_sub)$sample_id &
-                    sce$group_id  %in% tg]
-  sce_sub$cluster_id <- droplevels(factor(sce_sub$cluster_id))
-  sce_sub$sample_id  <- droplevels(factor(sce_sub$sample_id))
-  sce_sub$group_id   <- droplevels(factor(sce_sub$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
-    sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
-  }
-
-  # 4) design/contrast (batch는 'batch'로 복사해서 사용)
-  pb_sub$group <- pb_sub$group_id
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb_sub))) {
-    pb_sub$batch <- droplevels(factor(SummarizedExperiment::colData(pb_sub)[[batch_id]]))
-    design <- stats::model.matrix(~ 0 + group + batch,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
-  } else {
-    design <- stats::model.matrix(~ 0 + group,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
-  }
-
-  fix_contrast <- function(contrast_str, design_cols){
-    z <- gsub("\\s+", "", contrast_str)
-    toks <- unlist(strsplit(z, "([+\\-])", perl=TRUE))
-    ops  <- unlist(regmatches(z, gregexpr("([+\\-])", z, perl=TRUE)))
-    rebuild <- function(tok){
-      tok <- gsub("^group(_id)?", "group", tok)
-      if (!grepl("^group", tok)) tok <- paste0("group", tok)
-      tok
-    }
-    toks2 <- vapply(toks, rebuild, character(1))
-    out <- toks2[1]; if (length(ops)) for (i in seq_along(ops)) out <- paste0(out, ops[i], toks2[i+1])
-    out
-  }
-  contrast_fixed <- fix_contrast(contrast, colnames(design))
-  contrast_matrix <- limma::makeContrasts(contrasts = contrast_fixed, levels = design)
-
-  # 5) pbDS
-  res <- muscat::pbDS(
-    pb_sub,
-    design    = design,
-    method    = method,
-    contrast  = contrast_matrix,
-    min_cells = pb_min_cells,
-    filter    = filter_genes,
-    verbose   = TRUE
-  )
-
-  # 6) 결과 평탄화: **sce_sub가 먼저, res가 다음**
-  combined <- muscat::resDS(sce_sub, res)
-
-  # cluster_id 정리 + 라벨
-  if ("cluster" %in% names(combined) && !"cluster_id" %in% names(combined)) {
-    combined$cluster_id <- combined$cluster
-  }
-  if (!"cluster_id" %in% names(combined)) stop("resDS 결과에 'cluster_id'가 없습니다.")
-  if (!is.null(cluster_label_map)) {
-    combined$cluster_label <- cluster_label_map[as.character(combined$cluster_id)]
-    combined$cluster_label[is.na(combined$cluster_label)] <- as.character(combined$cluster_id)
-  } else {
-    combined$cluster_label <- as.character(combined$cluster_id)
-  }
-
-  # 7) 요약 헬퍼
-  .pick_cols_for <- function(tab, contrast_fixed) {
-    cstr <- gsub("\\s+", "", contrast_fixed)
-    patt <- paste0("(^|\\.)", gsub("([+\\-])", "\\\\\\1", cstr), "$")
-
-    # 1) 접미사 있는 형태 먼저 시도
-    logfc <- grep("^logFC(\\.|_)?", names(tab), value=TRUE); logfc <- logfc[grep(patt, logfc)]
-    padj  <- grep("^(p_adj(\\.loc|\\.glb)?|FDR)(\\.|_)?", names(tab), value=TRUE); padj <- padj[grep(patt, padj)]
-    pcol  <- grep("^(p_val|PValue)(\\.|_)?", names(tab), value=TRUE); pcol <- pcol[grep(patt, pcol)]
-
-    # 2) 접미사 매칭 실패 시 기본 컬럼으로 폴백
-    if (!length(logfc) && "logFC" %in% names(tab)) logfc <- "logFC"
-    if (!length(pcol)  && "p_val" %in% names(tab)) pcol  <- "p_val"
-    if (!length(padj)) {
-      if ("p_adj.loc" %in% names(tab))      padj <- "p_adj.loc"
-      else if ("p_adj.glb" %in% names(tab)) padj <- "p_adj.glb"
-      else if ("FDR" %in% names(tab))       padj <- "FDR"
-    }
-
-    if (!length(logfc) || !length(padj)) {
-      stop("결과 테이블에서 logFC/adj.p 컬럼을 찾지 못했습니다. resDS 출력 컬럼명을 확인하세요.")
-    }
-    list(logfc = logfc[1], padj = padj[1], p = if (length(pcol)) pcol[1] else NULL)
-  }
-
-  # --- [REPLACE] 클러스터별 Top-N
-  top_by_cluster <- function(n=25){
-    tab_use <- combined
-    # contrast 컬럼이 있으면 현재 contrast만 사용
-    if ("contrast" %in% names(tab_use)) {
-      target <- gsub("\\s+", "", contrast_fixed)
-      tab_use <- tab_use[gsub("\\s+", "", tab_use$contrast) == target, , drop=FALSE]
-    }
-    cols <- .pick_cols_for(tab_use, contrast_fixed)
-
-    tab_use |>
-      dplyr::mutate(
-        logFC_view = .data[[cols$logfc]],
-        padj_view  = .data[[cols$padj]],
-        p_view     = if (!is.null(cols$p)) .data[[cols$p]] else NA_real_
-      ) |>
-      dplyr::arrange(padj_view) |>
-      dplyr::group_by(cluster_label) |>
-      dplyr::slice_head(n = n) |>
-      dplyr::ungroup()
-  }
-
-  # --- [REPLACE] 전체 Top-N
-  top_overall <- function(n=100){
-    tab_use <- combined
-    if ("contrast" %in% names(tab_use)) {
-      target <- gsub("\\s+", "", contrast_fixed)
-      tab_use <- tab_use[gsub("\\s+", "", tab_use$contrast) == target, , drop=FALSE]
-    }
-    cols <- .pick_cols_for(tab_use, contrast_fixed)
-
-    tab_use |>
-      dplyr::mutate(
-        logFC_view = .data[[cols$logfc]],
-        padj_view  = .data[[cols$padj]],
-        p_view     = if (!is.null(cols$p)) .data[[cols$p]] else NA_real_
-      ) |>
-      dplyr::arrange(padj_view) |>
-      dplyr::slice_head(n = n)
-  }
-
-  list(
-    sce        = sce,
-    sce_sub    = sce_sub,
-    pb         = pb,
-    pb_sub     = pb_sub,
-    design     = design,
-    contrast_fixed = contrast_fixed,
-    res_raw    = res,
-    combined   = combined,
-    top_by_cluster = top_by_cluster,
-    top_overall    = top_overall
-  )
-}
-} # End of if (FALSE) block
+# Legacy NEBULA/MUSCAT implementations have moved to myR/R/analysis.R.
+# This file now preserves only CLMM/Spearman helpers.
 
 #' Seurat 객체에서 유전자별 CLMM 분석 수행 (v2: 기능 추가)
 #'
@@ -1565,17 +1263,193 @@ run_spearman_pseudobulk <- function(sobj, ordinal_var, patient_col, assay = "RNA
 #' @param sv_var_cutoff (numeric) `n_sv=NULL`일 때, SV가 설명해야 할
 #'                      *잔차 분산(residual variance)*의 누적 비율 (0 ~ 1).
 #' @param n_cores (numeric) 병렬 처리에 사용할 CPU 코어 수.
-#' @param remove_na (logical) 포뮬러 변수의 NA 값을 가진 셀을 제거할지 여부. 기본값 `TRUE`.
-#' @param min.count (numeric) `filterByExpr`의 `min.count` 파라미터. 기본값 `10`.
-#' @param min.total.count (numeric) `filterByExpr`의 `min.total.count` 파라미터. 기본값 `15`.
-#' @param min.prop (numeric) `filterByExpr`의 `min.prop` 파라미터. 기본값 `0.1`.
-#' @param large.n (numeric) `filterByExpr`의 `large.n` 파라미터. 기본값 `10`.
-#' @param plot_sva_correlation (logical) SVA와 메타데이터 간 상관관계 플롯을 생성할지 여부. 기본값 `TRUE`.
 #'
 #' @return (list) 'fit' (MArrayLM 객체), 'voom' (EList 객체),
-#'         'sva' (SVA 객체), 'final_formula' (사용된 최종 포뮬러),
-#'         'sv_correlation' (SVA와 메타데이터 상관관계, plot_sva_correlation=TRUE일 때)
+#'         'sva' (SVA 객체), 'final_formula' (사용된 최종 포뮬러)
 #'
-# LDS 함수는 이제 lds.R 파일의 모듈화된 버전을 사용합니다.
-# 각 단계별 함수(lds_01_extract_data, lds_02_parse_formula 등)도 개별적으로 사용 가능합니다.
-# 자세한 내용은 lds.R 파일을 참조하세요.
+LDS <- function(sobj,
+                formula,
+                meta.data = NULL,
+                layer = "counts",
+                n_sv = NULL,
+                sv_var_cutoff = 0.5,
+                n_cores = max(1, parallel::detectCores() - 2)) {
+
+  # --- 1. 입력값 검증 및 데이터 추출 ---
+  message("1/7: 입력 데이터 처리 중...")
+  if (inherits(sobj, "Seurat")) {
+    counts_matrix <- GetAssayData(sobj, layer = layer)
+    if (is.null(meta.data)) {
+      meta.data <- sobj@meta.data
+    }
+  } else if (inherits(sobj, "DGEList")) {
+    counts_matrix <- sobj$counts
+    if (is.null(meta.data)) {
+      meta.data <- sobj$samples
+    }
+  } else if (is.matrix(sobj) || inherits(sobj, "dgCMatrix")) {
+    counts_matrix <- sobj
+    if (is.null(meta.data)) {
+      stop("`sobj`가 Matrix일 경우, `meta.data`를 반드시 제공해야 합니다.")
+    }
+  } else {
+    stop("`sobj`는 Seurat, DGEList, 또는 Matrix여야 합니다.")
+  }
+  
+  if (ncol(counts_matrix) != nrow(meta.data)) {
+    stop("Count matrix의 열 수(샘플)와 meta.data의 행 수(샘플)가 일치하지 않습니다.")
+  }
+  
+  # 병렬 백엔드 설정
+  BPPARAM_SETUP <- MulticoreParam(n_cores)
+
+  # --- 2. SVA를 위한 포뮬러 파싱 ---
+  message("2/7: 포뮬러 파싱 중...")
+  if (!requireNamespace("lme4", quietly = TRUE)) {
+    stop("LMM 포뮬러 파싱을 위해 'lme4' 패키지가 필요합니다.")
+  }
+  
+  # `formula`에서 고정 효과(Fixed Effects)만 추출
+  # SVA의 'mod' 인자 및 `filterByExpr`에 사용됨
+  fixed_effects_formula <- lme4::nobars(formula)
+  
+  if (is.null(fixed_effects_formula)) {
+     # 예: ~ (1|emrid) + (1|set) 처럼 고정 효과가 아예 없는 경우
+     fixed_effects_formula <- ~ 1 
+  }
+
+  # --- 3. DGEList 생성, 필터링, 정규화 ---
+  message("3/7: DGEList 생성 및 필터링 중...")
+  
+  # `filterByExpr`를 위한 디자인 행렬 (고정 효과 기반)
+  design_for_filter <- model.matrix(fixed_effects_formula, data = meta.data)
+  
+  dge <- DGEList(counts_matrix, samples = meta.data)
+  
+  keep_genes <- filterByExpr(dge, design = design_for_filter)
+  dge <- dge[keep_genes, , keep.lib.sizes = FALSE]
+  
+  if (sum(keep_genes) == 0) {
+    stop("모든 유전자가 필터링되었습니다. `filterByExpr` 조건을 확인하십시오.")
+  }
+  
+  dge <- calcNormFactors(dge)
+  
+  message(sprintf("... 유전자 필터링 완료: %d / %d 개 통과", 
+                  sum(keep_genes), nrow(counts_matrix)))
+
+  # --- 4. SVA 실행 (임시 voom 기반) ---
+  message("4/7: SVA 실행 (숨겨진 변동성 탐색)...")
+  
+  mod_sva <- model.matrix(fixed_effects_formula, data = meta.data)
+  mod0_sva <- model.matrix(~ 1, data = meta.data)
+  
+  # SVA는 voom 변환된 데이터에 실행
+  v_sva <- voom(dge, mod_sva, plot = FALSE)
+  
+  # 1) n.sv=NULL로 SVA를 실행하여 *최대* SV 개수 및 SV *모두* 찾기
+  # (n_sv=NULL일 때만 SVD를 수행하여 sva_obj$svd를 반환함. 
+  #  -> 이 부분이 sva 버전마다 다를 수 있어, 수동 잔차 계산이 더 안정적임)
+  sva_obj <- sva(v_sva$E, mod = mod_sva, mod0 = mod0_sva, n.sv = NULL)
+  
+  n_sv_max <- sva_obj$n.sv
+  
+  if (n_sv_max == 0) {
+    message("... SVA가 유의미한 대리 변수(SV)를 찾지 못했습니다.")
+    svs_final <- NULL
+    n_sv_final <- 0
+  } else {
+    message(sprintf("... SVA가 최대 %d개의 SV를 탐지했습니다.", n_sv_max))
+    
+    # 2) 사용할 SV 개수 결정
+    if (!is.null(n_sv)) {
+      # 사용자가 SV 개수 명시
+      n_sv_final <- min(n_sv, n_sv_max)
+      
+    } else {
+      # (사용자 요청) 잔차 분산 기반으로 SV 개수 자동 결정
+      message(sprintf("... 잔차 분산의 %.0f%%를 설명하는 SV 개수 자동 탐색 중...", 
+                      sv_var_cutoff * 100))
+                      
+      # SVA가 사용한 것과 동일한 잔차(Residuals)를 수동 계산
+      # lm.fit이 (샘플 x 유전자) 형태의 t(v_sva$E)를 입력받음
+      res_matrix <- t(resid(lm.fit(mod_sva, t(v_sva$E))))
+      
+      # 잔차 행렬의 SVD (Singular Value Decomposition)
+      svd_res <- svd(res_matrix)
+      
+      # 각 SV가 설명하는 분산 비율
+      percent_var_explained <- (svd_res$d^2) / sum(svd_res$d^2)
+      cumulative_var <- cumsum(percent_var_explained)
+      
+      # Cutoff를 만족하는 최소 SV 개수 찾기
+      n_sv_auto <- which(cumulative_var >= sv_var_cutoff)[1]
+      
+      if (is.na(n_sv_auto)) { # 모든 SV를 합쳐도 cutoff 미만일 경우
+        n_sv_final <- n_sv_max
+      } else {
+        n_sv_final <- n_sv_auto
+      }
+      
+      message(sprintf("... SV %d개가 잔차 분산의 %.1f%%를 설명합니다.", 
+                      n_sv_final, cumulative_var[n_sv_final] * 100))
+    }
+    
+    # 3) 최종 SV 추출 및 메타데이터에 추가
+    if (n_sv_final > 0) {
+      svs_final <- sva_obj$sv[, 1:n_sv_final, drop = FALSE]
+      colnames(svs_final) <- paste0("SV", 1:n_sv_final)
+      meta.data <- cbind(meta.data, svs_final)
+    }
+  }
+
+  # --- 5. 최종 포뮬러 생성 ---
+  message("5/7: 최종 모델 포뮬러 생성 중...")
+  
+  original_formula_str <- paste(deparse(formula), collapse = "")
+  
+  if (n_sv_final > 0) {
+    sv_str <- paste(colnames(svs_final), collapse = " + ")
+    # 포뮬러에 SV 추가
+    final_formula_str <- paste(original_formula_str, sv_str, sep = " + ")
+  } else {
+    final_formula_str <- original_formula_str
+  }
+  
+  final_formula <- as.formula(final_formula_str)
+  message(sprintf("... 최종 포뮬러: %s", final_formula_str))
+
+  # --- 6. limma-dream 파이프라인 실행 ---
+  message(sprintf("6/7: limma-dream 실행 (Core: %d개)...", n_cores))
+  
+  # 1) 유효 가중치 계산 (voomWithDreamWeights)
+  v_dream <- voomWithDreamWeights(
+    dge, 
+    final_formula, 
+    meta.data, 
+    BPPARAM = BPPARAM_SETUP
+  )
+  
+  # 2) LMM 피팅 (dream)
+  fit_dream <- dream(
+    v_dream, 
+    final_formula, 
+    meta.data, 
+    BPPARAM = BPPARAM_SETUP
+  )
+  
+  # 3) Empirical Bayes 조정
+  fit_ebayes <- eBayes(fit_dream)
+  
+  message("7/7: 분석 완료.")
+
+  # --- 7. 결과 반환 ---
+  return(list(
+    fit = fit_ebayes,       # 최종 MArrayLM 객체 (topTable 사용 가능)
+    voom = v_dream,         # 가중치가 포함된 EList 객체
+    sva_obj = sva_obj,      # 원본 SVA 객체
+    svs_used = svs_final,   # 모델에 실제 사용된 SV 매트릭스
+    final_formula = final_formula, # 최종 사용된 포뮬러
+    dge = dge               # 필터링/정규화된 DGEList
+  ))
+}

@@ -1,5 +1,6 @@
 # Multi-Model DEG Consensus Module Integrated Guide
 
+<<<<<<< HEAD
 이 문서는 Multi-Model DEG Consensus (deg-consensus) 모듈의 통합 가이드입니다. 여러 DEG 분석 방법론을 결합하여 신뢰도 높은 Consensus Signature를 도출하는 과정을 설명합니다.
 
 ## 1. Introduction (소개)
@@ -14,10 +15,27 @@ limma, edgeR, DESeq2, muscat, nebula, dream 등 다양한 DEG 분석 방법론�
     *   **Agreement Score**: 유전자별로 몇 개의 방법론이 유의하다고 판단했는지(0~1) 계산.
     *   **Weighted Scoring**: 방법론별 가중치를 반영한 Consensus Score 산출.
 4.  **자동 시각화**: Volcano plot, Heatmap, Method PCA, Gene UMAP 등을 자동 생성.
+=======
+This document is the integrated guide for the Multi-Model DEG Consensus (deg-consensus) module. It describes the process of deriving reliable Consensus Signatures by combining multiple DEG analysis methodologies.
+
+## 1. Introduction
+
+### Purpose
+Applies various DEG analysis methodologies (limma, edgeR, DESeq2, muscat, nebula, dream, etc.) to the same dataset and integrates the results to generate a robust Consensus DEG list based on inter-methodology agreement.
+
+### Key Features
+1.  **Unified Execution Engine**: Executes 10+ DEG methodologies in batch with a single `run_deg_consensus()` function.
+2.  **Result Standardization**: Converts results in different formats (p-value, logFC, etc.) to a common format.
+3.  **Consensus Algorithm**:
+    *   **Agreement Score**: Calculates how many methodologies consider each gene significant (0~1).
+    *   **Weighted Scoring**: Computes Consensus Score reflecting methodology-specific weights.
+4.  **Automatic Visualization**: Automatically generates Volcano plots, Heatmaps, Method PCA, Gene UMAP, etc.
+>>>>>>> main
 
 ## 2. Workflow Visualization (시각화)
 
 ```mermaid
+<<<<<<< HEAD
 %%{init: {'theme':'base', 'themeVariables': {'primaryEdgeColor':'#000000', 'primaryEdgeThickness':4, 'primaryTextColor':'#000000', 'primaryBorderColor':'#000000', 'edgeLabelBackground':'#ffffff', 'tertiaryColor':'#000000'}}}%%
 flowchart TD
     Start([DEG Consensus Pipeline<br/>DEG Consensus 파이프라인])
@@ -188,11 +206,58 @@ flowchart TD
 ### 실행 방법
 
 **1. R 세션 시작 및 로드**
+=======
+flowchart TD
+    Input[Seurat Object] --> Run[Run DEG Methods]
+    
+    Run --> M1[limma-voom/trend]
+    Run --> M2[edgeR-LRT/QLF]
+    Run --> M3[DESeq2-Wald/LRT]
+    Run --> M4[muscat variants]
+    Run --> M5[NEBULA/Dream]
+    
+    M1 & M2 & M3 & M4 & M5 --> Std[Standardize Results]
+    
+    Std --> Matrix[Build DEG Matrices]
+    Matrix --> Agree[Compute Agreement Scores]
+    Matrix --> PCA[Method PCA & Clustering]
+    
+    Agree --> Consensus[Compute Consensus Scores]
+    Consensus --> Filter[Filter Consensus DEGs]
+    
+    Filter --> Output[Final List & Plots]
+```
+
+## 3. Methodology
+
+### Supported DEG Methodologies
+*   **limma series**: `limma-voom`, `limma-trend` (Pseudobulk)
+*   **edgeR series**: `edgeR-LRT`, `edgeR-QLF` (Pseudobulk)
+*   **DESeq2 series**: `DESeq2-Wald`, `DESeq2-LRT` (Pseudobulk)
+*   **muscat series**: Runs edgeR/DESeq2/limma through `muscat` wrapper
+*   **Mixed-Model series**:
+    *   `nebula`: Single-cell level Negative Binomial Mixed Model
+    *   `dream`: Pseudobulk level Linear Mixed Model (VariancePartition)
+
+### Consensus Algorithm
+For each gene $g$:
+1.  **Significance Matrix ($S_{gm}$)**: 1 if significant in methodology $m$, 0 otherwise.
+2.  **Agreement Score ($A_g$)**: $\frac{1}{M} \sum_{m} S_{gm}$ (proportion of significant methodologies).
+3.  **Consensus Score ($C_g$)**: $A_g \times |\text{Weighted Mean Beta}_g|$.
+4.  **Filtering**: Selected if $A_g \ge \text{threshold}$ and significant in at least $k$ methodologies.
+
+## 4. User Guide & Warnings
+
+### Execution Methods
+
+**1. Start R Session and Load**
+>>>>>>> main
 ```r
 devtools::load_all("/home/user3/data_user3/git_repo/mylit/myR")
 source("scripts/deg-consensus-dev/run_consensus_simple.R")
 ```
 
+<<<<<<< HEAD
 **2. 기본 실행 (Simple)**
 ```r
 # Seurat 객체가 'is5' 변수로 로드되어 있다고 가정
@@ -201,6 +266,16 @@ source("scripts/deg-consensus-dev/run_consensus_simple.R")
 ```
 
 **3. 고급 실행 (함수 직접 호출)**
+=======
+**2. Basic Execution (Simple)**
+```r
+# Assuming Seurat object is loaded as 'is5' variable
+# Automatically runs major methodologies and saves results
+source("scripts/deg-consensus-dev/run_consensus_simple.R")
+```
+
+**3. Advanced Execution (Direct Function Call)**
+>>>>>>> main
 ```r
 methods_to_run <- c("limma-trend", "edgeR-QLF", "nebula")
 result <- run_deg_consensus(
@@ -213,6 +288,7 @@ result <- run_deg_consensus(
 )
 ```
 
+<<<<<<< HEAD
 ### Critical Warnings (주의사항)
 1.  **실행 시간**: NEBULA, Dream 등 Mixed Model은 계산 비용이 높습니다. 테스트 시에는 제외하거나 작은 데이터셋을 사용하세요.
 2.  **메모리**: 많은 방법론을 동시에 돌리면 메모리 사용량이 급증할 수 있습니다.
@@ -228,4 +304,21 @@ result <- run_deg_consensus(
 ### 결과 파일
 *   `deg_consensus_final_result.qs`: 최종 결과 객체.
 *   `consensus_plots/`: Volcano plot, Heatmap 등 시각화 결과.
+=======
+### Critical Warnings
+1.  **Execution Time**: Mixed Models like NEBULA and Dream are computationally expensive. Exclude them during testing or use small datasets.
+2.  **Memory**: Running many methodologies simultaneously can cause memory usage to spike.
+3.  **Pseudobulk Requirements**: If the minimum number of samples per cluster (`min_samples_per_group`) is insufficient, that cluster's analysis is skipped (default: 2).
+
+## 5. Appendix
+
+### Key Script Locations
+*   `scripts/deg-consensus-dev/run_consensus_simple.R`: Minimal execution example.
+*   `scripts/deg-consensus-dev/run_consensus_analysis.R`: Full analysis pipeline.
+*   `scripts/deg-consensus-dev/test_step_by_step.R`: Step-by-step debugging.
+
+### Result Files
+*   `deg_consensus_final_result.qs`: Final result object.
+*   `consensus_plots/`: Visualization results including Volcano plots, Heatmaps, etc.
+>>>>>>> main
 

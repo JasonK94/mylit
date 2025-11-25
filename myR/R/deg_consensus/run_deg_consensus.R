@@ -5,7 +5,7 @@
 # ============================================================================
 # 
 # Note: This function requires:
-# - runMUSCAT2_v1 and runNEBULA2_v1 (from test_analysis.R)
+# - runMUSCAT and runNEBULA (from test_analysis.R)
 # - runLIMMA_voom_v1, runLIMMA_trend_v1 (from deg_methods_limma.R)
 # - runEDGER_LRT_v1, runEDGER_QLF_v1 (from deg_methods_edger.R)
 # - runDESEQ2_Wald_v1, runDESEQ2_LRT_v1 (from deg_methods_deseq2.R)
@@ -51,18 +51,8 @@
 run_deg_consensus <- function(
   sobj,
   contrast = "2 - 1",
-  methods = c(
-    "muscat-edgeR",
-    "muscat-DESeq2",
-    "muscat-limma-voom",
-    "muscat-limma-trend",
-    "limma-voom",
-    "limma-trend",
-    "edgeR-LRT",
-    "edgeR-QLF",
-    "DESeq2-Wald",
-    "DESeq2-LRT"
-  ),
+  methods = c("muscat-edgeR", "muscat-DESeq2", "muscat-limma-voom", 
+              "muscat-limma-trend", "nebula"),
   cluster_id = "anno3.scvi",
   sample_id = "hos_no",
   group_id = "g3",
@@ -97,29 +87,20 @@ run_deg_consensus <- function(
   method_handlers <- list(
     # muscat methods
     "muscat-edgeR" = function(...) {
-      runMUSCAT2_v1(..., method = "edgeR")
+      runMUSCAT(..., method = "edgeR")
     },
     "muscat-DESeq2" = function(...) {
-      runMUSCAT2_v1(..., method = "DESeq2")
+      runMUSCAT(..., method = "DESeq2")
     },
     "muscat-limma-voom" = function(...) {
-      runMUSCAT2_v1(..., method = "limma-voom")
+      runMUSCAT(..., method = "limma-voom")
     },
     "muscat-limma-trend" = function(...) {
-      runMUSCAT2_v1(..., method = "limma-trend")
+      runMUSCAT(..., method = "limma-trend")
     },
     # nebula
     "nebula" = function(...) {
-      if (!exists("runNEBULA2_v1")) {
-        stop("runNEBULA2_v1 함수가 로드되지 않았습니다. deg_methods_base.R를 source하세요.")
-      }
-      runNEBULA2_v1(..., return_summary_only = TRUE)
-    },
-    "nebula-pb" = function(...) {
-      if (!exists("runNEBULA2_v1_with_pseudobulk")) {
-        stop("runNEBULA2_v1_with_pseudobulk 함수가 로드되지 않았습니다. deg_methods_base.R를 source하세요.")
-      }
-      runNEBULA2_v1_with_pseudobulk(..., return_summary_only = TRUE)
+      runNEBULA(...)
     },
     # limma methods
     "limma-voom" = function(...) {
@@ -242,14 +223,7 @@ run_deg_consensus <- function(
     
     # For nebula, adjust arguments
     if (method == "nebula") {
-      nebula_fixed <- Filter(function(x) !is.null(x) && nzchar(x),
-                             c(group_id, cluster_id))
-      nebula_covar <- if (!is.null(batch_id) && nzchar(batch_id)) batch_id else NULL
-      method_args$fixed_effects <- unique(nebula_fixed)
-      method_args$covar_effects <- nebula_covar
-      if (length(method_args$fixed_effects) == 0) {
-        stop("nebula 방법론은 fixed_effects (예: group_id 또는 cluster_id)가 필요합니다.")
-      }
+      method_args$fixed_effects <- c(group_id)
       method_args$patient_col <- sample_id
       method_args$remove_na_cells <- remove_na_groups
       # Remove muscat-specific args that nebula doesn't use
@@ -257,27 +231,8 @@ run_deg_consensus <- function(
       method_args$filter_genes <- NULL
       method_args$keep_clusters <- NULL
       method_args$cluster_id <- NULL
-      method_args$sample_id <- NULL
-      method_args$group_id <- NULL
       method_args$batch_id <- NULL
-      method_args$remove_na_groups <- NULL
       method_args$contrast <- NULL  # nebula doesn't use contrast string
-    } else if (method == "nebula-pb") {
-      nebula_fixed <- Filter(function(x) !is.null(x) && nzchar(x), c(group_id))
-      nebula_covar <- if (!is.null(batch_id) && nzchar(batch_id)) batch_id else NULL
-      method_args$fixed_effects <- unique(nebula_fixed)
-      method_args$covar_effects <- nebula_covar
-      if (length(method_args$fixed_effects) == 0) {
-        stop("nebula-pb 방법론은 최소 하나의 fixed_effects (예: group_id)가 필요합니다.")
-      }
-      method_args$patient_col <- sample_id
-      method_args$remove_na_cells <- remove_na_groups
-      method_args$min_cells_per_pb <- method_args$pb_min_cells
-      method_args$pb_min_cells <- NULL
-      method_args$keep_clusters <- keep_clusters
-      method_args$remove_na_groups <- NULL
-      method_args$contrast <- NULL
-      method_args$filter_genes <- NULL
     }
     
     # For muscat methods, ensure cluster_id is provided and fix filter_genes
