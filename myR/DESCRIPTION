@@ -18,7 +18,6 @@ Imports:
     broom,
     car,
     circlize,
-    clusterProfiler,
     ComplexHeatmap,
     DiagrammeRsvg,
     dplyr (>= 1.0.0),
@@ -39,10 +38,8 @@ Imports:
     Matrix,
     methods,
     mgcv,
-    monocle3,
     NMF,
     nichenetr,
-    org.Hs.eg.db,
     patchwork,
     pheatmap,
     purrr,
@@ -99,5 +96,5 @@ Suggests:
     userfriendlyscience,
     viridis
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Config/testthat/edition: 3
