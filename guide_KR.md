@@ -46,16 +46,17 @@ formula 예시:
 6. 문서 관리:
 
 **중요**: 핵심 문서 파일들은 `docs-main/`에서 관리되며, `main` 브랜치에서만 수정해야 합니다. 이 파일들은:
-- `guide.md`, `guide_KR.md`, `README.md` (루트 레벨)
-- `docs/INTEGRATED_GUIDE.md`, `docs/INTEGRATED_GUIDE_KR.md`, `docs/DOCS_ORGANIZATION_RULE.md`
-- `myR/DEVLOG.md`, `myR/CHANGELOG.md`, `myR/context.md` 및 한글 버전
-- `scripts/vars_config.R`
+- `docs-main/guide.md`, `docs-main/guide_KR.md`, `docs-main/README.md`
+- `docs-main/integrated/INTEGRATED_GUIDE.md`, `docs-main/integrated/INTEGRATED_GUIDE_KR.md`
+- `docs-main/rules/DOCS_ORGANIZATION_RULE.md`
+- `docs-main/dev/DEVLOG.md`, `docs-main/dev/CHANGELOG.md`, `docs-main/dev/context.md` 및 한글 버전
+- `docs-main/config/vars_config.R`
 
-원래 위치의 파일들은 `docs-main/`로의 symlink입니다. 자세한 내용은 `docs-main/README_SUBTREE.md`를 참조하세요.
+모든 파일은 이제 `docs-main/` 디렉토리에 있습니다. 워크트리에서는 문서 컨텍스트를 위해 `docs-main/`을 참고하세요.
 
 7. 추가 참조:
 documentation rule은 이 것을 참고하자.
 
-@DOCS_ORGANIZATION_RULE.md 
+@docs-main/rules/DOCS_ORGANIZATION_RULE.md 
 
 
