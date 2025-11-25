@@ -162,17 +162,32 @@ cluster_deg_methods <- function(
 #' @param agreement_scores Agreement scores from compute_agreement_scores()
 #' @param clustering_results Clustering results from cluster_deg_methods()
 #' @param weights Optional weights for each method (default: NULL, equal weights)
+#' @param meta_p_method Method for meta-analysis of p-values: "stouffer" (default), "fisher", "inverse_variance"
+#' @param mean_beta_method Method for combining mean_beta: "simple_mean" (default), "weighted_mean", "inverse_variance_weighted"
+#' @param se_matrix Optional standard error matrix (required for inverse_variance methods)
 #' 
 #' @details
-#' In addition to simple averages, this function performs a meta-analysis of
-#' raw p-values across methods using Stouffer's Z-score method (with sign taken
-#' from logFC). It returns per-gene meta-analysis statistics:
-#'   - \code{meta_z}: combined Z-score
-#'   - \code{meta_p}: two-sided meta-analysis p-value
-#'   - \code{meta_p_adj}: BH-adjusted meta-analysis p-value (across genes)
-#' The final \code{consensus_score} combines effect size, agreement, and
-#' meta-analysis evidence as:
-#'   \deqn{consensus\_score = (agreement × |weighted\_beta|) × -log10(meta\_p)}
+#' This function performs meta-analysis of p-values and effect sizes across methods.
+#' Available methods:
+#'   - \code{meta_p_method}:
+#'     - "stouffer": Stouffer's Z-score method (default, works well with directional effects)
+#'     - "fisher": Fisher's combined p-value test
+#'     - "inverse_variance": Inverse variance weighting (requires se_matrix)
+#'   - \code{mean_beta_method}:
+#'     - "simple_mean": Simple average of logFC across methods
+#'     - "weighted_mean": Weighted average using method weights
+#'     - "inverse_variance_weighted": Inverse variance weighted average (requires se_matrix)
+#' 
+#' Returns per-gene statistics:
+#'   - \code{mean_beta}: mean logFC across methods
+#'   - \code{sd_beta}: standard deviation of logFC across methods
+#'   - \code{mean_pvalue}: mean p-value across methods
+#'   - \code{sd_pvalue}: standard deviation of p-values across methods
+#'   - \code{meta_z}: combined Z-score (if applicable)
+#'   - \code{meta_p}: meta-analysis p-value
+#'   - \code{meta_p_adj}: BH-adjusted meta p-value
+#'   - \code{weighted_beta}: weighted average logFC
+#'   - \code{consensus_score}: combined score
 #'
 #' @return Data frame with consensus scores
 #'
@@ -181,8 +196,27 @@ compute_consensus_scores <- function(
   deg_matrices,
   agreement_scores,
   clustering_results = NULL,
-  weights = NULL
+  weights = NULL,
+  meta_p_method = c("stouffer", "fisher", "inverse_variance"),
+  mean_beta_method = c("simple_mean", "weighted_mean", "inverse_variance_weighted"),
+  se_matrix = NULL
 ) {
+  
+  meta_p_method <- match.arg(meta_p_method)
+  mean_beta_method <- match.arg(mean_beta_method)
+  
+  # Check if se_matrix is required
+  if (meta_p_method == "inverse_variance" || mean_beta_method == "inverse_variance_weighted") {
+    if (is.null(se_matrix)) {
+      se_matrix <- deg_matrices$se
+      if (is.null(se_matrix)) {
+        warning(sprintf("se_matrix is required for %s/%s but not available. Falling back to stouffer/simple_mean.", 
+                       meta_p_method, mean_beta_method))
+        if (meta_p_method == "inverse_variance") meta_p_method <- "stouffer"
+        if (mean_beta_method == "inverse_variance_weighted") mean_beta_method <- "simple_mean"
+      }
+    }
+  }
   
   beta_matrix <- deg_matrices$beta
   pvalue_matrix <- deg_matrices$pvalue
@@ -198,9 +232,27 @@ compute_consensus_scores <- function(
   # 각 유전자에 대한 consensus score 계산
   genes <- rownames(beta_matrix)
   
+  # Beta and pvalue statistics
+  mean_beta <- rowMeans(beta_matrix, na.rm = TRUE)
+  sd_beta <- apply(beta_matrix, 1, function(x) {
+    valid <- !is.na(x)
+    if (sum(valid) < 2) return(NA_real_)
+    stats::sd(x[valid])
+  })
+  
+  mean_pvalue <- rowMeans(pvalue_matrix, na.rm = TRUE)
+  sd_pvalue <- apply(pvalue_matrix, 1, function(x) {
+    valid <- !is.na(x) & x > 0 & x < 1
+    if (sum(valid) < 2) return(NA_real_)
+    stats::sd(x[valid])
+  })
+  
   consensus_scores <- data.frame(
     gene = genes,
-    mean_beta = rowMeans(beta_matrix, na.rm = TRUE),
+    mean_beta = mean_beta,
+    sd_beta = sd_beta,
+    mean_pvalue = mean_pvalue,
+    sd_pvalue = sd_pvalue,
     mean_logp = rowMeans(deg_matrices$logp, na.rm = TRUE),
     agreement = agreement_scores[genes],
     n_significant = rowSums(significance_matrix, na.rm = TRUE),
@@ -208,19 +260,44 @@ compute_consensus_scores <- function(
     stringsAsFactors = FALSE
   )
   
-  # 가중 평균 beta
-  consensus_scores$weighted_beta <- apply(beta_matrix, 1, function(x) {
-    valid <- !is.na(x)
-    if (sum(valid) == 0) return(NA_real_)
-    method_names <- colnames(beta_matrix)[valid]
-    x_valid <- x[valid]
-    w_valid <- weights[method_names]
-    # weights가 없는 경우 1로 처리
-    w_valid[is.na(w_valid)] <- 1
-    sum(x_valid * w_valid) / sum(w_valid)
-  })
+  # --- Mean beta calculation (based on method) ---
+  if (mean_beta_method == "simple_mean") {
+    consensus_scores$weighted_beta <- mean_beta
+  } else if (mean_beta_method == "weighted_mean") {
+    consensus_scores$weighted_beta <- apply(beta_matrix, 1, function(x) {
+      valid <- !is.na(x)
+      if (sum(valid) == 0) return(NA_real_)
+      method_names <- colnames(beta_matrix)[valid]
+      x_valid <- x[valid]
+      w_valid <- weights[method_names]
+      w_valid[is.na(w_valid)] <- 1
+      sum(x_valid * w_valid) / sum(w_valid)
+    })
+  } else if (mean_beta_method == "inverse_variance_weighted") {
+    # Inverse variance weighted average
+    consensus_scores$weighted_beta <- apply(beta_matrix, 1, function(x) {
+      valid <- !is.na(x)
+      if (sum(valid) == 0) return(NA_real_)
+      gene_idx <- match(rownames(beta_matrix)[which(rowSums(!is.na(beta_matrix)) > 0)[1]], genes)
+      if (is.na(gene_idx)) return(NA_real_)
+      
+      beta_valid <- x[valid]
+      method_names <- colnames(beta_matrix)[valid]
+      se_valid <- se_matrix[gene_idx, method_names, drop = FALSE]
+      se_valid <- as.numeric(se_valid)
+      se_valid[is.na(se_valid) | se_valid <= 0] <- Inf
+      
+      weights_iv <- 1 / (se_valid^2)
+      weights_iv[is.infinite(weights_iv)] <- 0
+      if (sum(weights_iv) == 0) {
+        # Fallback to simple mean
+        return(mean(beta_valid))
+      }
+      sum(beta_valid * weights_iv) / sum(weights_iv)
+    })
+  }
   
-  # --- Meta-analysis of p-values across methods (Stouffer's Z) ---
+  # --- Meta-analysis of p-values across methods ---
   meta_z <- rep(NA_real_, length(genes))
   meta_p <- rep(NA_real_, length(genes))
   
@@ -236,15 +313,56 @@ compute_consensus_scores <- function(
     
     # clip p-values for numerical stability
     p_valid <- pmin(pmax(p_valid, 1e-300), 1 - 1e-16)
-    # two-sided Z-score with sign from beta
-    z_scores <- sign(beta_valid) * stats::qnorm(1 - p_valid / 2)
     
-    w_valid <- weights[method_names]
-    w_valid[is.na(w_valid)] <- 1
-    
-    z_comb <- sum(w_valid * z_scores) / sqrt(sum(w_valid^2))
-    meta_z[i] <- z_comb
-    meta_p[i] <- 2 * (1 - stats::pnorm(abs(z_comb)))
+    if (meta_p_method == "stouffer") {
+      # Stouffer's Z-score method (with sign from beta)
+      z_scores <- sign(beta_valid) * stats::qnorm(1 - p_valid / 2)
+      w_valid <- weights[method_names]
+      w_valid[is.na(w_valid)] <- 1
+      z_comb <- sum(w_valid * z_scores) / sqrt(sum(w_valid^2))
+      meta_z[i] <- z_comb
+      meta_p[i] <- 2 * (1 - stats::pnorm(abs(z_comb)))
+      
+    } else if (meta_p_method == "fisher") {
+      # Fisher's combined p-value test
+      chi2 <- -2 * sum(log(p_valid))
+      df <- 2 * length(p_valid)
+      # Two-sided: combine with sign from beta
+      p_combined <- stats::pchisq(chi2, df, lower.tail = FALSE)
+      # If beta signs are consistent, keep one-sided p
+      beta_sign_consistent <- all(sign(beta_valid) >= 0) || all(sign(beta_valid) <= 0)
+      if (beta_sign_consistent) {
+        meta_p[i] <- p_combined / 2  # One-sided
+      } else {
+        meta_p[i] <- p_combined  # Two-sided
+      }
+      # Approximate Z-score from p
+      meta_z[i] <- sign(mean(beta_valid, na.rm = TRUE)) * abs(stats::qnorm(meta_p[i] / 2))
+      
+    } else if (meta_p_method == "inverse_variance") {
+      # Inverse variance weighting (requires se)
+      se_row <- se_matrix[i, , drop = FALSE]
+      se_valid <- as.numeric(se_row[method_names])
+      se_valid[is.na(se_valid) | se_valid <= 0] <- Inf
+      
+      weights_iv <- 1 / (se_valid^2)
+      weights_iv[is.infinite(weights_iv)] <- 0
+      if (sum(weights_iv) == 0) {
+        # Fallback to Stouffer
+        z_scores <- sign(beta_valid) * stats::qnorm(1 - p_valid / 2)
+        z_comb <- mean(z_scores)
+        meta_z[i] <- z_comb
+        meta_p[i] <- 2 * (1 - stats::pnorm(abs(z_comb)))
+      } else {
+        # Weighted average of effect sizes
+        beta_weighted <- sum(beta_valid * weights_iv) / sum(weights_iv)
+        se_combined <- sqrt(1 / sum(weights_iv))
+        # Z-score
+        z_comb <- beta_weighted / se_combined
+        meta_z[i] <- z_comb
+        meta_p[i] <- 2 * (1 - stats::pnorm(abs(z_comb)))
+      }
+    }
   }
   
   consensus_scores$meta_z <- meta_z

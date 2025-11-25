@@ -1,8 +1,8 @@
-# Multi-Model DEG Consensus Module Integrated Guide
+# Multi-Model DEG Consensus Module 통합 가이드
 
 이 문서는 Multi-Model DEG Consensus (deg-consensus) 모듈의 통합 가이드입니다. 여러 DEG 분석 방법론을 결합하여 신뢰도 높은 Consensus Signature를 도출하는 과정을 설명합니다.
 
-## 1. Introduction (소개)
+## 1. 소개 (Introduction)
 
 ### 목적
 limma, edgeR, DESeq2, muscat, nebula, dream 등 다양한 DEG 분석 방법론을 동일한 데이터셋에 적용하고, 그 결과를 통합하여 방법론 간의 일치도(Agreement)를 기반으로 강력한 Consensus DEG 리스트를 생성합니다.
@@ -15,7 +15,7 @@ limma, edgeR, DESeq2, muscat, nebula, dream 등 다양한 DEG 분석 방법론�
     *   **Weighted Scoring**: 방법론별 가중치를 반영한 Consensus Score 산출.
 4.  **자동 시각화**: Volcano plot, Heatmap, Method PCA, Gene UMAP 등을 자동 생성.
 
-## 2. Workflow Visualization (시각화)
+## 2. 워크플로우 시각화 (Workflow Visualization)
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': {'primaryEdgeColor':'#000000', 'primaryEdgeThickness':4, 'primaryTextColor':'#000000', 'primaryBorderColor':'#000000', 'edgeLabelBackground':'#ffffff', 'tertiaryColor':'#000000'}}}%%
@@ -33,7 +33,7 @@ flowchart TD
     
     subgraph RunMethods["2. DEG 방법론 실행"]
         direction TB
-        MethodLoop[방법론 순회<br/>for each method]
+        MethodLoop["방법론 순회<br/>for each method"]
         
         MethodLoop --> MethodSelect{방법론<br/>선택}
         
@@ -165,7 +165,7 @@ flowchart TD
     style Save fill:#e2e3e5,stroke:#6c757d,stroke-width:2px
 ```
 
-## 3. Methodology (방법론)
+## 3. 방법론 (Methodology)
 
 ### 지원하는 DEG 방법론
 *   **limma 계열**: `limma-voom`, `limma-trend` (Pseudobulk)
@@ -180,10 +180,21 @@ flowchart TD
 각 유전자 $g$에 대해:
 1.  **Significance Matrix ($S_{gm}$)**: 방법론 $m$에서 유의하면 1, 아니면 0.
 2.  **Agreement Score ($A_g$)**: $\frac{1}{M} \sum_{m} S_{gm}$ (유의한 방법론 비율).
-3.  **Consensus Score ($C_g$)**: $A_g \times |\text{Weighted Mean Beta}_g|$.
-4.  **Filtering**: $A_g \ge \text{threshold}$ 이고 최소 $k$개 이상의 방법론에서 유의한 경우 선정.
+3.  **Meta-analysis of p-values**: 여러 방법론의 p-value를 통합:
+    *   **Stouffer's Z-score** (default): 방향성을 고려한 Z-score 통합
+    *   **Fisher's combined p-value**: 카이제곱 통합
+    *   **Inverse variance weighting**: 표준오차 기반 가중 통합 (SE 행렬 필요)
+4.  **Effect size 통합**: 여러 방법론의 logFC를 통합:
+    *   **Simple mean** (default): 단순 평균
+    *   **Weighted mean**: 방법론별 가중치 반영
+    *   **Inverse variance weighted**: 표준오차 기반 가중 평균 (SE 행렬 필요)
+5.  **Consensus Score ($C_g$)**: $A_g \times |\text{Weighted Mean Beta}_g| \times -\log_{10}(\text{meta\_p})$.
+6.  **Variability metrics**: 
+    *   `sd_beta`: 방법론 간 logFC의 표준편차
+    *   `sd_pvalue`: 방법론 간 p-value의 표준편차
+7.  **Filtering**: $A_g \ge \text{threshold}$ 이고 최소 $k$개 이상의 방법론에서 유의한 경우 선정.
 
-## 4. User Guide & Warnings (사용자 가이드)
+## 4. 사용자 가이드 및 주의사항 (User Guide & Warnings)
 
 ### 실행 방법
 
@@ -213,19 +224,126 @@ result <- run_deg_consensus(
 )
 ```
 
+**4. Consensus Score 계산 (고급 옵션)**
+```r
+# 메타 분석 방법 선택
+consensus_scores <- compute_consensus_scores(
+  deg_matrices = matrices,
+  agreement_scores = agreement_scores,
+  meta_p_method = "stouffer",        # "stouffer", "fisher", "inverse_variance"
+  mean_beta_method = "simple_mean",  # "simple_mean", "weighted_mean", "inverse_variance_weighted"
+  se_matrix = NULL                   # inverse_variance 방법 사용 시 필요
+)
+
+# 결과에는 다음 metrics가 포함됩니다:
+# - mean_beta: 방법론 간 logFC 평균
+# - sd_beta: 방법론 간 logFC 표준편차
+# - mean_pvalue: 방법론 간 p-value 평균
+# - sd_pvalue: 방법론 간 p-value 표준편차
+# - meta_p: 메타 분석 p-value
+# - meta_p_adj: BH 조정된 meta_p
+# - weighted_beta: 가중 평균 logFC
+# - consensus_score: 최종 consensus 점수
+```
+
+**5. 클러스터별 결과 통합 (Meta-level 분석)**
+```r
+# 여러 클러스터의 DEG consensus 결과를 gene-level로 통합
+library(dplyr)
+
+# 클러스터별 consensus_scores 준비
+deg_list <- setNames(
+  lapply(names(deg_consensus_list), function(x) {
+    deg_consensus_list[[x]][["consensus_scores"]] %>%
+      mutate(
+        cluster = x,
+        p_val = meta_p,
+        p_val_adj = meta_p_adj,
+        avg_log2FC = mean_beta
+      )
+  }),
+  names(deg_consensus_list)
+)
+
+# 클러스터별 결과 통합
+meta_deg <- aggregate_cluster_deg_consensus(
+  deg_list = deg_list,
+  meta_p_method = "stouffer",        # 클러스터 간 p-value 통합 방법
+  mean_beta_method = "simple_mean", # 클러스터 간 effect size 통합 방법
+  cluster_weights = NULL             # 클러스터별 가중치 (선택사항)
+)
+
+# 결과에는 다음 정보가 포함됩니다:
+# - n_clusters: 유전자가 나타난 클러스터 수
+# - mean_mean_beta: 클러스터 간 mean_beta의 평균
+# - sd_mean_beta: 클러스터 간 mean_beta의 표준편차
+# - meta_meta_p: 클러스터 간 meta_p의 메타 분석 결과
+# - meta_meta_p_adj: BH 조정된 meta_meta_p
+# - sd_meta_p: 클러스터 간 meta_p의 표준편차
+# - concordance: mean_beta가 mean_mean_beta와 같은 부호인 비율
+# - cluster_*: 각 클러스터별 포함 여부 (0/1)
+```
+
 ### Critical Warnings (주의사항)
 1.  **실행 시간**: NEBULA, Dream 등 Mixed Model은 계산 비용이 높습니다. 테스트 시에는 제외하거나 작은 데이터셋을 사용하세요.
 2.  **메모리**: 많은 방법론을 동시에 돌리면 메모리 사용량이 급증할 수 있습니다.
 3.  **Pseudobulk 요건**: 클러스터 당 최소 샘플 수(`min_samples_per_group`)가 부족하면 해당 클러스터 분석은 건너뜁니다 (기본값: 2).
 
-## 5. Appendix (부록)
+## 5. 고급 기능 (Advanced Features)
+
+### 5.1 메타 분석 방법 선택
+
+`compute_consensus_scores()` 함수는 여러 방법론의 결과를 통합하는 다양한 방법을 제공합니다:
+
+**p-value 통합 방법 (`meta_p_method`)**:
+- **`stouffer`** (default): Stouffer's Z-score 방법. 방향성을 고려하여 효과 크기의 부호를 반영합니다.
+- **`fisher`**: Fisher's combined p-value test. 카이제곱 통합을 사용합니다.
+- **`inverse_variance`**: Inverse variance weighting. 표준오차(SE) 행렬이 필요하며, 더 정확한 가중치를 제공합니다.
+
+**Effect size 통합 방법 (`mean_beta_method`)**:
+- **`simple_mean`** (default): 방법론 간 logFC의 단순 평균.
+- **`weighted_mean`**: 방법론별 가중치를 반영한 가중 평균.
+- **`inverse_variance_weighted`**: 표준오차 기반 가중 평균. SE 행렬이 필요합니다.
+
+### 5.2 클러스터별 결과 통합
+
+`aggregate_cluster_deg_consensus()` 함수는 여러 클러스터의 DEG consensus 결과를 gene-level로 통합합니다:
+
+**주요 기능**:
+- 모든 클러스터에서 나타나는 유전자 식별
+- 클러스터 간 일관성 평가 (concordance)
+- 클러스터별 포함 여부 추적
+- 메타 분석을 통한 통합 통계량 계산
+
+**사용 시나리오**:
+- 여러 세포 타입에서 공통으로 차등 발현되는 유전자 찾기
+- 클러스터 간 일관성 높은 DEG 우선순위화
+- 전체 데이터셋 수준의 메타 분석 수행
+
+### 5.3 Variability Metrics
+
+`compute_consensus_scores()` 결과에는 방법론 간 변동성을 측정하는 metrics가 포함됩니다:
+
+- **`sd_beta`**: 방법론 간 logFC의 표준편차. 값이 클수록 방법론 간 일치도가 낮습니다.
+- **`sd_pvalue`**: 방법론 간 p-value의 표준편차. 방법론 간 유의성 판단의 일관성을 나타냅니다.
+
+이러한 metrics는 consensus 결과의 신뢰도를 평가하는 데 유용합니다.
+
+## 6. 부록 (Appendix)
 
 ### 주요 스크립트 위치
-*   `scripts/deg-consensus-dev/run_consensus_simple.R`: 최소 실행 예제.
-*   `scripts/deg-consensus-dev/run_consensus_analysis.R`: 전체 분석 파이프라인.
-*   `scripts/deg-consensus-dev/test_step_by_step.R`: 단계별 디버깅용.
+*   `scripts/deg-consensus/run_consensus_simple.R`: 최소 실행 예제.
+*   `scripts/deg-consensus/run_consensus_analysis.R`: 전체 분석 파이프라인.
+*   `scripts/deg-consensus/run_consensus_analysis_fdr.R`: FDR 기반 분석 파이프라인.
+
+### 주요 함수 위치
+*   `myR/R/deg_consensus/run_deg_consensus.R`: 메인 실행 함수
+*   `myR/R/deg_consensus/deg_consensus_analysis.R`: Consensus 분석 함수 (`compute_consensus_scores`, `compute_agreement_scores` 등)
+*   `myR/R/deg_consensus/aggregate_cluster_deg_consensus.R`: 클러스터 통합 함수
+*   `myR/R/deg_consensus/deg_consensus_pipeline.R`: 전체 파이프라인 래퍼
 
 ### 결과 파일
-*   `deg_consensus_final_result.qs`: 최종 결과 객체.
+*   `deg_consensus_*_final_result.qs`: 최종 결과 객체.
+*   `deg_consensus_*_consensus_scores.qs`: Consensus scores 객체.
 *   `consensus_plots/`: Volcano plot, Heatmap 등 시각화 결과.
 
