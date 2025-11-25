@@ -72,7 +72,7 @@ fgs_preprocess_data_v5 <- function(data,
     stop("Expression matrix must have column names corresponding to cell IDs.")
   }
 
-  common_cells <- intersect(colnames(expr_mat), rownames(meta.data))
+  common_cells <- base::intersect(colnames(expr_mat), rownames(meta.data))
   if (length(common_cells) == 0) {
     stop("No overlapping cells between expression data and metadata.")
   }

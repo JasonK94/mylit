@@ -30,23 +30,18 @@ source(file.path(script_dir, "test_utils.R"))
 
 # [FIX] Explicitly set conflicts preferences
 if (requireNamespace("conflicted", quietly = TRUE)) {
-    try(
-        {
-            conflicted::conflicts_prefer(dplyr::select, quiet = TRUE)
-            conflicted::conflicts_prefer(dplyr::summarise, quiet = TRUE)
-            conflicted::conflicts_prefer(dplyr::filter, quiet = TRUE)
-            conflicted::conflicts_prefer(dplyr::mutate, quiet = TRUE)
-            conflicted::conflicts_prefer(dplyr::arrange, quiet = TRUE)
-            conflicted::conflicts_prefer(base::intersect, quiet = TRUE)
-            conflicted::conflicts_prefer(base::setdiff, quiet = TRUE)
-            conflicted::conflicts_prefer(base::union, quiet = TRUE)
-            conflicted::conflicts_prefer(base::colMeans, quiet = TRUE)
-            conflicted::conflicts_prefer(base::colSums, quiet = TRUE)
-            conflicted::conflicts_prefer(base::rowMeans, quiet = TRUE)
-            conflicted::conflicts_prefer(base::rowSums, quiet = TRUE)
-        },
-        silent = TRUE
-    )
+    conflicted::conflicts_prefer(dplyr::select, quiet = TRUE)
+    conflicted::conflicts_prefer(dplyr::summarise, quiet = TRUE)
+    conflicted::conflicts_prefer(dplyr::filter, quiet = TRUE)
+    conflicted::conflicts_prefer(dplyr::mutate, quiet = TRUE)
+    conflicted::conflicts_prefer(dplyr::arrange, quiet = TRUE)
+    conflicted::conflicts_prefer(base::intersect, quiet = TRUE)
+    conflicted::conflicts_prefer(base::setdiff, quiet = TRUE)
+    conflicted::conflicts_prefer(base::union, quiet = TRUE)
+    conflicted::conflicts_prefer(base::colMeans, quiet = TRUE)
+    conflicted::conflicts_prefer(base::colSums, quiet = TRUE)
+    conflicted::conflicts_prefer(base::rowMeans, quiet = TRUE)
+    conflicted::conflicts_prefer(base::rowSums, quiet = TRUE)
 }
 
 # Load FGS/TML functions
