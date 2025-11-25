@@ -1,0 +1,13 @@
+test_script,tested_feature,implementation_approach,example_command,status,notes
+test_cci.R,Basic CCI analysis workflow,Full pipeline test with all features,cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci.R,active,Main test script - comprehensive workflow
+test_cci_minimal.R,Minimal CCI analysis,Simplified test with minimal parameters,cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci_minimal.R,active,Quick smoke test
+test_cci_simple.R,Simple CCI workflow,Basic functionality test,cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci_simple.R,active,Simplified workflow test
+test_cci_timing.R,Performance profiling,Timing measurements for optimization,cd /home/user3/GJC_KDW_250721 && taskset -c 0-7 Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci_timing.R,active,Performance benchmarking
+test_cci_with_plots.R,Plot generation,Test all visualization outputs,cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci_with_plots.R,active,Visualization testing
+test_cci_interactive.R,Interactive testing,Manual testing in R session,cd /home/user3/GJC_KDW_250721 && R -e "source('/home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci_interactive.R')",active,For interactive debugging - run in R session
+test_cci_actual.R,Real data testing,Test with actual Seurat objects,cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci_actual.R,active,Real-world data validation
+test_cci_user_code.R,User workflow,User's specific use case,cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_cci_user_code.R,active,User-specific scenarios
+test_is5_downsample.R,Heavy downsampling test,Test with max 10 cells per patient/cluster,cd /home/user3/GJC_KDW_250721 && taskset -c 0-7 Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/test_is5_downsample.R,active,Downsampling validation - SUCCESS (116s)
+run_is5_whole_analysis.R,Full dataset analysis,Run CCI for all receiver clusters in IS5,cd /home/user3/GJC_KDW_250721 && taskset -c 0-7 Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/run_is5_whole_analysis.R,active,Production script for complete analysis
+estimate_runtime.R,Runtime estimation,Estimate analysis time for different datasets,cd /home/user3/GJC_KDW_250721 && Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/estimate_runtime.R,active,Performance estimation utility
+

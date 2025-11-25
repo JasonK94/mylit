@@ -60,8 +60,10 @@ table(meta_clinical$GEM, meta_clinical$g3) # some are perfectly separated
 
 message("Removing cells with NA in g3...")
 is6_clean <- is6[, !is.na(is6@meta.data$g3)]
-message(sprintf("Original cells: %d, After removing NA: %d", 
-                ncol(is6), ncol(is6_clean)))
+message(sprintf(
+  "Original cells: %d, After removing NA: %d",
+  ncol(is6), ncol(is6_clean)
+))
 
 # Convert g3 to factor to avoid numeric confusion
 is6_clean@meta.data$g3 <- factor(is6_clean@meta.data$g3, levels = c("1", "2"))
@@ -84,8 +86,8 @@ control_vars <- c("sex", "anno3.scvi", "GEM")
 
 # Run FGS with multiple methods
 # Using a subset of methods for faster execution
-# Full list: c("random_forest", "random_forest_ranger", "lasso", "ridge", 
-#              "elastic_net", "pca_loadings", "nmf_loadings", "gam", 
+# Full list: c("random_forest", "random_forest_ranger", "lasso", "ridge",
+#              "elastic_net", "pca_loadings", "nmf_loadings", "gam",
 #              "limma", "wilcoxon", "xgboost")
 
 fgs_methods <- c("lasso", "random_forest", "limma", "gam")
@@ -98,13 +100,13 @@ fgs_results <- FGS(
   target_var = "g3",
   control_vars = control_vars,
   method = fgs_methods,
-  n_features = 100,  # Number of top genes per method
+  n_features = 100, # Number of top genes per method
   preprocess = TRUE,
   min_cells = 10,
   min_pct = 0.01,
   fgs_seed = 42,
   gam.min_unique = 15,
-  gam.k = NULL,  # Use dynamic k adjustment (v5.3 feature)
+  gam.k = NULL, # Use dynamic k adjustment (v5.3 feature)
   gam.k_dynamic_factor = 5
 )
 
@@ -141,44 +143,47 @@ l1_signatures <- list()
 
 for (method_name in names(fgs_results)) {
   result_item <- fgs_results[[method_name]]
-  
+
   # Check if result has error
   if (!is.null(result_item$error)) {
     warning(sprintf("Method %s failed with error: %s", method_name, result_item$error))
     next
   }
-  
+
   # Check if result has genes and weights
   if (!is.null(result_item$genes) && !is.null(result_item$weights)) {
-    
     # Get genes and weights
     genes <- result_item$genes
     weights <- result_item$weights
-    
+
     # Validate
     if (length(genes) == 0 || length(weights) == 0) {
       warning(sprintf("Method %s: Empty genes or weights", method_name))
       next
     }
-    
+
     if (length(genes) != length(weights)) {
-      warning(sprintf("Method %s: Mismatch between genes (%d) and weights (%d)", 
-                      method_name, length(genes), length(weights)))
+      warning(sprintf(
+        "Method %s: Mismatch between genes (%d) and weights (%d)",
+        method_name, length(genes), length(weights)
+      ))
       next
     }
-    
+
     # Create named numeric vector
     sig_vec <- weights
     names(sig_vec) <- genes
-    
+
     l1_signatures[[method_name]] <- sig_vec
-    
+
     message(sprintf("  %s: %d genes", method_name, length(genes)))
   } else {
-    warning(sprintf("Method %s did not produce valid signature (genes: %s, weights: %s)", 
-                    method_name, 
-                    !is.null(result_item$genes), 
-                    !is.null(result_item$weights)))
+    warning(sprintf(
+      "Method %s did not produce valid signature (genes: %s, weights: %s)",
+      method_name,
+      !is.null(result_item$genes),
+      !is.null(result_item$weights)
+    ))
     # Debug: print available names
     message(sprintf("    Available names: %s", paste(names(result_item), collapse = ", ")))
   }
@@ -204,10 +209,10 @@ meta_model <- TML6(
   target_var = "g3",
   l2_methods = c("glm", "ranger", "xgbTree"),
   k_folds = 5,
-  metric = "AUC",  # For binary classification
+  metric = "AUC", # For binary classification
   fgs_seed = 42,
   layer = "data",
-  allow_parallel = FALSE  # Set to TRUE if parallel execution is desired
+  allow_parallel = FALSE # Set to TRUE if parallel execution is desired
 )
 
 # Save TML6 results
@@ -230,9 +235,11 @@ message("Gene importance saved to: /data/user3/sobj/gene_importance_IS6_251110.q
 # Print summary
 message("\n=== Summary ===")
 message(sprintf("Best L2 model: %s", meta_model$best_model_name))
-message(sprintf("Best metric (%s): %.4f", 
-                meta_model$best_metric_name,
-                max(meta_model$best_model$results[[meta_model$best_metric_name]], na.rm = TRUE)))
+message(sprintf(
+  "Best metric (%s): %.4f",
+  meta_model$best_metric_name,
+  max(meta_model$best_model$results[[meta_model$best_metric_name]], na.rm = TRUE)
+))
 message(sprintf("Top 10 genes by importance:"))
 print(head(gene_importance$gene_summary, 10))
 
@@ -241,4 +248,3 @@ message("Output files:")
 message("  1. /data/user3/sobj/FGS_results_IS6_251110.qs")
 message("  2. /data/user3/sobj/TML6_results_IS6_251110.qs")
 message("  3. /data/user3/sobj/gene_importance_IS6_251110.qs")
-
