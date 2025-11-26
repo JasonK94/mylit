@@ -61,3 +61,7 @@ renv/
 *mtx
 *mtx.gz
 
+# Internal documentation (not for public repository)
+docs-main/SECURITY_REVIEW_REPORT.md
+docs-main/GIT_PUBLIC_REPOSITORY_PLAN.md
+
