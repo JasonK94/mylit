@@ -31,6 +31,8 @@
 #' @param sample_id Column name for sample ID (default: "hos_no")
 #' @param group_id Column name for group/condition (default: "g3")
 #' @param batch_id Optional column name for batch variable (default: "GEM")
+#' @param covar_effects Optional character vector of column names for additional covariates 
+#'   to include as fixed effects (e.g., c("sex")). These will be added to the design matrix.
 #' @param pb_min_cells Minimum cells per pseudobulk sample (default: 3)
 #' @param filter_genes Filtering method for muscat (default: "edgeR")
 #' @param keep_clusters Optional vector of cluster IDs to keep
@@ -57,6 +59,7 @@ run_deg_consensus <- function(
   sample_id = "hos_no",
   group_id = "g3",
   batch_id = "GEM",
+  covar_effects = NULL,
   pb_min_cells = 3,
   filter_genes = "edgeR",
   keep_clusters = NULL,
@@ -87,16 +90,28 @@ run_deg_consensus <- function(
   method_handlers <- list(
     # muscat methods
     "muscat-edgeR" = function(...) {
-      runMUSCAT(..., method = "edgeR")
+      if (!exists("runMUSCAT2_v1")) {
+        stop("runMUSCAT2_v1 함수가 로드되지 않았습니다. deg_methods_base.R를 source하세요.")
+      }
+      runMUSCAT2_v1(..., method = "edgeR")
     },
     "muscat-DESeq2" = function(...) {
-      runMUSCAT(..., method = "DESeq2")
+      if (!exists("runMUSCAT2_v1")) {
+        stop("runMUSCAT2_v1 함수가 로드되지 않았습니다. deg_methods_base.R를 source하세요.")
+      }
+      runMUSCAT2_v1(..., method = "DESeq2")
     },
     "muscat-limma-voom" = function(...) {
-      runMUSCAT(..., method = "limma-voom")
+      if (!exists("runMUSCAT2_v1")) {
+        stop("runMUSCAT2_v1 함수가 로드되지 않았습니다. deg_methods_base.R를 source하세요.")
+      }
+      runMUSCAT2_v1(..., method = "limma-voom")
     },
     "muscat-limma-trend" = function(...) {
-      runMUSCAT(..., method = "limma-trend")
+      if (!exists("runMUSCAT2_v1")) {
+        stop("runMUSCAT2_v1 함수가 로드되지 않았습니다. deg_methods_base.R를 source하세요.")
+      }
+      runMUSCAT2_v1(..., method = "limma-trend")
     },
     # nebula
     "nebula" = function(...) {
@@ -181,6 +196,7 @@ run_deg_consensus <- function(
     sample_id = sample_id,
     group_id = group_id,
     batch_id = batch_id,
+    covar_effects = covar_effects,
     pb_min_cells = pb_min_cells,
     filter_genes = filter_genes,
     keep_clusters = keep_clusters,
@@ -224,6 +240,10 @@ run_deg_consensus <- function(
     # For nebula, adjust arguments
     if (method == "nebula") {
       method_args$fixed_effects <- c(group_id)
+      # Add covar_effects to nebula's covar_effects parameter
+      if (!is.null(covar_effects)) {
+        method_args$covar_effects <- covar_effects
+      }
       method_args$patient_col <- sample_id
       method_args$remove_na_cells <- remove_na_groups
       # Remove muscat-specific args that nebula doesn't use
@@ -294,7 +314,8 @@ run_deg_consensus <- function(
       cluster_id = cluster_id,
       sample_id = sample_id,
       group_id = group_id,
-      batch_id = batch_id
+      batch_id = batch_id,
+      covar_effects = covar_effects
     )
   ))
 }

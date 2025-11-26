@@ -531,6 +531,7 @@ runMUSCAT2_v1 <- function(
   sample_id  = "hos_no",
   group_id   = "type",
   batch_id   = NULL,                 # ex) "exp_batch"
+  covar_effects = NULL,              # ex) c("sex") - additional covariates as fixed effects
   contrast   = NULL,                 # ex) "IS - SAH"
   method     = "edgeR",
   pb_min_cells = 3,
@@ -558,6 +559,14 @@ runMUSCAT2_v1 <- function(
     stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
   }
   
+  # covar_effects 컬럼 확인
+  if (!is.null(covar_effects)) {
+    missing_covars <- covar_effects[!covar_effects %in% colnames(meta)]
+    if (length(missing_covars) > 0) {
+      stop(sprintf("covar_effects에 지정된 컬럼이 없습니다: %s", paste(missing_covars, collapse=", ")))
+    }
+  }
+  
   # NA 값이 있는 셀 확인 (R의 NA와 character "NA" 모두 제거)
   if (remove_na_groups) {
     # R의 NA 값 확인
@@ -567,8 +576,15 @@ runMUSCAT2_v1 <- function(
     if (!is.null(batch_id) && batch_id %in% colnames(meta)) {
       na_mask <- na_mask | is.na(meta[[batch_id]])
     }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta)) {
+          na_mask <- na_mask | is.na(meta[[covar]])
+        }
+      }
+    }
     
-    # character "NA" 문자열도 제거 (group_id, cluster_id, sample_id, batch_id)
+    # character "NA" 문자열도 제거 (group_id, cluster_id, sample_id, batch_id, covar_effects)
     if (is.character(meta[[group_id]])) {
       na_mask <- na_mask | (meta[[group_id]] == "NA" | meta[[group_id]] == "na")
     }
@@ -580,6 +596,13 @@ runMUSCAT2_v1 <- function(
     }
     if (!is.null(batch_id) && batch_id %in% colnames(meta) && is.character(meta[[batch_id]])) {
       na_mask <- na_mask | (meta[[batch_id]] == "NA" | meta[[batch_id]] == "na")
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta) && is.character(meta[[covar]])) {
+          na_mask <- na_mask | (meta[[covar]] == "NA" | meta[[covar]] == "na")
+        }
+      }
     }
     
     n_na_cells <- sum(na_mask)
@@ -637,21 +660,26 @@ runMUSCAT2_v1 <- function(
     SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta)
   }
 
-  # sce에서 (sample_id -> group_id / batch) map
+  # sce에서 (sample_id -> group_id / batch / covar_effects) map
   sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
   map_cols <- c("sample_id","group_id")
   if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
+  if (!is.null(covar_effects)) {
+    covar_cols <- covar_effects[covar_effects %in% names(sce_meta)]
+    if (length(covar_cols) > 0) map_cols <- c(map_cols, covar_cols)
+  }
   sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
   
   # NA 제거
   sce_map <- sce_map[complete.cases(sce_map), ]
 
-  # pb에 group_id / batch 보강
+  # pb에 group_id / batch / covar_effects 보강
   pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
   need_fix <- (!"group_id" %in% names(pb_meta)) ||
               (length(unique(pb_meta$group_id)) < 2) ||
               (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
-  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
+  need_covar_fix <- !is.null(covar_effects) && any(!covar_effects %in% names(pb_meta))
+  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta)) || need_covar_fix) {
     pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
     if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
       pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
@@ -666,6 +694,13 @@ runMUSCAT2_v1 <- function(
   pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
     pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
+  }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(pb))) {
+        pb[[covar]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[covar]]))
+      }
+    }
   }
 
   # 3) contrast 그룹만 자동 subset
@@ -699,18 +734,36 @@ runMUSCAT2_v1 <- function(
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
     sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
   }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(sce_sub))) {
+        sce_sub[[covar]] <- droplevels(factor(sce_sub[[covar]]))
+      }
+    }
+  }
 
-  # 4) design/contrast (batch는 'batch'로 복사해서 사용)
+  # 4) design/contrast (batch와 covar_effects를 design matrix에 추가)
   message("6/7: Design matrix 생성 및 DE 분석 실행 중...")
   pb_sub$group <- pb_sub$group_id
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb_sub))) {
-    pb_sub$batch <- droplevels(factor(SummarizedExperiment::colData(pb_sub)[[batch_id]]))
-    design <- stats::model.matrix(~ 0 + group + batch,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
-  } else {
-    design <- stats::model.matrix(~ 0 + group,
-                                  data = as.data.frame(SummarizedExperiment::colData(pb_sub)))
+  pb_meta_df <- as.data.frame(SummarizedExperiment::colData(pb_sub))
+  
+  # Design formula 구성
+  formula_terms <- c("group")
+  if (!is.null(batch_id) && batch_id %in% colnames(pb_meta_df)) {
+    pb_meta_df$batch <- droplevels(factor(pb_meta_df[[batch_id]]))
+    formula_terms <- c(formula_terms, "batch")
   }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(pb_meta_df)) {
+        pb_meta_df[[covar]] <- droplevels(factor(pb_meta_df[[covar]]))
+        formula_terms <- c(formula_terms, covar)
+      }
+    }
+  }
+  
+  formula_str <- paste("~ 0 +", paste(formula_terms, collapse = " + "))
+  design <- stats::model.matrix(as.formula(formula_str), data = pb_meta_df)
 
   fix_contrast <- function(contrast_str, design_cols){
     z <- gsub("\\s+", "", contrast_str)

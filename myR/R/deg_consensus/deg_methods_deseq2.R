@@ -21,6 +21,7 @@ runDESEQ2_Wald_v1 <- function(
   sample_id  = "hos_no",
   group_id   = "type",
   batch_id   = NULL,
+  covar_effects = NULL,
   contrast   = NULL,
   pb_min_cells = 3,
   keep_clusters = NULL,
@@ -43,12 +44,27 @@ runDESEQ2_Wald_v1 <- function(
     stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
   }
   
+  # covar_effects 컬럼 확인
+  if (!is.null(covar_effects)) {
+    missing_covars <- covar_effects[!covar_effects %in% colnames(meta)]
+    if (length(missing_covars) > 0) {
+      stop(sprintf("covar_effects에 지정된 컬럼이 없습니다: %s", paste(missing_covars, collapse=", ")))
+    }
+  }
+  
   if (remove_na_groups) {
     na_mask <- is.na(meta[[group_id]]) | 
                is.na(meta[[cluster_id]]) | 
                is.na(meta[[sample_id]])
     if (!is.null(batch_id) && batch_id %in% colnames(meta)) {
       na_mask <- na_mask | is.na(meta[[batch_id]])
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta)) {
+          na_mask <- na_mask | is.na(meta[[covar]])
+        }
+      }
     }
     
     if (is.character(meta[[group_id]])) {
@@ -62,6 +78,13 @@ runDESEQ2_Wald_v1 <- function(
     }
     if (!is.null(batch_id) && batch_id %in% colnames(meta) && is.character(meta[[batch_id]])) {
       na_mask <- na_mask | (meta[[batch_id]] == "NA" | meta[[batch_id]] == "na")
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta) && is.character(meta[[covar]])) {
+          na_mask <- na_mask | (meta[[covar]] == "NA" | meta[[covar]] == "na")
+        }
+      }
     }
     
     n_na_cells <- sum(na_mask)
@@ -90,6 +113,13 @@ runDESEQ2_Wald_v1 <- function(
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
     sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
   }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(sce))) {
+        sce[[covar]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[covar]]))
+      }
+    }
+  }
 
   message("3/7: Pseudobulking 중...")
   pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
@@ -115,6 +145,10 @@ runDESEQ2_Wald_v1 <- function(
   sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
   map_cols <- c("sample_id","group_id")
   if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
+  if (!is.null(covar_effects)) {
+    covar_cols <- covar_effects[covar_effects %in% names(sce_meta)]
+    if (length(covar_cols) > 0) map_cols <- c(map_cols, covar_cols)
+  }
   sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
   sce_map <- sce_map[complete.cases(sce_map), ]
 
@@ -122,7 +156,8 @@ runDESEQ2_Wald_v1 <- function(
   need_fix <- (!"group_id" %in% names(pb_meta)) ||
               (length(unique(pb_meta$group_id)) < 2) ||
               (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
-  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
+  need_covar_fix <- !is.null(covar_effects) && any(!covar_effects %in% names(pb_meta))
+  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta)) || need_covar_fix) {
     pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
     if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
       pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
@@ -136,6 +171,13 @@ runDESEQ2_Wald_v1 <- function(
   pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
     pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
+  }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(pb))) {
+        pb[[covar]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[covar]]))
+      }
+    }
   }
 
   message("5/7: Contrast 그룹 필터링 중...")
@@ -167,6 +209,13 @@ runDESEQ2_Wald_v1 <- function(
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
     sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
   }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(sce_sub))) {
+        sce_sub[[covar]] <- droplevels(factor(sce_sub[[covar]]))
+      }
+    }
+  }
 
   # 6) DESeq2-Wald 분석 (클러스터별)
   message("6/7: DESeq2-Wald 분석 실행 중...")
@@ -197,17 +246,29 @@ runDESEQ2_Wald_v1 <- function(
     rownames(pb_clust_meta_df) <- sample_ids
     
     # DESeq2 design formula
+    formula_terms <- c("group")
     if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta_df)) {
       pb_clust_meta_df$batch <- droplevels(factor(pb_clust_meta_df[[batch_id]]))
-      design_formula <- stats::as.formula("~ batch + group")
-    } else {
-      design_formula <- stats::as.formula("~ group")
+      formula_terms <- c("batch", formula_terms)  # batch를 먼저 (DESeq2 convention)
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(pb_clust_meta_df)) {
+          pb_clust_meta_df[[covar]] <- droplevels(factor(pb_clust_meta_df[[covar]]))
+          formula_terms <- c(formula_terms, covar)
+        }
+      }
     }
     
+    formula_str <- paste("~", paste(formula_terms, collapse = " + "))
+    design_formula <- stats::as.formula(formula_str)
+    
     # DESeq2 데이터셋 생성
+    # pseudobulk count를 정수로 변환 (DESeq2는 정수를 요구)
+    pb_clust_int <- round(as.matrix(pb_clust))
     dds <- tryCatch({
       DESeq2::DESeqDataSetFromMatrix(
-        countData = as.matrix(pb_clust),
+        countData = pb_clust_int,
         colData = pb_clust_meta_df,
         design = design_formula
       )
@@ -311,6 +372,7 @@ runDESEQ2_LRT_v1 <- function(
   sample_id  = "hos_no",
   group_id   = "type",
   batch_id   = NULL,
+  covar_effects = NULL,
   contrast   = NULL,
   pb_min_cells = 3,
   keep_clusters = NULL,
@@ -333,12 +395,27 @@ runDESEQ2_LRT_v1 <- function(
     stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
   }
   
+  # covar_effects 컬럼 확인
+  if (!is.null(covar_effects)) {
+    missing_covars <- covar_effects[!covar_effects %in% colnames(meta)]
+    if (length(missing_covars) > 0) {
+      stop(sprintf("covar_effects에 지정된 컬럼이 없습니다: %s", paste(missing_covars, collapse=", ")))
+    }
+  }
+  
   if (remove_na_groups) {
     na_mask <- is.na(meta[[group_id]]) | 
                is.na(meta[[cluster_id]]) | 
                is.na(meta[[sample_id]])
     if (!is.null(batch_id) && batch_id %in% colnames(meta)) {
       na_mask <- na_mask | is.na(meta[[batch_id]])
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta)) {
+          na_mask <- na_mask | is.na(meta[[covar]])
+        }
+      }
     }
     
     if (is.character(meta[[group_id]])) {
@@ -352,6 +429,13 @@ runDESEQ2_LRT_v1 <- function(
     }
     if (!is.null(batch_id) && batch_id %in% colnames(meta) && is.character(meta[[batch_id]])) {
       na_mask <- na_mask | (meta[[batch_id]] == "NA" | meta[[batch_id]] == "na")
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta) && is.character(meta[[covar]])) {
+          na_mask <- na_mask | (meta[[covar]] == "NA" | meta[[covar]] == "na")
+        }
+      }
     }
     
     n_na_cells <- sum(na_mask)
@@ -380,6 +464,13 @@ runDESEQ2_LRT_v1 <- function(
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
     sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
   }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(sce))) {
+        sce[[covar]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[covar]]))
+      }
+    }
+  }
 
   message("3/7: Pseudobulking 중...")
   pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
@@ -405,6 +496,10 @@ runDESEQ2_LRT_v1 <- function(
   sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
   map_cols <- c("sample_id","group_id")
   if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
+  if (!is.null(covar_effects)) {
+    covar_cols <- covar_effects[covar_effects %in% names(sce_meta)]
+    if (length(covar_cols) > 0) map_cols <- c(map_cols, covar_cols)
+  }
   sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
   sce_map <- sce_map[complete.cases(sce_map), ]
 
@@ -412,7 +507,8 @@ runDESEQ2_LRT_v1 <- function(
   need_fix <- (!"group_id" %in% names(pb_meta)) ||
               (length(unique(pb_meta$group_id)) < 2) ||
               (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
-  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
+  need_covar_fix <- !is.null(covar_effects) && any(!covar_effects %in% names(pb_meta))
+  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta)) || need_covar_fix) {
     pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
     if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
       pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
@@ -426,6 +522,13 @@ runDESEQ2_LRT_v1 <- function(
   pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
     pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
+  }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(pb))) {
+        pb[[covar]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[covar]]))
+      }
+    }
   }
 
   message("5/7: Contrast 그룹 필터링 중...")
@@ -457,6 +560,13 @@ runDESEQ2_LRT_v1 <- function(
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
     sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
   }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(sce_sub))) {
+        sce_sub[[covar]] <- droplevels(factor(sce_sub[[covar]]))
+      }
+    }
+  }
 
   # 6) DESeq2-LRT 분석 (클러스터별)
   message("6/7: DESeq2-LRT 분석 실행 중...")
@@ -484,18 +594,44 @@ runDESEQ2_LRT_v1 <- function(
     pb_clust_meta_df$group <- pb_clust_group
     rownames(pb_clust_meta_df) <- sample_ids
     
+    # Design formula 구성 (LRT는 reduced model도 필요)
+    formula_terms <- c("group")
+    reduced_terms <- character()
+    
     if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta_df)) {
       pb_clust_meta_df$batch <- droplevels(factor(pb_clust_meta_df[[batch_id]]))
-      design_formula <- stats::as.formula("~ batch + group")
-      reduced_formula <- stats::as.formula("~ batch")
-    } else {
-      design_formula <- stats::as.formula("~ group")
-      reduced_formula <- stats::as.formula("~ 1")
+      reduced_terms <- c(reduced_terms, "batch")
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(pb_clust_meta_df)) {
+          pb_clust_meta_df[[covar]] <- droplevels(factor(pb_clust_meta_df[[covar]]))
+          formula_terms <- c(formula_terms, covar)
+          reduced_terms <- c(reduced_terms, covar)
+        }
+      }
     }
     
+    # Full model: batch (if present) + group + covar_effects
+    if (length(reduced_terms) > 0) {
+      formula_terms <- c(reduced_terms, formula_terms)
+    }
+    formula_str <- paste("~", paste(formula_terms, collapse = " + "))
+    design_formula <- stats::as.formula(formula_str)
+    
+    # Reduced model: batch (if present) + covar_effects (group 제외)
+    if (length(reduced_terms) > 0) {
+      reduced_str <- paste("~", paste(reduced_terms, collapse = " + "))
+    } else {
+      reduced_str <- "~ 1"
+    }
+    reduced_formula <- stats::as.formula(reduced_str)
+    
+    # pseudobulk count를 정수로 변환 (DESeq2는 정수를 요구)
+    pb_clust_int <- round(as.matrix(pb_clust))
     dds <- tryCatch({
       DESeq2::DESeqDataSetFromMatrix(
-        countData = as.matrix(pb_clust),
+        countData = pb_clust_int,
         colData = pb_clust_meta_df,
         design = design_formula
       )

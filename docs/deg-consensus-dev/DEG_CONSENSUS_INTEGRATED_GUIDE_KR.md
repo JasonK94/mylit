@@ -345,5 +345,104 @@ meta_deg <- aggregate_cluster_deg_consensus(
 ### 결과 파일
 *   `deg_consensus_*_final_result.qs`: 최종 결과 객체.
 *   `deg_consensus_*_consensus_scores.qs`: Consensus scores 객체.
+*   `deg_consensus_*_skipped_clusters.qs`: 건너뛴 클러스터 정보.
+*   `deg_consensus_*_nebula_result.qs`: NEBULA 분석 결과 (별도 실행).
 *   `consensus_plots/`: Volcano plot, Heatmap 등 시각화 결과.
+
+## 7. 방법론별 특이사항 및 문제 해결 (Method-Specific Issues)
+
+### 7.1 muscat 방법론
+
+**문제**: 작은 클러스터에서 muscat 방법론들이 실패할 수 있습니다.
+
+**오류 메시지**:
+```
+Specified filtering options result in no genes in any clusters being tested.
+```
+
+**원인**:
+- muscat은 그룹별로 충분한 pseudobulk 샘플이 필요합니다.
+- 클러스터별로 쪼갠 데이터에서, 각 그룹(g3=1, g3=2)별로 최소 2개 이상의 pseudobulk 샘플이 필요합니다.
+- 예: 33개 세포로는 그룹별로 샘플이 부족할 수 있습니다.
+
+**해결책**:
+- muscat 방법론이 실패해도 다른 방법론(limma, edgeR, DESeq2)으로 계속 진행됩니다.
+- 작은 클러스터는 muscat 없이도 분석 가능합니다.
+- 최소 요구사항: 클러스터당 약 50개 이상의 세포, 그룹별로 최소 2개 이상의 샘플
+
+**권장사항**:
+- 작은 클러스터에서는 muscat 방법론을 제외하고 실행할 수 있습니다.
+- 또는 `pb_min_cells` 파라미터를 낮추어 시도할 수 있습니다 (기본값: 3).
+
+### 7.2 NEBULA 방법론
+
+**문제**: NEBULA는 클러스터별로 쪼갠 데이터에서 잘 작동하지 않습니다.
+
+**원인**:
+1. **완전 분리(Complete Separation) 문제**:
+   - `GEM`과 `g3` 변수 간 완전 분리 발생
+   - 설계 행렬이 특이(singular)해져 최적화 실패
+2. **샘플 수 부족**: 클러스터별로 쪼갠 후 샘플 수가 부족할 수 있음
+3. **파이프라인 구조**: NEBULA는 전체 데이터에서 클러스터를 고려하는 방식이 더 적합
+
+**해결책**:
+- NEBULA는 **별도로 전체 데이터에서 실행**하는 것을 권장합니다.
+- `covar_effects`에서 `GEM`을 제외하고 `sex`만 사용합니다 (공선성 문제 방지).
+- 클러스터별 파이프라인과 분리하여 실행합니다.
+
+**사용 예시**:
+```r
+# 전체 데이터에서 NEBULA 실행
+nebula_result <- runNEBULA2_v1(
+  sobj = is5,  # 전체 데이터
+  fixed_effects = c("g3"),
+  covar_effects = "sex",  # GEM 제외
+  patient_col = "hos_no",
+  offset = "nCount_RNA",
+  min_count = 20
+)
+```
+
+### 7.3 DESeq2 방법론
+
+**문제**: Pseudobulk 데이터가 정수가 아닐 수 있습니다.
+
+**오류 메시지**:
+```
+some values in assay are not integers
+```
+
+**원인**:
+- Pseudobulk 과정에서 실수 값이 생성될 수 있습니다.
+- DESeq2는 count 데이터가 정수여야 합니다.
+
+**해결책**:
+- `round()` 함수를 사용하여 정수로 변환합니다.
+- 코드에서 자동으로 처리됩니다.
+
+### 7.4 dream 방법론
+
+**현재 상태**: dream 방법론은 원래 잘 작동하지 않았으며, 현재 파이프라인에서 제외되어 있습니다.
+
+**이유**:
+- 구현이 완전하지 않거나
+- 데이터 구조와 맞지 않을 수 있습니다.
+
+**권장사항**:
+- 현재는 dream 방법론을 사용하지 않는 것을 권장합니다.
+- 필요시 별도로 구현 및 테스트가 필요합니다.
+
+### 7.5 작은 클러스터 처리
+
+**문제**: 작은 클러스터에서 일부 방법론이 실패할 수 있습니다.
+
+**해결책**:
+- 세포 수 < 10인 클러스터는 자동으로 건너뜁니다.
+- muscat 방법론이 실패해도 다른 방법론으로 계속 진행됩니다.
+- 건너뛴 클러스터 정보는 `*_skipped_clusters.qs` 파일에 저장됩니다.
+
+**최소 요구사항**:
+- **절대 최소값**: 10개 세포 (매우 작은 클러스터는 건너뜀)
+- **권장 최소값**: 50개 세포 (모든 방법론이 정상 작동)
+- **그룹별 샘플**: 각 그룹(g3=1, g3=2)별로 최소 2개 이상의 샘플 필요
 

@@ -15,6 +15,8 @@
 #' @param sample_id Column name for sample ID (default: "hos_no")
 #' @param group_id Column name for group/condition (default: "type")
 #' @param batch_id Optional column name for batch variable
+#' @param covar_effects Optional character vector of column names for additional covariates 
+#'   to include as fixed effects (e.g., c("sex"))
 #' @param contrast Contrast string (e.g., "IS - SAH")
 #' @param pb_min_cells Minimum cells per pseudobulk sample (default: 3)
 #' @param keep_clusters Optional vector of cluster IDs to keep
@@ -30,6 +32,7 @@ runLIMMA_voom_v1 <- function(
   sample_id  = "hos_no",
   group_id   = "type",
   batch_id   = NULL,
+  covar_effects = NULL,
   contrast   = NULL,
   pb_min_cells = 3,
   keep_clusters = NULL,
@@ -53,12 +56,27 @@ runLIMMA_voom_v1 <- function(
     stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
   }
   
+  # covar_effects 컬럼 확인
+  if (!is.null(covar_effects)) {
+    missing_covars <- covar_effects[!covar_effects %in% colnames(meta)]
+    if (length(missing_covars) > 0) {
+      stop(sprintf("covar_effects에 지정된 컬럼이 없습니다: %s", paste(missing_covars, collapse=", ")))
+    }
+  }
+  
   if (remove_na_groups) {
     na_mask <- is.na(meta[[group_id]]) | 
                is.na(meta[[cluster_id]]) | 
                is.na(meta[[sample_id]])
     if (!is.null(batch_id) && batch_id %in% colnames(meta)) {
       na_mask <- na_mask | is.na(meta[[batch_id]])
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta)) {
+          na_mask <- na_mask | is.na(meta[[covar]])
+        }
+      }
     }
     
     if (is.character(meta[[group_id]])) {
@@ -72,6 +90,13 @@ runLIMMA_voom_v1 <- function(
     }
     if (!is.null(batch_id) && batch_id %in% colnames(meta) && is.character(meta[[batch_id]])) {
       na_mask <- na_mask | (meta[[batch_id]] == "NA" | meta[[batch_id]] == "na")
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta) && is.character(meta[[covar]])) {
+          na_mask <- na_mask | (meta[[covar]] == "NA" | meta[[covar]] == "na")
+        }
+      }
     }
     
     n_na_cells <- sum(na_mask)
@@ -100,6 +125,13 @@ runLIMMA_voom_v1 <- function(
   sce$group_id   <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
     sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
+  }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(sce))) {
+        sce[[covar]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[covar]]))
+      }
+    }
   }
 
   # 2) Pseudobulk
@@ -224,14 +256,25 @@ runLIMMA_voom_v1 <- function(
     
     # 클러스터별 design matrix 생성
     pb_clust_meta$group <- pb_clust_group
-    if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta)) {
-      pb_clust_meta$batch <- droplevels(factor(pb_clust_meta[[batch_id]]))
-      design_clust <- stats::model.matrix(~ 0 + group + batch,
-                                         data = as.data.frame(pb_clust_meta))
-    } else {
-      design_clust <- stats::model.matrix(~ 0 + group,
-                                         data = as.data.frame(pb_clust_meta))
+    pb_clust_meta_df <- as.data.frame(pb_clust_meta)
+    
+    # Design formula 구성
+    formula_terms <- c("group")
+    if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta_df)) {
+      pb_clust_meta_df$batch <- droplevels(factor(pb_clust_meta_df[[batch_id]]))
+      formula_terms <- c(formula_terms, "batch")
     }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(pb_clust_meta_df)) {
+          pb_clust_meta_df[[covar]] <- droplevels(factor(pb_clust_meta_df[[covar]]))
+          formula_terms <- c(formula_terms, covar)
+        }
+      }
+    }
+    
+    formula_str <- paste("~ 0 +", paste(formula_terms, collapse = " + "))
+    design_clust <- stats::model.matrix(as.formula(formula_str), data = pb_clust_meta_df)
     
     # 클러스터별 contrast matrix 생성
     contrast_fixed <- fix_contrast(contrast, colnames(design_clust))
@@ -244,28 +287,39 @@ runLIMMA_voom_v1 <- function(
       pb_clust <- pb_clust[, valid_samples, drop = FALSE]
       pb_clust_group <- pb_clust_group[valid_samples]
       pb_clust_meta <- pb_clust_meta[valid_samples, , drop = FALSE]
-      # Recreate design matrix after filtering (re-check batch confounding)
+      # Recreate design matrix after filtering
       pb_clust_meta$group <- pb_clust_group
+      pb_clust_meta_df <- as.data.frame(pb_clust_meta)
+      
+      # Rebuild formula terms
+      formula_terms <- c("group")
       use_batch <- FALSE
-      if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta)) {
-        pb_clust_meta$batch <- droplevels(factor(pb_clust_meta[[batch_id]]))
-        if (length(unique(pb_clust_meta$batch)) > 1 && length(unique(pb_clust_group)) > 1) {
-          batch_group_table <- table(pb_clust_meta$batch, pb_clust_group)
+      if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta_df)) {
+        pb_clust_meta_df$batch <- droplevels(factor(pb_clust_meta_df[[batch_id]]))
+        if (length(unique(pb_clust_meta_df$batch)) > 1 && length(unique(pb_clust_group)) > 1) {
+          batch_group_table <- table(pb_clust_meta_df$batch, pb_clust_group)
           row_sums <- rowSums(batch_group_table > 0)
           col_sums <- colSums(batch_group_table > 0)
           if (!(all(row_sums == 1) || all(col_sums == 1))) {
             use_batch <- TRUE
+            formula_terms <- c(formula_terms, "batch")
           }
         }
       }
-      design_clust <- tryCatch({
-        if (use_batch) {
-          stats::model.matrix(~ 0 + group + batch, data = as.data.frame(pb_clust_meta))
-        } else {
-          stats::model.matrix(~ 0 + group, data = as.data.frame(pb_clust_meta))
+      if (!is.null(covar_effects)) {
+        for (covar in covar_effects) {
+          if (covar %in% colnames(pb_clust_meta_df)) {
+            pb_clust_meta_df[[covar]] <- droplevels(factor(pb_clust_meta_df[[covar]]))
+            formula_terms <- c(formula_terms, covar)
+          }
         }
+      }
+      
+      formula_str <- paste("~ 0 +", paste(formula_terms, collapse = " + "))
+      design_clust <- tryCatch({
+        stats::model.matrix(as.formula(formula_str), data = pb_clust_meta_df)
       }, error = function(e) {
-        stats::model.matrix(~ 0 + group, data = as.data.frame(pb_clust_meta))
+        stats::model.matrix(~ 0 + group, data = pb_clust_meta_df)
       })
       contrast_fixed <- fix_contrast(contrast, colnames(design_clust))
       contrast_matrix_clust <- limma::makeContrasts(contrasts = contrast_fixed, levels = design_clust)
@@ -360,6 +414,7 @@ runLIMMA_trend_v1 <- function(
   sample_id  = "hos_no",
   group_id   = "type",
   batch_id   = NULL,
+  covar_effects = NULL,
   contrast   = NULL,
   pb_min_cells = 3,
   keep_clusters = NULL,
@@ -382,12 +437,27 @@ runLIMMA_trend_v1 <- function(
     stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
   }
   
+  # covar_effects 컬럼 확인
+  if (!is.null(covar_effects)) {
+    missing_covars <- covar_effects[!covar_effects %in% colnames(meta)]
+    if (length(missing_covars) > 0) {
+      stop(sprintf("covar_effects에 지정된 컬럼이 없습니다: %s", paste(missing_covars, collapse=", ")))
+    }
+  }
+  
   if (remove_na_groups) {
     na_mask <- is.na(meta[[group_id]]) | 
                is.na(meta[[cluster_id]]) | 
                is.na(meta[[sample_id]])
     if (!is.null(batch_id) && batch_id %in% colnames(meta)) {
       na_mask <- na_mask | is.na(meta[[batch_id]])
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta)) {
+          na_mask <- na_mask | is.na(meta[[covar]])
+        }
+      }
     }
     
     if (is.character(meta[[group_id]])) {
@@ -401,6 +471,13 @@ runLIMMA_trend_v1 <- function(
     }
     if (!is.null(batch_id) && batch_id %in% colnames(meta) && is.character(meta[[batch_id]])) {
       na_mask <- na_mask | (meta[[batch_id]] == "NA" | meta[[batch_id]] == "na")
+    }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(meta) && is.character(meta[[covar]])) {
+          na_mask <- na_mask | (meta[[covar]] == "NA" | meta[[covar]] == "na")
+        }
+      }
     }
     
     n_na_cells <- sum(na_mask)
@@ -429,6 +506,13 @@ runLIMMA_trend_v1 <- function(
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
     sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
   }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(sce))) {
+        sce[[covar]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[covar]]))
+      }
+    }
+  }
 
   message("3/7: Pseudobulking 중...")
   pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
@@ -454,6 +538,10 @@ runLIMMA_trend_v1 <- function(
   sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
   map_cols <- c("sample_id","group_id")
   if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
+  if (!is.null(covar_effects)) {
+    covar_cols <- covar_effects[covar_effects %in% names(sce_meta)]
+    if (length(covar_cols) > 0) map_cols <- c(map_cols, covar_cols)
+  }
   sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
   sce_map <- sce_map[complete.cases(sce_map), ]
 
@@ -461,7 +549,8 @@ runLIMMA_trend_v1 <- function(
   need_fix <- (!"group_id" %in% names(pb_meta)) ||
               (length(unique(pb_meta$group_id)) < 2) ||
               (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
-  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta))) {
+  need_covar_fix <- !is.null(covar_effects) && any(!covar_effects %in% names(pb_meta))
+  if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta)) || need_covar_fix) {
     pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
     if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
       pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
@@ -475,6 +564,13 @@ runLIMMA_trend_v1 <- function(
   pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
     pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
+  }
+  if (!is.null(covar_effects)) {
+    for (covar in covar_effects) {
+      if (covar %in% colnames(SummarizedExperiment::colData(pb))) {
+        pb[[covar]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[covar]]))
+      }
+    }
   }
 
   message("5/7: Contrast 그룹 필터링 중...")
@@ -547,14 +643,25 @@ runLIMMA_trend_v1 <- function(
     
     # 클러스터별 design matrix 생성
     pb_clust_meta$group <- pb_clust_group
-    if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta)) {
-      pb_clust_meta$batch <- droplevels(factor(pb_clust_meta[[batch_id]]))
-      design_clust <- stats::model.matrix(~ 0 + group + batch,
-                                         data = as.data.frame(pb_clust_meta))
-    } else {
-      design_clust <- stats::model.matrix(~ 0 + group,
-                                         data = as.data.frame(pb_clust_meta))
+    pb_clust_meta_df <- as.data.frame(pb_clust_meta)
+    
+    # Design formula 구성
+    formula_terms <- c("group")
+    if (!is.null(batch_id) && batch_id %in% colnames(pb_clust_meta_df)) {
+      pb_clust_meta_df$batch <- droplevels(factor(pb_clust_meta_df[[batch_id]]))
+      formula_terms <- c(formula_terms, "batch")
     }
+    if (!is.null(covar_effects)) {
+      for (covar in covar_effects) {
+        if (covar %in% colnames(pb_clust_meta_df)) {
+          pb_clust_meta_df[[covar]] <- droplevels(factor(pb_clust_meta_df[[covar]]))
+          formula_terms <- c(formula_terms, covar)
+        }
+      }
+    }
+    
+    formula_str <- paste("~ 0 +", paste(formula_terms, collapse = " + "))
+    design_clust <- stats::model.matrix(as.formula(formula_str), data = pb_clust_meta_df)
     
     # 클러스터별 contrast matrix 생성
     contrast_fixed <- fix_contrast(contrast, colnames(design_clust))

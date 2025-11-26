@@ -70,6 +70,7 @@ result_consensus <- run_deg_consensus(
   sample_id = sample_key,
   group_id = group_key,
   batch_id = batch_key,
+  covar_effects = "sex",  # sex를 fixed effect로 추가
   remove_na_groups = TRUE,
   verbose = TRUE
 )
