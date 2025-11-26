@@ -168,7 +168,7 @@ if (length(fgs_results) > 0) {
     cat("TEST 2: TML Layer 2 - All Methods\n")
     cat("=================================================================\n")
 
-    l2_methods <- c("glm", "ranger", "xgbTree", "svmRadial", "mlp", "earth")
+    l2_methods <- c("glm", "ranger", "xgbTree", "svmRadial", "mlp", "earth", "nnet", "glmnet")
     cat("L2 Methods to test:", paste(l2_methods, collapse = ", "), "\n\n")
 
     tryCatch(
@@ -205,12 +205,24 @@ if (length(fgs_results) > 0) {
                     l1_signatures = l1_sigs_for_tml,
                     holdout_data = sobj,
                     target_var = target_var,
-                    l2_methods = "glm", # Test with simple model first
+                    l2_methods = c("glm", "ranger"), # Test with simple model first
                     cv_method = "LOGO",
                     cv_group_var = group_var,
                     fgs_seed = 42
                 )
                 cat("✓ LOGO CV Completed Successfully\n")
+
+                # [NEW] Outlier Analysis
+                if (exists("analyze_tml_outliers")) {
+                    cat("\n--- Outlier Analysis (LOGO) ---\n")
+                    try(
+                        {
+                            outliers <- analyze_tml_outliers(tml_logo)
+                            if (!is.null(outliers)) print(head(outliers))
+                        },
+                        silent = TRUE
+                    )
+                }
             },
             error = function(e) {
                 cat("✗ FAILED: LOGO CV\n")
