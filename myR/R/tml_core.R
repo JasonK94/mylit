@@ -838,6 +838,24 @@ TML7 <- function(
         silent = TRUE
       )
     } else if (m == "ranger") {
+      # [FIX] Handle mtry for small number of features to prevent errors
+      # When features are few (e.g. 5 signatures), caret's default grid might set mtry > n_features
+      n_feats <- ncol(l2_train_df)
+
+      # Create safe mtry values
+      safe_mtry <- 1
+      if (n_feats >= 2) {
+        # Try 1 and sqrt(n), but ensure valid range
+        candidates <- unique(c(1, floor(sqrt(n_feats)), floor(n_feats / 2)))
+        safe_mtry <- candidates[candidates >= 1 & candidates <= n_feats]
+      }
+
+      ranger_grid <- expand.grid(
+        mtry = safe_mtry,
+        splitrule = "gini",
+        min.node.size = 1
+      )
+
       fit <- try(
         train_with_strict_limits(
           x = l2_train_df,
@@ -845,9 +863,9 @@ TML7 <- function(
           method = m,
           trControl = ctrl,
           metric = caret_metric,
-          tuneLength = 5,
-          num.threads = 1, # Force single-threaded ranger (also set globally above)
-          importance = "permutation" # Enable importance calculation for compute_meta_gene_importance
+          tuneGrid = ranger_grid, # Use explicit grid instead of tuneLength
+          num.threads = 1,
+          importance = "permutation"
         ),
         silent = TRUE
       )

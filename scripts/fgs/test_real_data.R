@@ -46,15 +46,33 @@ if (requireNamespace("conflicted", quietly = TRUE)) {
 
 # Load FGS/TML functions
 cat("Loading FGS/TML functions...\n")
-# Try to load from refactored location first
+
+# [FIX] Load core and aliases explicitly
+core_path <- file.path(original_wd, "myR/R/fgs_core.R")
+alias_path <- file.path(original_wd, "myR/R/fgs_core_alias.R")
 sig_path <- file.path(original_wd, "myR/R/signature.R")
+utils_path <- file.path(original_wd, "myR/R/tml_utils.R")
+
+if (file.exists(core_path)) {
+    source(core_path)
+    cat("✓ fgs_core.R loaded\n")
+}
+if (file.exists(alias_path)) {
+    source(alias_path)
+    cat("✓ fgs_core_alias.R loaded\n")
+}
 if (file.exists(sig_path)) {
     source(sig_path)
+    cat("✓ signature.R loaded\n")
 } else {
     warning("signature.R not found at: ", sig_path)
 }
-source(file.path(original_wd, "myR/R/tml_utils.R")) # Ensure utilities are loaded
-cat("✓ Functions loaded\n\n")
+if (file.exists(utils_path)) {
+    source(utils_path)
+    cat("✓ tml_utils.R loaded\n")
+}
+
+cat("✓ All functions loaded\n\n")
 
 # --- Load Real Data ---
 cat("\n>>> Step 2: Loading & Preparing Data\n")
