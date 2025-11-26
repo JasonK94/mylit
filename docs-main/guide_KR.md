@@ -7,10 +7,36 @@ cd /home/user3/GJC_KDW_250721 && Rscript 으로 스크립트를  실행하면, �
 cursor가 직접 테스트 & 디버깅 루프를 반복하여 분석 결과를 /data/user3/sobj에 저장해두길 바람. overriding은 가능한 한 회피하여야 함.
 
 2. 사용 데이터:
+1) Count Matrix
+a. For stroke:
 stroke PBMC full data: is5, 위치: /data/user3/sobj/IS6_sex_added_251110.qs
 stroke PBMC downsampled data: is5s, 위치: /data/user3/sobj/IS6_sex_added_0.1x_251110.qs
+b. For IBD:
 mIBD GeoMx data: data_seurat, 위치: /data/user3/sobj/data_seurat_251104.qs
 mIBD scRNAseq data: (이름 미정), /data/user3/sobj/IBD_biologics.rds
+2) Analysis output
+! All are under /data/user3/sobj.
+* FGS, TML: refer to fgs branch.
+* CONS: refer to consensus-deg branch
+* CCI: cci branch
+a. For stroke:
+* FGS:
+/data/user3/sobj/fgs/fgsas
+* TML:
+/data/user3/sobj/fgs/tmlas/run2
+* CONS:
+/data/user3/sobj/consensus/final
+* CCI:
+/data/user3/sobj/cci
+b. For IBD:
+* FGS:
+/data/user3/sobj/fgs/fgs.each.Infliximab.qs
+/data/user3/sobj/fgs/fgs.each.Ustekinumab.qs
+/data/user3/sobj/fgs/fgs.each.Vedolizumab.qs
+/data/user3/sobj/fgs/fgs2_ibd.qs
+* TML:
+/data/user3/sobj/fgs/tml2_ibd.qs
+
 
 3. 변수 설명:
 1) scripts/vars_config.R 파일에 설정해두고 source하여 실수 줄일 수 있도록.
