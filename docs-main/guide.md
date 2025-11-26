@@ -55,16 +55,17 @@ Formula examples:
 ### 6. Documentation Management
 
 **Important**: Core documentation files are managed in `docs-main/` and should only be edited in the `main` branch. These files include:
-- `guide.md`, `guide_KR.md`, `README.md` (root level)
-- `docs/INTEGRATED_GUIDE.md`, `docs/INTEGRATED_GUIDE_KR.md`, `docs/DOCS_ORGANIZATION_RULE.md`
-- `myR/DEVLOG.md`, `myR/CHANGELOG.md`, `myR/context.md` and their Korean versions
-- `scripts/vars_config.R`
+- `docs-main/guide.md`, `docs-main/guide_KR.md`, `docs-main/README.md`
+- `docs-main/integrated/INTEGRATED_GUIDE.md`, `docs-main/integrated/INTEGRATED_GUIDE_KR.md`
+- `docs-main/rules/DOCS_ORGANIZATION_RULE.md`
+- `docs-main/dev/DEVLOG.md`, `docs-main/dev/CHANGELOG.md`, `docs-main/dev/context.md` and their Korean versions
+- `docs-main/config/vars_config.R`
 
-Files in original locations are symlinks to `docs-main/`. See `docs-main/README_SUBTREE.md` for details.
+All files are now in `docs-main/` directory. Worktrees should reference `docs-main/` for documentation context.
 
 ### 7. Additional References
 Refer to this for documentation rules:
 
-@DOCS_ORGANIZATION_RULE.md
+@docs-main/rules/DOCS_ORGANIZATION_RULE.md
 
 # test
