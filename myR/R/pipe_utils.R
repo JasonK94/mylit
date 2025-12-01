@@ -41,6 +41,26 @@ load_config <- function(config_path, config_dir = NULL) {
                        na.strings = c("", "NA", "na"))
   }
   
+  # Clean up file paths: remove surrounding quotes and trim whitespace
+  # This handles cases where Excel or CSV export adds quotes around paths
+  path_columns <- grep("^dir_", colnames(config), value = TRUE)
+  for (col in path_columns) {
+    if (col %in% colnames(config)) {
+      config[[col]] <- gsub('^["\']+|["\']+$', '', config[[col]])  # Remove surrounding quotes
+      config[[col]] <- trimws(config[[col]])  # Trim whitespace
+      # Replace empty strings with NA
+      config[[col]][config[[col]] == ""] <- NA
+    }
+  }
+  
+  # Also clean other character columns that might have quotes
+  char_cols <- sapply(config, is.character)
+  for (col in names(char_cols)[char_cols]) {
+    config[[col]] <- gsub('^["\']+|["\']+$', '', config[[col]])
+    config[[col]] <- trimws(config[[col]])
+    config[[col]][config[[col]] == ""] <- NA
+  }
+  
   # Load config_default.csv
   default_path <- file.path(config_dir, "config_default.csv")
   if (!file.exists(default_path)) {

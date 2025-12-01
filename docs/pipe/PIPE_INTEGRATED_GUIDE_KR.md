@@ -73,31 +73,135 @@ flowchart TD
 
 ### 사용법
 
-#### 기본 사용법
+#### 방법 1: Wrapper 스크립트 사용 (권장)
+
+전체 파이프라인을 한 번에 실행합니다:
 
 ```bash
 cd /data/user3/git_repo/_wt/pipe
-./scripts/pipe_wrapper.sh --config config/config.csv --run_id run1
+
+# 기본 실행 (RPCA integration)
+./scripts/pipe_wrapper.sh --config config/config_complete2.csv --run_id run1
+
+# scVI integration만 실행하려면 wrapper를 수정하거나 개별 스크립트 사용
 ```
 
-#### 특정 단계 건너뛰기
+**Wrapper 스크립트의 장점:**
+- 모든 단계를 자동으로 순차 실행
+- 각 단계의 성공/실패를 자동 확인
+- 일관된 로깅 관리
+
+#### 방법 2: 개별 스크립트 실행 (세밀한 제어)
+
+각 단계를 개별적으로 실행하여 중간 결과를 확인하거나 특정 단계만 재실행할 수 있습니다:
 
 ```bash
-./scripts/pipe_wrapper.sh --config config/config.csv --run_id run1 --skip_steps 3,4
+cd /data/user3/git_repo/_wt/pipe
+
+# Step 0: Validation (필수)
+Rscript scripts/pipe_validate.R --config config/config_complete2.csv --run_id run1
+
+# Step 1: Read Data & Demultiplexing
+# --downsample 옵션: 테스트용으로 cell 수를 줄임 (0.1 = 10%, 0.01 = 1%)
+Rscript scripts/pipe1_read_demulti.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 0 \
+  --output_step 1 \
+  --downsample 0.1  # 테스트용, 실제 분석 시에는 생략
+
+# Step 2: Normalization & Clustering (LogNormalize - SoupX 전용)
+Rscript scripts/pipe2_nmz_clustering.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 1 \
+  --output_step 2 \
+  --nmz LogNormalize
+
+# Step 3: SoupX Ambient RNA Removal
+Rscript scripts/pipe3_ambient_removal.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 2 \
+  --output_step 3
+
+# Step 2 (재실행): SCTransform (SoupX 후)
+Rscript scripts/pipe2_nmz_clustering.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 3 \
+  --output_step 2 \
+  --nmz SCTransform
+
+# Step 4: Doublet Detection (scDblFinder)
+Rscript scripts/pipe4_doubletfinder.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 2 \
+  --output_step 4
+
+# Step 5: Integration
+# scVI (권장: 작은 데이터셋에서도 robust)
+Rscript scripts/pipe5_integration.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 4 \
+  --output_step 5 \
+  --method scVI
+
+# RPCA (대안)
+Rscript scripts/pipe5_integration.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 4 \
+  --output_step 5 \
+  --method RPCA
 ```
 
-#### 개별 단계 실행
+#### 테스트 vs 실제 분석
+
+**테스트 실행 (빠른 검증):**
+```bash
+# 10% 다운샘플링으로 빠르게 테스트
+Rscript scripts/pipe1_read_demulti.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 0 \
+  --output_step 1 \
+  --downsample 0.1
+```
+
+**실제 분석 (Full data):**
+```bash
+# --downsample 옵션 없이 실행
+Rscript scripts/pipe1_read_demulti.R \
+  --config config/config_complete2.csv \
+  --run_id run1_full \
+  --input_step 0 \
+  --output_step 1
+```
+
+#### 특정 단계 건너뛰기 (Wrapper 사용 시)
 
 ```bash
+./scripts/pipe_wrapper.sh \
+  --config config/config.csv \
+  --run_id run1 \
+  --skip_steps 3,4  # Step 3, 4 건너뛰기
+```
 
-# validation
-Rscript scripts/pipe_validate.R --config config/config_complete.csv --run_id run_validation
-Rscript scripts/pipe_validate.R --config config/config_complete2.csv --run_id run_validation
+#### 중간 단계부터 재시작
 
-# Step 1: Demultiplexing
-Rscript scripts/pipe1_read_demulti.R --config config/config.csv --run_id run1
+이전 실행에서 Step 3까지 완료했다면, Step 4부터 시작:
 
-# Step 2: Normalization (LogNormalize)
+```bash
+# Step 4부터 시작 (Step 1-3는 이미 완료된 것으로 가정)
+Rscript scripts/pipe4_doubletfinder.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 3 \
+  --output_step 4
+```
 Rscript scripts/pipe2_nmz_clustering.R --config config/config.csv --run_id run1 \
   --input_step 1 --output_step 2 --nmz LogNormalize
 
@@ -146,7 +250,142 @@ config.csv에서 지정되지 않을 때 사용되는 기본 파라미터 값. �
 
 참고용 방법별 파라미터.
 
-## 5. 방법론
+### Config 파일 주의사항
+
+**경로에 쉼표 포함 시**: 
+- CSV 파일에서 경로에 쉼표가 포함된 경우, Excel이 자동으로 따옴표로 감싸지만 수동 편집 시 주의 필요
+- 파이프라인은 자동으로 따옴표를 제거하므로 정상 작동
+
+**demultiplex_id 컬럼**: 
+- Config의 `demultiplex_id` 값은 demultiplexing 출력 파일의 column 이름과 정확히 일치해야 합니다
+- `Best_Sample`은 `get_barcode_mapping` 함수에서 자동으로 생성됩니다
+- Excel이 "1-1" 같은 값을 날짜로 변환하는 것을 방지하려면 `'1-1'`처럼 작은따옴표로 감싸세요
+
+## 5. 실행 예시
+
+### 전체 파이프라인 실행 (테스트 → 실제)
+
+#### 1단계: 다운샘플링으로 빠른 테스트
+
+```bash
+cd /data/user3/git_repo/_wt/pipe
+
+# Step 1: 10% 다운샘플링으로 테스트
+Rscript scripts/pipe1_read_demulti.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 0 \
+  --output_step 1 \
+  --downsample 0.1
+
+# Step 2: LogNormalize
+Rscript scripts/pipe2_nmz_clustering.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 1 \
+  --output_step 2 \
+  --nmz LogNormalize
+
+# Step 3: SoupX
+Rscript scripts/pipe3_ambient_removal.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 2 \
+  --output_step 3
+
+# Step 2 (재실행): SCTransform
+Rscript scripts/pipe2_nmz_clustering.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 3 \
+  --output_step 2 \
+  --nmz SCTransform
+
+# Step 4: Doublet detection
+Rscript scripts/pipe4_doubletfinder.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 2 \
+  --output_step 4
+
+# Step 5: scVI integration (robust, 작은 데이터셋에서도 작동)
+Rscript scripts/pipe5_integration.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 4 \
+  --output_step 5 \
+  --method scVI
+```
+
+#### 2단계: Full data로 실제 분석
+
+테스트가 성공하면 `--downsample` 옵션 없이 전체 데이터로 실행:
+
+```bash
+# Step 1: Full data (다운샘플링 없음)
+Rscript scripts/pipe1_read_demulti.R \
+  --config config/config_complete2.csv \
+  --run_id run1_full \
+  --input_step 0 \
+  --output_step 1
+
+# 나머지 단계는 동일하게 실행
+# ... (Step 2-5는 위와 동일)
+```
+
+### 출력 파일 위치
+
+모든 중간 결과는 `/data/user3/sobj/pipe/{run_id}/step{N}/` 디렉토리에 저장됩니다:
+
+- `step1/step1_demulti_list.qs`: Demultiplexing 완료된 Seurat 객체 리스트
+- `step2/step2_nmz_list.qs`: Normalization & Clustering 완료된 객체 리스트
+- `step3/step3_soupx_list.qs`: SoupX 보정 완료된 객체 리스트
+- `step4/step4_doublet_list.qs`: Doublet detection 완료된 객체 리스트
+- `step5/step5_integration_scvi.qs`: scVI 통합 완료된 단일 객체
+- `step5/step5_integration_rpca.qs`: RPCA 통합 완료된 단일 객체
+
+### 로그 파일 위치
+
+- Master log: `logs/total.log`
+- Run-specific log: `logs/{run_id}/run_log.log`
+- Step logs: 각 스크립트가 자동으로 생성
+
+## 6. 트러블슈팅
+
+### 일반적인 오류 및 해결 방법
+
+#### 1. CSV 파싱 오류: "more columns than column names"
+**원인**: 경로에 쉼표가 포함되어 있거나 따옴표 처리 문제
+**해결**: 
+- Config 파일을 텍스트 에디터로 열어 경로 확인
+- 경로에 쉼표가 있으면 따옴표로 감싸기
+- `pipe_utils.R`의 `load_config` 함수가 자동으로 따옴표 제거
+
+#### 2. HTO assay 이름 문제
+**원인**: Seurat가 assay 이름의 공백을 점(.)으로 변환
+**해결**: 파이프라인이 자동으로 처리 (실제 저장된 이름 사용)
+
+#### 3. scVI: 'IntegrateLayers' is not an exported object
+**원인**: Seurat v5에서는 `IntegrateLayers`가 Seurat 패키지에 있음 (SeuratWrappers 아님)
+**해결**: `SeuratWrappers::IntegrateLayers` → `IntegrateLayers`로 수정됨
+
+#### 4. SoupX: "No plausible marker genes found"
+**원인**: 데이터가 너무 작거나 복잡도가 낮음
+**해결**: 
+- 다운샘플링된 데이터에서는 정상일 수 있음
+- Full data에서는 자동으로 원본 counts 유지
+
+#### 5. HTODemux: "Cells with zero counts exist as a cluster"
+**원인**: HTO counts가 0인 세포가 클러스터에 포함됨
+**해결**: 파이프라인이 자동으로 필터링하고, 실패 시 fallback 처리
+
+### 성능 최적화 팁
+
+1. **테스트 실행**: `--downsample 0.1` 옵션으로 빠르게 검증
+2. **중간 결과 재사용**: 각 step의 출력을 qs로 저장하므로 실패한 step부터 재시작 가능
+3. **메모리 설정**: scVI는 많은 메모리가 필요하므로 `future.globals.maxSize` 조정
+
+## 7. 방법론
 
 ### Step 1: Demultiplexing
 

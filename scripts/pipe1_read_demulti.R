@@ -34,7 +34,9 @@ option_list <- list(
   make_option(c("--input_step", "-i"), type = "integer", default = 0,
               help = "Input step number (0 = start from scratch)", metavar = "integer"),
   make_option(c("--output_step", "-o"), type = "integer", default = 1,
-              help = "Output step number", metavar = "integer")
+              help = "Output step number", metavar = "integer"),
+  make_option(c("--downsample", "-d"), type = "numeric", default = NULL,
+              help = "Downsample fraction (0-1) for testing, e.g., 0.1 for 10%% of cells", metavar = "numeric")
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -91,12 +93,17 @@ for (i in seq_len(nrow(config))) {
       log_message(sprintf("  Step 1.1: Loading demuxalot output for %s", sample_name), log_list)
       
       # Check if demux file exists
-      if (is.na(row$dir_demultiplex_output) || row$dir_demultiplex_output == "") {
-        stop(sprintf("dir_demultiplex_output is required for SNP samples but is missing for %s", sample_name))
+      demux_file <- as.character(row$dir_demultiplex_output)
+      demux_file <- gsub('^["\']+|["\']+$', '', demux_file)  # Remove quotes
+      demux_file <- trimws(demux_file)
+      
+      if (is.na(demux_file) || demux_file == "" || !file.exists(demux_file)) {
+        stop(sprintf("dir_demultiplex_output is required for SNP samples but is missing or file not found for %s: %s", 
+                     sample_name, row$dir_demultiplex_output))
       }
       
       # Load demux file to get column names (sample names from demultiplex_id)
-      demux_data <- read.csv(row$dir_demultiplex_output, nrows = 1, stringsAsFactors = FALSE, check.names = FALSE)
+      demux_data <- read.csv(demux_file, nrows = 1, stringsAsFactors = FALSE, check.names = FALSE)
       barcode_col <- get_param("demuxalot_barcode_col", config_list, "BARCODE")
       doublet_separator <- get_param("demuxalot_doublet_separator", config_list, "+")
       
@@ -120,7 +127,7 @@ for (i in seq_len(nrow(config))) {
       # Note: sample_names are now the actual column names from demux file
       # get_barcode_mapping will use these column names to create Best_Sample
       barcode_map <- process_demuxalot(
-        demux_file = row$dir_demultiplex_output,
+        demux_file = demux_file,
         sample_names = sample_names,
         barcode_col = barcode_col,
         singlet_threshold = as.numeric(get_param("demuxalot_singlet_threshold", config_list, 0.5)),
@@ -153,6 +160,20 @@ for (i in seq_len(nrow(config))) {
       
       # Add GEM metadata
       obj$GEM <- gem_name
+      
+      # Downsample if requested (for testing)
+      if (!is.null(opt$downsample) && opt$downsample > 0 && opt$downsample < 1) {
+        n_cells_before <- ncol(obj)
+        n_cells_after <- max(1, round(n_cells_before * opt$downsample))
+        if (n_cells_after < n_cells_before) {
+          set.seed(seed + i)  # Reproducible sampling
+          cells_to_keep <- sample(colnames(obj), n_cells_after)
+          obj <- obj[, cells_to_keep]
+          log_message(sprintf("  Downsampled %s: %d -> %d cells (%.1f%%)", 
+                            sample_name, n_cells_before, n_cells_after, 
+                            opt$downsample * 100), log_list)
+        }
+      }
       
     } else if (multiplex_method %in% c("HTO", "CMO")) {
       # HTO-based demultiplexing

@@ -205,7 +205,7 @@ if (opt$method == "RPCA") {
   py_config <- reticulate::py_config()
   log_message(sprintf("Python: %s", py_config$python), log_list)
   
-  # Join layers if Seurat v5
+  # Join layers if Seurat v5 (scVI doesn't need split layers)
   if (packageVersion("Seurat") >= "5.0.0") {
     merged <- JoinLayers(merged, assay = "RNA")
   }
@@ -218,9 +218,26 @@ if (opt$method == "RPCA") {
     stop(sprintf("Batch column '%s' not found in metadata", batch_col))
   }
   
+  # Run PCA first (required for scVI integration)
+  log_message("Running PCA (required for scVI)...", log_list)
+  npcs <- as.numeric(get_param("scvi_npcs", config_list, 50))
+  nfeatures <- as.numeric(get_param("scvi_nfeatures", config_list, 3000))
+  
+  # Normalize and find variable features if not already done
+  if (!"data" %in% Layers(merged, assay = "RNA")) {
+    merged <- NormalizeData(merged, verbose = FALSE)
+  }
+  if (length(VariableFeatures(merged)) == 0) {
+    merged <- FindVariableFeatures(merged, nfeatures = nfeatures, verbose = FALSE)
+  }
+  merged <- ScaleData(merged, verbose = FALSE)
+  merged <- RunPCA(merged, npcs = npcs, verbose = FALSE)
+  
   # Run scVI integration
   log_message("Running scVIIntegration...", log_list)
-  merged <- SeuratWrappers::IntegrateLayers(
+  # Note: scVI doesn't need split layers, uses batch column directly
+  # IntegrateLayers is in Seurat package (v5), scVIIntegration is in SeuratWrappers
+  merged <- IntegrateLayers(
     object = merged,
     method = SeuratWrappers::scVIIntegration,
     orig.reduction = "pca",
@@ -235,9 +252,11 @@ if (opt$method == "RPCA") {
   # Downstream analysis
   log_message("Running downstream analysis...", log_list)
   dims_str <- get_param("scvi_dims", config_list, "1:30")
-  dims <- eval(parse(text = paste0("c(", gsub(":", ":", dims_str), ")")))
-  if (length(dims) == 1 && grepl(":", dims_str)) {
+  # Parse dims string (e.g., "1:30" -> c(1:30))
+  if (grepl(":", dims_str)) {
     dims <- eval(parse(text = dims_str))
+  } else {
+    dims <- as.integer(strsplit(dims_str, ",")[[1]])
   }
   
   resolution <- as.numeric(get_param("scvi_resolution", config_list, 0.6))

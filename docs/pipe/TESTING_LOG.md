@@ -54,6 +54,17 @@
 **해결**: 간단한 파싱 로직으로 변경 (grepl로 ":" 확인 후 eval)
 **위치**: `scripts/pipe5_integration.R` (line 140-144, 166-170, 237-241)
 
+### 오류 3: IntegrateLayers 네임스페이스 오류
+**문제**: `SeuratWrappers::IntegrateLayers`에서 'IntegrateLayers' is not an exported object 오류
+**원인**: Seurat v5에서는 `IntegrateLayers`가 Seurat 패키지에 있음 (SeuratWrappers 아님)
+**해결**: `SeuratWrappers::IntegrateLayers` → `IntegrateLayers`로 변경 (scVIIntegration만 SeuratWrappers에서)
+**위치**: `scripts/pipe5_integration.R` (line 235)
+
+### 오류 4: scVI 실행 전 PCA 필요
+**문제**: scVI integration이 orig.reduction="pca"를 요구하지만 PCA가 실행되지 않음
+**해결**: scVI integration 전에 NormalizeData, FindVariableFeatures, ScaleData, RunPCA 실행 추가
+**위치**: `scripts/pipe5_integration.R` (line 221-234)
+
 ## 주의사항
 
 1. **demultiplex_id 매칭**: demux 파일의 column 이름이 config의 `demultiplex_id`와 정확히 일치해야 함
