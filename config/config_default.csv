@@ -54,7 +54,7 @@ scdblfinder_plot_height,6,Height of doublet plots in inches
 scdblfinder_remove_doublets,FALSE,Whether to remove doublets (default: keep all)
 
 # Integration - General
-integration_workers,6,Number of workers for parallel processing in integration
+integration_workers,4,Number of workers for parallel processing in integration (default: 4, can be overridden by INTEGRATION_WORKERS env var)
 # Integration - RPCA
 rpca_npcs,50,Number of PCs for RPCA integration
 rpca_dims,1:30,Dimensions to use for integration

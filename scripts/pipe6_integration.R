@@ -63,9 +63,12 @@ output_base_dir <- get_param("output_base_dir", config_list, "/data/user3/sobj/p
 
 # Setup future for parallelization
 log_message("Setting up parallel processing...", log_list)
-# Use more workers for faster processing (Rscript allows more freedom than RStudio)
-# 4-6 workers is a good balance between speed and overhead
-n_workers <- as.numeric(get_param("integration_workers", config_list, 6))
+# Check for environment variable first (for resource-limited execution)
+# Then check config, then use default
+n_workers <- as.numeric(Sys.getenv("INTEGRATION_WORKERS", 
+                                   get_param("integration_workers", config_list, 4)))
+# Safety limit: don't use more than 8 workers per process
+n_workers <- min(n_workers, 8)
 log_message(sprintf("Using %d workers for parallel processing", n_workers), log_list)
 future::plan(future::multisession, workers = n_workers)
 options(future.globals.maxSize = 200 * 1024^3)
