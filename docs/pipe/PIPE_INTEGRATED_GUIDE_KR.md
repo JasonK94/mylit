@@ -353,8 +353,7 @@ Rscript scripts/pipe2_nmz_clustering.R \
   --config config/config_complete2.csv \
   --run_id test_scvi \
   --input_step 1 \
-  --output_step 2 \
-  --nmz LogNormalize
+  --output_step 2
 
 # Step 3: SoupX
 Rscript scripts/pipe3_ambient_removal.R \
@@ -363,27 +362,26 @@ Rscript scripts/pipe3_ambient_removal.R \
   --input_step 2 \
   --output_step 3
 
-# Step 2 (재실행): SCTransform
-Rscript scripts/pipe2_nmz_clustering.R \
+# Step 4: SCTransform
+Rscript scripts/pipe4_sctransform.R \
   --config config/config_complete2.csv \
   --run_id test_scvi \
   --input_step 3 \
-  --output_step 2 \
-  --nmz SCTransform
-
-# Step 4: Doublet detection
-Rscript scripts/pipe4_doubletfinder.R \
-  --config config/config_complete2.csv \
-  --run_id test_scvi \
-  --input_step 2 \
   --output_step 4
 
-# Step 5: scVI integration (robust, 작은 데이터셋에서도 작동)
-Rscript scripts/pipe5_integration.R \
+# Step 5: Doublet detection
+Rscript scripts/pipe5_doubletfinder.R \
   --config config/config_complete2.csv \
   --run_id test_scvi \
   --input_step 4 \
-  --output_step 5 \
+  --output_step 5
+
+# Step 6: scVI integration (robust, 작은 데이터셋에서도 작동)
+Rscript scripts/pipe6_integration.R \
+  --config config/config_complete2.csv \
+  --run_id test_scvi \
+  --input_step 5 \
+  --output_step 6 \
   --method scVI
 ```
 
