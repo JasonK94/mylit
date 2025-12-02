@@ -71,7 +71,12 @@ sl <- load_intermediate(input_path, log_list)
 
 # Merge all samples into one object
 log_message("Merging all samples...", log_list)
+log_message(sprintf("Merging %d samples: %s", length(sl), paste(names(sl), collapse = ", ")), log_list)
+for (i in seq_along(sl)) {
+  log_message(sprintf("  Sample %d: %s has %d cells", i, names(sl)[i], ncol(sl[[i]])), log_list)
+}
 merged <- merge(sl[[1]], y = sl[-1], add.cell.ids = names(sl))
+log_message(sprintf("Merged object has %d cells", ncol(merged)), log_list)
 
 # Set default assay
 DefaultAssay(merged) <- "RNA"
@@ -233,6 +238,15 @@ if (opt$method == "RPCA") {
   merged <- ScaleData(merged, verbose = FALSE)
   merged <- RunPCA(merged, npcs = npcs, verbose = FALSE)
   
+  # Check PCA results
+  if ("pca" %in% names(merged@reductions)) {
+    pca_embeddings <- Embeddings(merged, reduction = "pca")
+    log_message(sprintf("PCA completed: %d cells, %d dimensions", 
+                       nrow(pca_embeddings), ncol(pca_embeddings)), log_list)
+  } else {
+    stop("PCA failed: pca reduction not found")
+  }
+  
   # Run scVI integration
   log_message("Running scVIIntegration...", log_list)
   # Note: scVI doesn't need split layers, uses batch column directly
@@ -248,53 +262,140 @@ if (opt$method == "RPCA") {
     python_path = python_path,
     verbose = TRUE
   )
+  # Check cell counts before and after integration
+  n_cells_before <- ncol(merged)
+  log_message(sprintf("Cell count before integration: %d", n_cells_before), log_list)
+  
+  # Run scVI integration
+  log_message("Running scVIIntegration...", log_list)
+  merged <- tryCatch({
+    IntegrateLayers(
+      object = merged,
+      method = SeuratWrappers::scVIIntegration,
+      orig.reduction = "pca",
+      new.reduction = "integrated.scvi",
+      batch = batch_col,
+      layers = "counts",
+      conda_env = conda_env,
+      python_path = python_path,
+      verbose = TRUE
+    )
+  }, error = function(e) {
+    log_message(sprintf("!!! ERROR in scVIIntegration: %s !!!", e$message), log_list, level = "ERROR")
+    stop("scVIIntegration failed: ", e$message)
+  })
+  
+  # Check cell counts after integration
+  n_cells_after <- ncol(merged)
+  log_message(sprintf("Cell count after integration: %d", n_cells_after), log_list)
+  
+  # Check integrated.scvi reduction
+  if (!"integrated.scvi" %in% names(merged@reductions)) {
+    stop("integrated.scvi reduction not found after integration")
+  }
+  
+  scvi_embeddings <- Embeddings(merged, reduction = "integrated.scvi")
+  log_message(sprintf("integrated.scvi reduction: %d cells, %d dimensions", 
+                     nrow(scvi_embeddings), ncol(scvi_embeddings)), log_list)
+  
+  # Check for loadings (scVI typically doesn't create loadings, only embeddings)
+  if ("integrated.scvi" %in% names(merged@reductions)) {
+    if (is.null(merged@reductions$integrated.scvi@feature.loadings)) {
+      log_message("Note: integrated.scvi does not have feature loadings (this is normal for scVI)", log_list)
+    } else {
+      log_message(sprintf("integrated.scvi loadings: %d features, %d dimensions", 
+                         nrow(merged@reductions$integrated.scvi@feature.loadings),
+                         ncol(merged@reductions$integrated.scvi@feature.loadings)), log_list)
+    }
+  }
+  
+  # Intermediate save after integration (before downstream analysis)
   output_path_scvi <- get_output_path(opt$run_id, opt$output_step,
                                       get_param("output_step6_integration_scvi", config_list, "step6_integration_scvi.qs"),
                                       output_base_dir)
-  log_message(sprintf("scVIIntegration completed. data saved to: %s", output_path_scvi), log_list)
+  log_message(sprintf("scVIIntegration completed. Saving intermediate result to: %s", output_path_scvi), log_list)
   qs::qsave(merged, output_path_scvi)
+  
   # Downstream analysis
   log_message("Running downstream analysis...", log_list)
-  dims_str <- get_param("scvi_dims", config_list, "1:30")
-  # Ensure dims_str is a single character string
-  if (length(dims_str) > 1) {
-    dims_str <- dims_str[1]
-    warning("Multiple values for scvi_dims, using first: ", dims_str)
-  }
-  dims_str <- as.character(dims_str)
-  # Parse dims string (e.g., "1:30" -> c(1:30))
-  if (grepl(":", dims_str)) {
-    dims <- eval(parse(text = dims_str))
-  } else {
-    dims <- as.integer(strsplit(dims_str, ",")[[1]])
-  }
+  integrated <- tryCatch({
+    dims_str <- get_param("scvi_dims", config_list, "1:30")
+    # Ensure dims_str is a single character string
+    if (length(dims_str) > 1) {
+      dims_str <- dims_str[1]
+      warning("Multiple values for scvi_dims, using first: ", dims_str)
+    }
+    dims_str <- as.character(dims_str)
+    # Parse dims string (e.g., "1:30" -> c(1:30))
+    if (grepl(":", dims_str)) {
+      dims <- eval(parse(text = dims_str))
+    } else {
+      dims <- as.integer(strsplit(dims_str, ",")[[1]])
+    }
+    
+    # Check if dims are within available dimensions
+    max_dims <- ncol(Embeddings(merged, reduction = "integrated.scvi"))
+    if (max(dims) > max_dims) {
+      log_message(sprintf("Warning: Requested dims %d exceeds available dimensions %d. Using 1:%d", 
+                         max(dims), max_dims, max_dims), log_list, level = "WARNING")
+      dims <- 1:max_dims
+    }
+    
+    resolution <- as.numeric(get_param("scvi_resolution", config_list, 0.6))
+    
+    log_message(sprintf("Finding neighbors using dims: %s", paste(dims, collapse = ", ")), log_list)
+    merged <- FindNeighbors(merged, reduction = "integrated.scvi", dims = dims, 
+                            graph.name = c("scvi.nn", "scvi.snn"), verbose = FALSE)
+    
+    log_message("Finding clusters...", log_list)
+    merged <- FindClusters(merged, resolution = resolution, 
+                           graph.name = "scvi.snn", verbose = FALSE)
+    
+    log_message("Running UMAP...", log_list)
+    merged <- RunUMAP(merged, reduction = "integrated.scvi", dims = dims, 
+                     reduction.name = "umap.scvi", verbose = FALSE)
+    
+    # Join layers after integration
+    if (packageVersion("Seurat") >= "5.0.0") {
+      merged <- JoinLayers(merged)
+    }
+    
+    merged
+  }, error = function(e) {
+    log_message(sprintf("!!! ERROR in downstream analysis: %s !!!", e$message), log_list, level = "ERROR")
+    log_message("Returning object with integration only (without downstream analysis)", log_list, level = "WARNING")
+    # Return merged object even if downstream analysis fails
+    return(merged)
+  })
   
-  resolution <- as.numeric(get_param("scvi_resolution", config_list, 0.6))
-  
-  integrated <- FindNeighbors(merged, reduction = "integrated.scvi", dims = dims, 
-                              graph.name = c("scvi.nn", "scvi.snn"), verbose = FALSE)
-  integrated <- FindClusters(integrated, resolution = resolution, 
-                             graph.name = "scvi.snn", verbose = FALSE)
-  integrated <- RunUMAP(integrated, reduction = "integrated.scvi", dims = dims, 
-                       reduction.name = "umap.scvi", verbose = FALSE)
-  
-  # Join layers after integration
-  if (packageVersion("Seurat") >= "5.0.0") {
-    integrated <- JoinLayers(integrated)
-  }
+  log_message("Downstream analysis completed", log_list)
 }
 
-# Save results
+# Save final results
 output_filename <- ifelse(opt$method == "RPCA",
                           get_param("output_step6_integration_rpca", config_list, "step6_integration_rpca.qs"),
                           get_param("output_step6_integration_scvi", config_list, "step6_integration_scvi.qs"))
 output_path <- get_output_path(opt$run_id, opt$output_step, output_filename, output_base_dir)
 
-log_message(sprintf("Saving integrated object to: %s", output_path), log_list)
+# Check if intermediate save path is different from final save path
+if (opt$method == "scVI" && exists("output_path_scvi")) {
+  if (output_path != output_path_scvi) {
+    log_message(sprintf("Final save path differs from intermediate. Final: %s", output_path), log_list)
+  }
+}
+
+log_message(sprintf("Saving final integrated object to: %s", output_path), log_list)
 save_intermediate(integrated, output_path, log_list)
 
+# Final summary
 log_message(sprintf("Step %d completed: Integration finished with %d cells", 
                    opt$output_step, ncol(integrated)), log_list)
+if ("integrated.scvi" %in% names(integrated@reductions) || "integrated.rpca" %in% names(integrated@reductions)) {
+  reduction_name <- ifelse(opt$method == "RPCA", "integrated.rpca", "integrated.scvi")
+  reduction_embeddings <- Embeddings(integrated, reduction = reduction_name)
+  log_message(sprintf("Final reduction '%s': %d cells, %d dimensions", 
+                     reduction_name, nrow(reduction_embeddings), ncol(reduction_embeddings)), log_list)
+}
 
 close_logging(log_list)
 cat(sprintf("Step %d completed successfully. Integrated object has %d cells.\n", 

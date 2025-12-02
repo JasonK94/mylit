@@ -147,6 +147,17 @@ setup_logging <- function(run_id, log_dir = "logs", master_log_file = "total.log
   
   # Run log
   run_log_path <- file.path(run_log_dir, sprintf("%s_log.log", run_id))
+  
+  # Add separator if log file already exists (same run_id reused)
+  if (file.exists(run_log_path) && file.info(run_log_path)$size > 0) {
+    existing_log <- file(run_log_path, open = "a")
+    writeLines("", existing_log)
+    writeLines("========================================", existing_log)
+    writeLines(sprintf("NEW RUN STARTED (same run_id: %s)", run_id), existing_log)
+    writeLines("========================================", existing_log)
+    close(existing_log)
+  }
+  
   run_log <- file(run_log_path, open = "a")
   
   # Log initial message
