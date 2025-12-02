@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Step 4: Doublet detection using scDblFinder
-# Usage: Rscript pipe4_doubletfinder.R --config <config_path> --run_id <run_id> --input_step <step> --output_step <step>
+# Step 5: Doublet detection using scDblFinder
+# Usage: Rscript pipe5_doubletfinder.R --config <config_path> --run_id <run_id> --input_step <step> --output_step <step>
 
 # Load lightweight pipeline environment first
 cmd_args <- commandArgs(trailingOnly = FALSE)
@@ -27,9 +27,9 @@ option_list <- list(
               help = "Path to config.csv file", metavar = "character"),
   make_option(c("--run_id", "-r"), type = "character", default = "run1",
               help = "Run ID", metavar = "character"),
-  make_option(c("--input_step", "-i"), type = "integer", default = 3,
+  make_option(c("--input_step", "-i"), type = "integer", default = 4,
               help = "Input step number", metavar = "integer"),
-  make_option(c("--output_step", "-o"), type = "integer", default = 4,
+  make_option(c("--output_step", "-o"), type = "integer", default = 5,
               help = "Output step number", metavar = "integer")
 )
 
@@ -53,9 +53,9 @@ log_message(sprintf("Step %d: Starting doublet detection (scDblFinder)", opt$out
 config_list <- load_config(opt$config)
 output_base_dir <- get_param("output_base_dir", config_list, "/data/user3/sobj/pipe")
 
-# Load input from previous step
+# Load input from previous step (Step 4: SCTransform)
 input_path <- get_output_path(opt$run_id, opt$input_step, 
-                              get_param("output_step3_soupx", config_list, "step3_soupx_list.qs"),
+                              get_param("output_step4_sct", config_list, "step4_sct_list.qs"),
                               output_base_dir)
 log_message(sprintf("Loading input from: %s", input_path), log_list)
 sl <- load_intermediate(input_path, log_list)
@@ -71,8 +71,9 @@ for (sample_name in names(sl)) {
   obj <- sl[[sample_name]]
   
   tryCatch({
-    # Need to run SCTransform first if not already done
+    # Check if SCTransform was already done (should be from Step 4)
     if (!"SCT" %in% names(obj@assays)) {
+      log_message(sprintf("  WARNING: SCT assay not found for %s. SCTransform should have been done in Step 4.", sample_name), log_list, level = "WARNING")
       log_message(sprintf("  Running SCTransform for %s (required for scDblFinder)", sample_name), log_list)
       
       method <- get_param("sct_method", config_list, "glmGamPoi")
@@ -80,7 +81,7 @@ for (sample_name in names(sl)) {
       variable_features_n <- as.numeric(get_param("sct_variable_features_n", config_list, 3000))
       conserve_memory <- get_param("sct_conserve_memory", config_list, TRUE)
       
-      obj <- SCTransform(obj, 
+      obj <- SCTransform(obj,
                         method = method,
                         vst.flavor = vst_flavor,
                         variable.features.n = variable_features_n,
@@ -89,6 +90,8 @@ for (sample_name in names(sl)) {
       
       # Run PCA for visualization
       obj <- RunPCA(obj, verbose = FALSE)
+    } else {
+      log_message(sprintf("  SCT assay found for %s (from Step 4)", sample_name), log_list)
     }
     
     log_message(sprintf("  Running scDblFinder for %s", sample_name), log_list)
@@ -147,7 +150,7 @@ for (sample_name in names(sl)) {
 # Save results
 if (length(sl) > 0) {
   output_path <- get_output_path(opt$run_id, opt$output_step, 
-                                 get_param("output_step4_doublet", config_list, "step4_doublet_list.qs"),
+                                 get_param("output_step5_doublet", config_list, "step5_doublet_list.qs"),
                                  output_base_dir)
   
   log_message(sprintf("Saving results to: %s", output_path), log_list)
@@ -156,7 +159,7 @@ if (length(sl) > 0) {
 } else {
   log_message("No samples were successfully processed!", log_list, level = "ERROR")
   close_logging(log_list)
-  stop("Step 4 failed: No samples processed")
+  stop("Step 5 failed: No samples processed")
 }
 
 close_logging(log_list)

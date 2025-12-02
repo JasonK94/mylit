@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Step 5: Integration using RPCA or scVI
-# Usage: Rscript pipe5_integration.R --config <config_path> --run_id <run_id> --input_step <step> --output_step <step> --method <RPCA|scVI>
+# Step 6: Integration using RPCA or scVI
+# Usage: Rscript pipe6_integration.R --config <config_path> --run_id <run_id> --input_step <step> --output_step <step> --method <RPCA|scVI>
 
 # Load lightweight pipeline environment first
 cmd_args <- commandArgs(trailingOnly = FALSE)
@@ -25,9 +25,9 @@ option_list <- list(
               help = "Path to config.csv file", metavar = "character"),
   make_option(c("--run_id", "-r"), type = "character", default = "run1",
               help = "Run ID", metavar = "character"),
-  make_option(c("--input_step", "-i"), type = "integer", default = 4,
+  make_option(c("--input_step", "-i"), type = "integer", default = 5,
               help = "Input step number", metavar = "integer"),
-  make_option(c("--output_step", "-o"), type = "integer", default = 5,
+  make_option(c("--output_step", "-o"), type = "integer", default = 6,
               help = "Output step number", metavar = "integer"),
   make_option(c("--method", "-m"), type = "character", default = "RPCA",
               help = "Integration method: RPCA or scVI", metavar = "character")
@@ -62,9 +62,9 @@ log_message("Setting up parallel processing...", log_list)
 future::plan(future::multisession, workers = 2)
 options(future.globals.maxSize = 200 * 1024^3)
 
-# Load input from previous step
+# Load input from previous step (Step 5: Doublet Detection)
 input_path <- get_output_path(opt$run_id, opt$input_step, 
-                              get_param("output_step4_doublet", config_list, "step4_doublet_list.qs"),
+                              get_param("output_step5_doublet", config_list, "step5_doublet_list.qs"),
                               output_base_dir)
 log_message(sprintf("Loading input from: %s", input_path), log_list)
 sl <- load_intermediate(input_path, log_list)
@@ -248,8 +248,11 @@ if (opt$method == "RPCA") {
     python_path = python_path,
     verbose = TRUE
   )
-  log_message(sprintf("scVIIntegration completed. data saved to: %s", file.path(output_base_dir, "step5_integration_scvi.qs")), log_list)
-  qs::qsave(merged, file.path(output_base_dir, "step5_integration_scvi.qs"))
+  output_path_scvi <- get_output_path(opt$run_id, opt$output_step,
+                                      get_param("output_step6_integration_scvi", config_list, "step6_integration_scvi.qs"),
+                                      output_base_dir)
+  log_message(sprintf("scVIIntegration completed. data saved to: %s", output_path_scvi), log_list)
+  qs::qsave(merged, output_path_scvi)
   # Downstream analysis
   log_message("Running downstream analysis...", log_list)
   dims_str <- get_param("scvi_dims", config_list, "1:30")
@@ -283,8 +286,8 @@ if (opt$method == "RPCA") {
 
 # Save results
 output_filename <- ifelse(opt$method == "RPCA",
-                          get_param("output_step5_integration_rpca", config_list, "step5_integration_rpca.qs"),
-                          get_param("output_step5_integration_scvi", config_list, "step5_integration_scvi.qs"))
+                          get_param("output_step6_integration_rpca", config_list, "step6_integration_rpca.qs"),
+                          get_param("output_step6_integration_scvi", config_list, "step6_integration_scvi.qs"))
 output_path <- get_output_path(opt$run_id, opt$output_step, output_filename, output_base_dir)
 
 log_message(sprintf("Saving integrated object to: %s", output_path), log_list)

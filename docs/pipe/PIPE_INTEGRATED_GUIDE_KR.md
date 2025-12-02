@@ -34,16 +34,16 @@ flowchart TD
     C --> C2["HTO: HTODemux/MULTIseqDemux"]
     C1 --> D1["Step 1 출력<br/>step1/step1_demulti_list.qs"]
     C2 --> D1
-    D1 --> D["Step 2: Normalization & Clustering<br/>(LogNormalize)"]
+    D1 --> D["Step 2: LogNormalize<br/>& Clustering"]
     D --> D2["Step 2 출력<br/>step2/step2_nmz_list.qs"]
     D2 --> E["Step 3: SoupX<br/>(Ambient RNA 제거)"]
     E --> E1["Step 3 출력<br/>step3/step3_soupx_list.qs"]
-    E1 --> F["Step 2: SCTransform<br/>(재실행)"]
-    F --> F1["Step 2 출력<br/>step2/step2_nmz_list.qs<br/>(덮어쓰기)"]
-    F1 --> G["Step 4: Doublet 탐지<br/>(scDblFinder)"]
-    G --> G1["Step 4 출력<br/>step4/step4_doublet_list.qs"]
-    G1 --> H["Step 5: Integration<br/>(RPCA 또는 scVI)"]
-    H --> H1["Step 5 출력<br/>step5/step5_integration_rpca.qs<br/>또는<br/>step5/step5_integration_scvi.qs"]
+    E1 --> F["Step 4: SCTransform"]
+    F --> F1["Step 4 출력<br/>step4/step4_sct_list.qs"]
+    F1 --> G["Step 5: Doublet 탐지<br/>(scDblFinder)"]
+    G --> G1["Step 5 출력<br/>step5/step5_doublet_list.qs"]
+    G1 --> H["Step 6: Integration<br/>(RPCA 또는 scVI)"]
+    H --> H1["Step 6 출력<br/>step6/step6_integration_rpca.qs<br/>또는<br/>step6/step6_integration_scvi.qs"]
     H1 --> I["종료: 통합된 객체"]
     
     style A fill:#e1f5ff
@@ -67,15 +67,16 @@ flowchart TD
     ├── step1/
     │   └── step1_demulti_list.qs          # Step 1 출력: Demultiplexing 완료된 Seurat 객체 리스트
     ├── step2/
-    │   └── step2_nmz_list.qs              # Step 2 출력: Normalization & Clustering 완료된 객체 리스트
-    │                                       # (LogNormalize 후 저장, SCTransform 후 덮어쓰기)
+    │   └── step2_nmz_list.qs              # Step 2 출력: LogNormalize & Clustering 완료된 객체 리스트
     ├── step3/
     │   └── step3_soupx_list.qs            # Step 3 출력: SoupX 보정 완료된 객체 리스트
     ├── step4/
-    │   └── step4_doublet_list.qs          # Step 4 출력: Doublet detection 완료된 객체 리스트
+    │   └── step4_sct_list.qs               # Step 4 출력: SCTransform 완료된 객체 리스트
     ├── step5/
-    │   ├── step5_integration_rpca.qs      # Step 5 출력: RPCA 통합 완료된 단일 객체
-    │   └── step5_integration_scvi.qs      # Step 5 출력: scVI 통합 완료된 단일 객체
+    │   └── step5_doublet_list.qs           # Step 5 출력: Doublet detection 완료된 객체 리스트
+    ├── step6/
+    │   ├── step6_integration_rpca.qs       # Step 6 출력: RPCA 통합 완료된 단일 객체
+    │   └── step6_integration_scvi.qs       # Step 6 출력: scVI 통합 완료된 단일 객체
     └── plots/
         ├── SoupX_*.pdf                    # SoupX 진단 플롯
         └── Doublet_*.png                  # Doublet 탐지 플롯
@@ -87,11 +88,11 @@ flowchart TD
 |------|----------|----------|------|
 | Step 0 | - | - | Config 파일 검증만 수행 |
 | Step 1 | - (raw data 직접 읽기) | `step1/step1_demulti_list.qs` | Raw count matrix + demultiplexing 결과 → Seurat 객체 리스트 |
-| Step 2 (LogNormalize) | `step1/step1_demulti_list.qs` | `step2/step2_nmz_list.qs` | LogNormalize + PCA + Clustering |
+| Step 2 | `step1/step1_demulti_list.qs` | `step2/step2_nmz_list.qs` | LogNormalize + PCA + Clustering |
 | Step 3 | `step2/step2_nmz_list.qs` | `step3/step3_soupx_list.qs` | SoupX ambient RNA correction |
-| Step 2 (SCTransform) | `step3/step3_soupx_list.qs` | `step2/step2_nmz_list.qs` | SCTransform (덮어쓰기) |
-| Step 4 | `step2/step2_nmz_list.qs` | `step4/step4_doublet_list.qs` | scDblFinder doublet detection |
-| Step 5 | `step4/step4_doublet_list.qs` | `step5/step5_integration_*.qs` | Integration (RPCA 또는 scVI) |
+| Step 4 | `step3/step3_soupx_list.qs` | `step4/step4_sct_list.qs` | SCTransform + PCA |
+| Step 5 | `step4/step4_sct_list.qs` | `step5/step5_doublet_list.qs` | scDblFinder doublet detection |
+| Step 6 | `step5/step5_doublet_list.qs` | `step6/step6_integration_*.qs` | Integration (RPCA 또는 scVI) |
 
 ### 2.4 파일 경로 생성 로직
 
@@ -181,13 +182,12 @@ Rscript scripts/pipe1_read_demulti.R \
   --output_step 1 \
   --downsample 0.1  # 테스트용, 실제 분석 시에는 생략
 
-# Step 2: Normalization & Clustering (LogNormalize - SoupX 전용)
+# Step 2: LogNormalize Normalization & Clustering
 Rscript scripts/pipe2_nmz_clustering.R \
   --config config/config_complete2.csv \
   --run_id run1 \
   --input_step 1 \
-  --output_step 2 \
-  --nmz LogNormalize
+  --output_step 2
 
 # Step 3: SoupX Ambient RNA Removal
 Rscript scripts/pipe3_ambient_removal.R \
@@ -196,36 +196,35 @@ Rscript scripts/pipe3_ambient_removal.R \
   --input_step 2 \
   --output_step 3
 
-# Step 2 (재실행): SCTransform (SoupX 후)
-Rscript scripts/pipe2_nmz_clustering.R \
+# Step 4: SCTransform Normalization
+Rscript scripts/pipe4_sctransform.R \
   --config config/config_complete2.csv \
   --run_id run1 \
   --input_step 3 \
-  --output_step 2 \
-  --nmz SCTransform
-
-# Step 4: Doublet Detection (scDblFinder)
-Rscript scripts/pipe4_doubletfinder.R \
-  --config config/config_complete2.csv \
-  --run_id run1 \
-  --input_step 2 \
   --output_step 4
 
-# Step 5: Integration
-# scVI (권장: 작은 데이터셋에서도 robust)
-Rscript scripts/pipe5_integration.R \
+# Step 5: Doublet Detection (scDblFinder)
+Rscript scripts/pipe5_doubletfinder.R \
   --config config/config_complete2.csv \
   --run_id run1 \
   --input_step 4 \
-  --output_step 5 \
+  --output_step 5
+
+# Step 6: Integration
+# scVI (권장: 작은 데이터셋에서도 robust)
+Rscript scripts/pipe6_integration.R \
+  --config config/config_complete2.csv \
+  --run_id run1 \
+  --input_step 5 \
+  --output_step 6 \
   --method scVI
 
 # RPCA (대안)
-Rscript scripts/pipe5_integration.R \
+Rscript scripts/pipe6_integration.R \
   --config config/config_complete2.csv \
   --run_id run1 \
-  --input_step 4 \
-  --output_step 5 \
+  --input_step 5 \
+  --output_step 6 \
   --method RPCA
 ```
 
@@ -483,7 +482,7 @@ Rscript scripts/pipe1_read_demulti.R \
 - PCA 실행
 - 세포 클러스터링
 
-**SCTransform** (SoupX 후):
+**SCTransform** (Step 4, SoupX 후):
 - glmGamPoi 방법으로 SCTransform
 - scale.data layer에서 PCA 실행
 
@@ -504,12 +503,12 @@ Rscript scripts/pipe1_read_demulti.R \
 4. Doublet 점수 및 분류를 메타데이터에 추가
 5. 선택적으로 doublet 제거 (기본값: 모두 유지)
 
-### Step 5: Integration
+### Step 6: Integration
 
 **RPCA**:
 1. 모든 샘플 병합
 2. 배치(GEM)별로 분할
-3. 각 배치 SCTransform
+3. 각 배치 SCTransform (이미 Step 4에서 완료)
 4. Integration anchors 찾기
 5. 데이터 통합
 6. Downstream 분석 실행 (PCA, clustering, UMAP)

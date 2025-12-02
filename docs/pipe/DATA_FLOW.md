@@ -14,12 +14,12 @@ flowchart LR
     C --> C1[step2_nmz_list.qs]
     C1 --> D[Step 3:<br/>SoupX]
     D --> D1[step3_soupx_list.qs]
-    D1 --> E[Step 2:<br/>SCTransform]
-    E --> E1[step2_nmz_list.qs<br/>덮어쓰기]
-    E1 --> F[Step 4:<br/>Doublet Detection]
-    F --> F1[step4_doublet_list.qs]
-    F1 --> G[Step 5:<br/>Integration]
-    G --> G1[step5_integration_*.qs]
+    D1 --> E[Step 4:<br/>SCTransform]
+    E --> E1[step4_sct_list.qs]
+    E1 --> F[Step 5:<br/>Doublet Detection]
+    F --> F1[step5_doublet_list.qs]
+    F1 --> G[Step 6:<br/>Integration]
+    G --> G1[step6_integration_*.qs]
     
     style B1 fill:#e8f5e9
     style C1 fill:#e8f5e9
@@ -48,22 +48,33 @@ flowchart LR
 
 **코드 위치**: `scripts/pipe1_read_demulti.R`
 
-### Step 2: Normalization & Clustering
+### Step 2: LogNormalize Normalization & Clustering
 
 **입력**: 
-- 파일: `step1/step1_demulti_list.qs` (LogNormalize용)
-- 또는: `step3/step3_soupx_list.qs` (SCTransform용)
+- 파일: `step1/step1_demulti_list.qs`
 
 **처리**:
 - LogNormalize: `NormalizeData()` → `FindVariableFeatures()` → `ScaleData()` → `RunPCA()` → `FindClusters()`
-- SCTransform: `SCTransform()` → `RunPCA()`
 
 **출력**: 
 - 파일: `{output_base_dir}/{run_id}/step2/step2_nmz_list.qs`
-- 내용: Seurat 객체 리스트 (normalization 및 clustering 완료)
-- **주의**: SCTransform 실행 시 동일한 파일을 덮어쓰기합니다
+- 내용: Seurat 객체 리스트 (LogNormalize 및 clustering 완료)
 
 **코드 위치**: `scripts/pipe2_nmz_clustering.R`
+
+### Step 4: SCTransform Normalization
+
+**입력**: 
+- 파일: `step3/step3_soupx_list.qs`
+
+**처리**:
+- SCTransform: `SCTransform()` → `RunPCA()`
+
+**출력**: 
+- 파일: `{output_base_dir}/{run_id}/step4/step4_sct_list.qs`
+- 내용: Seurat 객체 리스트 (SCTransform 완료)
+
+**코드 위치**: `scripts/pipe4_sctransform.R`
 
 ### Step 3: SoupX Ambient RNA Removal
 
@@ -81,35 +92,36 @@ flowchart LR
 
 **코드 위치**: `scripts/pipe3_ambient_removal.R`
 
-### Step 4: Doublet Detection
+### Step 5: Doublet Detection
 
 **입력**: 
-- 파일: `step2/step2_nmz_list.qs` (SCTransform 완료된 버전)
+- 파일: `step4/step4_sct_list.qs` (SCTransform 완료된 버전)
 
 **처리**:
-- `SCTransform()` (아직 안 했다면) → `as.SingleCellExperiment()` → `scDblFinder()` → 메타데이터에 doublet 정보 추가
+- `as.SingleCellExperiment()` → `scDblFinder()` → 메타데이터에 doublet 정보 추가
+- **참고**: SCTransform은 Step 4에서 이미 완료되어야 합니다
 
 **출력**: 
-- 파일: `{output_base_dir}/{run_id}/step4/step4_doublet_list.qs`
+- 파일: `{output_base_dir}/{run_id}/step5/step5_doublet_list.qs`
 - 내용: Seurat 객체 리스트 (doublet detection 완료)
 - 플롯: `{output_base_dir}/{run_id}/plots/Doublet_{sample_name}.png`
 
-**코드 위치**: `scripts/pipe4_doubletfinder.R`
+**코드 위치**: `scripts/pipe5_doubletfinder.R`
 
-### Step 5: Integration
+### Step 6: Integration
 
 **입력**: 
-- 파일: `step4/step4_doublet_list.qs`
+- 파일: `step5/step5_doublet_list.qs`
 
 **처리**:
 - 모든 샘플 병합 → Integration (RPCA 또는 scVI) → Downstream 분석 (PCA, UMAP, Clustering)
 
 **출력**: 
-- 파일: `{output_base_dir}/{run_id}/step5/step5_integration_rpca.qs` (RPCA)
-- 또는: `{output_base_dir}/{run_id}/step5/step5_integration_scvi.qs` (scVI)
+- 파일: `{output_base_dir}/{run_id}/step6/step6_integration_rpca.qs` (RPCA)
+- 또는: `{output_base_dir}/{run_id}/step6/step6_integration_scvi.qs` (scVI)
 - 내용: 단일 통합된 Seurat 객체
 
-**코드 위치**: `scripts/pipe5_integration.R`
+**코드 위치**: `scripts/pipe6_integration.R`
 
 ## 4. 파일 경로 생성 함수
 
@@ -142,12 +154,12 @@ sl <- load_intermediate(input_path, log_list)
 특정 step에서 실패한 경우, 이전 step의 출력 파일을 직접 로드하여 재시작할 수 있습니다:
 
 ```r
-# Step 3부터 재시작
+# Step 4부터 재시작
 library(qs)
 sl <- qs::qread("/data/user3/sobj/pipe/test_scvi/step3/step3_soupx_list.qs")
 
-# Step 2 (SCTransform) 실행
-# ... (pipe2_nmz_clustering.R 로직)
+# Step 4 (SCTransform) 실행
+# ... (pipe4_sctransform.R 로직)
 ```
 
 ## 6. 로그 파일 위치
@@ -159,9 +171,11 @@ sl <- qs::qread("/data/user3/sobj/pipe/test_scvi/step3/step3_soupx_list.qs")
 
 ## 7. 주의사항
 
-1. **Step 2 파일 덮어쓰기**: SCTransform 실행 시 `step2_nmz_list.qs`를 덮어쓰기하므로, LogNormalize 결과를 보존하려면 별도로 저장하세요.
+1. **각 Step은 별도 파일 생성**: 이제 각 step이 독립적인 파일을 생성하므로 덮어쓰기 문제가 없습니다.
+   - Step 2: `step2_nmz_list.qs` (LogNormalize)
+   - Step 4: `step4_sct_list.qs` (SCTransform)
 
-2. **Step 5 중간 저장**: scVI integration 완료 후 `step5_integration_scvi.qs`에 중간 저장이 수행됩니다 (downstream 분석 전).
+2. **Step 6 중간 저장**: scVI integration 완료 후 `step6_integration_scvi.qs`에 중간 저장이 수행됩니다 (downstream 분석 전).
 
 3. **파일 경로**: 모든 경로는 `output_base_dir` (기본값: `/data/user3/sobj/pipe`) 기준으로 생성됩니다.
 

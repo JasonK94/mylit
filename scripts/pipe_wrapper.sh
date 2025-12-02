@@ -122,39 +122,37 @@ run_step 1 "pipe1_read_demulti.R" \
   --input_step 0 \
   --output_step 1
 
-# Step 2: Normalization and clustering (LogNormalize for SoupX)
+# Step 2: LogNormalize normalization and clustering (for SoupX)
 run_step 2 "pipe2_nmz_clustering.R" \
   --input_step 1 \
-  --output_step 2 \
-  --nmz LogNormalize
+  --output_step 2
 
 # Step 3: SoupX ambient RNA removal
 run_step 3 "pipe3_ambient_removal.R" \
   --input_step 2 \
   --output_step 3
 
-# Step 2 again: SCTransform (after SoupX)
-run_step 2 "pipe2_nmz_clustering.R" \
+# Step 4: SCTransform normalization (after SoupX)
+run_step 4 "pipe4_sctransform.R" \
   --input_step 3 \
-  --output_step 2 \
-  --nmz SCTransform
-
-# Step 4: Doublet detection
-run_step 4 "pipe4_doubletfinder.R" \
-  --input_step 2 \
   --output_step 4
 
-# Step 5: Integration (RPCA)
-run_step 5 "pipe5_integration.R" \
+# Step 5: Doublet detection
+run_step 5 "pipe5_doubletfinder.R" \
   --input_step 4 \
-  --output_step 5 \
+  --output_step 5
+
+# Step 6: Integration (RPCA)
+run_step 6 "pipe6_integration.R" \
+  --input_step 5 \
+  --output_step 6 \
   --method RPCA
 
-# Step 5: Integration (scVI) - optional, can be skipped if not needed
+# Step 6: Integration (scVI) - optional, can be skipped if not needed
 # Uncomment to run scVI integration as well
-# run_step 5 "pipe5_integration.R" \
-#   --input_step 4 \
-#   --output_step 5 \
+# run_step 6 "pipe6_integration.R" \
+#   --input_step 5 \
+#   --output_step 6 \
 #   --method scVI
 
 echo "=========================================="
