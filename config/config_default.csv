@@ -1,0 +1,89 @@
+parameter,value,description
+# General settings
+output_base_dir,/data/user3/sobj/pipe,Base directory for all output files
+run_id_format,run%d,Format string for run IDs (e.g., run1, run2)
+seed,1234,Random seed for reproducibility
+
+# Demultiplexing - SNP (demuxalot)
+demuxalot_singlet_threshold,0.5,Minimum probability for singlet assignment
+demuxalot_doublet_threshold,0.3,Minimum probability for doublet assignment
+demuxalot_doublet_separator,+,Separator used in doublet names (e.g., Sample1+Sample2)
+demuxalot_barcode_col,BARCODE,Column name for barcodes in demuxalot output
+demuxalot_annotation_col,Best_Sample,Column name for sample assignment in demuxalot output
+
+# Demultiplexing - HTO
+hto_demux_method,HTODemux,Method for HTO demultiplexing (HTODemux or MULTIseqDemux)
+hto_assay_name,Multiplexing Capture,Name of HTO assay in Read10X output
+hto_positive_quantile,0.99,Quantile for positive HTO signal
+
+# QC metrics
+qc_min_nfeature,200,Minimum number of detected genes per cell
+qc_max_nfeature,5000,Maximum number of detected genes per cell
+qc_max_percent_mt,20,Maximum mitochondrial gene percentage
+qc_mt_pattern,^MT-,Pattern for mitochondrial genes
+qc_ribo_pattern_rps,^RPS,Pattern for RPS ribosomal genes
+qc_ribo_pattern_rpl,^RPL,Pattern for RPL ribosomal genes
+qc_min_cells,20,Minimum number of cells after QC to continue
+
+# Normalization - LogNormalize (pre-SoupX)
+lognorm_scale_factor,10000,Scale factor for LogNormalize
+lognorm_nfeatures,2000,Number of variable features for LogNormalize
+lognorm_selection_method,disp,Method for variable feature selection (vst, disp, mean.var.plot)
+
+# Normalization - SCTransform
+sct_method,glmGamPoi,Method for SCTransform (glmGamPoi or poisson)
+sct_vst_flavor,v2,Flavor of variance stabilizing transformation
+sct_variable_features_n,3000,Number of variable features for SCTransform
+sct_conserve_memory,TRUE,Whether to conserve memory during SCTransform
+
+# Clustering (pre-SoupX)
+pre_soupx_npcs,20,Number of PCs for pre-SoupX clustering
+pre_soupx_dims,1:10,Dimensions to use for FindNeighbors
+pre_soupx_resolution,0.5,Resolution for FindClusters
+
+# SoupX
+soupx_force_accept,TRUE,Force accept contamination estimate
+soupx_do_plot,TRUE,Generate plots during autoEstCont
+soupx_plot_width,7,Width of SoupX plots in inches
+soupx_plot_height,6,Height of SoupX plots in inches
+
+# Doublet detection (scDblFinder)
+scdblfinder_clusters,TRUE,Use clusters for scDblFinder
+scdblfinder_plot_width,7,Width of doublet plots in inches
+scdblfinder_plot_height,6,Height of doublet plots in inches
+scdblfinder_remove_doublets,FALSE,Whether to remove doublets (default: keep all)
+
+# Integration - General
+integration_workers,6,Number of workers for parallel processing in integration
+# Integration - RPCA
+rpca_npcs,50,Number of PCs for RPCA integration
+rpca_dims,1:30,Dimensions to use for integration
+rpca_resolution,0.6,Resolution for clustering after integration
+rpca_nfeatures,3000,Number of features for integration
+
+# Integration - scVI
+scvi_conda_env,/home/user3/miniconda3/envs/scvi-env/,Path to conda environment
+scvi_python_path,/home/user3/miniconda3/envs/scvi-env/bin/python,Path to Python executable
+scvi_batch_col,GEM,Column name for batch in metadata
+scvi_dims,1:30,Dimensions to use for scVI integration
+scvi_resolution,0.6,Resolution for clustering after scVI integration
+
+# Metadata extraction
+metadata_timepoint_regex,\\d+$,Regex pattern to extract timepoint from sample name
+metadata_day_map_24,1,Day value for timepoint 24
+metadata_day_map_72,3,Day value for timepoint 72
+
+# File paths
+metadata_sample_col,exp_sample_no,Column name for sample ID in metadata file
+metadata_gem_col,GEM,Column name for GEM in metadata file
+join_key_col,join_key,Column name for join key in Seurat metadata
+
+# Output file names
+output_step1_demulti,step1_demulti_list.qs,Output filename for step 1 (demultiplexing)
+output_step2_nmz,step2_nmz_list.qs,Output filename for step 2 (LogNormalize normalization)
+output_step3_soupx,step3_soupx_list.qs,Output filename for step 3 (SoupX)
+output_step4_sct,step4_sct_list.qs,Output filename for step 4 (SCTransform normalization)
+output_step5_doublet,step5_doublet_list.qs,Output filename for step 5 (doublet detection)
+output_step6_integration_rpca,step6_integration_rpca.qs,Output filename for step 6 RPCA integration
+output_step6_integration_scvi,step6_integration_scvi.qs,Output filename for step 6 scVI integration
+

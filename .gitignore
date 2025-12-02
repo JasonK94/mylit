@@ -50,6 +50,9 @@ renv/
 *.pdf
 *.png
 *.csv
+# Exception: track config CSV files for pipeline
+!config/*.csv
+!**/config/*.csv
 */data/*
 *.tar.gz
 *.gz
