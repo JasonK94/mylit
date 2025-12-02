@@ -493,13 +493,17 @@ Rscript scripts/pipe1_read_demulti.R \
 5. Count 조정
 6. 진단 플롯 저장
 
-### Step 4: Doublet Detection
+### Step 4: SCTransform Normalization
 
-1. 아직 안 했다면 SCTransform 실행
-2. SingleCellExperiment로 변환
-3. scDblFinder 실행
-4. Doublet 점수 및 분류를 메타데이터에 추가
-5. 선택적으로 doublet 제거 (기본값: 모두 유지)
+1. SCTransform 실행 (glmGamPoi 방법)
+2. scale.data layer에서 PCA 실행
+
+### Step 5: Doublet Detection
+
+1. SingleCellExperiment로 변환
+2. scDblFinder 실행 (SCTransform은 Step 4에서 이미 완료)
+3. Doublet 점수 및 분류를 메타데이터에 추가
+4. 선택적으로 doublet 제거 (기본값: 모두 유지)
 
 ### Step 6: Integration
 
