@@ -248,10 +248,17 @@ if (opt$method == "RPCA") {
     python_path = python_path,
     verbose = TRUE
   )
-  
+  log_message(sprintf("scVIIntegration completed. data saved to: %s", file.path(output_base_dir, "step5_integration_scvi.qs")), log_list)
+  qs::qsave(merged, file.path(output_base_dir, "step5_integration_scvi.qs"))
   # Downstream analysis
   log_message("Running downstream analysis...", log_list)
   dims_str <- get_param("scvi_dims", config_list, "1:30")
+  # Ensure dims_str is a single character string
+  if (length(dims_str) > 1) {
+    dims_str <- dims_str[1]
+    warning("Multiple values for scvi_dims, using first: ", dims_str)
+  }
+  dims_str <- as.character(dims_str)
   # Parse dims string (e.g., "1:30" -> c(1:30))
   if (grepl(":", dims_str)) {
     dims <- eval(parse(text = dims_str))

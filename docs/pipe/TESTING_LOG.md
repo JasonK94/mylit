@@ -2,6 +2,12 @@
 
 이 문서는 파이프라인 테스트 과정에서 발생한 오류와 해결 방법을 기록합니다.
 
+## 로그 파일 위치
+
+- **실제 파이프라인 로그**: `logs/{run_id}/{run_id}_log.log`
+- **Master log**: `logs/total.log`
+- **참고**: `/tmp/scvi_test2.log`는 테스트 중 직접 실행한 명령의 출력을 확인하기 위해 사용한 임시 파일입니다.
+
 ## Step 1: Read Data & Demultiplexing
 
 ### 오류 1: HTO assay 이름 처리 문제
@@ -35,6 +41,12 @@
 ### 상태: 성공
 - SoupX 정상 작동
 - 일부 경고 메시지 있으나 치명적 오류 없음
+
+### 경고 메시지: "No plausible marker genes found"
+**상황**: 다운샘플링된 데이터(10%)에서 많은 샘플에서 발생
+**원인**: 데이터가 너무 작아서 SoupX가 marker gene을 찾지 못함
+**해결**: 파이프라인이 자동으로 원본 counts를 유지 (`[WARNING] Keeping original counts`)
+**결론**: **정상적인 동작**이며, 다운샘플링된 데이터에서는 예상되는 현상입니다. Full data에서는 대부분의 샘플에서 SoupX가 정상 작동합니다.
 
 ## Step 4: Doublet Detection (scDblFinder)
 

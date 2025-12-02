@@ -24,26 +24,97 @@
 
 ## 2. 워크플로우 시각화
 
+### 2.1 전체 파이프라인 흐름
+
 ```mermaid
 flowchart TD
     A["시작: Config 파일"] --> B["Step 0: 검증"]
     B --> C["Step 1: 읽기 & Demultiplexing"]
-    C --> D["Step 2: Normalization & Clustering<br/>(LogNormalize)"]
-    D --> E["Step 3: SoupX<br/>(Ambient RNA 제거)"]
-    E --> F["Step 2: SCTransform"]
-    F --> G["Step 4: Doublet 탐지<br/>(scDblFinder)"]
-    G --> H["Step 5: Integration<br/>(RPCA 또는 scVI)"]
-    H --> I["종료: 통합된 객체"]
-    
     C --> C1["SNP: demuxalot"]
     C --> C2["HTO: HTODemux/MULTIseqDemux"]
+    C1 --> D1["Step 1 출력<br/>step1/step1_demulti_list.qs"]
+    C2 --> D1
+    D1 --> D["Step 2: Normalization & Clustering<br/>(LogNormalize)"]
+    D --> D2["Step 2 출력<br/>step2/step2_nmz_list.qs"]
+    D2 --> E["Step 3: SoupX<br/>(Ambient RNA 제거)"]
+    E --> E1["Step 3 출력<br/>step3/step3_soupx_list.qs"]
+    E1 --> F["Step 2: SCTransform<br/>(재실행)"]
+    F --> F1["Step 2 출력<br/>step2/step2_nmz_list.qs<br/>(덮어쓰기)"]
+    F1 --> G["Step 4: Doublet 탐지<br/>(scDblFinder)"]
+    G --> G1["Step 4 출력<br/>step4/step4_doublet_list.qs"]
+    G1 --> H["Step 5: Integration<br/>(RPCA 또는 scVI)"]
+    H --> H1["Step 5 출력<br/>step5/step5_integration_rpca.qs<br/>또는<br/>step5/step5_integration_scvi.qs"]
+    H1 --> I["종료: 통합된 객체"]
     
     style A fill:#e1f5ff
     style I fill:#c8e6c9
     style B fill:#fff9c4
     style E fill:#ffccbc
     style H fill:#f3e5f5
+    style D1 fill:#e8f5e9
+    style D2 fill:#e8f5e9
+    style E1 fill:#e8f5e9
+    style F1 fill:#e8f5e9
+    style G1 fill:#e8f5e9
+    style H1 fill:#e8f5e9
 ```
+
+### 2.2 데이터 저장 구조
+
+```
+/data/user3/sobj/pipe/
+└── {run_id}/
+    ├── step1/
+    │   └── step1_demulti_list.qs          # Step 1 출력: Demultiplexing 완료된 Seurat 객체 리스트
+    ├── step2/
+    │   └── step2_nmz_list.qs              # Step 2 출력: Normalization & Clustering 완료된 객체 리스트
+    │                                       # (LogNormalize 후 저장, SCTransform 후 덮어쓰기)
+    ├── step3/
+    │   └── step3_soupx_list.qs            # Step 3 출력: SoupX 보정 완료된 객체 리스트
+    ├── step4/
+    │   └── step4_doublet_list.qs          # Step 4 출력: Doublet detection 완료된 객체 리스트
+    ├── step5/
+    │   ├── step5_integration_rpca.qs      # Step 5 출력: RPCA 통합 완료된 단일 객체
+    │   └── step5_integration_scvi.qs      # Step 5 출력: scVI 통합 완료된 단일 객체
+    └── plots/
+        ├── SoupX_*.pdf                    # SoupX 진단 플롯
+        └── Doublet_*.png                  # Doublet 탐지 플롯
+```
+
+### 2.3 각 Step의 입력/출력 파일
+
+| Step | 입력 파일 | 출력 파일 | 설명 |
+|------|----------|----------|------|
+| Step 0 | - | - | Config 파일 검증만 수행 |
+| Step 1 | - (raw data 직접 읽기) | `step1/step1_demulti_list.qs` | Raw count matrix + demultiplexing 결과 → Seurat 객체 리스트 |
+| Step 2 (LogNormalize) | `step1/step1_demulti_list.qs` | `step2/step2_nmz_list.qs` | LogNormalize + PCA + Clustering |
+| Step 3 | `step2/step2_nmz_list.qs` | `step3/step3_soupx_list.qs` | SoupX ambient RNA correction |
+| Step 2 (SCTransform) | `step3/step3_soupx_list.qs` | `step2/step2_nmz_list.qs` | SCTransform (덮어쓰기) |
+| Step 4 | `step2/step2_nmz_list.qs` | `step4/step4_doublet_list.qs` | scDblFinder doublet detection |
+| Step 5 | `step4/step4_doublet_list.qs` | `step5/step5_integration_*.qs` | Integration (RPCA 또는 scVI) |
+
+### 2.4 파일 경로 생성 로직
+
+각 스크립트는 다음 함수를 사용하여 파일 경로를 생성합니다:
+
+- **`get_output_path(run_id, step, filename, output_base_dir)`**: 
+  - 경로: `{output_base_dir}/{run_id}/step{step}/{filename}`
+  - 예: `/data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs`
+
+- **`load_intermediate(filepath, log_list)`**: 
+  - 이전 step의 출력 파일을 로드
+  - 예: Step 2는 `step1/step1_demulti_list.qs`를 로드
+
+### 2.5 로그 파일 구조
+
+```
+logs/
+├── total.log                    # Master log (모든 run의 로그)
+└── {run_id}/
+    └── {run_id}_log.log         # Run-specific log
+```
+
+**참고**: 테스트 중 `/tmp/scvi_test2.log`를 확인한 것은 제가 직접 실행한 명령의 출력을 확인하기 위한 것이었습니다. 실제 파이프라인 로그는 `logs/{run_id}/{run_id}_log.log`에 저장됩니다.
 
 ## 3. 개발 로그 및 개선사항
 
@@ -372,8 +443,10 @@ Rscript scripts/pipe1_read_demulti.R \
 #### 4. SoupX: "No plausible marker genes found"
 **원인**: 데이터가 너무 작거나 복잡도가 낮음
 **해결**: 
-- 다운샘플링된 데이터에서는 정상일 수 있음
+- 다운샘플링된 데이터에서는 정상일 수 있음 (10% 다운샘플링 시 많은 샘플에서 발생)
 - Full data에서는 자동으로 원본 counts 유지
+- **로그 확인**: `logs/{run_id}/{run_id}_log.log`에서 `[WARNING] Keeping original counts` 메시지 확인
+- 이는 **정상적인 동작**이며, SoupX가 실패한 경우 원본 counts를 유지합니다
 
 #### 5. HTODemux: "Cells with zero counts exist as a cluster"
 **원인**: HTO counts가 0인 세포가 클러스터에 포함됨
@@ -447,7 +520,11 @@ Rscript scripts/pipe1_read_demulti.R \
 3. SeuratWrappers를 통한 scVIIntegration 실행
 4. Downstream 분석 실행
 
-## 6. 부록
+## 6. 데이터 흐름 상세 가이드
+
+각 step에서 데이터가 어떻게 저장되고 로드되는지에 대한 상세한 설명은 [`DATA_FLOW.md`](DATA_FLOW.md)를 참조하세요.
+
+## 7. 부록
 
 ### 출력 구조
 
