@@ -1,5 +1,9 @@
 # Pipeline Documentation
 
+## 빠른 시작
+
+- **[명령어 가이드](COMMANDS.md)**: 모든 스크립트와 실행 방법 (권장 시작점)
+
 ## 통합 가이드
 
 - [영문 가이드](PIPE_INTEGRATED_GUIDE.md)
