@@ -30,7 +30,11 @@ option_list <- list(
   make_option(c("--output_step", "-o"), type = "integer", default = 6,
               help = "Output step number", metavar = "integer"),
   make_option(c("--method", "-m"), type = "character", default = "RPCA",
-              help = "Integration method: RPCA or scVI", metavar = "character")
+              help = "Integration method: RPCA or scVI", metavar = "character"),
+  make_option(c("--input_dir", "-I"), type = "character", default = NULL,
+              help = "Input directory (overrides run_id-based path)", metavar = "character"),
+  make_option(c("--output_dir", "-O"), type = "character", default = NULL,
+              help = "Output directory (overrides run_id-based path)", metavar = "character")
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -67,9 +71,16 @@ future::plan(future::multisession, workers = n_workers)
 options(future.globals.maxSize = 200 * 1024^3)
 
 # Load input from previous step (Step 5: Doublet Detection)
-input_path <- get_output_path(opt$run_id, opt$input_step, 
-                              get_param("output_step5_doublet", config_list, "step5_doublet_list.qs"),
-                              output_base_dir)
+# Use input_dir if provided, otherwise use run_id-based path
+if (!is.null(opt$input_dir)) {
+  input_filename <- get_param("output_step5_doublet", config_list, "step5_doublet_list.qs")
+  input_path <- file.path(opt$input_dir, sprintf("step%d", opt$input_step), input_filename)
+  log_message(sprintf("Using custom input directory: %s", opt$input_dir), log_list)
+} else {
+  input_path <- get_output_path(opt$run_id, opt$input_step, 
+                                get_param("output_step5_doublet", config_list, "step5_doublet_list.qs"),
+                                output_base_dir)
+}
 log_message(sprintf("Loading input from: %s", input_path), log_list)
 sl <- load_intermediate(input_path, log_list)
 
@@ -379,7 +390,7 @@ if (opt$method == "RPCA") {
 output_filename <- ifelse(opt$method == "RPCA",
                           get_param("output_step6_integration_rpca", config_list, "step6_integration_rpca.qs"),
                           get_param("output_step6_integration_scvi", config_list, "step6_integration_scvi.qs"))
-output_path <- get_output_path(opt$run_id, opt$output_step, output_filename, output_base_dir)
+output_path <- get_output_path(opt$run_id, opt$output_step, output_filename, output_base_dir, opt$output_dir)
 
 # Check if intermediate save path is different from final save path
 if (opt$method == "scVI" && exists("output_path_scvi")) {

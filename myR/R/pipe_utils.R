@@ -209,17 +209,25 @@ close_logging <- function(log_list) {
 #' Get Output Path
 #'
 #' Constructs output file path based on run_id and step
+#' If output_dir is provided, uses it directly; otherwise constructs from run_id
 #'
 #' @param run_id Run identifier
 #' @param step Step number or name
 #' @param filename Filename
 #' @param output_base_dir Base directory for outputs (default: "/data/user3/sobj/pipe")
+#' @param output_dir Optional: direct output directory path (overrides run_id-based path)
 #'
 #' @return Full path to output file
 #'
 #' @export
-get_output_path <- function(run_id, step, filename, output_base_dir = "/data/user3/sobj/pipe") {
-  step_dir <- file.path(output_base_dir, run_id, sprintf("step%d", step))
+get_output_path <- function(run_id, step, filename, output_base_dir = "/data/user3/sobj/pipe", output_dir = NULL) {
+  if (!is.null(output_dir)) {
+    # Use provided output_dir directly
+    step_dir <- file.path(output_dir, sprintf("step%d", step))
+  } else {
+    # Use run_id-based path
+    step_dir <- file.path(output_base_dir, run_id, sprintf("step%d", step))
+  }
   dir.create(step_dir, recursive = TRUE, showWarnings = FALSE)
   file.path(step_dir, filename)
 }
@@ -227,23 +235,51 @@ get_output_path <- function(run_id, step, filename, output_base_dir = "/data/use
 #' Save Intermediate Object
 #'
 #' Saves an R object using qs for fast serialization
+#' Automatically appends _1, _2, ... if file already exists to prevent overwriting
 #'
 #' @param obj Object to save
 #' @param filepath Full path to output file
 #' @param log_list Optional log list for logging
+#' @param prevent_overwrite If TRUE, appends _1, _2, ... if file exists (default: TRUE)
+#'
+#' @return Actual filepath used (may differ if prevent_overwrite is TRUE)
 #'
 #' @export
-save_intermediate <- function(obj, filepath, log_list = NULL) {
+save_intermediate <- function(obj, filepath, log_list = NULL, prevent_overwrite = TRUE) {
   if (!requireNamespace("qs", quietly = TRUE)) {
     stop("qs package is required for fast serialization")
   }
   
   dir.create(dirname(filepath), recursive = TRUE, showWarnings = FALSE)
+  
+  # Prevent overwriting by appending _1, _2, ... if file exists
+  if (prevent_overwrite && file.exists(filepath)) {
+    base_path <- tools::file_path_sans_ext(filepath)
+    ext <- tools::file_ext(filepath)
+    if (ext != "") {
+      ext <- paste0(".", ext)
+    }
+    
+    counter <- 1
+    new_filepath <- paste0(base_path, "_", counter, ext)
+    while (file.exists(new_filepath)) {
+      counter <- counter + 1
+      new_filepath <- paste0(base_path, "_", counter, ext)
+    }
+    filepath <- new_filepath
+    
+    if (!is.null(log_list)) {
+      log_message(sprintf("File already exists, saving as: %s", filepath), log_list, level = "WARNING")
+    }
+  }
+  
   qs::qsave(obj, filepath)
   
   if (!is.null(log_list)) {
     log_message(sprintf("Saved intermediate object to: %s", filepath), log_list)
   }
+  
+  invisible(filepath)
 }
 
 #' Load Intermediate Object
@@ -256,9 +292,17 @@ save_intermediate <- function(obj, filepath, log_list = NULL) {
 #' @return Loaded object
 #'
 #' @export
-load_intermediate <- function(filepath, log_list = NULL) {
+load_intermediate <- function(filepath, log_list = NULL, input_dir = NULL) {
   if (!requireNamespace("qs", quietly = TRUE)) {
     stop("qs package is required for fast serialization")
+  }
+  
+  # If input_dir is provided and filepath is relative, construct full path
+  if (!is.null(input_dir)) {
+    # Check if filepath is absolute (starts with /)
+    if (!startsWith(filepath, "/")) {
+      filepath <- file.path(input_dir, filepath)
+    }
   }
   
   if (!file.exists(filepath)) {
