@@ -110,6 +110,33 @@ git docs-push
 git docs-pull
 ```
 
+<<<<<<< HEAD
+=======
+### alias 설정
+
+`--prefix` 옵션을 매번 입력하는 대신 git alias를 설정하여 간단하게 사용할 수 있습니다:
+
+```bash
+# Alias 설정 (현재 저장소에만)
+git config alias.docs-push 'subtree push --prefix=docs-main docs-main-origin main'
+git config alias.docs-pull 'subtree pull --prefix=docs-main docs-main-origin main'
+
+# 또는 전역 설정 (모든 저장소에서 사용)
+git config --global alias.docs-push 'subtree push --prefix=docs-main docs-main-origin main'
+git config --global alias.docs-pull 'subtree pull --prefix=docs-main docs-main-origin main'
+```
+
+설정 후 사용:
+
+```bash
+# Push
+git docs-push
+
+# Pull
+git docs-pull
+```
+
+>>>>>>> 2bdadc73a6b5d3ff4c345f477b3c7b3dcbeb5b9e
 ## 설정
 
 서브트리를 아직 설정하지 않았다면 다음을 참조하세요:
