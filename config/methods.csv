@@ -1,0 +1,34 @@
+method,parameter,default_value,description
+demuxalot,singlet_threshold,0.5,Minimum probability for singlet assignment
+demuxalot,doublet_threshold,0.3,Minimum probability for doublet assignment
+demuxalot,doublet_separator,+,Separator in doublet names
+demuxalot,barcode_col,BARCODE,Column name for barcodes
+demuxalot,annotation_col,Best_Sample,Column name for sample assignment
+HTODemux,positive_quantile,0.99,Quantile for positive HTO signal
+HTODemux,assay_name,Multiplexing Capture,Name of HTO assay
+MULTIseqDemux,positive_quantile,0.99,Quantile for positive HTO signal
+MULTIseqDemux,assay_name,Multiplexing Capture,Name of HTO assay
+LogNormalize,scale_factor,10000,Scale factor for normalization
+LogNormalize,nfeatures,2000,Number of variable features
+LogNormalize,selection_method,disp,Method for variable feature selection
+SCTransform,method,glmGamPoi,Method for SCTransform
+SCTransform,vst_flavor,v2,VST flavor
+SCTransform,variable_features_n,3000,Number of variable features
+SCTransform,conserve_memory,TRUE,Conserve memory flag
+SoupX,force_accept,TRUE,Force accept contamination estimate
+SoupX,do_plot,TRUE,Generate plots
+scDblFinder,clusters,TRUE,Use clusters for doublet detection
+scDblFinder,remove_doublets,FALSE,Whether to remove doublets (default: keep)
+RPCA_IntegrateLayers,npcs,50,Number of PCs
+RPCA_IntegrateLayers,dims,1:30,Dimensions for integration
+RPCA_IntegrateLayers,resolution,0.6,Clustering resolution
+RPCA_IntegrateLayers,nfeatures,3000,Number of features
+RPCA_FindIntegrationAnchors,npcs,50,Number of PCs
+RPCA_FindIntegrationAnchors,dims,1:50,Dimensions for anchors
+RPCA_FindIntegrationAnchors,nfeatures,3000,Number of features
+scVI,conda_env,/home/user3/miniconda3/envs/scvi-env/,Conda environment path
+scVI,python_path,/home/user3/miniconda3/envs/scvi-env/bin/python,Python path
+scVI,batch_col,GEM,Batch column name
+scVI,dims,1:30,Dimensions for integration
+scVI,resolution,0.6,Clustering resolution
+
