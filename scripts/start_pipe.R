@@ -2,13 +2,26 @@
 # Loads step-specific packages based on STEP environment variable or step argument
 
 # Get step number from environment variable or argument
-step_num <- as.integer(Sys.getenv("PIPE_STEP", NA))
+step_num <- NA_integer_
+step_env <- Sys.getenv("PIPE_STEP", "")
+if (step_env != "" && step_env != "NA") {
+  step_num <- suppressWarnings(as.integer(step_env))
+  if (is.na(step_num)) step_num <- NA_integer_
+}
+
 if (is.na(step_num)) {
-  # Try to get from command line args
-  cmd_args <- commandArgs(trailingOnly = TRUE)
-  step_idx <- which(cmd_args == "--output_step" | cmd_args == "-o")
-  if (length(step_idx) > 0 && step_idx < length(cmd_args)) {
-    step_num <- as.integer(cmd_args[step_idx + 1])
+  # Try to get from command line args (use trailingOnly = FALSE to get all args)
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  # Look for --output_step or -o in args
+  for (i in seq_along(cmd_args)) {
+    if (grepl("--output_step=", cmd_args[i])) {
+      step_str <- sub(".*--output_step=", "", cmd_args[i])
+      step_num <- suppressWarnings(as.integer(step_str))
+      if (!is.na(step_num)) break
+    } else if (cmd_args[i] %in% c("--output_step", "-o") && i < length(cmd_args)) {
+      step_num <- suppressWarnings(as.integer(cmd_args[i + 1]))
+      if (!is.na(step_num)) break
+    }
   }
 }
 
@@ -188,7 +201,7 @@ if (isTRUE(getOption("pipe.start.initialised", FALSE))) {
   
   # ---- Configure future for parallel processing ----
   # Only for steps that need it (Step 6)
-  if (step_num == 6 && requireNamespace("future", quietly = TRUE)) {
+  if (!is.na(step_num) && step_num == 6 && requireNamespace("future", quietly = TRUE)) {
     memory_limit <- as.numeric(Sys.getenv("PIPE_FUTURE_MEMORY_GB", "200"))
     options(future.globals.maxSize = memory_limit * 1024^3)
     message("• Configured future with memory limit: ", memory_limit, " GB")
