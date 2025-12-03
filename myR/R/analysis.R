@@ -685,24 +685,6 @@ runNEBULA_v1 <- function(...) {
 
 
 
-#' @keywords internal
-#' @noRd
-#' Legacy wrapper retained for backwards compatibility.
-runMUSCAT_v5 <- function(...) {
-  .Deprecated("runMUSCAT", package = "myR")
-  runMUSCAT(..., remove_na_groups = FALSE)
-}
-
-runMUSCAT2_v1 <- function(...) {
-  .Deprecated("runMUSCAT", package = "myR")
-  runMUSCAT(..., remove_na_groups = TRUE)
-}
-
-
-
-#' @export
-
-
 # ============================================================================
 
 #' Run MUSCAT Analysis

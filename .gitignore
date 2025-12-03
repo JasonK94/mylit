@@ -36,27 +36,15 @@ rmd/
 .env
 
 # data, logs, outputs...
-*output*
-*plots*
-projects/
-trash/
-renv/
-*renv*
-*bin
 *deprecated*
 
 *.rds
-*.log
-*.pdf
-*.png
 *.csv
-*/data/*
 *.tar.gz
 *.gz
 *.qs
-*sobj*
-*h5ad
-*h5seurat
+*.h5ad
+*.h5seurat
 *loom
 *mtx
 *mtx.gz
