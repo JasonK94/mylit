@@ -97,9 +97,12 @@ log_message(sprintf("Found %d SNP samples and %d HTO samples",
                    nrow(snp_samples), nrow(hto_samples)), log_list)
 
 # Initialize result lists
-snp_barcode_mappings <- list()
+demux_cache <- list()
+demux_cache_labels <- list()
 hto_objects <- list()
 sl <- list()
+processed_snp_samples <- character(0)
+all_snp_mappings <- NULL
 
 # ============================================================================
 # Process SNP samples
@@ -126,54 +129,73 @@ if (nrow(snp_samples) > 0) {
                      sample_name, row$dir_demultiplex_output))
       }
       
-      # Use new demultiplex_demuxalot function
-      log_message(sprintf("  Demultiplexing %s using demuxalot", sample_name), log_list)
-      barcode_map <- demultiplex_demuxalot(
-        demuxalot_posterior = demux_file,
-        barcode_col = get_param("demuxalot_barcode_col", config_list, "BARCODE"),
-        singlet_threshold = as.numeric(get_param("demuxalot_singlet_threshold", config_list, 0.5)),
-        doublet_threshold = as.numeric(get_param("demuxalot_doublet_threshold", config_list, 0.3)),
-        gem_name = gem_name,
-        gem_col = get_param("metadata_gem_col", config_list, "GEM"),
-        return_probs = TRUE
-      )
+      # Cache demultiplexing per GEM/posterior file
+      demux_key <- tryCatch(normalizePath(demux_file), error = function(e) demux_file)
+      cache_label <- sprintf("%s::%s",
+                             ifelse(is.na(gem_name) || gem_name == "", "NA_GEM", gem_name),
+                             basename(demux_file))
       
-      # Add config metadata columns
-      config_cols_to_add <- c("name", "patient_name", "contamination_risk", "sample_name", "gem_name", "demultiplex_id")
-      for (col in config_cols_to_add) {
-        if (col %in% colnames(row) && !is.na(row[[col]])) {
-          barcode_map[[col]] <- as.character(row[[col]])
-        }
+      if (!demux_key %in% names(demux_cache)) {
+        log_message(sprintf("  Parsing demux posterior for GEM %s (%s)", gem_name, demux_file), log_list)
+        demux_cache[[demux_key]] <- demultiplex_demuxalot(
+          demuxalot_posterior = demux_file,
+          barcode_col = get_param("demuxalot_barcode_col", config_list, "BARCODE"),
+          singlet_threshold = as.numeric(get_param("demuxalot_singlet_threshold", config_list, 0.5)),
+          doublet_threshold = as.numeric(get_param("demuxalot_doublet_threshold", config_list, 0.3)),
+          gem_name = gem_name,
+          gem_col = get_param("metadata_gem_col", config_list, "GEM"),
+          return_probs = TRUE
+        )
+        demux_cache_labels[[demux_key]] <- cache_label
       }
       
-      snp_barcode_mappings[[sample_name]] <- barcode_map
-      log_message(sprintf("  Completed %s: %d barcodes mapped", sample_name, nrow(barcode_map)), log_list)
+      barcode_map_full <- demux_cache[[demux_key]]
+      
+      # For logging, check how many barcodes currently map to this sample
+      demultiplex_id <- as.character(row$demultiplex_id)
+      sample_mapping_preview <- barcode_map_full
+      if (!is.na(demultiplex_id) && demultiplex_id != "") {
+        sample_mapping_preview <- sample_mapping_preview[
+          sample_mapping_preview$Best_Sample == demultiplex_id | 
+            grepl(paste0("^", demultiplex_id, "\\+"), sample_mapping_preview$Best_Sample) |
+            grepl(paste0("\\+", demultiplex_id, "$"), sample_mapping_preview$Best_Sample),
+          , drop = FALSE]
+      }
+      
+      log_message(sprintf("  Current assignment snapshot for %s: %d barcodes", 
+                          ifelse(is.na(demultiplex_id) || demultiplex_id == "", "ALL", demultiplex_id),
+                          nrow(sample_mapping_preview)), log_list)
       
     }, error = function(e) {
       log_message(sprintf("!!! ERROR processing SNP sample %s: %s !!!", sample_name, e$message), log_list, level = "ERROR")
     })
   }
   
-  # Combine all SNP barcode mappings
-  if (length(snp_barcode_mappings) > 0) {
-    log_message("Combining SNP barcode mappings...", log_list)
-    # Remove rownames before binding to avoid conflicts
-    for (i in seq_along(snp_barcode_mappings)) {
-      rownames(snp_barcode_mappings[[i]]) <- NULL
-    }
-    all_snp_mappings <- bind_rows(snp_barcode_mappings)
-    # Create unique rownames by combining sample_name and Barcode
-    # This ensures uniqueness even when same barcode appears in multiple samples
-    all_snp_mappings$unique_id <- paste0(all_snp_mappings$sample_name, "_", all_snp_mappings$Barcode)
-    rownames(all_snp_mappings) <- all_snp_mappings$unique_id
-    log_message(sprintf("Total SNP barcodes: %d", nrow(all_snp_mappings)), log_list)
-    
-    # Save SNP mappings separately
-    snp_output_path <- get_output_path(opt$run_id, opt$output_step, 
-                                      "step1_snp_barcode_mappings.qs",
-                                      output_base_dir)
-    save_intermediate(all_snp_mappings, snp_output_path, log_list)
+# ============================================================================
+# Save SNP barcode mappings (full GEM-level data)
+# ============================================================================
+if (length(demux_cache) > 0) {
+  log_message("Combining SNP barcode mappings...", log_list)
+  barcode_mapping_list <- demux_cache
+  if (length(demux_cache_labels) == length(barcode_mapping_list)) {
+    names(barcode_mapping_list) <- unlist(demux_cache_labels, use.names = FALSE)
   }
+  
+  all_snp_mappings <- dplyr::bind_rows(barcode_mapping_list, .id = "demux_source")
+  log_message(sprintf("Total SNP barcodes (across all GEMs): %d", nrow(all_snp_mappings)), log_list)
+  
+  # Save full mapping table
+  snp_output_path <- get_output_path(opt$run_id, opt$output_step, 
+                                    "step1_snp_barcode_mappings.qs",
+                                    output_base_dir)
+  save_intermediate(all_snp_mappings, snp_output_path, log_list)
+  
+  # Save list (per GEM) for re-use
+  snp_list_output_path <- get_output_path(opt$run_id, opt$output_step,
+                                          "step1_snp_barcode_mapping_list.qs",
+                                          output_base_dir)
+  save_intermediate(barcode_mapping_list, snp_list_output_path, log_list)
+}
 }
 
 # ============================================================================
@@ -300,7 +322,7 @@ if (nrow(hto_samples) > 0) {
 # ============================================================================
 # Create Seurat objects for SNP samples (using barcode mappings)
 # ============================================================================
-if (length(snp_barcode_mappings) > 0 && exists("all_snp_mappings")) {
+if (!is.null(all_snp_mappings) && nrow(all_snp_mappings) > 0) {
   log_message("Creating Seurat objects for SNP samples...", log_list)
   
   # Group by GEM (same GEM can have multiple samples)
@@ -319,12 +341,24 @@ if (length(snp_barcode_mappings) > 0 && exists("all_snp_mappings")) {
         # Load count matrices
         filtered_counts <- Seurat::Read10X(row$dir_input_filtered_barcode_matrix)
         
-        # Get barcode mapping for this sample
-        sample_mapping <- all_snp_mappings[all_snp_mappings$sample_name == sample_name, ]
+        # Get barcode mapping for this sample (based on demultiplex_id)
+        demultiplex_id <- as.character(row$demultiplex_id)
+        sample_mapping <- all_snp_mappings
+        if (!is.na(demultiplex_id) && demultiplex_id != "") {
+          sample_mapping <- sample_mapping[
+            sample_mapping$Best_Sample == demultiplex_id |
+              grepl(paste0("^", demultiplex_id, "\\+"), sample_mapping$Best_Sample) |
+              grepl(paste0("\\+", demultiplex_id, "$"), sample_mapping$Best_Sample),
+            , drop = FALSE]
+        }
         
         if (nrow(sample_mapping) == 0) {
-          stop(sprintf("No barcode mapping found for sample %s", sample_name))
+          stop(sprintf("No barcode mapping found for sample %s (demultiplex_id: %s)", 
+                       sample_name, demultiplex_id))
         }
+        
+        sample_mapping$sample_name <- sample_name
+        sample_mapping$demultiplex_id <- demultiplex_id
         
         # Match barcodes using original barcode (before suffix)
         # demultiplex_demuxalot already added suffix to Barcode column
@@ -421,6 +455,7 @@ if (length(snp_barcode_mappings) > 0 && exists("all_snp_mappings")) {
         }
         
         sl[[sample_name]] <- obj
+        processed_snp_samples <- unique(c(processed_snp_samples, sample_name))
         log_message(sprintf("  Completed %s: %d cells", sample_name, ncol(obj)), log_list)
         
       }, error = function(e) {
@@ -440,9 +475,10 @@ if (length(hto_objects) > 0) {
 if (length(sl) > 0) {
   log_message(sprintf("Saving results to: %s", output_path), log_list)
   save_intermediate(sl, output_path, log_list)
+  snp_processed_n <- length(processed_snp_samples)
   log_message(sprintf("Step %d completed: %d samples processed (%d SNP, %d HTO)", 
                      opt$output_step, length(sl), 
-                     length(snp_barcode_mappings), length(hto_objects)), log_list)
+                     snp_processed_n, length(hto_objects)), log_list)
 } else {
   log_message("No samples were successfully processed!", log_list, level = "ERROR")
   close_logging(log_list)

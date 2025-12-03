@@ -510,6 +510,9 @@ demultiplex_demuxalot <- function(demuxalot_posterior,
     barcode_map$Second_Best_Sample <- second_best_samples
     names(barcode_map)[names(barcode_map) == "prob1"] <- "Best_Probability"
     names(barcode_map)[names(barcode_map) == "prob2"] <- "Second_Best_Probability"
+    barcode_map$Probability_Ratio <- barcode_map$Best_Probability / barcode_map$Second_Best_Probability
+    barcode_map$Probability_Ratio[is.infinite(barcode_map$Probability_Ratio) | 
+                                    is.nan(barcode_map$Probability_Ratio)] <- NA
   }
   
   barcode_map
