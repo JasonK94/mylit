@@ -181,10 +181,14 @@ generate_sample_values <- function(n_samples,
 #' Generate Sample Names (Formatted)
 #'
 #' Creates formatted sample name lists for display/plotting.
+#' Supports both old-style (vector input) and new-style (n_samples/n_total_cols) usage.
 #'
-#' @param n_samples Number of samples
+#' @param n_samples Number of samples (if NULL, will be inferred from n_total_cols or vector)
 #' @param format Format string with \%d placeholder (default: "Sample \%d")
 #' @param include_doublets Whether to include doublet combinations (default: TRUE)
+#' @param n_total_cols Total number of columns (singlets + doublets). If provided, n_samples will be calculated.
+#' @param start_num Starting number for sample names (default: 1)
+#' @param vector Vector of sample numbers/names (for backward compatibility with old code)
 #'
 #' @return Character vector of formatted sample names
 #'
@@ -192,14 +196,87 @@ generate_sample_values <- function(n_samples,
 #' generate_sample_names(3, format = "Patient %d")
 #' # Returns: c("Patient 1", "Patient 2", "Patient 3", 
 #' #            "Patient 1+Patient 2", "Patient 1+Patient 3", "Patient 2+Patient 3")
+#' 
+#' # Infer n_samples from total columns (e.g., from demux file)
+#' generate_sample_names(n_total_cols = 21)  # 6 singlets + 15 doublets = 21
+#' # Returns: c("Sample 1", "Sample 2", ..., "Sample 6", "Sample 1+Sample 2", ...)
+#' 
+#' # Old-style usage (backward compatibility)
+#' generate_sample_names(vector = 1:6)
+#' # Returns: c("1", "2", ..., "6", "1+2", "1+3", ...)
 #'
 #' @export
-generate_sample_names <- function(n_samples, 
+generate_sample_names <- function(n_samples = NULL, 
                                   format = "Sample %d",
-                                  include_doublets = TRUE) {
+                                  include_doublets = TRUE,
+                                  n_total_cols = NULL,
+                                  start_num = 1,
+                                  vector = NULL) {
+  
+  # Backward compatibility: if vector is provided, use it
+  if (!is.null(vector)) {
+    if (is.numeric(vector)) {
+      # Vector of numbers: generate names directly
+      singlets <- as.character(vector)
+      if (!include_doublets) {
+        return(singlets)
+      }
+      # Generate doublet combinations
+      doublets <- character(0)
+      if (length(vector) >= 2) {
+        for (i in seq_len(length(vector) - 1)) {
+          for (j in (i + 1):length(vector))) {
+            doublet_name <- paste0(vector[i], "+", vector[j])
+            doublets <- c(doublets, doublet_name)
+          }
+        }
+      }
+      return(c(singlets, doublets))
+    } else {
+      # Vector of names: use as singlets
+      singlets <- as.character(vector)
+      if (!include_doublets) {
+        return(singlets)
+      }
+      # Generate doublet combinations
+      doublets <- character(0)
+      if (length(vector) >= 2) {
+        for (i in seq_len(length(vector) - 1)) {
+          for (j in (i + 1):length(vector))) {
+            doublet_name <- paste0(vector[i], "+", vector[j])
+            doublets <- c(doublets, doublet_name)
+          }
+        }
+      }
+      return(c(singlets, doublets))
+    }
+  }
+  
+  # If n_total_cols is provided, calculate n_samples
+  if (!is.null(n_total_cols) && is.null(n_samples)) {
+    # n_total_cols = n_samples + nC2
+    # n_total_cols = n_samples + n_samples * (n_samples - 1) / 2
+    # Solve: n_total_cols = n + n*(n-1)/2
+    # n_total_cols = n + (n^2 - n)/2 = (2n + n^2 - n)/2 = (n^2 + n)/2
+    # n^2 + n - 2*n_total_cols = 0
+    # n = (-1 + sqrt(1 + 8*n_total_cols)) / 2
+    
+    n_samples <- round((-1 + sqrt(1 + 8 * n_total_cols)) / 2)
+    
+    # Verify: n_samples + nC2 should equal n_total_cols
+    expected_total <- n_samples + choose(n_samples, 2)
+    if (abs(expected_total - n_total_cols) > 1) {
+      warning(sprintf("Calculated n_samples=%d from n_total_cols=%d, but expected total=%d. Using calculated value anyway.",
+                     n_samples, n_total_cols, expected_total))
+    }
+  }
+  
+  if (is.null(n_samples)) {
+    stop("Either n_samples, n_total_cols, or vector must be provided")
+  }
   
   # Generate singlet names
-  singlets <- sprintf(format, seq_len(n_samples))
+  singlets <- sprintf(format, start_num:(start_num + n_samples - 1))
   
   if (!include_doublets) {
     return(singlets)
@@ -210,7 +287,8 @@ generate_sample_names <- function(n_samples,
   if (n_samples >= 2) {
     for (i in seq_len(n_samples - 1)) {
       for (j in (i + 1):n_samples) {
-        doublet_name <- paste0(sprintf(format, i), "+", sprintf(format, j))
+        doublet_name <- paste0(sprintf(format, start_num + i - 1), "+", 
+                               sprintf(format, start_num + j - 1))
         doublets <- c(doublets, doublet_name)
       }
     }

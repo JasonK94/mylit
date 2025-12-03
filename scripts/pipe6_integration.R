@@ -228,11 +228,6 @@ if (opt$method == "RPCA") {
   py_config <- reticulate::py_config()
   log_message(sprintf("Python: %s", py_config$python), log_list)
   
-  # Join layers if Seurat v5 (scVI doesn't need split layers)
-  if (packageVersion("Seurat") >= "5.0.0") {
-    merged <- JoinLayers(merged, assay = "RNA")
-  }
-  
   DefaultAssay(merged) <- "RNA"
   
   # Check for batch column
@@ -241,52 +236,68 @@ if (opt$method == "RPCA") {
     stop(sprintf("Batch column '%s' not found in metadata", batch_col))
   }
   
-  # Run PCA first (required for scVI integration)
-  log_message("Running PCA (required for scVI)...", log_list)
+  # Log batch distribution
+  batch_table <- table(merged@meta.data[[batch_col]])
+  log_message(sprintf("Batch distribution: %s", paste(names(batch_table), batch_table, sep="=", collapse=", ")), log_list)
+  
+  # Join layers if Seurat v5 and multiple layers exist (scVI needs counts layer)
+  if (packageVersion("Seurat") >= "5.0.0") {
+    rna_layers <- Layers(merged, assay = "RNA")
+    log_message(sprintf("RNA assay layers: %s", paste(rna_layers, collapse=", ")), log_list)
+    
+    # If multiple layers exist, join them (but keep counts layer separate if possible)
+    if (length(rna_layers) > 1 && !"counts" %in% rna_layers) {
+      log_message("Joining layers for scVI...", log_list)
+      merged <- JoinLayers(merged, assay = "RNA")
+    }
+    
+    # Ensure counts layer exists
+    if (!"counts" %in% Layers(merged, assay = "RNA")) {
+      log_message("Creating counts layer from data...", log_list)
+      # If no counts layer, use data layer
+      merged <- SetAssayData(merged, layer = "counts", 
+                            new.data = GetAssayData(merged, layer = "data", assay = "RNA"))
+    }
+  }
+  
+  # scVI integration - scVI handles normalization internally
+  # We don't need to run PCA before scVI (scVI does its own dimensionality reduction)
+  log_message("Running scVIIntegration (scVI handles normalization internally)...", log_list)
   npcs <- as.numeric(get_param("scvi_npcs", config_list, 50))
   nfeatures <- as.numeric(get_param("scvi_nfeatures", config_list, 3000))
   
-  # Normalize and find variable features if not already done
-  if (!"data" %in% Layers(merged, assay = "RNA")) {
-    merged <- NormalizeData(merged, verbose = FALSE)
-  }
-  if (length(VariableFeatures(merged)) == 0) {
-    merged <- FindVariableFeatures(merged, nfeatures = nfeatures, verbose = FALSE)
-  }
-  merged <- ScaleData(merged, verbose = FALSE)
-  merged <- RunPCA(merged, npcs = npcs, verbose = FALSE)
-  
-  # Check PCA results
-  if ("pca" %in% names(merged@reductions)) {
-    pca_embeddings <- Embeddings(merged, reduction = "pca")
-    log_message(sprintf("PCA completed: %d cells, %d dimensions", 
-                       nrow(pca_embeddings), ncol(pca_embeddings)), log_list)
-  } else {
-    stop("PCA failed: pca reduction not found")
-  }
-  
-  # Run scVI integration
-  log_message("Running scVIIntegration...", log_list)
-  # Note: scVI doesn't need split layers, uses batch column directly
-  # IntegrateLayers is in Seurat package (v5), scVIIntegration is in SeuratWrappers
-  merged <- IntegrateLayers(
-    object = merged,
-    method = SeuratWrappers::scVIIntegration,
-    orig.reduction = "pca",
-    new.reduction = "integrated.scvi",
-    batch = batch_col,
-    layers = "counts",
-    conda_env = conda_env,
-    python_path = python_path,
-    verbose = TRUE
-  )
-  # Check cell counts before and after integration
+  # Check cell counts before integration
   n_cells_before <- ncol(merged)
   log_message(sprintf("Cell count before integration: %d", n_cells_before), log_list)
   
   # Run scVI integration
-  log_message("Running scVIIntegration...", log_list)
+  # scVI doesn't need orig.reduction - it does its own dimensionality reduction
   merged <- tryCatch({
+    IntegrateLayers(
+      object = merged,
+      method = SeuratWrappers::scVIIntegration,
+      new.reduction = "integrated.scvi",
+      batch = batch_col,
+      layers = "counts",
+      conda_env = conda_env,
+      python_path = python_path,
+      verbose = TRUE
+    )
+  }, error = function(e) {
+    log_message(sprintf("!!! ERROR in scVIIntegration: %s !!!", e$message), log_list, level = "ERROR")
+    # Try with orig.reduction if first attempt fails
+    log_message("Retrying with PCA as orig.reduction...", log_list)
+    # Run PCA if not exists
+    if (!"pca" %in% names(merged@reductions)) {
+      if (!"data" %in% Layers(merged, assay = "RNA")) {
+        merged <- NormalizeData(merged, verbose = FALSE)
+      }
+      if (length(VariableFeatures(merged)) == 0) {
+        merged <- FindVariableFeatures(merged, nfeatures = nfeatures, verbose = FALSE)
+      }
+      merged <- ScaleData(merged, verbose = FALSE)
+      merged <- RunPCA(merged, npcs = npcs, verbose = FALSE)
+    }
     IntegrateLayers(
       object = merged,
       method = SeuratWrappers::scVIIntegration,
@@ -298,9 +309,6 @@ if (opt$method == "RPCA") {
       python_path = python_path,
       verbose = TRUE
     )
-  }, error = function(e) {
-    log_message(sprintf("!!! ERROR in scVIIntegration: %s !!!", e$message), log_list, level = "ERROR")
-    stop("scVIIntegration failed: ", e$message)
   })
   
   # Check cell counts after integration
