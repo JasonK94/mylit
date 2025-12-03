@@ -225,7 +225,7 @@ generate_sample_names <- function(n_samples = NULL,
       doublets <- character(0)
       if (length(vector) >= 2) {
         for (i in seq_len(length(vector) - 1)) {
-          for (j in (i + 1):length(vector))) {
+          for (j in (i + 1):length(vector)) {
             doublet_name <- paste0(vector[i], "+", vector[j])
             doublets <- c(doublets, doublet_name)
           }
@@ -242,7 +242,7 @@ generate_sample_names <- function(n_samples = NULL,
       doublets <- character(0)
       if (length(vector) >= 2) {
         for (i in seq_len(length(vector) - 1)) {
-          for (j in (i + 1):length(vector))) {
+          for (j in (i + 1):length(vector)) {
             doublet_name <- paste0(vector[i], "+", vector[j])
             doublets <- c(doublets, doublet_name)
           }
