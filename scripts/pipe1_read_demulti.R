@@ -48,6 +48,7 @@ if (is.null(opt$config)) {
 }
 
 # Source utility functions
+# Use consistent approach: pipe_dir is parent of script_dir
 pipe_dir <- dirname(script_dir)
 
 # Source pipeline utility functions

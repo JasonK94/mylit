@@ -41,8 +41,10 @@ if (is.null(opt$config)) {
 }
 
 # Source utility functions
-script_dir <- dirname(normalizePath(opt$config))
-source(file.path(script_dir, "../myR/R/pipe_utils.R"))
+# Use consistent approach: pipe_dir is parent of scripts directory
+script_dir_for_source <- dirname(normalizePath(opt$config))
+pipe_dir <- dirname(script_dir_for_source)
+source(file.path(pipe_dir, "myR/R/pipe_utils.R"))
 
 # Setup logging
 log_list <- setup_logging(opt$run_id)
