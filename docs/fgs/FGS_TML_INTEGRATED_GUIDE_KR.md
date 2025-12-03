@@ -191,6 +191,16 @@ flowchart TD
     *   **정규화 (Normalization)**: L1 가중치의 서로 다른 스케일을 처리하기 위해 TML7에 모델별 정규화(`max_abs`, `min_max`, `softmax` 등)를 구현했습니다.
     *   **견고성**: L1 시그니처와 L2 중요도 이름 간의 매칭 로직을 개선했습니다 (`make.names` 및 백틱 처리).
 
+### 버전 5.5 (개발 중)
+*   **추적성 (Traceability)**: `TML7`은 이제 교차 검증 폴드 인덱스(`cv_folds`)를 명시적으로 생성하여 결과 객체에 반환합니다. 이를 통해 사용자는 각 폴드에서 어떤 샘플이 학습/검증에 사용되었는지 식별하고 이상치를 분석할 수 있습니다.
+*   **NMF 안정성**: 더 견고한 NMF 함수 호출을 위해 `do.call`을 `rlang::exec`로 대체했습니다.
+*   **헬퍼 함수**: `utils_tml.R`에 `plot_tml_metrics` 및 `analyze_tml_outliers` 함수를 추가했습니다.
+
+### 버전 5.6 (개발 중)
+*   **고급 검증 (Advanced Validation)**: Leave-One-Group-Out (`cv_method="LOGO"`) 및 반복 교차 검증 (`cv_method="repeatedcv"`) 지원을 추가했습니다.
+*   **이상치 분석**: `analyze_tml_outliers` 함수를 개선하여 IQR 기반 임계값 설정 및 상세 폴드 분석을 지원합니다.
+*   **리팩토링**: 레거시 코드를 정리하고 모듈성을 개선했습니다.
+
 ### 주요 커밋 이력
 *   `Fix compute_meta_gene_importance function definition syntax` (최근)
 *   `Integrate TML7 Phase 1 (Normalization) into signature.R`

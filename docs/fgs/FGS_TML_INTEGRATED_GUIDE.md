@@ -191,6 +191,16 @@ flowchart TD
     *   **Normalization**: Implemented model-specific normalization (`max_abs`, `min_max`, `softmax`, etc.) in TML7 to handle different scales of L1 weights.
     *   **Robustness**: Improved name matching between L1 signatures and L2 importance names (handling `make.names` and backticks).
 
+### Version 5.5 (Dev)
+*   **Traceability**: `TML7` now explicitly generates and returns cross-validation fold indices (`cv_folds`) in the result object. This allows users to identify which samples were used for training/validation in each fold, aiding in outlier analysis.
+*   **NMF Stability**: Replaced `do.call` with `rlang::exec` for more robust NMF function calls.
+*   **Helper Functions**: Added `plot_tml_metrics` and `analyze_tml_outliers` in `utils_tml.R`.
+
+### Version 5.6 (Dev)
+*   **Advanced Validation**: Added support for Leave-One-Group-Out (`cv_method="LOGO"`) and Repeated CV (`cv_method="repeatedcv"`).
+*   **Outlier Analysis**: Enhanced `analyze_tml_outliers` to support IQR-based thresholding and detailed fold analysis.
+*   **Refactoring**: Cleaned up legacy code and improved modularity.
+
 ### Key Commit History
 *   `Fix compute_meta_gene_importance function definition syntax` (Recent)
 *   `Integrate TML7 Phase 1 (Normalization) into signature.R`

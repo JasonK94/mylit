@@ -86,7 +86,6 @@ git push origin main
 # docs 저장소로도 push
 ./scripts/docs-sync.sh push main
 ```
-
 ### alias 설정
 
 `--prefix` 옵션을 매번 입력하는 대신 git alias를 설정하여 간단하게 사용할 수 있습니다:
