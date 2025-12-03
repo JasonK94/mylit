@@ -83,3 +83,18 @@
 2. **HTO assay 이름**: Seurat가 공백을 점으로 변환하므로 실제 저장된 이름 확인 필요
 3. **dims 파라미터**: "1:50" 형식의 문자열을 벡터로 변환할 때 주의 필요
 
+
+## 2025-12-03: Step 1 Demultiplexing Fix
+- **Issue**: Previous logic filtered barcodes immediately, leading to identical cell counts or incorrect assignments when multiple samples shared a GEM posterior file. Also, rowname conflicts occurred during `bind_rows`.
+- **Fix**:
+  - `demultiplex_demuxalot` now processes the full posterior file for a GEM.
+  - `pipe1_read_demulti.R` caches these results per GEM.
+  - Seurat object creation filters barcodes using `demultiplex_id` *after* loading the full GEM mapping.
+  - Added `Probability_Ratio` to demux output.
+  - `unique_id` used for rownames to avoid conflicts.
+- **Verification**: `run_fix1` (0.5% downsample) showed correct, distinct cell counts for all 56 SNP samples.
+
+## 2025-12-03: SoupX auto-estimation retries & guards
+- Added config knobs (`soupx_tfidf_start`, `soupx_tfidf_floor`, `soupx_soup_quantile_start`, `soupx_soup_quantile_floor`, `soupx_param_step`) so the pipeline now relaxes thresholds in 0.1 increments when SoupX fails to find marker genes. Logs and `plot_generation.log` tell the operator how to tweak values if plotting still fails.
+- Wrapped `adjustCounts()` with a guard; if SoupX never calculated contamination fractions the script now logs a warning, keeps the original counts, and moves on instead of throwing.
+- Documented DecontX/CellBender as candidates for a future ambient-removal method so Step 3 can become pluggable later.

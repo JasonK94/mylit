@@ -55,6 +55,16 @@ config_list <- load_config(opt$config)
 config <- config_list$config
 output_base_dir <- get_param("output_base_dir", config_list, "/data/user3/sobj/pipe")
 
+# SoupX tuning parameters
+soupx_tfidf_start <- as.numeric(get_param("soupx_tfidf_start", config_list, 1))
+soupx_soup_quantile_start <- as.numeric(get_param("soupx_soup_quantile_start", config_list, 0.9))
+soupx_tfidf_min_floor <- as.numeric(get_param("soupx_tfidf_floor", config_list, 0.3))
+soupx_soup_quantile_floor <- as.numeric(get_param("soupx_soup_quantile_floor", config_list, 0.1))
+soupx_param_step <- as.numeric(get_param("soupx_param_step", config_list, 0.1))
+if (soupx_param_step <= 0) {
+  soupx_param_step <- 0.1
+}
+
 # Load input from previous step
 input_path <- get_output_path(opt$run_id, opt$input_step, 
                               get_param("output_step2_nmz", config_list, "step2_nmz_list.qs"),
@@ -76,6 +86,93 @@ write_log_entry <- function(sample_name, plot_type, status, message = "") {
   log_entry <- sprintf("[%s] %s - %s: %s %s\n", 
                        timestamp, sample_name, plot_type, status, message)
   cat(log_entry, file = plot_log_file, append = TRUE)
+}
+
+auto_estimate_with_retry <- function(sc, sample_name, plot_path) {
+  current_tfidf <- soupx_tfidf_start
+  current_soup_q <- soupx_soup_quantile_start
+  attempt <- 1
+  last_error <- NULL
+  
+  repeat {
+    log_message(sprintf("  autoEstCont attempt %d for %s (tfidfMin=%.2f, soupQuantile=%.2f)", 
+                       attempt, sample_name, current_tfidf, current_soup_q), log_list)
+    temp_plot_path <- paste0(tools::file_path_sans_ext(plot_path), sprintf("_attempt%d.pdf", attempt))
+    success <- FALSE
+    sc_result <- NULL
+    
+    tryCatch({
+      pdf(temp_plot_path, width = plot_width, height = plot_height)
+      sc_result <- autoEstCont(
+        sc,
+        doPlot = do_plot,
+        forceAccept = force_accept,
+        tfidfMin = current_tfidf,
+        soupQuantile = current_soup_q
+      )
+      dev.off()
+      file.rename(temp_plot_path, plot_path)
+      success <- TRUE
+    }, error = function(e) {
+      if (dev.cur() != 1) dev.off()
+      unlink(temp_plot_path)
+      last_error <<- e$message
+      write_log_entry(
+        sample_name,
+        "Rho_Distribution",
+        "FAILED",
+        sprintf("tfidfMin=%.2f, soupQuantile=%.2f, %s", current_tfidf, current_soup_q, e$message)
+      )
+      log_message(sprintf("  ERROR: autoEstCont attempt %d failed for %s: %s", 
+                          attempt, sample_name, e$message), log_list, level = "ERROR")
+    })
+    
+    if (success) {
+      write_log_entry(
+        sample_name,
+        "Rho_Distribution",
+        "SUCCESS",
+        sprintf("tfidfMin=%.2f, soupQuantile=%.2f", current_tfidf, current_soup_q)
+      )
+      if (attempt > 1) {
+        log_message(sprintf("  autoEstCont succeeded after lowering thresholds to tfidfMin=%.2f, soupQuantile=%.2f", 
+                            current_tfidf, current_soup_q), log_list)
+      }
+      return(list(sc = sc_result, attempts = attempt, tfidf = current_tfidf, soup = current_soup_q))
+    }
+    
+    if (current_tfidf <= soupx_tfidf_min_floor && current_soup_q <= soupx_soup_quantile_floor) {
+      stop(sprintf(
+        paste(
+          "autoEstCont failed for %s even at minimum thresholds",
+          "(tfidfMin=%.2f, soupQuantile=%.2f). Last error: %s",
+          "Consider lowering soupx_tfidf_floor or soupx_soup_quantile_floor in config."
+        ),
+        sample_name,
+        current_tfidf,
+        current_soup_q,
+        ifelse(is.null(last_error), "Unknown error", last_error)
+      ))
+    }
+    
+    new_tfidf <- max(soupx_tfidf_min_floor, current_tfidf - soupx_param_step)
+    new_soup_q <- max(soupx_soup_quantile_floor, current_soup_q - soupx_param_step)
+    
+    if (new_tfidf == current_tfidf && new_soup_q == current_soup_q) {
+      stop(sprintf(
+        paste(
+          "autoEstCont failed for %s and parameters can no longer be reduced.",
+          "Last error: %s. Adjust soupx_tfidf_start/soupx_tfidf_floor or soupx_soup_quantile_start/soupx_soup_quantile_floor in config."
+        ),
+        sample_name,
+        ifelse(is.null(last_error), "Unknown error", last_error)
+      ))
+    }
+    
+    current_tfidf <- new_tfidf
+    current_soup_q <- new_soup_q
+    attempt <- attempt + 1
+  }
 }
 
 # Process each sample
@@ -144,22 +241,10 @@ for (i in seq_len(nrow(config))) {
     plot_width <- as.numeric(get_param("soupx_plot_width", config_list, 7))
     plot_height <- as.numeric(get_param("soupx_plot_height", config_list, 6))
     
-    # Rho Distribution plot
     rho_plot_path <- file.path(plots_dir, sprintf("SoupX_Rho_Distribution_%s.pdf", sample_name))
-    tryCatch({
-      pdf(rho_plot_path, width = plot_width, height = plot_height)
-      sc <- autoEstCont(sc, doPlot = do_plot, forceAccept = force_accept)
-      dev.off()
-      write_log_entry(sample_name, "Rho_Distribution", "SUCCESS", "")
-      log_message(sprintf("  Saved Rho Distribution plot: %s", rho_plot_path), log_list)
-    }, error = function(e) {
-      if (dev.cur() != 1) dev.off()
-      error_msg <- sprintf("Error: %s", e$message)
-      write_log_entry(sample_name, "Rho_Distribution", "FAILED", error_msg)
-      log_message(sprintf("  ERROR: Failed to generate Rho Distribution plot for %s: %s", 
-                         sample_name, e$message), log_list, level = "ERROR")
-      # Continue processing even if plot fails
-    })
+    est_result <- auto_estimate_with_retry(sc, sample_name, rho_plot_path)
+    sc <- est_result$sc
+    log_message(sprintf("  Saved Rho Distribution plot: %s", rho_plot_path), log_list)
     
     # Marker Distribution plot
     marker_plot_path <- file.path(plots_dir, sprintf("SoupX_Marker_Distribution_%s.pdf", sample_name))
@@ -171,16 +256,32 @@ for (i in seq_len(nrow(config))) {
       log_message(sprintf("  Saved Marker Distribution plot: %s", marker_plot_path), log_list)
     }, error = function(e) {
       if (dev.cur() != 1) dev.off()
-      error_msg <- sprintf("Error: %s", e$message)
+      suggestion <- "Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse."
+      error_msg <- sprintf("Error: %s. %s", e$message, suggestion)
       write_log_entry(sample_name, "Marker_Distribution", "FAILED", error_msg)
-      log_message(sprintf("  WARNING: Failed to generate Marker Distribution plot for %s: %s", 
-                         sample_name, e$message), log_list, level = "WARNING")
+      log_message(sprintf("  WARNING: Failed to generate Marker Distribution plot for %s: %s. %s", 
+                         sample_name, e$message, suggestion), log_list, level = "WARNING")
       # Continue processing even if plot fails
     })
     
-    # Adjust counts
+    # Adjust counts with guard for missing contamination fractions
     log_message(sprintf("  Adjusting counts for %s", sample_name), log_list)
-    corrected_counts <- adjustCounts(sc)
+    corrected_counts <- tryCatch({
+      adjustCounts(sc)
+    }, error = function(e) {
+      if (grepl("Contamination fractions must have already been calculated/set", e$message, fixed = TRUE)) {
+        suggestion <- "autoEstCont produced no contamination fraction. Consider lowering soupx_tfidf_start/floor or soupx_soup_quantile_start/floor."
+        log_message(sprintf("  WARNING: %s - %s", e$message, suggestion), log_list, level = "WARNING")
+        write_log_entry(sample_name, "AdjustCounts", "SKIPPED", sprintf("%s %s", e$message, suggestion))
+        return(NULL)
+      }
+      stop(e)
+    })
+    
+    if (is.null(corrected_counts)) {
+      log_message(sprintf("  Keeping original counts for %s due to missing contamination fraction", sample_name), log_list, level = "WARNING")
+      next
+    }
     
     # Update object with corrected counts
     # Match cells

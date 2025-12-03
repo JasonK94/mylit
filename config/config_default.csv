@@ -46,6 +46,11 @@ soupx_force_accept,TRUE,Force accept contamination estimate
 soupx_do_plot,TRUE,Generate plots during autoEstCont
 soupx_plot_width,7,Width of SoupX plots in inches
 soupx_plot_height,6,Height of SoupX plots in inches
+soupx_tfidf_start,1.0,Starting tf-idf minimum used by SoupX autoEstCont
+soupx_soup_quantile_start,0.9,Starting soup quantile used by SoupX autoEstCont
+soupx_tfidf_floor,0.3,Minimum tf-idf value when retrying SoupX autoEstCont
+soupx_soup_quantile_floor,0.1,Minimum soup quantile value when retrying SoupX autoEstCont
+soupx_param_step,0.1,Step size used when lowering SoupX thresholds after plot failures
 
 # Doublet detection (scDblFinder)
 scdblfinder_clusters,TRUE,Use clusters for scDblFinder
