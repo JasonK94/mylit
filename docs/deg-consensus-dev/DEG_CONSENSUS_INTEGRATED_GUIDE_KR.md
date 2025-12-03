@@ -180,8 +180,19 @@ flowchart TD
 각 유전자 $g$에 대해:
 1.  **Significance Matrix ($S_{gm}$)**: 방법론 $m$에서 유의하면 1, 아니면 0.
 2.  **Agreement Score ($A_g$)**: $\frac{1}{M} \sum_{m} S_{gm}$ (유의한 방법론 비율).
-3.  **Consensus Score ($C_g$)**: $A_g \times |\text{Weighted Mean Beta}_g|$.
-4.  **Filtering**: $A_g \ge \text{threshold}$ 이고 최소 $k$개 이상의 방법론에서 유의한 경우 선정.
+3.  **Meta-analysis of p-values**: 여러 방법론의 p-value를 통합:
+    *   **Stouffer's Z-score** (default): 방향성을 고려한 Z-score 통합
+    *   **Fisher's combined p-value**: 카이제곱 통합
+    *   **Inverse variance weighting**: 표준오차 기반 가중 통합 (SE 행렬 필요)
+4.  **Effect size 통합**: 여러 방법론의 logFC를 통합:
+    *   **Simple mean** (default): 단순 평균
+    *   **Weighted mean**: 방법론별 가중치 반영
+    *   **Inverse variance weighted**: 표준오차 기반 가중 평균 (SE 행렬 필요)
+5.  **Consensus Score ($C_g$)**: $A_g \times |\text{Weighted Mean Beta}_g| \times -\log_{10}(\text{meta\_p})$.
+6.  **Variability metrics**: 
+    *   `sd_beta`: 방법론 간 logFC의 표준편차
+    *   `sd_pvalue`: 방법론 간 p-value의 표준편차
+7.  **Filtering**: $A_g \ge \text{threshold}$ 이고 최소 $k$개 이상의 방법론에서 유의한 경우 선정.
 
 ## 4. 사용자 가이드 및 주의사항 (User Guide & Warnings)
 
@@ -213,19 +224,225 @@ result <- run_deg_consensus(
 )
 ```
 
+**4. Consensus Score 계산 (고급 옵션)**
+```r
+# 메타 분석 방법 선택
+consensus_scores <- compute_consensus_scores(
+  deg_matrices = matrices,
+  agreement_scores = agreement_scores,
+  meta_p_method = "stouffer",        # "stouffer", "fisher", "inverse_variance"
+  mean_beta_method = "simple_mean",  # "simple_mean", "weighted_mean", "inverse_variance_weighted"
+  se_matrix = NULL                   # inverse_variance 방법 사용 시 필요
+)
+
+# 결과에는 다음 metrics가 포함됩니다:
+# - mean_beta: 방법론 간 logFC 평균
+# - sd_beta: 방법론 간 logFC 표준편차
+# - mean_pvalue: 방법론 간 p-value 평균
+# - sd_pvalue: 방법론 간 p-value 표준편차
+# - meta_p: 메타 분석 p-value
+# - meta_p_adj: BH 조정된 meta_p
+# - weighted_beta: 가중 평균 logFC
+# - consensus_score: 최종 consensus 점수
+```
+
+**5. 클러스터별 결과 통합 (Meta-level 분석)**
+```r
+# 여러 클러스터의 DEG consensus 결과를 gene-level로 통합
+library(dplyr)
+
+# 클러스터별 consensus_scores 준비
+deg_list <- setNames(
+  lapply(names(deg_consensus_list), function(x) {
+    deg_consensus_list[[x]][["consensus_scores"]] %>%
+      mutate(
+        cluster = x,
+        p_val = meta_p,
+        p_val_adj = meta_p_adj,
+        avg_log2FC = mean_beta
+      )
+  }),
+  names(deg_consensus_list)
+)
+
+# 클러스터별 결과 통합
+meta_deg <- aggregate_cluster_deg_consensus(
+  deg_list = deg_list,
+  meta_p_method = "stouffer",        # 클러스터 간 p-value 통합 방법
+  mean_beta_method = "simple_mean", # 클러스터 간 effect size 통합 방법
+  cluster_weights = NULL             # 클러스터별 가중치 (선택사항)
+)
+
+# 결과에는 다음 정보가 포함됩니다:
+# - n_clusters: 유전자가 나타난 클러스터 수
+# - mean_mean_beta: 클러스터 간 mean_beta의 평균
+# - sd_mean_beta: 클러스터 간 mean_beta의 표준편차
+# - meta_meta_p: 클러스터 간 meta_p의 메타 분석 결과
+# - meta_meta_p_adj: BH 조정된 meta_meta_p
+# - sd_meta_p: 클러스터 간 meta_p의 표준편차
+# - concordance: mean_beta가 mean_mean_beta와 같은 부호인 비율
+# - cluster_*: 각 클러스터별 포함 여부 (0/1)
+```
+
 ### Critical Warnings (주의사항)
 1.  **실행 시간**: NEBULA, Dream 등 Mixed Model은 계산 비용이 높습니다. 테스트 시에는 제외하거나 작은 데이터셋을 사용하세요.
 2.  **메모리**: 많은 방법론을 동시에 돌리면 메모리 사용량이 급증할 수 있습니다.
 3.  **Pseudobulk 요건**: 클러스터 당 최소 샘플 수(`min_samples_per_group`)가 부족하면 해당 클러스터 분석은 건너뜁니다 (기본값: 2).
 
-## 5. 부록 (Appendix)
+## 5. 고급 기능 (Advanced Features)
+
+### 5.1 메타 분석 방법 선택
+
+`compute_consensus_scores()` 함수는 여러 방법론의 결과를 통합하는 다양한 방법을 제공합니다:
+
+**p-value 통합 방법 (`meta_p_method`)**:
+- **`stouffer`** (default): Stouffer's Z-score 방법. 방향성을 고려하여 효과 크기의 부호를 반영합니다.
+- **`fisher`**: Fisher's combined p-value test. 카이제곱 통합을 사용합니다.
+- **`inverse_variance`**: Inverse variance weighting. 표준오차(SE) 행렬이 필요하며, 더 정확한 가중치를 제공합니다.
+
+**Effect size 통합 방법 (`mean_beta_method`)**:
+- **`simple_mean`** (default): 방법론 간 logFC의 단순 평균.
+- **`weighted_mean`**: 방법론별 가중치를 반영한 가중 평균.
+- **`inverse_variance_weighted`**: 표준오차 기반 가중 평균. SE 행렬이 필요합니다.
+
+### 5.2 클러스터별 결과 통합
+
+`aggregate_cluster_deg_consensus()` 함수는 여러 클러스터의 DEG consensus 결과를 gene-level로 통합합니다:
+
+**주요 기능**:
+- 모든 클러스터에서 나타나는 유전자 식별
+- 클러스터 간 일관성 평가 (concordance)
+- 클러스터별 포함 여부 추적
+- 메타 분석을 통한 통합 통계량 계산
+
+**사용 시나리오**:
+- 여러 세포 타입에서 공통으로 차등 발현되는 유전자 찾기
+- 클러스터 간 일관성 높은 DEG 우선순위화
+- 전체 데이터셋 수준의 메타 분석 수행
+
+### 5.3 Variability Metrics
+
+`compute_consensus_scores()` 결과에는 방법론 간 변동성을 측정하는 metrics가 포함됩니다:
+
+- **`sd_beta`**: 방법론 간 logFC의 표준편차. 값이 클수록 방법론 간 일치도가 낮습니다.
+- **`sd_pvalue`**: 방법론 간 p-value의 표준편차. 방법론 간 유의성 판단의 일관성을 나타냅니다.
+
+이러한 metrics는 consensus 결과의 신뢰도를 평가하는 데 유용합니다.
+
+## 6. 부록 (Appendix)
 
 ### 주요 스크립트 위치
-*   `scripts/deg-consensus-dev/run_consensus_simple.R`: 최소 실행 예제.
-*   `scripts/deg-consensus-dev/run_consensus_analysis.R`: 전체 분석 파이프라인.
-*   `scripts/deg-consensus-dev/test_step_by_step.R`: 단계별 디버깅용.
+*   `scripts/deg-consensus/run_consensus_simple.R`: 최소 실행 예제.
+*   `scripts/deg-consensus/run_consensus_analysis.R`: 전체 분석 파이프라인.
+*   `scripts/deg-consensus/run_consensus_analysis_fdr.R`: FDR 기반 분석 파이프라인.
+
+### 주요 함수 위치
+*   `myR/R/deg_consensus/run_deg_consensus.R`: 메인 실행 함수
+*   `myR/R/deg_consensus/deg_consensus_analysis.R`: Consensus 분석 함수 (`compute_consensus_scores`, `compute_agreement_scores` 등)
+*   `myR/R/deg_consensus/aggregate_cluster_deg_consensus.R`: 클러스터 통합 함수
+*   `myR/R/deg_consensus/deg_consensus_pipeline.R`: 전체 파이프라인 래퍼
 
 ### 결과 파일
-*   `deg_consensus_final_result.qs`: 최종 결과 객체.
+*   `deg_consensus_*_final_result.qs`: 최종 결과 객체.
+*   `deg_consensus_*_consensus_scores.qs`: Consensus scores 객체.
+*   `deg_consensus_*_skipped_clusters.qs`: 건너뛴 클러스터 정보.
+*   `deg_consensus_*_nebula_result.qs`: NEBULA 분석 결과 (별도 실행).
 *   `consensus_plots/`: Volcano plot, Heatmap 등 시각화 결과.
+
+## 7. 방법론별 특이사항 및 문제 해결 (Method-Specific Issues)
+
+### 7.1 muscat 방법론
+
+**문제**: 작은 클러스터에서 muscat 방법론들이 실패할 수 있습니다.
+
+**오류 메시지**:
+```
+Specified filtering options result in no genes in any clusters being tested.
+```
+
+**원인**:
+- muscat은 그룹별로 충분한 pseudobulk 샘플이 필요합니다.
+- 클러스터별로 쪼갠 데이터에서, 각 그룹(g3=1, g3=2)별로 최소 2개 이상의 pseudobulk 샘플이 필요합니다.
+- 예: 33개 세포로는 그룹별로 샘플이 부족할 수 있습니다.
+
+**해결책**:
+- muscat 방법론이 실패해도 다른 방법론(limma, edgeR, DESeq2)으로 계속 진행됩니다.
+- 작은 클러스터는 muscat 없이도 분석 가능합니다.
+- 최소 요구사항: 클러스터당 약 50개 이상의 세포, 그룹별로 최소 2개 이상의 샘플
+
+**권장사항**:
+- 작은 클러스터에서는 muscat 방법론을 제외하고 실행할 수 있습니다.
+- 또는 `pb_min_cells` 파라미터를 낮추어 시도할 수 있습니다 (기본값: 3).
+
+### 7.2 NEBULA 방법론
+
+**문제**: NEBULA는 클러스터별로 쪼갠 데이터에서 잘 작동하지 않습니다.
+
+**원인**:
+1. **완전 분리(Complete Separation) 문제**:
+   - `GEM`과 `g3` 변수 간 완전 분리 발생
+   - 설계 행렬이 특이(singular)해져 최적화 실패
+2. **샘플 수 부족**: 클러스터별로 쪼갠 후 샘플 수가 부족할 수 있음
+3. **파이프라인 구조**: NEBULA는 전체 데이터에서 클러스터를 고려하는 방식이 더 적합
+
+**해결책**:
+- NEBULA는 **별도로 전체 데이터에서 실행**하는 것을 권장합니다.
+- `covar_effects`에서 `GEM`을 제외하고 `sex`만 사용합니다 (공선성 문제 방지).
+- 클러스터별 파이프라인과 분리하여 실행합니다.
+
+**사용 예시**:
+```r
+# 전체 데이터에서 NEBULA 실행
+nebula_result <- runNEBULA2_v1(
+  sobj = is5,  # 전체 데이터
+  fixed_effects = c("g3"),
+  covar_effects = "sex",  # GEM 제외
+  patient_col = "hos_no",
+  offset = "nCount_RNA",
+  min_count = 20
+)
+```
+
+### 7.3 DESeq2 방법론
+
+**문제**: Pseudobulk 데이터가 정수가 아닐 수 있습니다.
+
+**오류 메시지**:
+```
+some values in assay are not integers
+```
+
+**원인**:
+- Pseudobulk 과정에서 실수 값이 생성될 수 있습니다.
+- DESeq2는 count 데이터가 정수여야 합니다.
+
+**해결책**:
+- `round()` 함수를 사용하여 정수로 변환합니다.
+- 코드에서 자동으로 처리됩니다.
+
+### 7.4 dream 방법론
+
+**현재 상태**: dream 방법론은 원래 잘 작동하지 않았으며, 현재 파이프라인에서 제외되어 있습니다.
+
+**이유**:
+- 구현이 완전하지 않거나
+- 데이터 구조와 맞지 않을 수 있습니다.
+
+**권장사항**:
+- 현재는 dream 방법론을 사용하지 않는 것을 권장합니다.
+- 필요시 별도로 구현 및 테스트가 필요합니다.
+
+### 7.5 작은 클러스터 처리
+
+**문제**: 작은 클러스터에서 일부 방법론이 실패할 수 있습니다.
+
+**해결책**:
+- 세포 수 < 10인 클러스터는 자동으로 건너뜁니다.
+- muscat 방법론이 실패해도 다른 방법론으로 계속 진행됩니다.
+- 건너뛴 클러스터 정보는 `*_skipped_clusters.qs` 파일에 저장됩니다.
+
+**최소 요구사항**:
+- **절대 최소값**: 10개 세포 (매우 작은 클러스터는 건너뜀)
+- **권장 최소값**: 50개 세포 (모든 방법론이 정상 작동)
+- **그룹별 샘플**: 각 그룹(g3=1, g3=2)별로 최소 2개 이상의 샘플 필요
 
