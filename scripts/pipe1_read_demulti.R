@@ -53,6 +53,7 @@ pipe_dir <- dirname(script_dir)
 # Source pipeline utility functions
 source(file.path(pipe_dir, "myR/R/pipe_utils.R"))
 source(file.path(pipe_dir, "myR/R/pipe_demulti.R"))
+source(file.path(pipe_dir, "myR/R/utils_demulti.R"))
 
 # Setup logging
 log_list <- setup_logging(opt$run_id)
@@ -116,7 +117,7 @@ if (nrow(snp_samples) > 0) {
       
       # Use new demultiplex_demuxalot function
       log_message(sprintf("  Demultiplexing %s using demuxalot", sample_name), log_list)
-      barcode_map <- myR::demultiplex_demuxalot(
+      barcode_map <- demultiplex_demuxalot(
         demuxalot_posterior = demux_file,
         barcode_col = get_param("demuxalot_barcode_col", config_list, "BARCODE"),
         singlet_threshold = as.numeric(get_param("demuxalot_singlet_threshold", config_list, 0.5)),
