@@ -162,8 +162,10 @@ if (nrow(snp_samples) > 0) {
       rownames(snp_barcode_mappings[[i]]) <- NULL
     }
     all_snp_mappings <- bind_rows(snp_barcode_mappings)
-    # Reset rownames to Barcode column (which already has suffix)
-    rownames(all_snp_mappings) <- all_snp_mappings$Barcode
+    # Create unique rownames by combining sample_name and Barcode
+    # This ensures uniqueness even when same barcode appears in multiple samples
+    all_snp_mappings$unique_id <- paste0(all_snp_mappings$sample_name, "_", all_snp_mappings$Barcode)
+    rownames(all_snp_mappings) <- all_snp_mappings$unique_id
     log_message(sprintf("Total SNP barcodes: %d", nrow(all_snp_mappings)), log_list)
     
     # Save SNP mappings separately
@@ -348,13 +350,16 @@ if (length(snp_barcode_mappings) > 0 && exists("all_snp_mappings")) {
         # Create a named vector mapping original -> suffix barcode
         orig_to_suffix <- setNames(mapping_subset$Barcode, mapping_subset$barcode)
         
-        # Update count matrix barcode names: add suffix to match mapping rownames
+        # Update count matrix barcode names: add suffix to match mapping Barcode column
         count_barcodes_original <- colnames(filtered_counts)
         count_barcodes_to_update <- count_barcodes_original %in% names(orig_to_suffix)
         colnames(filtered_counts)[count_barcodes_to_update] <- orig_to_suffix[count_barcodes_original[count_barcodes_to_update]]
         
-        # Now match using barcodes with suffix (rownames of sample_mapping)
-        common_cells <- intersect(colnames(filtered_counts), rownames(sample_mapping))
+        # Match using Barcode column (not rownames, since rownames include sample_name)
+        # Create matching key: sample_name_Barcode
+        sample_mapping$match_key <- paste0(sample_name, "_", sample_mapping$Barcode)
+        count_match_keys <- paste0(sample_name, "_", colnames(filtered_counts))
+        common_cells <- intersect(count_match_keys, sample_mapping$match_key)
         
         if (length(common_cells) == 0) {
           # Additional debug info
@@ -366,10 +371,14 @@ if (length(snp_barcode_mappings) > 0 && exists("all_snp_mappings")) {
           stop(sprintf("No common cells found between count matrix and demux results for %s", sample_name))
         }
         
+        # Get corresponding count matrix columns and mapping rows
+        count_cols <- count_match_keys %in% common_cells
+        mapping_rows <- sample_mapping$match_key %in% common_cells
+        
         # Create Seurat object
         obj <- Seurat::CreateSeuratObject(
-          counts = filtered_counts[, common_cells],
-          meta.data = sample_mapping[common_cells, , drop = FALSE]
+          counts = filtered_counts[, count_cols, drop = FALSE],
+          meta.data = sample_mapping[mapping_rows, , drop = FALSE]
         )
         
         # Add config metadata columns
