@@ -71,6 +71,16 @@ output_path <- get_output_path(opt$run_id, opt$output_step,
                                get_param("output_step1_demulti", config_list, "step1_demulti_list.qs"),
                                output_base_dir)
 
+# Check if output already exists and skip if requested
+if (file.exists(output_path) && opt$input_step == opt$output_step) {
+  log_message(sprintf("Output file already exists: %s. Loading existing results...", output_path), log_list)
+  sl <- load_intermediate(output_path, log_list)
+  log_message(sprintf("Loaded %d samples from existing file", length(sl)), log_list)
+  close_logging(log_list)
+  cat(sprintf("Step %d completed: Loaded %d samples from existing file.\n", opt$output_step, length(sl)))
+  quit(save = "no", status = 0)
+}
+
 # Create plots directory
 plots_dir <- file.path(output_base_dir, opt$run_id, "plots", "step1_demultiplex")
 dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
@@ -147,7 +157,13 @@ if (nrow(snp_samples) > 0) {
   # Combine all SNP barcode mappings
   if (length(snp_barcode_mappings) > 0) {
     log_message("Combining SNP barcode mappings...", log_list)
+    # Remove rownames before binding to avoid conflicts
+    for (i in seq_along(snp_barcode_mappings)) {
+      rownames(snp_barcode_mappings[[i]]) <- NULL
+    }
     all_snp_mappings <- bind_rows(snp_barcode_mappings)
+    # Reset rownames to Barcode column (which already has suffix)
+    rownames(all_snp_mappings) <- all_snp_mappings$Barcode
     log_message(sprintf("Total SNP barcodes: %d", nrow(all_snp_mappings)), log_list)
     
     # Save SNP mappings separately
@@ -308,13 +324,45 @@ if (length(snp_barcode_mappings) > 0 && exists("all_snp_mappings")) {
           stop(sprintf("No barcode mapping found for sample %s", sample_name))
         }
         
-        # Match barcodes (add GEM suffix to barcodes in counts)
-        colnames(filtered_counts) <- paste0(colnames(filtered_counts), "_", gem_name)
+        # Match barcodes using original barcode (before suffix)
+        # demultiplex_demuxalot already added suffix to Barcode column
+        # We need to match original barcodes first, then add suffix to counts
+        original_barcodes_in_mapping <- sample_mapping$barcode  # Original barcode (no suffix)
+        barcodes_with_suffix <- sample_mapping$Barcode  # Barcode with suffix (rownames)
         
-        # Get cells that are in both counts and barcode_map
+        # Find common original barcodes
+        common_original_barcodes <- intersect(colnames(filtered_counts), original_barcodes_in_mapping)
+        
+        if (length(common_original_barcodes) == 0) {
+          # Debug: show some examples
+          log_message(sprintf("  DEBUG: Count matrix barcodes (first 5): %s", 
+                            paste(head(colnames(filtered_counts), 5), collapse = ", ")), log_list)
+          log_message(sprintf("  DEBUG: Mapping barcodes (first 5): %s", 
+                            paste(head(original_barcodes_in_mapping, 5), collapse = ", ")), log_list)
+          stop(sprintf("No common original barcodes found between count matrix and demux results for %s", sample_name))
+        }
+        
+        # Get corresponding barcodes with suffix from mapping
+        mapping_subset <- sample_mapping[sample_mapping$barcode %in% common_original_barcodes, , drop = FALSE]
+        
+        # Create a named vector mapping original -> suffix barcode
+        orig_to_suffix <- setNames(mapping_subset$Barcode, mapping_subset$barcode)
+        
+        # Update count matrix barcode names: add suffix to match mapping rownames
+        count_barcodes_original <- colnames(filtered_counts)
+        count_barcodes_to_update <- count_barcodes_original %in% names(orig_to_suffix)
+        colnames(filtered_counts)[count_barcodes_to_update] <- orig_to_suffix[count_barcodes_original[count_barcodes_to_update]]
+        
+        # Now match using barcodes with suffix (rownames of sample_mapping)
         common_cells <- intersect(colnames(filtered_counts), rownames(sample_mapping))
         
         if (length(common_cells) == 0) {
+          # Additional debug info
+          log_message(sprintf("  DEBUG: After suffix addition, count barcodes (first 5): %s", 
+                            paste(head(colnames(filtered_counts), 5), collapse = ", ")), log_list)
+          log_message(sprintf("  DEBUG: Mapping rownames (first 5): %s", 
+                            paste(head(rownames(sample_mapping), 5), collapse = ", ")), log_list)
+          log_message(sprintf("  DEBUG: Common original barcodes: %d", length(common_original_barcodes)), log_list)
           stop(sprintf("No common cells found between count matrix and demux results for %s", sample_name))
         }
         
