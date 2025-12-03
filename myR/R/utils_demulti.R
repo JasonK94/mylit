@@ -392,4 +392,257 @@ summarize_demulti_results <- function(assignments) {
   )
 }
 
+#' Demultiplex Demuxalot Output
+#'
+#' Processes demuxalot posterior CSV file and creates barcode mapping.
+#' Automatically calculates n_samples from column count (demuxalot format: 1 BARCODE + n singlets + nC2 doublets).
+#'
+#' @param demuxalot_posterior Path to demuxalot posterior CSV file, or data frame (already loaded)
+#' @param barcode_col Column name for barcodes (default: "BARCODE")
+#' @param singlet_threshold Minimum probability for singlet (default: 0.5)
+#' @param doublet_threshold Minimum probability for doublet (default: 0.3)
+#' @param gem_name GEM name to add to metadata (optional)
+#' @param gem_col Column name for GEM in output (default: "GEM")
+#' @param return_probs Whether to return probability values (default: FALSE)
+#'
+#' @return Data frame with barcode mapping including:
+#'   \item{Barcode}{Original barcode (with GEM suffix if gem_name provided)}
+#'   \item{Best_Sample}{Assigned sample(s)}
+#'   \item{droplet_demulti}{singlet_demulti or doublet_demulti}
+#'   \item{GEM}{(if gem_name provided) GEM name}
+#'   \item{Best_Probability}{(if return_probs=TRUE) Top probability}
+#'   \item{Second_Best_Sample}{(if return_probs=TRUE) Second best sample}
+#'   \item{Second_Best_Probability}{(if return_probs=TRUE) Second probability}
+#'
+#' @export
+demultiplex_demuxalot <- function(demuxalot_posterior,
+                                  barcode_col = "BARCODE",
+                                  singlet_threshold = 0.5,
+                                  doublet_threshold = 0.3,
+                                  gem_name = NULL,
+                                  gem_col = "GEM",
+                                  return_probs = FALSE) {
+  
+  # Load data if path provided
+  if (is.character(demuxalot_posterior)) {
+    demux_data <- read.csv(demuxalot_posterior, stringsAsFactors = FALSE, check.names = FALSE)
+  } else if (is.data.frame(demuxalot_posterior)) {
+    demux_data <- demuxalot_posterior
+  } else {
+    stop("demuxalot_posterior must be a file path (character) or data frame")
+  }
+  
+  # Calculate n_samples from column count
+  # demuxalot format: 1 (BARCODE) + n (singlets) + nC2 (doublets) = 1 + n + n*(n-1)/2
+  # n_total_cols = ncols - 1 (excluding BARCODE)
+  n_total_cols <- ncol(demux_data) - 1
+  n_samples <- round((-1 + sqrt(1 + 8 * n_total_cols)) / 2)
+  
+  # Verify calculation
+  expected_total <- n_samples + choose(n_samples, 2)
+  if (abs(expected_total - n_total_cols) > 1) {
+    warning(sprintf("Calculated n_samples=%d from n_total_cols=%d, but expected total=%d. Using calculated value anyway.",
+                   n_samples, n_total_cols, expected_total))
+  }
+  
+  # Get all columns except barcode
+  all_cols <- colnames(demux_data)
+  if (!barcode_col %in% all_cols) {
+    stop(sprintf("Barcode column '%s' not found in demux data. Found columns: %s",
+                 barcode_col, paste(all_cols, collapse = ", ")))
+  }
+  
+  # Get sample columns (all columns except barcode)
+  sample_cols <- setdiff(all_cols, barcode_col)
+  
+  # Convert to matrix for get_barcode_mapping
+  prob_matrix <- as.matrix(demux_data[, sample_cols, drop = FALSE])
+  rownames(prob_matrix) <- demux_data[[barcode_col]]
+  
+  # Get barcode mapping
+  barcode_map <- get_barcode_mapping(
+    prob_matrix,
+    singlet_threshold = singlet_threshold,
+    doublet_threshold = doublet_threshold,
+    return_probs = return_probs
+  )
+  
+  # Rename assignment to Best_Sample (demuxalot convention)
+  barcode_map$Best_Sample <- barcode_map$assignment
+  barcode_map$assignment <- NULL
+  
+  # Add droplet_demulti tag
+  barcode_map$droplet_demulti <- ifelse(
+    is_doublet(barcode_map$Best_Sample),
+    "doublet_demulti",
+    "singlet_demulti"
+  )
+  
+  # Add GEM if provided
+  if (!is.null(gem_name)) {
+    barcode_map[[gem_col]] <- gem_name
+    # Create unique barcode with GEM suffix
+    barcode_map$Barcode <- paste0(barcode_map$barcode, "_", gem_name)
+  } else {
+    barcode_map$Barcode <- barcode_map$barcode
+  }
+  
+  # Set rownames to Barcode
+  rownames(barcode_map) <- barcode_map$Barcode
+  
+  # Rename prob columns if return_probs
+  if (return_probs) {
+    # Get second best sample name (need to recalculate)
+    prob_matrix_with_names <- prob_matrix
+    colnames(prob_matrix_with_names) <- sample_cols
+    
+    second_best_samples <- character(nrow(barcode_map))
+    for (i in seq_len(nrow(barcode_map))) {
+      orig_barcode <- barcode_map$barcode[i]
+      probs <- prob_matrix_with_names[orig_barcode, ]
+      sorted_idx <- order(probs, decreasing = TRUE)
+      if (length(sorted_idx) >= 2) {
+        second_best_samples[i] <- sample_cols[sorted_idx[2]]
+      } else {
+        second_best_samples[i] <- NA
+      }
+    }
+    barcode_map$Second_Best_Sample <- second_best_samples
+    names(barcode_map)[names(barcode_map) == "prob1"] <- "Best_Probability"
+    names(barcode_map)[names(barcode_map) == "prob2"] <- "Second_Best_Probability"
+  }
+  
+  barcode_map
+}
+
+#' Demultiplex HTO Data
+#'
+#' Processes HTO data from filtered barcode matrix and creates barcode mapping.
+#'
+#' @param filtered_barcode_matrix Path to filtered barcode matrix directory, or Seurat object (already loaded)
+#' @param hto_assay_name Name of HTO assay (default: "Multiplexing Capture")
+#' @param method Demultiplexing method: "HTODemux" or "MULTIseqDemux" (default: "HTODemux")
+#' @param positive_quantile Quantile for positive HTO signal (default: 0.99)
+#' @param gem_name GEM name to add to metadata (optional)
+#' @param gem_col Column name for GEM in output (default: "GEM")
+#'
+#' @return Data frame with barcode mapping including:
+#'   \item{Barcode}{Cell barcode}
+#'   \item{Best_Sample}{Assigned sample (HTO_maxID or MULTI_ID)}
+#'   \item{droplet_demulti}{singlet_demulti or doublet_demulti}
+#'   \item{GEM}{(if gem_name provided) GEM name}
+#'   \item{Probability}{(if available) Assignment probability}
+#'
+#' @export
+demultiplex_HTODemux <- function(filtered_barcode_matrix,
+                                 hto_assay_name = "Multiplexing Capture",
+                                 method = "HTODemux",
+                                 positive_quantile = 0.99,
+                                 gem_name = NULL,
+                                 gem_col = "GEM") {
+  
+  if (!requireNamespace("Seurat", quietly = TRUE)) {
+    stop("Seurat package is required for HTO demultiplexing")
+  }
+  
+  # Load data if path provided
+  if (is.character(filtered_barcode_matrix)) {
+    filtered_counts_list <- Seurat::Read10X(filtered_barcode_matrix)
+    
+    # Extract Gene Expression and HTO
+    if (is.list(filtered_counts_list)) {
+      filtered_counts <- filtered_counts_list$`Gene Expression`
+      hto_counts <- filtered_counts_list[[hto_assay_name]]
+    } else {
+      stop(sprintf("HTO assay '%s' not found in filtered barcode matrix", hto_assay_name))
+    }
+    
+    # Create Seurat object
+    obj <- Seurat::CreateSeuratObject(counts = filtered_counts)
+    obj[[hto_assay_name]] <- Seurat::CreateAssayObject(counts = hto_counts)
+    
+    # Seurat converts spaces to dots
+    actual_assay_name <- ifelse(hto_assay_name %in% names(obj@assays),
+                               hto_assay_name,
+                               gsub(" ", ".", hto_assay_name))
+  } else if (inherits(filtered_barcode_matrix, "Seurat")) {
+    obj <- filtered_barcode_matrix
+    actual_assay_name <- ifelse(hto_assay_name %in% names(obj@assays),
+                               hto_assay_name,
+                               gsub(" ", ".", hto_assay_name))
+  } else {
+    stop("filtered_barcode_matrix must be a file path (character) or Seurat object")
+  }
+  
+  # Perform demultiplexing
+  if (method == "HTODemux") {
+    # Filter out cells with zero HTO counts
+    hto_assay <- obj[[actual_assay_name]]
+    hto_counts <- Seurat::GetAssayData(hto_assay, slot = "counts")
+    cells_with_hto <- colnames(hto_counts)[colSums(hto_counts) > 0]
+    
+    if (length(cells_with_hto) == 0) {
+      stop("No cells with HTO counts found")
+    }
+    
+    if (length(cells_with_hto) < ncol(obj)) {
+      obj <- obj[, cells_with_hto]
+    }
+    
+    # Try HTODemux
+    tryCatch({
+      obj <- Seurat::HTODemux(obj, assay = actual_assay_name, positive.quantile = positive_quantile)
+    }, error = function(e) {
+      warning(sprintf("HTODemux failed: %s. Trying with nstarts=100", e$message))
+      tryCatch({
+        obj <<- Seurat::HTODemux(obj, assay = actual_assay_name, positive.quantile = positive_quantile, nstarts = 100)
+      }, error = function(e2) {
+        warning(sprintf("HTODemux failed even with nstarts: %s. Assigning all cells as unknown", e2$message))
+        obj$HTO_classification <<- "Unknown"
+        obj$HTO_maxID <<- "unknown"
+      })
+    })
+    
+    # Create barcode mapping
+    barcode_map <- data.frame(
+      Barcode = colnames(obj),
+      Best_Sample = obj$HTO_maxID,
+      droplet_demulti = ifelse(obj$HTO_classification == "Doublet", "doublet_demulti", "singlet_demulti"),
+      stringsAsFactors = FALSE
+    )
+    
+    # Add probability if available
+    if ("HTO_classification.global" %in% colnames(obj@meta.data)) {
+      # HTODemux doesn't provide explicit probabilities, but we can use classification
+      barcode_map$Probability <- ifelse(obj$HTO_classification == "Negative", 0, 1)
+    }
+    
+  } else if (method == "MULTIseqDemux") {
+    if (!requireNamespace("MULTIseq", quietly = TRUE)) {
+      stop("MULTIseq package is required for MULTIseqDemux method")
+    }
+    obj <- MULTIseq::MULTIseqDemux(obj, assay = actual_assay_name, quantile = positive_quantile)
+    
+    # Create barcode mapping
+    barcode_map <- data.frame(
+      Barcode = colnames(obj),
+      Best_Sample = obj$MULTI_ID,
+      droplet_demulti = ifelse(obj$MULTI_classification == "Doublet", "doublet_demulti", "singlet_demulti"),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    stop(sprintf("Unknown HTO demultiplexing method: %s. Use 'HTODemux' or 'MULTIseqDemux'", method))
+  }
+  
+  # Add GEM if provided
+  if (!is.null(gem_name)) {
+    barcode_map[[gem_col]] <- gem_name
+  }
+  
+  # Set rownames to Barcode
+  rownames(barcode_map) <- barcode_map$Barcode
+  
+  barcode_map
+}
+
 

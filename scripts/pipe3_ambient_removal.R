@@ -61,8 +61,20 @@ log_message(sprintf("Loading input from: %s", input_path), log_list)
 sl <- load_intermediate(input_path, log_list)
 
 # Create plots directory
-plots_dir <- file.path(output_base_dir, opt$run_id, "plots")
+plots_dir <- file.path(output_base_dir, opt$run_id, "plots", "step3_soupx")
 dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Create log file for plot generation
+plot_log_file <- file.path(plots_dir, "plot_generation.log")
+if (file.exists(plot_log_file)) {
+  file.remove(plot_log_file)
+}
+write_log_entry <- function(sample_name, plot_type, status, message = "") {
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  log_entry <- sprintf("[%s] %s - %s: %s %s\n", 
+                       timestamp, sample_name, plot_type, status, message)
+  cat(log_entry, file = plot_log_file, append = TRUE)
+}
 
 # Process each sample
 for (i in seq_len(nrow(config))) {
@@ -98,8 +110,10 @@ for (i in seq_len(nrow(config))) {
     }
     
     # Match barcode suffixes if needed (for SNP samples)
+    # Use gem_name instead of index for consistency with Step 1
     if (row$multiplex_method == "SNP") {
-      colnames(raw_counts) <- paste0(colnames(raw_counts), "_", i)
+      gem_name <- row$gem_name
+      colnames(raw_counts) <- paste0(colnames(raw_counts), "_", gem_name)
     }
     
     log_message(sprintf("  Running SoupX for %s", sample_name), log_list)
@@ -128,21 +142,38 @@ for (i in seq_len(nrow(config))) {
     plot_width <- as.numeric(get_param("soupx_plot_width", config_list, 7))
     plot_height <- as.numeric(get_param("soupx_plot_height", config_list, 6))
     
-    pdf(file.path(plots_dir, sprintf("SoupX_Rho_Distribution_%s.pdf", sample_name)),
-        width = plot_width, height = plot_height)
-    sc <- autoEstCont(sc, doPlot = do_plot, forceAccept = force_accept)
-    dev.off()
-    
-    # Try to save marker distribution plot
+    # Rho Distribution plot
+    rho_plot_path <- file.path(plots_dir, sprintf("SoupX_Rho_Distribution_%s.pdf", sample_name))
     tryCatch({
-      pdf(file.path(plots_dir, sprintf("SoupX_Marker_Distribution_%s.pdf", sample_name)),
-          width = plot_width, height = plot_height)
+      pdf(rho_plot_path, width = plot_width, height = plot_height)
+      sc <- autoEstCont(sc, doPlot = do_plot, forceAccept = force_accept)
+      dev.off()
+      write_log_entry(sample_name, "Rho_Distribution", "SUCCESS", "")
+      log_message(sprintf("  Saved Rho Distribution plot: %s", rho_plot_path), log_list)
+    }, error = function(e) {
+      if (dev.cur() != 1) dev.off()
+      error_msg <- sprintf("Error: %s", e$message)
+      write_log_entry(sample_name, "Rho_Distribution", "FAILED", error_msg)
+      log_message(sprintf("  ERROR: Failed to generate Rho Distribution plot for %s: %s", 
+                         sample_name, e$message), log_list, level = "ERROR")
+      # Continue processing even if plot fails
+    })
+    
+    # Marker Distribution plot
+    marker_plot_path <- file.path(plots_dir, sprintf("SoupX_Marker_Distribution_%s.pdf", sample_name))
+    tryCatch({
+      pdf(marker_plot_path, width = plot_width, height = plot_height)
       print(plotMarkerDistribution(sc))
       dev.off()
+      write_log_entry(sample_name, "Marker_Distribution", "SUCCESS", "")
+      log_message(sprintf("  Saved Marker Distribution plot: %s", marker_plot_path), log_list)
     }, error = function(e) {
+      if (dev.cur() != 1) dev.off()
+      error_msg <- sprintf("Error: %s", e$message)
+      write_log_entry(sample_name, "Marker_Distribution", "FAILED", error_msg)
       log_message(sprintf("  WARNING: Failed to generate Marker Distribution plot for %s: %s", 
                          sample_name, e$message), log_list, level = "WARNING")
-      if (dev.cur() != 1) dev.off()
+      # Continue processing even if plot fails
     })
     
     # Adjust counts

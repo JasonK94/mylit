@@ -69,30 +69,42 @@ output_path <- get_output_path(opt$run_id, opt$output_step,
                                get_param("output_step1_demulti", config_list, "step1_demulti_list.qs"),
                                output_base_dir)
 
+# Create plots directory
+plots_dir <- file.path(output_base_dir, opt$run_id, "plots", "step1_demultiplex")
+dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
+
 # Set random seed
 seed <- as.numeric(get_param("seed", config_list, 1234))
 set.seed(seed)
 
-# Initialize result list
+# Separate SNP and HTO samples
+snp_samples <- config[config$multiplex_method == "SNP", ]
+hto_samples <- config[config$multiplex_method %in% c("HTO", "CMO"), ]
+
+log_message(sprintf("Found %d SNP samples and %d HTO samples", 
+                   nrow(snp_samples), nrow(hto_samples)), log_list)
+
+# Initialize result lists
+snp_barcode_mappings <- list()
+hto_objects <- list()
 sl <- list()
 
-# Process each sample
-for (i in seq_len(nrow(config))) {
-  row <- config[i, ]
-  sample_name <- row$sample_name
-  gem_name <- row$gem_name
-  multiplex_method <- row$multiplex_method
+# ============================================================================
+# Process SNP samples
+# ============================================================================
+if (nrow(snp_samples) > 0) {
+  log_message("Processing SNP samples...", log_list)
   
-  log_message(sprintf("Processing sample %d/%d: %s (GEM: %s, Method: %s)", 
-                     i, nrow(config), sample_name, gem_name, multiplex_method), log_list)
-  
-  processed_obj <- tryCatch({
+  for (i in seq_len(nrow(snp_samples))) {
+    row <- snp_samples[i, ]
+    sample_name <- row$sample_name
+    gem_name <- row$gem_name
     
-    if (multiplex_method == "SNP") {
-      # SNP-based demultiplexing
-      log_message(sprintf("  Step 1.1: Loading demuxalot output for %s", sample_name), log_list)
-      
-      # Check if demux file exists
+    log_message(sprintf("Processing SNP sample %d/%d: %s (GEM: %s)", 
+                       i, nrow(snp_samples), sample_name, gem_name), log_list)
+    
+    tryCatch({
+      # Get demux file
       demux_file <- as.character(row$dir_demultiplex_output)
       demux_file <- gsub('^["\']+|["\']+$', '', demux_file)  # Remove quotes
       demux_file <- trimws(demux_file)
@@ -102,84 +114,65 @@ for (i in seq_len(nrow(config))) {
                      sample_name, row$dir_demultiplex_output))
       }
       
-      # Load demux file to get column names (sample names from demultiplex_id)
-      demux_data <- read.csv(demux_file, nrows = 1, stringsAsFactors = FALSE, check.names = FALSE)
-      barcode_col <- get_param("demuxalot_barcode_col", config_list, "BARCODE")
-      doublet_separator <- get_param("demuxalot_doublet_separator", config_list, "+")
-      
-      # Get sample names from demux file columns (excluding barcode column)
-      # These should match demultiplex_id values from config
-      all_cols <- colnames(demux_data)
-      all_sample_cols <- setdiff(all_cols, barcode_col)
-      
-      # Filter to only singlet samples (exclude doublet combinations which contain separator)
-      sample_names <- all_sample_cols[!grepl(doublet_separator, all_sample_cols, fixed = TRUE)]
-      
-      if (length(sample_names) == 0) {
-        stop(sprintf("No singlet sample columns found in demux file (expected columns without '%s' separator): %s", 
-                     doublet_separator, row$dir_demultiplex_output))
-      }
-      
-      log_message(sprintf("  Found %d singlet sample(s) in demux file: %s", 
-                         length(sample_names), paste(sample_names, collapse = ", ")), log_list)
-      
-      # Process demuxalot output
-      # Note: sample_names are now the actual column names from demux file
-      # get_barcode_mapping will use these column names to create Best_Sample
-      barcode_map <- process_demuxalot(
-        demux_file = demux_file,
-        sample_names = sample_names,
-        barcode_col = barcode_col,
+      # Use new demultiplex_demuxalot function
+      log_message(sprintf("  Demultiplexing %s using demuxalot", sample_name), log_list)
+      barcode_map <- myR::demultiplex_demuxalot(
+        demuxalot_posterior = demux_file,
+        barcode_col = get_param("demuxalot_barcode_col", config_list, "BARCODE"),
         singlet_threshold = as.numeric(get_param("demuxalot_singlet_threshold", config_list, 0.5)),
         doublet_threshold = as.numeric(get_param("demuxalot_doublet_threshold", config_list, 0.3)),
         gem_name = gem_name,
-        gem_index = i
+        gem_col = get_param("metadata_gem_col", config_list, "GEM"),
+        return_probs = TRUE
       )
       
-      log_message(sprintf("  Step 1.2: Loading count matrices for %s", sample_name), log_list)
-      
-      # Load count matrices
-      filtered_counts <- Seurat::Read10X(row$dir_input_filtered_barcode_matrix)
-      
-      # Create Seurat object with demultiplexing metadata
-      # Match barcodes (need to add GEM suffix to barcodes in counts)
-      colnames(filtered_counts) <- paste0(colnames(filtered_counts), "_", i)
-      
-      # Get cells that are in both counts and barcode_map
-      common_cells <- intersect(colnames(filtered_counts), rownames(barcode_map))
-      
-      if (length(common_cells) == 0) {
-        stop(sprintf("No common cells found between count matrix and demux results for %s", sample_name))
-      }
-      
-      # Create Seurat object
-      obj <- Seurat::CreateSeuratObject(
-        counts = filtered_counts[, common_cells],
-        meta.data = barcode_map[common_cells, , drop = FALSE]
-      )
-      
-      # Add GEM metadata
-      obj$GEM <- gem_name
-      
-      # Downsample if requested (for testing)
-      if (!is.null(opt$downsample) && opt$downsample > 0 && opt$downsample < 1) {
-        n_cells_before <- ncol(obj)
-        n_cells_after <- max(1, round(n_cells_before * opt$downsample))
-        if (n_cells_after < n_cells_before) {
-          set.seed(seed + i)  # Reproducible sampling
-          cells_to_keep <- sample(colnames(obj), n_cells_after)
-          obj <- obj[, cells_to_keep]
-          log_message(sprintf("  Downsampled %s: %d -> %d cells (%.1f%%)", 
-                            sample_name, n_cells_before, n_cells_after, 
-                            opt$downsample * 100), log_list)
+      # Add config metadata columns
+      config_cols_to_add <- c("name", "patient_name", "contamination_risk", "sample_name", "gem_name", "demultiplex_id")
+      for (col in config_cols_to_add) {
+        if (col %in% colnames(row) && !is.na(row[[col]])) {
+          barcode_map[[col]] <- as.character(row[[col]])
         }
       }
       
-    } else if (multiplex_method %in% c("HTO", "CMO")) {
-      # HTO-based demultiplexing
-      log_message(sprintf("  Step 1.1: Loading HTO data for %s", sample_name), log_list)
+      snp_barcode_mappings[[sample_name]] <- barcode_map
+      log_message(sprintf("  Completed %s: %d barcodes mapped", sample_name, nrow(barcode_map)), log_list)
       
+    }, error = function(e) {
+      log_message(sprintf("!!! ERROR processing SNP sample %s: %s !!!", sample_name, e$message), log_list, level = "ERROR")
+    })
+  }
+  
+  # Combine all SNP barcode mappings
+  if (length(snp_barcode_mappings) > 0) {
+    log_message("Combining SNP barcode mappings...", log_list)
+    all_snp_mappings <- bind_rows(snp_barcode_mappings)
+    log_message(sprintf("Total SNP barcodes: %d", nrow(all_snp_mappings)), log_list)
+    
+    # Save SNP mappings separately
+    snp_output_path <- get_output_path(opt$run_id, opt$output_step, 
+                                      "step1_snp_barcode_mappings.qs",
+                                      output_base_dir)
+    save_intermediate(all_snp_mappings, snp_output_path, log_list)
+  }
+}
+
+# ============================================================================
+# Process HTO samples
+# ============================================================================
+if (nrow(hto_samples) > 0) {
+  log_message("Processing HTO samples...", log_list)
+  
+  for (i in seq_len(nrow(hto_samples))) {
+    row <- hto_samples[i, ]
+    sample_name <- row$sample_name
+    gem_name <- row$gem_name
+    
+    log_message(sprintf("Processing HTO sample %d/%d: %s (GEM: %s)", 
+                       i, nrow(hto_samples), sample_name, gem_name), log_list)
+    
+    processed_obj <- tryCatch({
       # Load filtered counts
+      log_message(sprintf("  Loading HTO data for %s", sample_name), log_list)
       filtered_counts_list <- Seurat::Read10X(row$dir_input_filtered_barcode_matrix)
       
       # Extract Gene Expression matrix
@@ -215,7 +208,7 @@ for (i in seq_len(nrow(config))) {
       
       # Check if HTO assay exists in object (try both original and dot-separated names)
       if (!is.null(actual_assay_name) && actual_assay_name %in% names(obj@assays)) {
-        log_message(sprintf("  Step 1.2: Performing %s demultiplexing for %s", demux_method, sample_name), log_list)
+        log_message(sprintf("  Performing %s demultiplexing for %s", demux_method, sample_name), log_list)
         obj <- process_hto_demux(
           obj = obj,
           method = demux_method,
@@ -229,52 +222,168 @@ for (i in seq_len(nrow(config))) {
         obj$sample_id <- sample_name
         obj$GEM <- gem_name
         obj$droplet_demulti <- "unknown"
-        log_message(sprintf("  Step 1.2: No HTO assay found for %s (tried '%s'), skipping demultiplexing", 
+        log_message(sprintf("  No HTO assay found for %s (tried '%s'), skipping demultiplexing", 
                            sample_name, hto_assay_name), log_list, level = "WARNING")
       }
       
-    } else {
-      stop(sprintf("Unknown multiplex_method: %s for sample %s", multiplex_method, sample_name))
-    }
-    
-    # Extract metadata from filename if patterns are provided
-    timepoint_regex <- get_param("metadata_timepoint_regex", config_list, NULL)
-    if (!is.null(timepoint_regex) && timepoint_regex != "") {
-      timepoint <- str_extract(sample_name, timepoint_regex)
-      if (!is.na(timepoint)) {
-        # Map timepoint to day if mapping exists
-        day_map_24 <- get_param("metadata_day_map_24", config_list, NULL)
-        day_map_72 <- get_param("metadata_day_map_72", config_list, NULL)
-        
-        if (timepoint == "24" && !is.null(day_map_24)) {
-          obj$day <- as.numeric(day_map_24)
-        } else if (timepoint == "72" && !is.null(day_map_72)) {
-          obj$day <- as.numeric(day_map_72)
+      # Add config metadata columns
+      config_cols_to_add <- c("name", "patient_name", "contamination_risk", "sample_name", "gem_name", "demultiplex_id")
+      for (col in config_cols_to_add) {
+        if (col %in% colnames(row) && !is.na(row[[col]])) {
+          obj[[col]] <- as.character(row[[col]])
         }
-        obj$time_point <- timepoint
       }
+      
+      # Extract metadata from filename if patterns are provided
+      timepoint_regex <- get_param("metadata_timepoint_regex", config_list, NULL)
+      if (!is.null(timepoint_regex) && timepoint_regex != "") {
+        timepoint <- str_extract(sample_name, timepoint_regex)
+        if (!is.na(timepoint)) {
+          # Map timepoint to day if mapping exists
+          day_map_24 <- get_param("metadata_day_map_24", config_list, NULL)
+          day_map_72 <- get_param("metadata_day_map_72", config_list, NULL)
+          
+          if (timepoint == "24" && !is.null(day_map_24)) {
+            obj$day <- as.numeric(day_map_24)
+          } else if (timepoint == "72" && !is.null(day_map_72)) {
+            obj$day <- as.numeric(day_map_72)
+          }
+          obj$time_point <- timepoint
+        }
+      }
+      
+      log_message(sprintf("  Completed %s: %d cells", sample_name, ncol(obj)), log_list)
+      obj
+      
+    }, error = function(e) {
+      log_message(sprintf("!!! ERROR in step %d processing HTO sample %s: %s !!!", 
+                         opt$output_step, sample_name, e$message), log_list, level = "ERROR")
+      log_message(sprintf("!!! Skipping HTO sample %s !!!", sample_name), log_list, level = "ERROR")
+      return(NULL)
+    })
+    
+    if (!is.null(processed_obj)) {
+      hto_objects[[sample_name]] <- processed_obj
     }
-    
-    log_message(sprintf("  Completed %s: %d cells", sample_name, ncol(obj)), log_list)
-    obj
-    
-  }, error = function(e) {
-    log_message(sprintf("!!! ERROR in step %d processing %s: %s !!!", 
-                       opt$output_step, sample_name, e$message), log_list, level = "ERROR")
-    log_message(sprintf("!!! Skipping sample %s !!!", sample_name), log_list, level = "ERROR")
-    return(NULL)
-  })
-  
-  if (!is.null(processed_obj)) {
-    sl[[sample_name]] <- processed_obj
   }
+  
+  # Save HTO objects separately
+  if (length(hto_objects) > 0) {
+    log_message("Saving HTO objects...", log_list)
+    hto_output_path <- get_output_path(opt$run_id, opt$output_step, 
+                                      "step1_hto_list.qs",
+                                      output_base_dir)
+    save_intermediate(hto_objects, hto_output_path, log_list)
+  }
+}
+
+# ============================================================================
+# Create Seurat objects for SNP samples (using barcode mappings)
+# ============================================================================
+if (length(snp_barcode_mappings) > 0 && exists("all_snp_mappings")) {
+  log_message("Creating Seurat objects for SNP samples...", log_list)
+  
+  # Group by GEM (same GEM can have multiple samples)
+  gem_groups <- split(snp_samples, snp_samples$gem_name)
+  
+  for (gem_name in names(gem_groups)) {
+    gem_samples <- gem_groups[[gem_name]]
+    
+    for (i in seq_len(nrow(gem_samples))) {
+      row <- gem_samples[i, ]
+      sample_name <- row$sample_name
+      
+      tryCatch({
+        log_message(sprintf("  Creating Seurat object for %s (GEM: %s)", sample_name, gem_name), log_list)
+        
+        # Load count matrices
+        filtered_counts <- Seurat::Read10X(row$dir_input_filtered_barcode_matrix)
+        
+        # Get barcode mapping for this sample
+        sample_mapping <- all_snp_mappings[all_snp_mappings$sample_name == sample_name, ]
+        
+        if (nrow(sample_mapping) == 0) {
+          stop(sprintf("No barcode mapping found for sample %s", sample_name))
+        }
+        
+        # Match barcodes (add GEM suffix to barcodes in counts)
+        colnames(filtered_counts) <- paste0(colnames(filtered_counts), "_", gem_name)
+        
+        # Get cells that are in both counts and barcode_map
+        common_cells <- intersect(colnames(filtered_counts), rownames(sample_mapping))
+        
+        if (length(common_cells) == 0) {
+          stop(sprintf("No common cells found between count matrix and demux results for %s", sample_name))
+        }
+        
+        # Create Seurat object
+        obj <- Seurat::CreateSeuratObject(
+          counts = filtered_counts[, common_cells],
+          meta.data = sample_mapping[common_cells, , drop = FALSE]
+        )
+        
+        # Add config metadata columns
+        config_cols_to_add <- c("name", "patient_name", "contamination_risk", "sample_name", "gem_name", "demultiplex_id")
+        for (col in config_cols_to_add) {
+          if (col %in% colnames(row) && !is.na(row[[col]])) {
+            obj[[col]] <- as.character(row[[col]])
+          }
+        }
+        
+        # Extract metadata from filename if patterns are provided
+        timepoint_regex <- get_param("metadata_timepoint_regex", config_list, NULL)
+        if (!is.null(timepoint_regex) && timepoint_regex != "") {
+          timepoint <- str_extract(sample_name, timepoint_regex)
+          if (!is.na(timepoint)) {
+            day_map_24 <- get_param("metadata_day_map_24", config_list, NULL)
+            day_map_72 <- get_param("metadata_day_map_72", config_list, NULL)
+            
+            if (timepoint == "24" && !is.null(day_map_24)) {
+              obj$day <- as.numeric(day_map_24)
+            } else if (timepoint == "72" && !is.null(day_map_72)) {
+              obj$day <- as.numeric(day_map_72)
+            }
+            obj$time_point <- timepoint
+          }
+        }
+        
+        # Downsample if requested (for testing)
+        if (!is.null(opt$downsample) && opt$downsample > 0 && opt$downsample < 1) {
+          n_cells_before <- ncol(obj)
+          n_cells_after <- max(1, round(n_cells_before * opt$downsample))
+          if (n_cells_after < n_cells_before) {
+            set.seed(seed + i)  # Reproducible sampling
+            cells_to_keep <- sample(colnames(obj), n_cells_after)
+            obj <- obj[, cells_to_keep]
+            log_message(sprintf("  Downsampled %s: %d -> %d cells (%.1f%%)", 
+                              sample_name, n_cells_before, n_cells_after, 
+                              opt$downsample * 100), log_list)
+          }
+        }
+        
+        sl[[sample_name]] <- obj
+        log_message(sprintf("  Completed %s: %d cells", sample_name, ncol(obj)), log_list)
+        
+      }, error = function(e) {
+        log_message(sprintf("!!! ERROR creating Seurat object for SNP sample %s: %s !!!", 
+                           sample_name, e$message), log_list, level = "ERROR")
+      })
+    }
+  }
+}
+
+# Combine SNP and HTO objects
+if (length(hto_objects) > 0) {
+  sl <- c(sl, hto_objects)
 }
 
 # Save results
 if (length(sl) > 0) {
   log_message(sprintf("Saving results to: %s", output_path), log_list)
   save_intermediate(sl, output_path, log_list)
-  log_message(sprintf("Step %d completed: %d samples processed", opt$output_step, length(sl)), log_list)
+  log_message(sprintf("Step %d completed: %d samples processed (%d SNP, %d HTO)", 
+                     opt$output_step, length(sl), 
+                     length(snp_barcode_mappings), length(hto_objects)), log_list)
 } else {
   log_message("No samples were successfully processed!", log_list, level = "ERROR")
   close_logging(log_list)
@@ -283,4 +392,3 @@ if (length(sl) > 0) {
 
 close_logging(log_list)
 cat(sprintf("Step %d completed successfully. Processed %d samples.\n", opt$output_step, length(sl)))
-
