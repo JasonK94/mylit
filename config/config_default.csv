@@ -69,9 +69,10 @@ rpca_nfeatures,3000,Number of features for integration
 # Integration - scVI
 scvi_conda_env,/home/user3/miniconda3/envs/scvi-env/,Path to conda environment
 scvi_python_path,/home/user3/miniconda3/envs/scvi-env/bin/python,Path to Python executable
-scvi_batch_col,GEM,Column name for batch in metadata
+scvi_batch_col,SET,Column name for batch in metadata
 scvi_dims,1:30,Dimensions to use for scVI integration
 scvi_resolution,0.6,Resolution for clustering after scVI integration
+integration_remove_doublets,FALSE,Whether to remove doublets before integration
 
 # Metadata extraction
 metadata_timepoint_regex,\\d+$,Regex pattern to extract timepoint from sample name

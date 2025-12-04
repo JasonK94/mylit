@@ -49,7 +49,7 @@ renv/
 *.log
 *.pdf
 *.png
-*.csv
+# *.csv
 */data/*
 *.tar.gz
 *.gz
