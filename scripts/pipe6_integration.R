@@ -48,6 +48,10 @@ option_list <- list(
   make_option(c("--output_dir", "-O"),
     type = "character", default = NULL,
     help = "Output directory (overrides run_id-based path)", metavar = "character"
+  ),
+  make_option(c("--execution_config", "-E"),
+    type = "character", default = NULL,
+    help = "Path to execution config JSON", metavar = "character"
   )
 )
 
@@ -74,7 +78,7 @@ log_list <- setup_logging(opt$run_id)
 log_message(sprintf("Step %d: Starting integration (%s)", opt$output_step, opt$method), log_list)
 
 # Load config
-config_list <- load_config(opt$config)
+config_list <- load_config(opt$config, execution_config_path = opt$execution_config)
 output_base_dir <- get_param("output_base_dir", config_list, "/data/user3/sobj/pipe")
 
 # Setup future for parallelization

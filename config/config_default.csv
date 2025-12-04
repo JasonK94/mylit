@@ -10,6 +10,7 @@ demuxalot_doublet_threshold,0.3,Minimum probability for doublet assignment
 demuxalot_doublet_separator,+,Separator used in doublet names (e.g., Sample1+Sample2)
 demuxalot_barcode_col,BARCODE,Column name for barcodes in demuxalot output
 demuxalot_annotation_col,Best_Sample,Column name for sample assignment in demuxalot output
+demultiplex_doublet_removal,TRUE,Whether to remove doublets identified during demultiplexing (inter-sample)
 
 # Demultiplexing - HTO
 hto_demux_method,HTODemux,Method for HTO demultiplexing (HTODemux or MULTIseqDemux)
