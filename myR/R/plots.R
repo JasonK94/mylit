@@ -316,6 +316,8 @@ mydensity <- function(data, column = NULL, adjust = 1, x_unit = NULL, y_unit = N
   return(fetched_df)
 }
 
+
+
 #' 세포 단위 피처 발현 박스플롯 (plot_gene_boxplot 스타일)
 #'
 #' @param data Seurat 객체 또는 data.frame
@@ -864,6 +866,117 @@ vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
   return(patchwork::wrap_plots(plist2, ncol = ncol))
 }
 
+# Helper function for sort.by logic in cmb and acmb
+# Supports vector input for multiple sorting criteria
+.calculate_sort_values <- function(sobj, summary_data, sort.by, identity, group.by) {
+  # Handle vector input: process each element in order
+  if(length(sort.by) > 1) {
+    # Collect all sort values as a data frame
+    all_sort_dfs <- list()
+    for(i in seq_along(sort.by)) {
+      single_sort_vals <- .calculate_sort_values(sobj, summary_data, sort.by[i], identity, group.by)
+      if(!is.null(single_sort_vals)) {
+        all_sort_dfs[[i]] <- data.frame(
+          sample = names(single_sort_vals),
+          value = single_sort_vals,
+          stringsAsFactors = FALSE
+        )
+        names(all_sort_dfs[[i]])[2] <- paste0("sort_", i)
+      }
+    }
+    
+    if(length(all_sort_dfs) == 0) {
+      return(NULL)
+    }
+    
+    # Merge all sort criteria
+    merged_df <- all_sort_dfs[[1]]
+    if(length(all_sort_dfs) > 1) {
+      for(i in 2:length(all_sort_dfs)) {
+        merged_df <- dplyr::left_join(merged_df, all_sort_dfs[[i]], by = "sample")
+      }
+    }
+    
+    # Create a combined sort value (for ordering)
+    # Use order() with multiple columns: first by sort_1, then by sort_2, etc.
+    sort_cols <- paste0("sort_", 1:length(all_sort_dfs))
+    merged_df <- merged_df %>%
+      dplyr::arrange(dplyr::across(dplyr::all_of(sort_cols), dplyr::desc))
+    
+    # Return a named vector with combined ranking
+    # Use row number as the sort value (lower row number = higher priority)
+    merged_df$combined_rank <- 1:nrow(merged_df)
+    sort_vals <- setNames(merged_df$combined_rank, merged_df$sample)
+    return(sort_vals)
+  }
+  
+  # Single value processing (original logic)
+  sort.by <- sort.by[1]
+  
+  # 1. Check if sort.by is a cluster in identity
+  unique_clusters <- unique(summary_data$cluster)
+  if(sort.by %in% unique_clusters) {
+    # Sort by frequency of this cluster per sample
+    cluster_counts <- summary_data %>%
+      dplyr::filter(cluster == sort.by) %>%
+      dplyr::select(sample, count) %>%
+      dplyr::right_join(
+        data.frame(sample = unique(summary_data$sample), stringsAsFactors = FALSE),
+        by = "sample"
+      ) %>%
+      dplyr::mutate(count = ifelse(is.na(count), 0, count))
+    
+    sort_vals <- setNames(cluster_counts$count, cluster_counts$sample)
+    return(sort_vals)
+  }
+  
+  # 2. Check if sort.by is a metadata column
+  if(sort.by %in% names(sobj@meta.data)) {
+    # Calculate mean value per sample
+    meta_vals <- sobj@meta.data[[sort.by]]
+    sample_vals <- sobj@meta.data[[group.by]]
+    
+    if(!is.numeric(meta_vals)) {
+      warning("sort.by metadata column '", sort.by, "' is not numeric. Skipping sort.by.")
+      return(NULL)
+    }
+    
+    meta_df <- data.frame(
+      sample = sample_vals,
+      value = meta_vals,
+      stringsAsFactors = FALSE
+    ) %>%
+      dplyr::filter(sample %in% unique(summary_data$sample)) %>%
+      dplyr::group_by(sample) %>%
+      dplyr::summarise(mean_value = mean(value, na.rm = TRUE), .groups = "drop")
+    
+    sort_vals <- setNames(meta_df$mean_value, meta_df$sample)
+    return(sort_vals)
+  }
+  
+  # 3. Check if sort.by is a feature/gene
+  if(sort.by %in% rownames(sobj)) {
+    # Fetch expression data
+    expr_data <- Seurat::FetchData(sobj, vars = sort.by)
+    sample_vals <- sobj@meta.data[[group.by]]
+    
+    expr_df <- data.frame(
+      sample = sample_vals,
+      expression = expr_data[[sort.by]],
+      stringsAsFactors = FALSE
+    ) %>%
+      dplyr::filter(sample %in% unique(summary_data$sample)) %>%
+      dplyr::group_by(sample) %>%
+      dplyr::summarise(mean_expr = mean(expression, na.rm = TRUE), .groups = "drop")
+    
+    sort_vals <- setNames(expr_df$mean_expr, expr_df$sample)
+    return(sort_vals)
+  }
+  
+  # If none of the above, return NULL
+  warning("sort.by '", sort.by, "' not found in identity clusters, metadata, or features. Skipping sort.by.")
+  return(NULL)
+}
 
 #' Create a Proportional Bar Graph of Clusters
 #'
@@ -877,9 +990,23 @@ vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
 #'                 Default is "sample"
 #' @param idents Character vector specifying which identities to include.
 #'              If NULL, includes all identities
+#' @param group.by.filter Character vector specifying which values of group.by to include.
+#'                       If NULL, includes all values. Default is NULL.
+#' @param split.by Character string specifying a metadata column to group samples.
+#'                If provided, vlines will be automatically set at group boundaries.
+#'                If NULL and vlines is NULL, no vertical lines are drawn. Default is NULL.
+#' @param sort.by Character string or vector specifying how to sort samples. Options:
+#'                - NULL: Use default sort_samples function
+#'                - Single value: Identity cluster name (e.g., "Monocytes"), metadata column name, or feature/gene name
+#'                - Vector (e.g., c("Monocytes", "logP")): Sort by multiple criteria in order (first takes priority)
+#'                When sort.by is a cluster name, samples are sorted by frequency of that cluster.
+#'                When sort.by is a metadata column, samples are sorted by mean value of that column.
+#'                When sort.by is a feature/gene name, samples are sorted by mean expression.
+#'                Default is NULL.
 #' @param df Logical. If TRUE, returns the data frame used for plotting instead of the plot.
 #'          Default is FALSE
 #' @param vlines Numeric vector specifying x-axis positions for vertical lines.
+#'              If NULL and split.by is provided, vlines will be automatically calculated.
 #'              Default is NULL
 #' @param vline_color Character string specifying the color for vertical lines.
 #'                   Default is "red"
@@ -895,11 +1022,34 @@ vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
 #' # Create plot for specific clusters with vertical lines
 #' p <- cmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
 #' 
+#' # Filter specific group.by values
+#' p <- cmb(sobj, group.by = "sample", group.by.filter = c("sample1", "sample2", "sample3"))
+#' 
+#' # Use split.by to automatically set vlines at group boundaries
+#' p <- cmb(sobj, group.by = "sample", split.by = "g3")
+#' 
+#' # Sort by cluster frequency
+#' p <- cmb(sobj, sort.by = "Monocytes")
+#' 
+#' # Sort by metadata column
+#' p <- cmb(sobj, sort.by = "logP")
+#' 
+#' # Sort by gene expression
+#' p <- cmb(sobj, sort.by = "CXCL8")
+#' 
+#' # Sort by multiple criteria
+#' p <- cmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
+#' 
+#' # Sort by multiple criteria
+#' p <- cmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
+#' 
 #' # Get the underlying data frame
 #' df <- cmb(sobj, df = TRUE)
 #' }
 #' @export
-cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents = NULL, df=F, vlines=NULL, vline_color = "red") {
+cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents = NULL, 
+                group.by.filter = NULL, split.by = NULL, sort.by = NULL,
+                df=F, vlines=NULL, vline_color = "red") {
   Idents(sobj) <- identity
   cluster_ids <- Idents(sobj)
   sample_ids <- sobj@meta.data[[group.by]]
@@ -911,6 +1061,14 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
     data <- data[data$cluster %in% idents,]
   }
   
+  # Filter group.by values if group.by.filter is provided
+  if(!is.null(group.by.filter)) {
+    data <- data[data$sample %in% group.by.filter,]
+    if(nrow(data) == 0) {
+      stop("No data remaining after group.by.filter. Please check the filter values.")
+    }
+  }
+  
   summary_data <- data %>%
     group_by(sample, cluster) %>%
     summarise(count = n(), .groups = "drop") %>%
@@ -918,9 +1076,126 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
     mutate(proportion = count / sum(count)) %>%
     ungroup()
   
-  # Sort the samples using the new sort_samples function
-  sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
-  summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+  # Handle split.by and sort.by: split.by takes priority for grouping, sort.by for within-group sorting
+  sample_split_map <- NULL
+  if(!is.null(split.by)) {
+    if(!split.by %in% names(sobj@meta.data)) {
+      stop("split.by column '", split.by, "' not found in metadata.")
+    }
+    
+    # Get split.by values for each sample
+    sample_split_map <- sobj@meta.data %>%
+      dplyr::select(!!sym(group.by), !!sym(split.by)) %>%
+      distinct() %>%
+      dplyr::filter(!!sym(group.by) %in% unique(summary_data$sample))
+  }
+  
+  # Handle sort.by: determine sort order based on sort.by parameter
+  # If split.by is provided, sort within each split.by group
+  if(!is.null(sort.by)) {
+    sort_values <- .calculate_sort_values(sobj, summary_data, sort.by, identity, group.by)
+    if(!is.null(sort_values) && !is.null(sample_split_map)) {
+      # Sort within each split.by group - ensure proper ordering
+      split_groups <- unique(sample_split_map[[split.by]])
+      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+      
+      sorted_samples <- c()
+      for(sg in split_groups) {
+        if(is.na(sg)) next  # Skip NA groups
+        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
+        if(length(samples_in_group) > 0) {
+          # Get sort values for samples in this group
+          group_sort_vals <- sort_values[names(sort_values) %in% samples_in_group]
+          # Ensure all samples in group have sort values (fill missing with 0 or min)
+          missing_samples <- setdiff(samples_in_group, names(group_sort_vals))
+          if(length(missing_samples) > 0) {
+            min_val <- if(length(group_sort_vals) > 0) min(group_sort_vals, na.rm = TRUE) - 1 else 0
+            group_sort_vals[missing_samples] <- min_val
+          }
+          # Sort by decreasing order (higher values first)
+          sorted_group <- names(sort(group_sort_vals, decreasing = TRUE, na.last = TRUE))
+          sorted_samples <- c(sorted_samples, sorted_group)
+        }
+      }
+      # Ensure all samples are included
+      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
+      if(length(missing_samples) > 0) {
+        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
+      }
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    } else if(!is.null(sort_values)) {
+      # No split.by, just sort by sort_values
+      sorted_samples <- names(sort(sort_values, decreasing = TRUE, na.last = TRUE))
+      # Include any missing samples
+      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
+      if(length(missing_samples) > 0) {
+        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
+      }
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    } else {
+      # Fallback to default sorting
+      if(!is.null(sample_split_map)) {
+        # Sort by split.by groups
+        split_groups <- unique(sample_split_map[[split.by]])
+        split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+        sorted_samples <- c()
+        for(sg in split_groups) {
+          if(is.na(sg)) next
+          samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+          samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
+          sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
+        }
+        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+      } else {
+        sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
+        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+      }
+    }
+  } else {
+    # No sort.by: use split.by grouping if available, otherwise default sorting
+    if(!is.null(sample_split_map)) {
+      # Sort by split.by groups
+      split_groups <- unique(sample_split_map[[split.by]])
+      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+      sorted_samples <- c()
+      for(sg in split_groups) {
+        if(is.na(sg)) next
+        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
+        sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
+      }
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    } else {
+      # Default sorting
+      sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    }
+  }
+  
+  # Calculate vlines from split.by if not provided
+  if(!is.null(split.by) && is.null(vlines)) {
+    if(!is.null(sample_split_map)) {
+      split_groups <- unique(sample_split_map[[split.by]])
+      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+      
+      vlines <- c()
+      current_pos <- 0
+      for(sg in split_groups) {
+        if(is.na(sg)) next
+        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+        n_samples <- length(intersect(samples_in_group, unique(summary_data$sample)))
+        if(n_samples > 0) {
+          current_pos <- current_pos + n_samples
+          vlines <- c(vlines, current_pos)
+        }
+      }
+      # Remove the last vline (end of plot)
+      if(length(vlines) > 0) {
+        vlines <- vlines[-length(vlines)]
+      }
+    }
+  }
   
   output=ggplot(summary_data, aes(x = sample, y = proportion, fill = cluster)) +
     geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
@@ -958,9 +1233,23 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
 #'                 Default is "sample"
 #' @param idents Character vector specifying which identities to include.
 #'              If NULL, includes all identities
+#' @param group.by.filter Character vector specifying which values of group.by to include.
+#'                       If NULL, includes all values. Default is NULL.
+#' @param split.by Character string specifying a metadata column to group samples.
+#'                If provided, vlines will be automatically set at group boundaries.
+#'                If NULL and vlines is NULL, no vertical lines are drawn. Default is NULL.
+#' @param sort.by Character string or vector specifying how to sort samples. Options:
+#'                - NULL: Use default sort_samples function
+#'                - Single value: Identity cluster name (e.g., "Monocytes"), metadata column name, or feature/gene name
+#'                - Vector (e.g., c("Monocytes", "logP")): Sort by multiple criteria in order (first takes priority)
+#'                When sort.by is a cluster name, samples are sorted by frequency of that cluster.
+#'                When sort.by is a metadata column, samples are sorted by mean value of that column.
+#'                When sort.by is a feature/gene name, samples are sorted by mean expression.
+#'                Default is NULL.
 #' @param df Logical. If TRUE, returns the data frame used for plotting instead of the plot.
 #'          Default is FALSE
 #' @param vlines Numeric vector specifying x-axis positions for vertical lines.
+#'              If NULL and split.by is provided, vlines will be automatically calculated.
 #'              Default is NULL
 #' @param vline_color Character string specifying the color for vertical lines.
 #'                   Default is "red"
@@ -976,11 +1265,31 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
 #' # Create plot for specific clusters with vertical lines
 #' p <- acmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
 #' 
+#' # Filter specific group.by values
+#' p <- acmb(sobj, group.by = "sample", group.by.filter = c("sample1", "sample2", "sample3"))
+#' 
+#' # Use split.by to automatically set vlines at group boundaries
+#' p <- acmb(sobj, group.by = "sample", split.by = "g3")
+#' 
+#' # Sort by cluster frequency
+#' p <- acmb(sobj, sort.by = "Monocytes")
+#' 
+#' # Sort by metadata column
+#' p <- acmb(sobj, sort.by = "logP")
+#' 
+#' # Sort by gene expression
+#' p <- acmb(sobj, sort.by = "CXCL8")
+#' 
+#' # Sort by multiple criteria
+#' p <- acmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
+#' 
 #' # Get the underlying data frame
 #' df <- acmb(sobj, df = TRUE)
 #' }
 #' @export
-acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = NULL, df=F, vlines=NULL, vline_color = "red") {
+acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = NULL,
+                group.by.filter = NULL, split.by = NULL, sort.by = NULL,
+                df=F, vlines=NULL, vline_color = "red") {
   Idents(sobj) <- identity
   cluster_ids <- Idents(sobj)
   sample_ids <- sobj@meta.data[[group.by]]
@@ -992,13 +1301,138 @@ acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = N
     data <- data[data$cluster %in% idents,]
   }
   
+  # Filter group.by values if group.by.filter is provided
+  if(!is.null(group.by.filter)) {
+    data <- data[data$sample %in% group.by.filter,]
+    if(nrow(data) == 0) {
+      stop("No data remaining after group.by.filter. Please check the filter values.")
+    }
+  }
+  
   summary_data <- data %>%
     group_by(sample, cluster) %>%
     summarise(count = n(), .groups = "drop")
   
-  # Sort the samples using the new sort_samples function
-  sorted_samples <- sort_samples(unique(summary_data$sample))
-  summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+  # Handle split.by and sort.by: split.by takes priority for grouping, sort.by for within-group sorting
+  sample_split_map <- NULL
+  if(!is.null(split.by)) {
+    if(!split.by %in% names(sobj@meta.data)) {
+      stop("split.by column '", split.by, "' not found in metadata.")
+    }
+    
+    # Get split.by values for each sample
+    sample_split_map <- sobj@meta.data %>%
+      dplyr::select(!!sym(group.by), !!sym(split.by)) %>%
+      distinct() %>%
+      dplyr::filter(!!sym(group.by) %in% unique(summary_data$sample))
+  }
+  
+  # Handle sort.by: determine sort order based on sort.by parameter
+  # If split.by is provided, sort within each split.by group
+  if(!is.null(sort.by)) {
+    sort_values <- .calculate_sort_values(sobj, summary_data, sort.by, identity, group.by)
+    if(!is.null(sort_values) && !is.null(sample_split_map)) {
+      # Sort within each split.by group - ensure proper ordering
+      split_groups <- unique(sample_split_map[[split.by]])
+      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+      
+      sorted_samples <- c()
+      for(sg in split_groups) {
+        if(is.na(sg)) next  # Skip NA groups
+        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
+        if(length(samples_in_group) > 0) {
+          # Get sort values for samples in this group
+          group_sort_vals <- sort_values[names(sort_values) %in% samples_in_group]
+          # Ensure all samples in group have sort values (fill missing with 0 or min)
+          missing_samples <- setdiff(samples_in_group, names(group_sort_vals))
+          if(length(missing_samples) > 0) {
+            min_val <- if(length(group_sort_vals) > 0) min(group_sort_vals, na.rm = TRUE) - 1 else 0
+            group_sort_vals[missing_samples] <- min_val
+          }
+          # Sort by decreasing order (higher values first)
+          sorted_group <- names(sort(group_sort_vals, decreasing = TRUE, na.last = TRUE))
+          sorted_samples <- c(sorted_samples, sorted_group)
+        }
+      }
+      # Ensure all samples are included
+      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
+      if(length(missing_samples) > 0) {
+        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
+      }
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    } else if(!is.null(sort_values)) {
+      # No split.by, just sort by sort_values
+      sorted_samples <- names(sort(sort_values, decreasing = TRUE, na.last = TRUE))
+      # Include any missing samples
+      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
+      if(length(missing_samples) > 0) {
+        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
+      }
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    } else {
+      # Fallback to default sorting
+      if(!is.null(sample_split_map)) {
+        # Sort by split.by groups
+        split_groups <- unique(sample_split_map[[split.by]])
+        split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+        sorted_samples <- c()
+        for(sg in split_groups) {
+          if(is.na(sg)) next
+          samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+          samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
+          sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
+        }
+        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+      } else {
+        sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
+        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+      }
+    }
+  } else {
+    # No sort.by: use split.by grouping if available, otherwise default sorting
+    if(!is.null(sample_split_map)) {
+      # Sort by split.by groups
+      split_groups <- unique(sample_split_map[[split.by]])
+      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+      sorted_samples <- c()
+      for(sg in split_groups) {
+        if(is.na(sg)) next
+        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
+        sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
+      }
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    } else {
+      # Default sorting
+      sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
+      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    }
+  }
+  
+  # Calculate vlines from split.by if not provided
+  if(!is.null(split.by) && is.null(vlines)) {
+    if(!is.null(sample_split_map)) {
+      split_groups <- unique(sample_split_map[[split.by]])
+      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
+      
+      vlines <- c()
+      current_pos <- 0
+      for(sg in split_groups) {
+        if(is.na(sg)) next
+        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
+        n_samples <- length(intersect(samples_in_group, unique(summary_data$sample)))
+        if(n_samples > 0) {
+          current_pos <- current_pos + n_samples
+          vlines <- c(vlines, current_pos)
+        }
+      }
+      # Remove the last vline (end of plot)
+      if(length(vlines) > 0) {
+        vlines <- vlines[-length(vlines)]
+      }
+    }
+  }
   
   output=ggplot(summary_data, aes(x = sample, y = count, fill = cluster)) +
     geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +

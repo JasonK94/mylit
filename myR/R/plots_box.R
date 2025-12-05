@@ -214,6 +214,10 @@ plot_box <- function(data,
       if (requireNamespace("ggpubr", quietly = TRUE)) {
         p <- p + ggpubr::stat_compare_means(
           label = "p.format",
+          vjust = 1.5,  # Move p-value down (positive = down, negative = up)
+          label.size = 3,  # Smaller label size
+          step.increase = 0.15,  # Increase spacing between comparisons
+          bracket.nudge.y = 0.1,  # Nudge bracket down
           ...
         )
       } else {
@@ -222,7 +226,11 @@ plot_box <- function(data,
     }
     
     # Add faceting and theme
-    p <- p + ggplot2::facet_wrap(as.formula(paste("~", group.by.internal))) +
+    # Use scales = "free_y" to allow different y-axis scales per facet
+    p <- p + ggplot2::facet_wrap(
+      as.formula(paste("~", group.by.internal)),
+      scales = "free_y"
+    ) +
       ggplot2::labs(
         title = feature_name,
         x = split.by,
@@ -232,7 +240,8 @@ plot_box <- function(data,
       ggplot2::theme(
         panel.background = ggplot2::element_rect(fill = "white", color = NA),
         plot.background = ggplot2::element_rect(fill = "white", color = NA),
-        axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+        axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 10),
+        strip.text = ggplot2::element_text(size = 10, face = "plain"),
         plot.title = ggplot2::element_text(hjust = 0.5),
         legend.position = "none"
       )
