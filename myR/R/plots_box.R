@@ -267,3 +267,30 @@ plot_box <- function(data,
   }
 }
 
+#' @export
+pb_freq = function(sobj, cluster = "anno3", group = "g3", sample = "hos_no", ...) {
+  # 1. 셀 레벨 데이터프레임 준비
+  # dplyr::select를 명시적으로 사용하여 잠재적 네이밍 충돌 방지
+  freq_df <- sobj@meta.data %>%
+    dplyr::select(dplyr::all_of(c(cluster, group, sample)))
+
+  # 2. 그룹별/샘플별 셀 빈도 계산
+  cell_counts <- freq_df %>%
+    dplyr::group_by(!!rlang::sym(sample), !!rlang::sym(group), !!rlang::sym(cluster)) %>%
+    dplyr::summarise(Cell_Count = n(), .groups = 'drop_last') %>%
+    dplyr::mutate(Frequency = Cell_Count / sum(Cell_Count)) %>%
+    dplyr::ungroup()
+
+  # 3. plot_box 함수 호출
+  # data에 cell_counts를 전달하고, group.by와 split.by에 문자열을 전달합니다.
+  # plot_box 함수가 data.frame을 처리할 수 있도록 내부 코드가 약간 수정되었다고 가정합니다.
+  plot_box(
+    data = cell_counts, # 🚨 수정된 데이터프레임을 data 인수로 전달
+    features = "Frequency", 
+    group.by = cluster, # 문자열로 전달
+    split.by = group,   # 문자열로 전달
+    aggregate = FALSE,  # 이미 집계된 데이터이므로 FALSE
+    match_id = NULL
+    # metadata_df 인수를 사용하지 않고 data 인수에 집계된 데이터를 바로 전달합니다.
+  )
+}
