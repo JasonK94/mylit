@@ -89,9 +89,21 @@ This log captures the narrative context, decisions, and reasoning behind major d
   - Keep context files synchronized with evolving package functionality.
   - Schedule regular updates to DEVLOG/CHANGELOG alongside major commits.
 
+## 2025-12-08 — MASC Pipeline Implementation (`masc` branch)
+- **Author**: kjc_server1
+- **Summary**: Implemented Mixed-effects Association testing for Single Cells (MASC) pipeline.
+- **Details**:
+  - Ported MASC logic from original package to `myR` with Seurat object support.
+  - Created `run_masc_pipeline()` and associated helper functions in `myR/R/masc.R`.
+  - Added robust data preprocessing: automatic type conversion, NA handling, and column name cleaning.
+  - Validated pipeline on stroke dataset, confirming significant T-cell abundance changes.
+  - Documented usage in `docs/masc/README.md`.
+- **Next Steps**:
+  - Integrate MASC pipeline into the main analysis workflow.
+  - Explore additional covariates and interaction terms.
+
 ---
 
 ### Upcoming Focus
 - Backfill post–signature v5.2 updates into `function_analysis*.md`.
 - Decide on semantic version tags capturing Milo/signature milestones before the next release.
-
