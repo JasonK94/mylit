@@ -83,17 +83,36 @@ run_multinichenet_analysis <- function(sobj,
 
     # Helper to load data
     load_nn_data <- function(file_name, url_base, dir_path) {
-        file_path <- file.path(dir_path, file_name)
-        if (!file.exists(file_path)) {
+        # Check for .qs version first
+        qs_file_name <- sub("\\.rds$", ".qs", file_name)
+        qs_path <- file.path(dir_path, qs_file_name)
+        rds_path <- file.path(dir_path, file_name)
+
+        if (file.exists(qs_path)) {
+            if (verbose) message("Loading ", qs_file_name, " (qs)...")
+            return(qs::qread(qs_path))
+        } else if (file.exists(rds_path)) {
+            if (verbose) message("Loading ", file_name, " (rds)...")
+            return(readRDS(rds_path))
+        } else {
+            # Download if neither exists
             if (verbose) message("Downloading ", file_name, "...")
-            download.file(paste0(url_base, file_name, "?download=1"), file_path, mode = "wb", quiet = !verbose)
+            download.file(paste0(url_base, file_name, "?download=1"), rds_path, mode = "wb", quiet = !verbose)
+            return(readRDS(rds_path))
         }
-        readRDS(file_path)
     }
 
     if (is.null(nichenet_data_dir)) {
-        nichenet_data_dir <- file.path(getwd(), paste0("nichenet_data_", species))
-        if (!dir.exists(nichenet_data_dir)) dir.create(nichenet_data_dir, recursive = TRUE)
+        # Check shared directory first
+        shared_dir <- file.path("/data/user3/git_repo", species)
+        if (dir.exists(shared_dir)) {
+            nichenet_data_dir <- shared_dir
+            if (verbose) message("Using shared NicheNet data directory: ", nichenet_data_dir)
+        } else {
+            nichenet_data_dir <- file.path(getwd(), paste0("nichenet_data_", species))
+            if (!dir.exists(nichenet_data_dir)) dir.create(nichenet_data_dir, recursive = TRUE)
+            if (verbose) message("Using local NicheNet data directory: ", nichenet_data_dir)
+        }
     }
 
     lr_network <- load_nn_data(required_files$lr_network, base_url, nichenet_data_dir)

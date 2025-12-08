@@ -2,9 +2,11 @@
 # Test MultiNicheNet analysis
 
 # Set environment
-if (file.exists("/home/user3/GJC_KDW_250721/start.R")) {
-    source("/home/user3/GJC_KDW_250721/start.R")
-}
+# Set environment
+# Note: We rely on renv being active in the project root via .Rprofile
+# if (file.exists("renv/activate.R")) {
+#   source("renv/activate.R")
+# }
 
 library(Seurat)
 library(dplyr)
