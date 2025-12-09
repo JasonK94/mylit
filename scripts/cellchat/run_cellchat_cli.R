@@ -21,6 +21,8 @@ suppressPackageStartupMessages({
     }
 })
 
+options(future.globals.maxSize = 200 * 1024^3)
+
 # Define options
 option_list <- list(
     make_option(c("-i", "--input"),
@@ -30,6 +32,18 @@ option_list <- list(
     make_option(c("-g", "--group_by"),
         type = "character", default = NULL,
         help = "Metadata column for cell grouping [Required]", metavar = "column"
+    ),
+    make_option(c("-b", "--split_by"),
+        type = "character", default = NULL,
+        help = "Metadata column to split analysis by (e.g. patient, condition) [Optional]", metavar = "column"
+    ),
+    make_option(c("--subset_split"),
+        type = "character", default = NULL,
+        help = "Comma-separated list of split groups to analyze (e.g. '2,1') [Optional, analyzes all if not specified]", metavar = "groups"
+    ),
+    make_option(c("-m", "--min_cells"),
+        type = "integer", default = 10,
+        help = "Minimum cells per group [default: %default]", metavar = "int"
     ),
     make_option(c("-o", "--output_dir"),
         type = "character", default = NULL,
@@ -61,11 +75,20 @@ if (is.null(opt$input) || is.null(opt$group_by)) {
     stop("Input file and group_by column are required.", call. = FALSE)
 }
 
+# Parse subset_split if provided
+subset_split_val <- NULL
+if (!is.null(opt$subset_split)) {
+    subset_split_val <- strsplit(opt$subset_split, ",")[[1]]
+    # Try to convert to numeric if possible
+    subset_split_numeric <- suppressWarnings(as.numeric(subset_split_val))
+    if (!any(is.na(subset_split_numeric))) {
+        subset_split_val <- subset_split_numeric
+    }
+}
+
 # Source the wrapper function
-# Assuming the script is run from the project root or we can find the file
 wrapper_path <- "myR/R/cci_cellchat_wrapper.R"
 if (!file.exists(wrapper_path)) {
-    # Try absolute path based on known structure
     wrapper_path <- "/home/user3/data_user3/git_repo/_wt/cellchat/myR/R/cci_cellchat_wrapper.R"
 }
 
@@ -79,11 +102,19 @@ if (file.exists(wrapper_path)) {
 message("Starting CellChat CLI...")
 message("Input: ", opt$input)
 message("Group By: ", opt$group_by)
+if (!is.null(opt$split_by)) {
+    message("Split By: ", opt$split_by)
+    if (!is.null(subset_split_val)) {
+        message("Subset Split: ", paste(subset_split_val, collapse = ", "))
+    }
+}
 
-# The wrapper handles loading the input file
 run_cellchat_analysis(
     input_data = opt$input,
     group.by = opt$group_by,
+    split.by = opt$split_by,
+    subset.split = subset_split_val,
+    min.cells.group = opt$min_cells,
     species = opt$species,
     assay_name = opt$assay,
     output_dir = opt$output_dir,

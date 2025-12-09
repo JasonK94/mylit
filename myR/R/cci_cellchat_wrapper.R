@@ -10,6 +10,10 @@
 #'        Options: "Secreted Signaling", "ECM-Receptor", "Cell-Cell Contact".
 #'        If NULL, uses the entire database. Default: NULL.
 #' @param assay_name Character string. Assay to use. Default: "RNA".
+#' @param split.by Character string. Metadata column to split analysis by (e.g., patient ID, condition). If provided, runs separate CellChat for each group. Default: NULL.
+#' @param subset.split Character vector. Specific groups from split.by to analyze. If NULL, analyzes all groups. Default: NULL.
+#' @param min.cells.group Integer. Minimum number of cells per group.by category within each split group. Default: 10.
+#' @param population.size Logical. Whether to scale communication probability by cell population sizes. Default: FALSE.
 #' @param output_dir Character string. Path to save results. Default: NULL.
 #' @param n_cores Integer. Number of cores for parallel processing. Default: 16.
 #' @param do_parallel Logical. Whether to use parallel processing. Default: TRUE.
@@ -27,6 +31,10 @@ run_cellchat_analysis <- function(input_data,
                                   species = c("human", "mouse"),
                                   db.use = NULL,
                                   assay_name = "RNA",
+                                  split.by = NULL,
+                                  subset.split = NULL,
+                                  min.cells.group = 10,
+                                  population.size = FALSE,
                                   output_dir = NULL,
                                   n_cores = 16,
                                   do_parallel = TRUE,
@@ -83,6 +91,59 @@ run_cellchat_analysis <- function(input_data,
     sobj <- input_data
   } else {
     stop("input_data must be a Seurat object or a path to one.")
+  }
+
+  # --- Handle Sample Splitting ---
+  if (!is.null(split.by)) {
+    if (!split.by %in% colnames(sobj@meta.data)) {
+      stop("split.by column '", split.by, "' not found in metadata.")
+    }
+
+    split_groups <- unique(sobj@meta.data[[split.by]])
+    if (!is.null(subset.split)) {
+      split_groups <- intersect(split_groups, subset.split)
+      if (length(split_groups) == 0) {
+        stop("No valid split groups found. Check subset.split values.")
+      }
+    }
+
+    log_msg(paste0("Splitting analysis by '", split.by, "' into ", length(split_groups), " groups: ", paste(split_groups, collapse = ", ")))
+
+    # Run analysis for each split group
+    results_list <- list()
+    for (split_val in split_groups) {
+      log_msg(paste0("\n=== Processing split group: ", split_val, " ==="))
+
+      # Subset data
+      sobj_subset <- sobj[, sobj@meta.data[[split.by]] == split_val]
+      log_msg(paste0("Subset contains ", ncol(sobj_subset), " cells"))
+
+      # Run analysis with modified run_name and output_dir
+      split_run_name <- paste0(run_name, "_", make.names(split_val))
+      split_output_dir <- if (!is.null(output_dir)) file.path(output_dir, make.names(split_val)) else NULL
+
+      # Recursively call with split.by = NULL to prevent infinite recursion
+      result <- run_cellchat_analysis(
+        input_data = sobj_subset,
+        group.by = group.by,
+        species = species,
+        db.use = db.use,
+        assay_name = assay_name,
+        split.by = NULL, # Important: prevent recursion
+        min.cells.group = min.cells.group,
+        population.size = population.size,
+        output_dir = split_output_dir,
+        n_cores = n_cores,
+        do_parallel = do_parallel,
+        verbose = verbose,
+        run_name = split_run_name
+      )
+
+      results_list[[split_val]] <- result
+    }
+
+    log_msg(paste0("\n=== Split analysis complete. Processed ", length(results_list), " groups ==="))
+    return(results_list)
   }
 
   # --- Setup Output Directory ---
@@ -196,8 +257,8 @@ run_cellchat_analysis <- function(input_data,
     log_msg("Computing communication probabilities (computeCommunProb)... This may take a while.")
     cellchat <- CellChat::computeCommunProb(cellchat, type = "triMean")
 
-    log_msg("Filtering communication (filterCommunication)...")
-    cellchat <- CellChat::filterCommunication(cellchat, min.cells = 10)
+    log_msg(paste0("Filtering communication (filterCommunication) with min.cells = ", min.cells.group, "..."))
+    cellchat <- CellChat::filterCommunication(cellchat, min.cells = min.cells.group)
 
     save_checkpoint(cellchat, "step2_prob")
   } else {
