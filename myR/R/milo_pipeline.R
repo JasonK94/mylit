@@ -254,15 +254,55 @@ run_milo_pipeline <- function(
     )
 
     meta_df <- as.data.frame(SingleCellExperiment::colData(milo))
-    keep_cols <- c(patient_var, target_var, batch_var)
+    
+    # Handle batch_var as either single string or vector
+    batch_vars <- if (is.character(batch_var) && length(batch_var) == 1) batch_var else batch_var
+    keep_cols <- c(patient_var, target_var, batch_vars)
+    
+    # Get unique combinations - patient_var should be unique per sample
+    # But we need to handle cases where same patient_var appears with different batch/target combinations
     patient_info <- unique(meta_df[, keep_cols, drop = FALSE])
+    
+    # Check for duplicates in patient_var
+    if (any(duplicated(patient_info[[patient_var]]))) {
+        # If there are duplicates, it means same patient has multiple combinations
+        # We'll use the first occurrence for each patient_var
+        patient_info <- patient_info[!duplicated(patient_info[[patient_var]]), , drop = FALSE]
+    }
+    
     rownames(patient_info) <- patient_info[[patient_var]]
 
-    sample_design <- patient_info[colnames(miloR::nhoodCounts(milo)), , drop = FALSE]
+    # Get sample IDs from nhoodCounts and match with patient_info
+    sample_ids <- colnames(miloR::nhoodCounts(milo))
+    if (length(sample_ids) == 0) {
+        stop("countCells returned zero samples. Check patient_var input.")
+    }
+    
+    # Match sample IDs with patient_info
+    missing_samples <- setdiff(sample_ids, rownames(patient_info))
+    if (length(missing_samples) > 0) {
+        stop(sprintf("Sample IDs from countCells not found in patient_info: %s", 
+                     paste(missing_samples[1:min(5, length(missing_samples))], collapse = ", ")))
+    }
+    
+    sample_design <- patient_info[sample_ids, , drop = FALSE]
     sample_design[[target_var]] <- factor(sample_design[[target_var]])
-    sample_design[[batch_var]] <- factor(sample_design[[batch_var]])
+    
+    # Convert each batch variable to factor
+    for (bv in batch_vars) {
+        if (bv %in% colnames(sample_design)) {
+            sample_design[[bv]] <- factor(sample_design[[bv]])
+        }
+    }
 
-    formula_str <- sprintf("~ %s + %s", batch_var, target_var)
+    # Build formula string: ~ batch_var1 + batch_var2 + ... + target_var
+    if (length(batch_vars) == 1) {
+        formula_str <- sprintf("~ %s + %s", batch_vars, target_var)
+    } else {
+        batch_part <- paste(batch_vars, collapse = " + ")
+        formula_str <- sprintf("~ %s + %s", batch_part, target_var)
+    }
+    
     da_results <- miloR::testNhoods(
         milo,
         design = as.formula(formula_str),
@@ -351,7 +391,7 @@ run_milo_pipeline <- function(
     )
 
     if (save) {
-        saveRDS(plots, file = save_path)
+        qs::qsave(plots, file = save_path)
         if (verbose) cli::cli_inform(c("cache" = "Saved plot bundle to {.path {save_path}}"))
     }
 
@@ -560,7 +600,7 @@ run_milo_pipeline <- function(
         distances = "02_distances_calculated.qs",
         da_milo = "03_tested.qs",
         da_results = "03_da_results.qs",
-        plots = "04_plots.rds"
+        plots = "04_plots.qs"
     )
 
     suffix_info <- .milo_pick_suffix(output_dir, prefix, suffix, base_names)
