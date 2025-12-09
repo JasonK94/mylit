@@ -1,0 +1,411 @@
+✨ Initialising pipeline session (start_pipe.R)
+  Step 2 detected
+
+--- Project Session Started: 2025-12-03 15:04:14.396668 ---
+• Loading 5 packages for step 2 …
+✅ start_pipe.R initialisation complete.
+[2025-12-03 15:04:17] [INFO] Step 2: Starting LogNormalize normalization and clustering 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-03 15:04:17] [INFO] Loading input from: /data/user3/sobj/pipe/run_fix1/step1/step1_demulti_list.qs 
+[2025-12-03 15:04:24] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_fix1/step1/step1_demulti_list.qs 
+[2025-12-03 15:04:24] [INFO] Processing 97_1 
+[2025-12-03 15:04:24] [INFO]   Calculating QC metrics for 97_1 
+[2025-12-03 15:04:25] [INFO]   QC filtering: 3666 -> 2576 cells 
+[2025-12-03 15:04:25] [INFO]   Performing LogNormalize for 97_1 
+[2025-12-03 15:04:26] [INFO]   Running PCA for 97_1 
+[2025-12-03 15:04:27] [INFO]   Clustering for 97_1 
+[2025-12-03 15:04:28] [INFO]   Completed 97_1: 2576 cells 
+[2025-12-03 15:04:28] [INFO] Processing 95_1 
+[2025-12-03 15:04:28] [INFO]   Calculating QC metrics for 95_1 
+[2025-12-03 15:04:28] [INFO]   QC filtering: 2518 -> 2463 cells 
+[2025-12-03 15:04:28] [INFO]   Performing LogNormalize for 95_1 
+[2025-12-03 15:04:29] [INFO]   Running PCA for 95_1 
+[2025-12-03 15:04:30] [INFO]   Clustering for 95_1 
+[2025-12-03 15:04:31] [INFO]   Completed 95_1: 2463 cells 
+[2025-12-03 15:04:31] [INFO] Processing 92_1 
+[2025-12-03 15:04:31] [INFO]   Calculating QC metrics for 92_1 
+[2025-12-03 15:04:32] [INFO]   QC filtering: 1858 -> 1814 cells 
+[2025-12-03 15:04:32] [INFO]   Performing LogNormalize for 92_1 
+[2025-12-03 15:04:32] [INFO]   Running PCA for 92_1 
+[2025-12-03 15:04:33] [INFO]   Clustering for 92_1 
+[2025-12-03 15:04:34] [INFO]   Completed 92_1: 1814 cells 
+[2025-12-03 15:04:34] [INFO] Processing 89_1 
+[2025-12-03 15:04:34] [INFO]   Calculating QC metrics for 89_1 
+[2025-12-03 15:04:34] [INFO]   QC filtering: 2158 -> 2119 cells 
+[2025-12-03 15:04:34] [INFO]   Performing LogNormalize for 89_1 
+[2025-12-03 15:04:35] [INFO]   Running PCA for 89_1 
+[2025-12-03 15:04:36] [INFO]   Clustering for 89_1 
+[2025-12-03 15:04:37] [INFO]   Completed 89_1: 2119 cells 
+[2025-12-03 15:04:37] [INFO] Processing 107_1 
+[2025-12-03 15:04:37] [INFO]   Calculating QC metrics for 107_1 
+[2025-12-03 15:04:37] [INFO]   QC filtering: 1877 -> 1824 cells 
+[2025-12-03 15:04:37] [INFO]   Performing LogNormalize for 107_1 
+[2025-12-03 15:04:38] [INFO]   Running PCA for 107_1 
+[2025-12-03 15:04:39] [INFO]   Clustering for 107_1 
+[2025-12-03 15:04:40] [INFO]   Completed 107_1: 1824 cells 
+[2025-12-03 15:04:40] [INFO] Processing 106_1 
+[2025-12-03 15:04:40] [INFO]   Calculating QC metrics for 106_1 
+[2025-12-03 15:04:40] [INFO]   QC filtering: 1761 -> 1716 cells 
+[2025-12-03 15:04:40] [INFO]   Performing LogNormalize for 106_1 
+[2025-12-03 15:04:41] [INFO]   Running PCA for 106_1 
+[2025-12-03 15:04:41] [INFO]   Clustering for 106_1 
+[2025-12-03 15:04:42] [INFO]   Completed 106_1: 1716 cells 
+[2025-12-03 15:04:42] [INFO] Processing 91_1 
+[2025-12-03 15:04:42] [INFO]   Calculating QC metrics for 91_1 
+[2025-12-03 15:04:43] [INFO]   QC filtering: 2547 -> 2541 cells 
+[2025-12-03 15:04:43] [INFO]   Performing LogNormalize for 91_1 
+[2025-12-03 15:04:44] [INFO]   Running PCA for 91_1 
+[2025-12-03 15:04:44] [INFO]   Clustering for 91_1 
+[2025-12-03 15:04:46] [INFO]   Completed 91_1: 2541 cells 
+[2025-12-03 15:04:46] [INFO] Processing 90_1 
+[2025-12-03 15:04:46] [INFO]   Calculating QC metrics for 90_1 
+[2025-12-03 15:04:46] [INFO]   QC filtering: 1467 -> 1460 cells 
+[2025-12-03 15:04:46] [INFO]   Performing LogNormalize for 90_1 
+[2025-12-03 15:04:47] [INFO]   Running PCA for 90_1 
+[2025-12-03 15:04:47] [INFO]   Clustering for 90_1 
+[2025-12-03 15:04:48] [INFO]   Completed 90_1: 1460 cells 
+[2025-12-03 15:04:48] [INFO] Processing 88_1 
+[2025-12-03 15:04:48] [INFO]   Calculating QC metrics for 88_1 
+[2025-12-03 15:04:49] [INFO]   QC filtering: 2353 -> 2347 cells 
+[2025-12-03 15:04:49] [INFO]   Performing LogNormalize for 88_1 
+[2025-12-03 15:04:50] [INFO]   Running PCA for 88_1 
+[2025-12-03 15:04:50] [INFO]   Clustering for 88_1 
+[2025-12-03 15:04:51] [INFO]   Completed 88_1: 2347 cells 
+[2025-12-03 15:04:51] [INFO] Processing 82_1 
+[2025-12-03 15:04:51] [INFO]   Calculating QC metrics for 82_1 
+[2025-12-03 15:04:52] [INFO]   QC filtering: 2145 -> 2124 cells 
+[2025-12-03 15:04:52] [INFO]   Performing LogNormalize for 82_1 
+[2025-12-03 15:04:53] [INFO]   Running PCA for 82_1 
+[2025-12-03 15:04:53] [INFO]   Clustering for 82_1 
+[2025-12-03 15:04:54] [INFO]   Completed 82_1: 2124 cells 
+[2025-12-03 15:04:54] [INFO] Processing 70_1 
+[2025-12-03 15:04:54] [INFO]   Calculating QC metrics for 70_1 
+[2025-12-03 15:04:55] [INFO]   QC filtering: 2078 -> 2069 cells 
+[2025-12-03 15:04:55] [INFO]   Performing LogNormalize for 70_1 
+[2025-12-03 15:04:56] [INFO]   Running PCA for 70_1 
+[2025-12-03 15:04:56] [INFO]   Clustering for 70_1 
+[2025-12-03 15:04:57] [INFO]   Completed 70_1: 2069 cells 
+[2025-12-03 15:04:57] [INFO] Processing 105_1 
+[2025-12-03 15:04:57] [INFO]   Calculating QC metrics for 105_1 
+[2025-12-03 15:04:58] [INFO]   QC filtering: 1288 -> 1285 cells 
+[2025-12-03 15:04:58] [INFO]   Performing LogNormalize for 105_1 
+[2025-12-03 15:04:58] [INFO]   Running PCA for 105_1 
+[2025-12-03 15:04:59] [INFO]   Clustering for 105_1 
+[2025-12-03 15:05:00] [INFO]   Completed 105_1: 1285 cells 
+[2025-12-03 15:05:00] [INFO] Processing 84_1 
+[2025-12-03 15:05:00] [INFO]   Calculating QC metrics for 84_1 
+[2025-12-03 15:05:00] [INFO]   QC filtering: 1888 -> 1887 cells 
+[2025-12-03 15:05:00] [INFO]   Performing LogNormalize for 84_1 
+[2025-12-03 15:05:01] [INFO]   Running PCA for 84_1 
+[2025-12-03 15:05:01] [INFO]   Clustering for 84_1 
+[2025-12-03 15:05:03] [INFO]   Completed 84_1: 1887 cells 
+[2025-12-03 15:05:03] [INFO] Processing 81_1 
+[2025-12-03 15:05:03] [INFO]   Calculating QC metrics for 81_1 
+[2025-12-03 15:05:03] [INFO]   QC filtering: 1700 -> 1695 cells 
+[2025-12-03 15:05:03] [INFO]   Performing LogNormalize for 81_1 
+[2025-12-03 15:05:04] [INFO]   Running PCA for 81_1 
+[2025-12-03 15:05:04] [INFO]   Clustering for 81_1 
+[2025-12-03 15:05:05] [INFO]   Completed 81_1: 1695 cells 
+[2025-12-03 15:05:05] [INFO] Processing 65_1 
+[2025-12-03 15:05:05] [INFO]   Calculating QC metrics for 65_1 
+[2025-12-03 15:05:06] [INFO]   QC filtering: 2336 -> 2329 cells 
+[2025-12-03 15:05:06] [INFO]   Performing LogNormalize for 65_1 
+[2025-12-03 15:05:07] [INFO]   Running PCA for 65_1 
+[2025-12-03 15:05:07] [INFO]   Clustering for 65_1 
+[2025-12-03 15:05:08] [INFO]   Completed 65_1: 2329 cells 
+[2025-12-03 15:05:08] [INFO] Processing 64_1 
+[2025-12-03 15:05:08] [INFO]   Calculating QC metrics for 64_1 
+[2025-12-03 15:05:09] [INFO]   QC filtering: 2411 -> 2394 cells 
+[2025-12-03 15:05:09] [INFO]   Performing LogNormalize for 64_1 
+[2025-12-03 15:05:10] [INFO]   Running PCA for 64_1 
+[2025-12-03 15:05:10] [INFO]   Clustering for 64_1 
+[2025-12-03 15:05:12] [INFO]   Completed 64_1: 2394 cells 
+[2025-12-03 15:05:12] [INFO] Processing 55_1 
+[2025-12-03 15:05:12] [INFO]   Calculating QC metrics for 55_1 
+[2025-12-03 15:05:12] [INFO]   QC filtering: 3944 -> 3930 cells 
+[2025-12-03 15:05:12] [INFO]   Performing LogNormalize for 55_1 
+[2025-12-03 15:05:13] [INFO]   Running PCA for 55_1 
+[2025-12-03 15:05:15] [INFO]   Clustering for 55_1 
+[2025-12-03 15:05:16] [INFO]   Completed 55_1: 3930 cells 
+[2025-12-03 15:05:16] [INFO] Processing 54_1 
+[2025-12-03 15:05:16] [INFO]   Calculating QC metrics for 54_1 
+[2025-12-03 15:05:16] [INFO]   QC filtering: 784 -> 781 cells 
+[2025-12-03 15:05:16] [INFO]   Performing LogNormalize for 54_1 
+[2025-12-03 15:05:17] [INFO]   Running PCA for 54_1 
+[2025-12-03 15:05:17] [INFO]   Clustering for 54_1 
+[2025-12-03 15:05:18] [INFO]   Completed 54_1: 781 cells 
+[2025-12-03 15:05:18] [INFO] Processing 83_1 
+[2025-12-03 15:05:18] [INFO]   Calculating QC metrics for 83_1 
+[2025-12-03 15:05:18] [INFO]   QC filtering: 1699 -> 1696 cells 
+[2025-12-03 15:05:18] [INFO]   Performing LogNormalize for 83_1 
+[2025-12-03 15:05:19] [INFO]   Running PCA for 83_1 
+[2025-12-03 15:05:20] [INFO]   Clustering for 83_1 
+[2025-12-03 15:05:21] [INFO]   Completed 83_1: 1696 cells 
+[2025-12-03 15:05:21] [INFO] Processing 76_1 
+[2025-12-03 15:05:21] [INFO]   Calculating QC metrics for 76_1 
+[2025-12-03 15:05:21] [INFO]   QC filtering: 1654 -> 1650 cells 
+[2025-12-03 15:05:21] [INFO]   Performing LogNormalize for 76_1 
+[2025-12-03 15:05:22] [INFO]   Running PCA for 76_1 
+[2025-12-03 15:05:22] [INFO]   Clustering for 76_1 
+[2025-12-03 15:05:23] [INFO]   Completed 76_1: 1650 cells 
+[2025-12-03 15:05:23] [INFO] Processing 53_1 
+[2025-12-03 15:05:23] [INFO]   Calculating QC metrics for 53_1 
+[2025-12-03 15:05:24] [INFO]   QC filtering: 1683 -> 1677 cells 
+[2025-12-03 15:05:24] [INFO]   Performing LogNormalize for 53_1 
+[2025-12-03 15:05:24] [INFO]   Running PCA for 53_1 
+[2025-12-03 15:05:25] [INFO]   Clustering for 53_1 
+[2025-12-03 15:05:26] [INFO]   Completed 53_1: 1677 cells 
+[2025-12-03 15:05:26] [INFO] Processing 44_1 
+[2025-12-03 15:05:26] [INFO]   Calculating QC metrics for 44_1 
+[2025-12-03 15:05:26] [INFO]   QC filtering: 1741 -> 1736 cells 
+[2025-12-03 15:05:26] [INFO]   Performing LogNormalize for 44_1 
+[2025-12-03 15:05:27] [INFO]   Running PCA for 44_1 
+[2025-12-03 15:05:27] [INFO]   Clustering for 44_1 
+[2025-12-03 15:05:29] [INFO]   Completed 44_1: 1736 cells 
+[2025-12-03 15:05:29] [INFO] Processing 41_1 
+[2025-12-03 15:05:29] [INFO]   Calculating QC metrics for 41_1 
+[2025-12-03 15:05:29] [INFO]   QC filtering: 2119 -> 2117 cells 
+[2025-12-03 15:05:29] [INFO]   Performing LogNormalize for 41_1 
+[2025-12-03 15:05:30] [INFO]   Running PCA for 41_1 
+[2025-12-03 15:05:30] [INFO]   Clustering for 41_1 
+[2025-12-03 15:05:31] [INFO]   Completed 41_1: 2117 cells 
+[2025-12-03 15:05:31] [INFO] Processing 34_1 
+[2025-12-03 15:05:31] [INFO]   Calculating QC metrics for 34_1 
+[2025-12-03 15:05:32] [INFO]   QC filtering: 1689 -> 1668 cells 
+[2025-12-03 15:05:32] [INFO]   Performing LogNormalize for 34_1 
+[2025-12-03 15:05:33] [INFO]   Running PCA for 34_1 
+[2025-12-03 15:05:33] [INFO]   Clustering for 34_1 
+[2025-12-03 15:05:34] [INFO]   Completed 34_1: 1668 cells 
+[2025-12-03 15:05:34] [INFO] Processing 46_1 
+[2025-12-03 15:05:34] [INFO]   Calculating QC metrics for 46_1 
+[2025-12-03 15:05:34] [INFO]   QC filtering: 1934 -> 1932 cells 
+[2025-12-03 15:05:34] [INFO]   Performing LogNormalize for 46_1 
+[2025-12-03 15:05:35] [INFO]   Running PCA for 46_1 
+[2025-12-03 15:05:36] [INFO]   Clustering for 46_1 
+[2025-12-03 15:05:37] [INFO]   Completed 46_1: 1932 cells 
+[2025-12-03 15:05:37] [INFO] Processing 33_1 
+[2025-12-03 15:05:37] [INFO]   Calculating QC metrics for 33_1 
+[2025-12-03 15:05:38] [INFO]   QC filtering: 1854 -> 1827 cells 
+[2025-12-03 15:05:38] [INFO]   Performing LogNormalize for 33_1 
+[2025-12-03 15:05:39] [INFO]   Running PCA for 33_1 
+[2025-12-03 15:05:39] [INFO]   Clustering for 33_1 
+[2025-12-03 15:05:40] [INFO]   Completed 33_1: 1827 cells 
+[2025-12-03 15:05:40] [INFO] Processing 43_1 
+[2025-12-03 15:05:40] [INFO]   Calculating QC metrics for 43_1 
+[2025-12-03 15:05:40] [INFO]   QC filtering: 1470 -> 1459 cells 
+[2025-12-03 15:05:40] [INFO]   Performing LogNormalize for 43_1 
+[2025-12-03 15:05:41] [INFO]   Running PCA for 43_1 
+[2025-12-03 15:05:42] [INFO]   Clustering for 43_1 
+[2025-12-03 15:05:43] [INFO]   Completed 43_1: 1459 cells 
+[2025-12-03 15:05:43] [INFO] Processing 38_2 
+[2025-12-03 15:05:43] [INFO]   Calculating QC metrics for 38_2 
+[2025-12-03 15:05:43] [INFO]   QC filtering: 1633 -> 1622 cells 
+[2025-12-03 15:05:43] [INFO]   Performing LogNormalize for 38_2 
+[2025-12-03 15:05:44] [INFO]   Running PCA for 38_2 
+[2025-12-03 15:05:44] [INFO]   Clustering for 38_2 
+[2025-12-03 15:05:45] [INFO]   Completed 38_2: 1622 cells 
+[2025-12-03 15:05:45] [INFO] Processing 32_1 
+[2025-12-03 15:05:45] [INFO]   Calculating QC metrics for 32_1 
+[2025-12-03 15:05:46] [INFO]   QC filtering: 2008 -> 2006 cells 
+[2025-12-03 15:05:46] [INFO]   Performing LogNormalize for 32_1 
+[2025-12-03 15:05:46] [INFO]   Running PCA for 32_1 
+[2025-12-03 15:05:47] [INFO]   Clustering for 32_1 
+[2025-12-03 15:05:48] [INFO]   Completed 32_1: 2006 cells 
+[2025-12-03 15:05:48] [INFO] Processing 71_1 
+[2025-12-03 15:05:48] [INFO]   Calculating QC metrics for 71_1 
+[2025-12-03 15:05:48] [INFO]   QC filtering: 862 -> 855 cells 
+[2025-12-03 15:05:48] [INFO]   Performing LogNormalize for 71_1 
+[2025-12-03 15:05:49] [INFO]   Running PCA for 71_1 
+[2025-12-03 15:05:49] [INFO]   Clustering for 71_1 
+[2025-12-03 15:05:50] [INFO]   Completed 71_1: 855 cells 
+[2025-12-03 15:05:50] [INFO] Processing 75_1 
+[2025-12-03 15:05:50] [INFO]   Calculating QC metrics for 75_1 
+[2025-12-03 15:05:51] [INFO]   QC filtering: 2399 -> 2385 cells 
+[2025-12-03 15:05:51] [INFO]   Performing LogNormalize for 75_1 
+[2025-12-03 15:05:52] [INFO]   Running PCA for 75_1 
+[2025-12-03 15:05:52] [INFO]   Clustering for 75_1 
+[2025-12-03 15:05:53] [INFO]   Completed 75_1: 2385 cells 
+[2025-12-03 15:05:53] [INFO] Processing 104_1 
+[2025-12-03 15:05:53] [INFO]   Calculating QC metrics for 104_1 
+[2025-12-03 15:05:54] [INFO]   QC filtering: 1503 -> 1501 cells 
+[2025-12-03 15:05:54] [INFO]   Performing LogNormalize for 104_1 
+[2025-12-03 15:05:55] [INFO]   Running PCA for 104_1 
+[2025-12-03 15:05:55] [INFO]   Clustering for 104_1 
+[2025-12-03 15:05:56] [INFO]   Completed 104_1: 1501 cells 
+[2025-12-03 15:05:56] [INFO] Processing 42_1 
+[2025-12-03 15:05:56] [INFO]   Calculating QC metrics for 42_1 
+[2025-12-03 15:05:56] [INFO]   QC filtering: 545 -> 544 cells 
+[2025-12-03 15:05:56] [INFO]   Performing LogNormalize for 42_1 
+[2025-12-03 15:05:57] [INFO]   Running PCA for 42_1 
+[2025-12-03 15:05:57] [INFO]   Clustering for 42_1 
+[2025-12-03 15:05:58] [INFO]   Completed 42_1: 544 cells 
+[2025-12-03 15:05:58] [INFO] Processing 80_2 
+[2025-12-03 15:05:58] [INFO]   Calculating QC metrics for 80_2 
+[2025-12-03 15:05:58] [INFO]   QC filtering: 1742 -> 1739 cells 
+[2025-12-03 15:05:58] [INFO]   Performing LogNormalize for 80_2 
+[2025-12-03 15:05:59] [INFO]   Running PCA for 80_2 
+[2025-12-03 15:05:59] [INFO]   Clustering for 80_2 
+[2025-12-03 15:06:01] [INFO]   Completed 80_2: 1739 cells 
+[2025-12-03 15:06:01] [INFO] Processing 29_1 
+[2025-12-03 15:06:01] [INFO]   Calculating QC metrics for 29_1 
+[2025-12-03 15:06:01] [INFO]   QC filtering: 2349 -> 2338 cells 
+[2025-12-03 15:06:01] [INFO]   Performing LogNormalize for 29_1 
+[2025-12-03 15:06:02] [INFO]   Running PCA for 29_1 
+[2025-12-03 15:06:03] [INFO]   Clustering for 29_1 
+[2025-12-03 15:06:04] [INFO]   Completed 29_1: 2338 cells 
+[2025-12-03 15:06:04] [INFO] Processing 60_1 
+[2025-12-03 15:06:04] [INFO]   Calculating QC metrics for 60_1 
+[2025-12-03 15:06:04] [INFO]   QC filtering: 1946 -> 1939 cells 
+[2025-12-03 15:06:04] [INFO]   Performing LogNormalize for 60_1 
+[2025-12-03 15:06:05] [INFO]   Running PCA for 60_1 
+[2025-12-03 15:06:05] [INFO]   Clustering for 60_1 
+[2025-12-03 15:06:07] [INFO]   Completed 60_1: 1939 cells 
+[2025-12-03 15:06:07] [INFO] Processing 36_1 
+[2025-12-03 15:06:07] [INFO]   Calculating QC metrics for 36_1 
+[2025-12-03 15:06:07] [INFO]   QC filtering: 2571 -> 2563 cells 
+[2025-12-03 15:06:07] [INFO]   Performing LogNormalize for 36_1 
+[2025-12-03 15:06:08] [INFO]   Running PCA for 36_1 
+[2025-12-03 15:06:09] [INFO]   Clustering for 36_1 
+[2025-12-03 15:06:10] [INFO]   Completed 36_1: 2563 cells 
+[2025-12-03 15:06:10] [INFO] Processing 31_1 
+[2025-12-03 15:06:10] [INFO]   Calculating QC metrics for 31_1 
+[2025-12-03 15:06:11] [INFO]   QC filtering: 1838 -> 1828 cells 
+[2025-12-03 15:06:11] [INFO]   Performing LogNormalize for 31_1 
+[2025-12-03 15:06:12] [INFO]   Running PCA for 31_1 
+[2025-12-03 15:06:12] [INFO]   Clustering for 31_1 
+[2025-12-03 15:06:13] [INFO]   Completed 31_1: 1828 cells 
+[2025-12-03 15:06:13] [INFO] Processing 59_1 
+[2025-12-03 15:06:13] [INFO]   Calculating QC metrics for 59_1 
+[2025-12-03 15:06:13] [INFO]   QC filtering: 1964 -> 1957 cells 
+[2025-12-03 15:06:13] [INFO]   Performing LogNormalize for 59_1 
+[2025-12-03 15:06:14] [INFO]   Running PCA for 59_1 
+[2025-12-03 15:06:15] [INFO]   Clustering for 59_1 
+[2025-12-03 15:06:16] [INFO]   Completed 59_1: 1957 cells 
+[2025-12-03 15:06:16] [INFO] Processing 68_1 
+[2025-12-03 15:06:16] [INFO]   Calculating QC metrics for 68_1 
+[2025-12-03 15:06:16] [INFO]   QC filtering: 1657 -> 1645 cells 
+[2025-12-03 15:06:16] [INFO]   Performing LogNormalize for 68_1 
+[2025-12-03 15:06:17] [INFO]   Running PCA for 68_1 
+[2025-12-03 15:06:18] [INFO]   Clustering for 68_1 
+[2025-12-03 15:06:19] [INFO]   Completed 68_1: 1645 cells 
+[2025-12-03 15:06:19] [INFO] Processing 35_1 
+[2025-12-03 15:06:19] [INFO]   Calculating QC metrics for 35_1 
+[2025-12-03 15:06:19] [INFO]   QC filtering: 2023 -> 2010 cells 
+[2025-12-03 15:06:19] [INFO]   Performing LogNormalize for 35_1 
+[2025-12-03 15:06:20] [INFO]   Running PCA for 35_1 
+[2025-12-03 15:06:20] [INFO]   Clustering for 35_1 
+[2025-12-03 15:06:22] [INFO]   Completed 35_1: 2010 cells 
+[2025-12-03 15:06:22] [INFO] Processing 117_1 
+[2025-12-03 15:06:22] [INFO]   Calculating QC metrics for 117_1 
+[2025-12-03 15:06:22] [INFO]   QC filtering: 1825 -> 1816 cells 
+[2025-12-03 15:06:22] [INFO]   Performing LogNormalize for 117_1 
+[2025-12-03 15:06:23] [INFO]   Running PCA for 117_1 
+[2025-12-03 15:06:23] [INFO]   Clustering for 117_1 
+[2025-12-03 15:06:24] [INFO]   Completed 117_1: 1816 cells 
+[2025-12-03 15:06:24] [INFO] Processing 100_1 
+[2025-12-03 15:06:24] [INFO]   Calculating QC metrics for 100_1 
+[2025-12-03 15:06:25] [INFO]   QC filtering: 3136 -> 3126 cells 
+[2025-12-03 15:06:25] [INFO]   Performing LogNormalize for 100_1 
+[2025-12-03 15:06:26] [INFO]   Running PCA for 100_1 
+[2025-12-03 15:06:27] [INFO]   Clustering for 100_1 
+[2025-12-03 15:06:28] [INFO]   Completed 100_1: 3126 cells 
+[2025-12-03 15:06:28] [INFO] Processing 51_1 
+[2025-12-03 15:06:28] [INFO]   Calculating QC metrics for 51_1 
+[2025-12-03 15:06:28] [INFO]   QC filtering: 945 -> 936 cells 
+[2025-12-03 15:06:28] [INFO]   Performing LogNormalize for 51_1 
+[2025-12-03 15:06:29] [INFO]   Running PCA for 51_1 
+[2025-12-03 15:06:29] [INFO]   Clustering for 51_1 
+[2025-12-03 15:06:30] [INFO]   Completed 51_1: 936 cells 
+[2025-12-03 15:06:30] [INFO] Processing 115_1 
+[2025-12-03 15:06:30] [INFO]   Calculating QC metrics for 115_1 
+[2025-12-03 15:06:31] [INFO]   QC filtering: 2535 -> 2517 cells 
+[2025-12-03 15:06:31] [INFO]   Performing LogNormalize for 115_1 
+[2025-12-03 15:06:32] [INFO]   Running PCA for 115_1 
+[2025-12-03 15:06:32] [INFO]   Clustering for 115_1 
+[2025-12-03 15:06:34] [INFO]   Completed 115_1: 2517 cells 
+[2025-12-03 15:06:34] [INFO] Processing 113_1 
+[2025-12-03 15:06:34] [INFO]   Calculating QC metrics for 113_1 
+[2025-12-03 15:06:34] [INFO]   QC filtering: 2131 -> 2126 cells 
+[2025-12-03 15:06:34] [INFO]   Performing LogNormalize for 113_1 
+[2025-12-03 15:06:35] [INFO]   Running PCA for 113_1 
+[2025-12-03 15:06:36] [INFO]   Clustering for 113_1 
+[2025-12-03 15:06:37] [INFO]   Completed 113_1: 2126 cells 
+[2025-12-03 15:06:37] [INFO] Processing 45_1 
+[2025-12-03 15:06:37] [INFO]   Calculating QC metrics for 45_1 
+[2025-12-03 15:06:37] [INFO]   QC filtering: 1927 -> 1904 cells 
+[2025-12-03 15:06:37] [INFO]   Performing LogNormalize for 45_1 
+[2025-12-03 15:06:38] [INFO]   Running PCA for 45_1 
+[2025-12-03 15:06:38] [INFO]   Clustering for 45_1 
+[2025-12-03 15:06:40] [INFO]   Completed 45_1: 1904 cells 
+[2025-12-03 15:06:40] [INFO] Processing 48_1 
+[2025-12-03 15:06:40] [INFO]   Calculating QC metrics for 48_1 
+[2025-12-03 15:06:40] [INFO]   QC filtering: 2137 -> 2133 cells 
+[2025-12-03 15:06:40] [INFO]   Performing LogNormalize for 48_1 
+[2025-12-03 15:06:41] [INFO]   Running PCA for 48_1 
+[2025-12-03 15:06:41] [INFO]   Clustering for 48_1 
+[2025-12-03 15:06:43] [INFO]   Completed 48_1: 2133 cells 
+[2025-12-03 15:06:43] [INFO] Processing 112_1 
+[2025-12-03 15:06:43] [INFO]   Calculating QC metrics for 112_1 
+[2025-12-03 15:06:43] [INFO]   QC filtering: 1840 -> 1824 cells 
+[2025-12-03 15:06:43] [INFO]   Performing LogNormalize for 112_1 
+[2025-12-03 15:06:44] [INFO]   Running PCA for 112_1 
+[2025-12-03 15:06:44] [INFO]   Clustering for 112_1 
+[2025-12-03 15:06:45] [INFO]   Completed 112_1: 1824 cells 
+[2025-12-03 15:06:45] [INFO] Processing 111_1 
+[2025-12-03 15:06:45] [INFO]   Calculating QC metrics for 111_1 
+[2025-12-03 15:06:46] [INFO]   QC filtering: 1669 -> 1649 cells 
+[2025-12-03 15:06:46] [INFO]   Performing LogNormalize for 111_1 
+[2025-12-03 15:06:47] [INFO]   Running PCA for 111_1 
+[2025-12-03 15:06:47] [INFO]   Clustering for 111_1 
+[2025-12-03 15:06:48] [INFO]   Completed 111_1: 1649 cells 
+[2025-12-03 15:06:48] [INFO] Processing 74_3 
+[2025-12-03 15:06:48] [INFO]   Calculating QC metrics for 74_3 
+[2025-12-03 15:06:48] [INFO]   QC filtering: 654 -> 631 cells 
+[2025-12-03 15:06:48] [INFO]   Performing LogNormalize for 74_3 
+[2025-12-03 15:06:49] [INFO]   Running PCA for 74_3 
+[2025-12-03 15:06:49] [INFO]   Clustering for 74_3 
+[2025-12-03 15:06:50] [INFO]   Completed 74_3: 631 cells 
+[2025-12-03 15:06:50] [INFO] Processing 16_1 
+[2025-12-03 15:06:50] [INFO]   Calculating QC metrics for 16_1 
+[2025-12-03 15:06:50] [INFO]   QC filtering: 3599 -> 3448 cells 
+[2025-12-03 15:06:50] [INFO]   Performing LogNormalize for 16_1 
+[2025-12-03 15:06:52] [INFO]   Running PCA for 16_1 
+[2025-12-03 15:06:53] [INFO]   Clustering for 16_1 
+[2025-12-03 15:06:54] [INFO]   Completed 16_1: 3448 cells 
+[2025-12-03 15:06:54] [INFO] Processing 103_1 
+[2025-12-03 15:06:54] [INFO]   Calculating QC metrics for 103_1 
+[2025-12-03 15:06:55] [INFO]   QC filtering: 1350 -> 1343 cells 
+[2025-12-03 15:06:55] [INFO]   Performing LogNormalize for 103_1 
+[2025-12-03 15:06:56] [INFO]   Running PCA for 103_1 
+[2025-12-03 15:06:56] [INFO]   Clustering for 103_1 
+[2025-12-03 15:06:57] [INFO]   Completed 103_1: 1343 cells 
+[2025-12-03 15:06:57] [INFO] Processing 110_1 
+[2025-12-03 15:06:57] [INFO]   Calculating QC metrics for 110_1 
+[2025-12-03 15:06:57] [INFO]   QC filtering: 2314 -> 2295 cells 
+[2025-12-03 15:06:57] [INFO]   Performing LogNormalize for 110_1 
+[2025-12-03 15:06:58] [INFO]   Running PCA for 110_1 
+[2025-12-03 15:06:59] [INFO]   Clustering for 110_1 
+[2025-12-03 15:07:00] [INFO]   Completed 110_1: 2295 cells 
+[2025-12-03 15:07:00] [INFO] Processing 85_1 
+[2025-12-03 15:07:00] [INFO]   Calculating QC metrics for 85_1 
+[2025-12-03 15:07:00] [INFO]   QC filtering: 1714 -> 1692 cells 
+[2025-12-03 15:07:00] [INFO]   Performing LogNormalize for 85_1 
+[2025-12-03 15:07:01] [INFO]   Running PCA for 85_1 
+[2025-12-03 15:07:02] [INFO]   Clustering for 85_1 
+[2025-12-03 15:07:03] [INFO]   Completed 85_1: 1692 cells 
+[2025-12-03 15:07:03] [INFO] Processing 93_1 
+[2025-12-03 15:07:03] [INFO]   Calculating QC metrics for 93_1 
+[2025-12-03 15:07:03] [INFO]   QC filtering: 2005 -> 1982 cells 
+[2025-12-03 15:07:03] [INFO]   Performing LogNormalize for 93_1 
+[2025-12-03 15:07:04] [INFO]   Running PCA for 93_1 
+[2025-12-03 15:07:05] [INFO]   Clustering for 93_1 
+[2025-12-03 15:07:06] [INFO]   Completed 93_1: 1982 cells 
+There were 50 or more warnings (use warnings() to see the first 50)
+[2025-12-03 15:07:06] [INFO] Saving results to: /data/user3/sobj/pipe/run_fix1/step2/step2_nmz_list.qs 
+[2025-12-03 15:07:28] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_fix1/step2/step2_nmz_list.qs 
+[2025-12-03 15:07:28] [INFO] Step 2 completed: 56 samples processed 
+Step 2 completed successfully. Processed 56 samples.

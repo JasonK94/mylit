@@ -36,30 +36,16 @@ rmd/
 .env
 
 # data, logs, outputs...
-*output*
-*plots*
-projects/
-trash/
-renv/
-*renv*
-*bin
 *deprecated*
-
-*.rds
-*.log
-*.pdf
-*.png
-# *.csv
-*/data/*
 *.tar.gz
 *.gz
 *.qs
-*sobj*
 *h5ad
 *h5seurat
 *loom
 *mtx
 *mtx.gz
+/home/user3/data_user3/git_repo/_wt/pipe/logs
 
 # Internal documentation (not for public repository)
 docs-main/SECURITY_REVIEW_REPORT.md

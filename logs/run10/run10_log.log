@@ -1,0 +1,565 @@
+[2025-12-03 11:46:40] Starting run: run10
+[2025-12-03 11:46:40] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 11:46:40] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 11:46:40] [INFO] Processing SNP samples...
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 97_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 97_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 95_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 95_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 92_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 92_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 89_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 89_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 107_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 107_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 106_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 106_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 91_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 91_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 90_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 90_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 88_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 88_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 82_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 82_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 70_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 70_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 105_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 105_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 84_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 84_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 81_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 81_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 65_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 65_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 64_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 64_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 55_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 55_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 54_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 54_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 83_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 83_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 76_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 76_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 53_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 53_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 44_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 44_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 41_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 41_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 34_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 34_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 46_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 46_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 33_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 33_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 43_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 43_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 38_2 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 38_2: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 32_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 32_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 71_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 71_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 75_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 75_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 104_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 104_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 42_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 42_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 80_2 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 80_2: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 29_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 29_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 60_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 60_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 36_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 36_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 31_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 31_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 59_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 59_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 68_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 68_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 35_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 35_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 117_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 117_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 100_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 100_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 51_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 51_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 115_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 115_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 113_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 113_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 45_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 45_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 48_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 48_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 112_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 112_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 111_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 111_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 74_3 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 74_3: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 16_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 16_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 103_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 103_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 110_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 110_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 85_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 85_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 11:46:40] [INFO]   Demultiplexing 93_1 using demuxalot
+[2025-12-03 11:46:40] [ERROR] !!! ERROR processing SNP sample 93_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:46:40] [ERROR] No samples were successfully processed!
+
+========================================
+NEW RUN STARTED (same run_id: run10)
+========================================
+[2025-12-03 11:46:59] Starting run: run10
+[2025-12-03 11:46:59] [INFO] Step 2: Starting LogNormalize normalization and clustering
+[2025-12-03 11:46:59] [INFO] Loading input from: /data/user3/sobj/pipe/run10/step1/step1_demulti_list.qs
+
+========================================
+NEW RUN STARTED (same run_id: run10)
+========================================
+[2025-12-03 11:56:48] Starting run: run10
+[2025-12-03 11:56:48] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 11:56:48] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 11:56:48] [INFO] Processing SNP samples...
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 97_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 97_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 95_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 95_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 92_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 92_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 89_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 89_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 107_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 107_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 106_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 106_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 91_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 91_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 90_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 90_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 88_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 88_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 82_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 82_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 70_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 70_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 105_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 105_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 84_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 84_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 81_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 81_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 65_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 65_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 64_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 64_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 55_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 55_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 54_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 54_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 83_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 83_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 76_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 76_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 53_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 53_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 44_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 44_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 41_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 41_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 34_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 34_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 46_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 46_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 33_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 33_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 43_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 43_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 38_2 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 38_2: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 32_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 32_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 71_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 71_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 75_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 75_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 104_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 104_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 42_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 42_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 80_2 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 80_2: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 29_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 29_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 60_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 60_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 36_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 36_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 31_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 31_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 59_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 59_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 68_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 68_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 35_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 35_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 117_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 117_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 100_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 100_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 51_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 51_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 115_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 115_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 113_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 113_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 45_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 45_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 48_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 48_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 112_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 112_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 111_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 111_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 74_3 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 74_3: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 16_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 16_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 103_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 103_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 110_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 110_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 85_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 85_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 11:56:48] [INFO]   Demultiplexing 93_1 using demuxalot
+[2025-12-03 11:56:48] [ERROR] !!! ERROR processing SNP sample 93_1: 'demultiplex_demuxalot' is not an exported object from 'namespace:myR' !!!
+[2025-12-03 11:56:48] [ERROR] No samples were successfully processed!
+
+========================================
+NEW RUN STARTED (same run_id: run10)
+========================================
+[2025-12-03 11:57:08] Starting run: run10
+[2025-12-03 11:57:08] [INFO] Step 2: Starting LogNormalize normalization and clustering
+[2025-12-03 11:57:09] [INFO] Loading input from: /data/user3/sobj/pipe/run10/step1/step1_demulti_list.qs
+
+========================================
+NEW RUN STARTED (same run_id: run10)
+========================================
+[2025-12-03 11:57:27] Starting run: run10
+[2025-12-03 11:57:27] [INFO] Step 3: Starting SoupX ambient RNA removal
+[2025-12-03 11:57:27] [INFO] Loading input from: /data/user3/sobj/pipe/run10/step2/step2_nmz_list.qs
+
+========================================
+NEW RUN STARTED (same run_id: run10)
+========================================
+[2025-12-03 11:57:48] Starting run: run10
+[2025-12-03 11:57:48] [INFO] Step 4: Starting SCTransform normalization
+[2025-12-03 11:57:48] [INFO] Loading input from: /data/user3/sobj/pipe/run10/step3/step3_soupx_list.qs
+
+========================================
+NEW RUN STARTED (same run_id: run10)
+========================================
+[2025-12-03 11:59:35] Starting run: run10
+[2025-12-03 11:59:35] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 11:59:35] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 11:59:35] [INFO] Processing SNP samples...
+[2025-12-03 11:59:35] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 11:59:35] [INFO]   Demultiplexing 97_1 using demuxalot
+[2025-12-03 11:59:40] [INFO]   Completed 97_1: 12622 barcodes mapped
+[2025-12-03 11:59:40] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 11:59:40] [INFO]   Demultiplexing 95_1 using demuxalot
+[2025-12-03 11:59:45] [INFO]   Completed 95_1: 12622 barcodes mapped
+[2025-12-03 11:59:45] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 11:59:45] [INFO]   Demultiplexing 92_1 using demuxalot
+[2025-12-03 11:59:48] [INFO]   Completed 92_1: 12622 barcodes mapped
+[2025-12-03 11:59:48] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 11:59:48] [INFO]   Demultiplexing 89_1 using demuxalot
+[2025-12-03 11:59:51] [INFO]   Completed 89_1: 12622 barcodes mapped
+[2025-12-03 11:59:51] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 11:59:51] [INFO]   Demultiplexing 107_1 using demuxalot
+[2025-12-03 11:59:54] [INFO]   Completed 107_1: 12622 barcodes mapped
+[2025-12-03 11:59:54] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 11:59:54] [INFO]   Demultiplexing 106_1 using demuxalot
+[2025-12-03 11:59:58] [INFO]   Completed 106_1: 12622 barcodes mapped
+[2025-12-03 11:59:58] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 11:59:58] [INFO]   Demultiplexing 91_1 using demuxalot
+[2025-12-03 12:00:00] [INFO]   Completed 91_1: 10101 barcodes mapped
+[2025-12-03 12:00:00] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 12:00:00] [INFO]   Demultiplexing 90_1 using demuxalot
+[2025-12-03 12:00:03] [INFO]   Completed 90_1: 10101 barcodes mapped
+[2025-12-03 12:00:03] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 12:00:03] [INFO]   Demultiplexing 88_1 using demuxalot
+[2025-12-03 12:00:05] [INFO]   Completed 88_1: 10101 barcodes mapped
+[2025-12-03 12:00:05] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 12:00:05] [INFO]   Demultiplexing 82_1 using demuxalot
+[2025-12-03 12:00:08] [INFO]   Completed 82_1: 10101 barcodes mapped
+[2025-12-03 12:00:08] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 12:00:08] [INFO]   Demultiplexing 70_1 using demuxalot
+[2025-12-03 12:00:10] [INFO]   Completed 70_1: 10101 barcodes mapped
+[2025-12-03 12:00:10] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 12:00:10] [INFO]   Demultiplexing 105_1 using demuxalot
+[2025-12-03 12:00:12] [INFO]   Completed 105_1: 10101 barcodes mapped
+[2025-12-03 12:00:12] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 12:00:12] [INFO]   Demultiplexing 84_1 using demuxalot
+[2025-12-03 12:00:15] [INFO]   Completed 84_1: 11325 barcodes mapped
+[2025-12-03 12:00:15] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 12:00:15] [INFO]   Demultiplexing 81_1 using demuxalot
+[2025-12-03 12:00:20] [INFO]   Completed 81_1: 11325 barcodes mapped
+[2025-12-03 12:00:20] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 12:00:20] [INFO]   Demultiplexing 65_1 using demuxalot
+[2025-12-03 12:00:22] [INFO]   Completed 65_1: 11325 barcodes mapped
+[2025-12-03 12:00:22] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 12:00:22] [INFO]   Demultiplexing 64_1 using demuxalot
+[2025-12-03 12:00:25] [INFO]   Completed 64_1: 11325 barcodes mapped
+[2025-12-03 12:00:25] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 12:00:25] [INFO]   Demultiplexing 55_1 using demuxalot
+[2025-12-03 12:00:28] [INFO]   Completed 55_1: 11325 barcodes mapped
+[2025-12-03 12:00:28] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 12:00:28] [INFO]   Demultiplexing 54_1 using demuxalot
+[2025-12-03 12:00:32] [INFO]   Completed 54_1: 11325 barcodes mapped
+[2025-12-03 12:00:32] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-03 12:00:32] [INFO]   Demultiplexing 83_1 using demuxalot
+[2025-12-03 12:00:34] [INFO]   Completed 83_1: 9303 barcodes mapped
+[2025-12-03 12:00:34] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 12:00:34] [INFO]   Demultiplexing 76_1 using demuxalot
+[2025-12-03 12:00:36] [INFO]   Completed 76_1: 9303 barcodes mapped
+[2025-12-03 12:00:36] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 12:00:36] [INFO]   Demultiplexing 53_1 using demuxalot
+[2025-12-03 12:00:38] [INFO]   Completed 53_1: 9303 barcodes mapped
+[2025-12-03 12:00:38] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 12:00:38] [INFO]   Demultiplexing 44_1 using demuxalot
+[2025-12-03 12:00:40] [INFO]   Completed 44_1: 9303 barcodes mapped
+[2025-12-03 12:00:40] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 12:00:40] [INFO]   Demultiplexing 41_1 using demuxalot
+[2025-12-03 12:00:43] [INFO]   Completed 41_1: 9303 barcodes mapped
+[2025-12-03 12:00:43] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 12:00:43] [INFO]   Demultiplexing 34_1 using demuxalot
+[2025-12-03 12:00:45] [INFO]   Completed 34_1: 9303 barcodes mapped
+[2025-12-03 12:00:45] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 12:00:45] [INFO]   Demultiplexing 46_1 using demuxalot
+[2025-12-03 12:00:49] [INFO]   Completed 46_1: 12101 barcodes mapped
+[2025-12-03 12:00:49] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 12:00:49] [INFO]   Demultiplexing 33_1 using demuxalot
+[2025-12-03 12:00:54] [INFO]   Completed 33_1: 12101 barcodes mapped
+[2025-12-03 12:00:54] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 12:00:54] [INFO]   Demultiplexing 43_1 using demuxalot
+[2025-12-03 12:00:57] [INFO]   Completed 43_1: 12101 barcodes mapped
+[2025-12-03 12:00:57] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 12:00:57] [INFO]   Demultiplexing 38_2 using demuxalot
+[2025-12-03 12:01:01] [INFO]   Completed 38_2: 12101 barcodes mapped
+[2025-12-03 12:01:01] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 12:01:01] [INFO]   Demultiplexing 32_1 using demuxalot
+[2025-12-03 12:01:05] [INFO]   Completed 32_1: 12101 barcodes mapped
+[2025-12-03 12:01:05] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 12:01:05] [INFO]   Demultiplexing 71_1 using demuxalot
+[2025-12-03 12:01:09] [INFO]   Completed 71_1: 12101 barcodes mapped
+[2025-12-03 12:01:09] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 12:01:09] [INFO]   Demultiplexing 75_1 using demuxalot
+[2025-12-03 12:01:12] [INFO]   Completed 75_1: 12101 barcodes mapped
+[2025-12-03 12:01:12] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 12:01:12] [INFO]   Demultiplexing 104_1 using demuxalot
+[2025-12-03 12:01:15] [INFO]   Completed 104_1: 12101 barcodes mapped
+[2025-12-03 12:01:15] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 12:01:15] [INFO]   Demultiplexing 42_1 using demuxalot
+[2025-12-03 12:01:20] [INFO]   Completed 42_1: 12906 barcodes mapped
+[2025-12-03 12:01:20] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 12:01:20] [INFO]   Demultiplexing 80_2 using demuxalot
+[2025-12-03 12:01:24] [INFO]   Completed 80_2: 12906 barcodes mapped
+[2025-12-03 12:01:24] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 12:01:24] [INFO]   Demultiplexing 29_1 using demuxalot
+[2025-12-03 12:01:28] [INFO]   Completed 29_1: 12906 barcodes mapped
+[2025-12-03 12:01:28] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 12:01:28] [INFO]   Demultiplexing 60_1 using demuxalot
+[2025-12-03 12:01:32] [INFO]   Completed 60_1: 12906 barcodes mapped
+[2025-12-03 12:01:32] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 12:01:32] [INFO]   Demultiplexing 36_1 using demuxalot
+[2025-12-03 12:01:37] [INFO]   Completed 36_1: 12906 barcodes mapped
+[2025-12-03 12:01:37] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 12:01:37] [INFO]   Demultiplexing 31_1 using demuxalot
+[2025-12-03 12:01:40] [INFO]   Completed 31_1: 12906 barcodes mapped
+[2025-12-03 12:01:40] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 12:01:40] [INFO]   Demultiplexing 59_1 using demuxalot
+[2025-12-03 12:01:44] [INFO]   Completed 59_1: 12906 barcodes mapped
+[2025-12-03 12:01:44] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 12:01:44] [INFO]   Demultiplexing 68_1 using demuxalot
+[2025-12-03 12:01:49] [INFO]   Completed 68_1: 12906 barcodes mapped
+[2025-12-03 12:01:49] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 12:01:49] [INFO]   Demultiplexing 35_1 using demuxalot
+[2025-12-03 12:01:54] [INFO]   Completed 35_1: 14460 barcodes mapped
+[2025-12-03 12:01:54] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 12:01:54] [INFO]   Demultiplexing 117_1 using demuxalot
+[2025-12-03 12:01:59] [INFO]   Completed 117_1: 14460 barcodes mapped
+[2025-12-03 12:01:59] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 12:01:59] [INFO]   Demultiplexing 100_1 using demuxalot
+[2025-12-03 12:02:04] [INFO]   Completed 100_1: 14460 barcodes mapped
+[2025-12-03 12:02:04] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 12:02:04] [INFO]   Demultiplexing 51_1 using demuxalot
+[2025-12-03 12:02:09] [INFO]   Completed 51_1: 14460 barcodes mapped
+[2025-12-03 12:02:09] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 12:02:09] [INFO]   Demultiplexing 115_1 using demuxalot
+[2025-12-03 12:02:14] [INFO]   Completed 115_1: 14460 barcodes mapped
+[2025-12-03 12:02:14] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 12:02:14] [INFO]   Demultiplexing 113_1 using demuxalot
+[2025-12-03 12:02:19] [INFO]   Completed 113_1: 14460 barcodes mapped
+[2025-12-03 12:02:19] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 12:02:19] [INFO]   Demultiplexing 45_1 using demuxalot
+[2025-12-03 12:02:24] [INFO]   Completed 45_1: 14460 barcodes mapped
+[2025-12-03 12:02:24] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 12:02:24] [INFO]   Demultiplexing 48_1 using demuxalot
+[2025-12-03 12:02:30] [INFO]   Completed 48_1: 14460 barcodes mapped
+[2025-12-03 12:02:30] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 12:02:30] [INFO]   Demultiplexing 112_1 using demuxalot
+[2025-12-03 12:02:34] [INFO]   Completed 112_1: 12997 barcodes mapped
+[2025-12-03 12:02:34] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 12:02:34] [INFO]   Demultiplexing 111_1 using demuxalot
+[2025-12-03 12:02:38] [INFO]   Completed 111_1: 12997 barcodes mapped
+[2025-12-03 12:02:38] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 12:02:38] [INFO]   Demultiplexing 74_3 using demuxalot
+[2025-12-03 12:02:44] [INFO]   Completed 74_3: 12997 barcodes mapped
+[2025-12-03 12:02:44] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 12:02:44] [INFO]   Demultiplexing 16_1 using demuxalot
+[2025-12-03 12:02:48] [INFO]   Completed 16_1: 12997 barcodes mapped
+[2025-12-03 12:02:48] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 12:02:48] [INFO]   Demultiplexing 103_1 using demuxalot
+[2025-12-03 12:02:52] [INFO]   Completed 103_1: 12997 barcodes mapped
+[2025-12-03 12:02:52] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 12:02:52] [INFO]   Demultiplexing 110_1 using demuxalot
+[2025-12-03 12:02:57] [INFO]   Completed 110_1: 12997 barcodes mapped
+[2025-12-03 12:02:57] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 12:02:57] [INFO]   Demultiplexing 85_1 using demuxalot
+[2025-12-03 12:03:01] [INFO]   Completed 85_1: 12997 barcodes mapped
+[2025-12-03 12:03:01] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 12:03:01] [INFO]   Demultiplexing 93_1 using demuxalot
+[2025-12-03 12:03:05] [INFO]   Completed 93_1: 12997 barcodes mapped
+[2025-12-03 12:03:05] [INFO] Combining SNP barcode mappings...
+[2025-12-03 12:03:07] [INFO] Total SNP barcodes: 679818
+[2025-12-03 12:03:08] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run10/step1/step1_snp_barcode_mappings.qs
+[2025-12-03 12:03:08] [INFO] Creating Seurat objects for SNP samples...
+[2025-12-03 12:03:08] [INFO]   Creating Seurat object for 97_1 (GEM: GEM1)
+[2025-12-03 12:03:17] [ERROR] !!! ERROR creating Seurat object for SNP sample 97_1: No common cells found between count matrix and demux results for 97_1 !!!
+[2025-12-03 12:03:17] [INFO]   Creating Seurat object for 95_1 (GEM: GEM1)
+[2025-12-03 12:03:23] [ERROR] !!! ERROR creating Seurat object for SNP sample 95_1: No common cells found between count matrix and demux results for 95_1 !!!
+[2025-12-03 12:03:23] [INFO]   Creating Seurat object for 92_1 (GEM: GEM1)
+[2025-12-03 12:03:28] [ERROR] !!! ERROR creating Seurat object for SNP sample 92_1: No common cells found between count matrix and demux results for 92_1 !!!
+[2025-12-03 12:03:28] [INFO]   Creating Seurat object for 89_1 (GEM: GEM1)

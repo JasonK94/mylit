@@ -36,7 +36,9 @@ This pipeline processes single-cell RNA-seq data, including demultiplexing, norm
 5. Explore `qs` -> `h5ad` conversion for Python module integration.
 
 ## References
-- `docs/pipe/COMMANDS.md`
-- `docs/pipe/DATA_FLOW.md`
-- `docs/pipe/PIPE_INTEGRATED_GUIDE_KR.md`
-- `docs/pipe/PIPELINE_REVIEW.md`
+- [COMMANDS.md](COMMANDS.md) - Common commands and usage
+- [DATA_FLOW.md](DATA_FLOW.md) - Data flow and directory structure
+- [PIPE_INTEGRATED_GUIDE_KR.md](PIPE_INTEGRATED_GUIDE_KR.md) - 통합 가이드 (국문)
+- [PIPELINE_REVIEW.md](PIPELINE_REVIEW.md) - Code review notes
+- [README.md](README.md) - Documentation index
+

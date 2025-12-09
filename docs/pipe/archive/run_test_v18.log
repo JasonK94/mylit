@@ -1,0 +1,101 @@
+✨ Initialising pipeline session (start_pipe.R)
+  Step 1 detected
+
+--- Project Session Started: 2025-12-05 17:46:40.101975 ---
+• Loading 6 packages for step 1 …
+• Loading local package 'myR' from /home/user3/data_user3/git_repo/mylit/myR …
+Registered S3 methods overwritten by 'FSA':
+  method       from
+  confint.boot car 
+  hist.boot    car 
+Registered S3 method overwritten by 'pROC':
+  method   from            
+  plot.roc spatstat.explore
+Registered S3 methods overwritten by 'proxy':
+  method               from    
+  print.registry_field registry
+  print.registry_entry registry
+⚠️  test_analysis.R is deprecated. Sourcing /data/user3/git_repo/mylit/myR/R/analysis.R
+[conflicted] Will prefer dplyr::select over any other package.
+[conflicted] Will prefer dplyr::summarise over any other package.
+[conflicted] Will prefer dplyr::filter over any other package.
+[conflicted] Will prefer dplyr::mutate over any other package.
+[conflicted] Will prefer dplyr::arrange over any other package.
+[conflicted] Will prefer dplyr::summarize over any other package.
+[conflicted] Will prefer base::intersect over any other package.
+[conflicted] Will prefer base::setdiff over any other package.
+[conflicted] Will prefer base::union over any other package.
+[conflicted] Will prefer base::colMeans over any other package.
+[conflicted] Will prefer base::rowMeans over any other package.
+[conflicted] Will prefer base::colSums over any other package.
+[conflicted] Will prefer base::rowSums over any other package.
+✅ start_pipe.R initialisation complete.
+Warning messages:
+1: replacing previous import ‘S4Arrays::makeNindexFromArrayViewport’ by ‘DelayedArray::makeNindexFromArrayViewport’ when loading ‘SummarizedExperiment’ 
+2: replacing previous import ‘purrr::discard’ by ‘scales::discard’ when loading ‘myR’ 
+3: In eval(expr, envir) :
+  Could not find seurat_utils.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+4: In eval(expr, envir) :
+  Could not find fgs_core.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+5: In eval(expr, envir) :
+  Could not find tml_core.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+6: In eval(expr, envir) :
+  Could not find tml_utils.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+[2025-12-05 17:46:56] [INFO] Step 1: Starting read and demultiplexing 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-05 17:46:56] [INFO] Found 0 SNP samples and 1 HTO samples 
+[2025-12-05 17:46:56] [INFO] Processing HTO samples (GEM-centric)... 
+[2025-12-05 17:46:56] [INFO] Processing HTO GEM 1/1: GEM9 (1 samples) 
+[2025-12-05 17:46:56] [INFO]   Loading data for GEM GEM9... 
+10X data contains more than one type and is being returned as a list containing matrices of each type.
+[2025-12-05 17:47:03] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture 
+[2025-12-05 17:47:03] [INFO]   Downsampling GEM to 1.0%... 
+[2025-12-05 17:47:03] [INFO]   Creating Seurat Object for GEM... 
+Normalizing across features
+[2025-12-05 17:47:03] [INFO]   Running Demultiplexing on GEM... 
+[2025-12-05 17:47:03] [INFO]   Demultiplexing method: MULTIseqDemux 
+No threshold found for HTO251...
+No threshold found for HTO259...
+No threshold found for HTO254...
+No threshold found for HTO256...
+No threshold found for HTO257...
+No threshold found for HTO258...
+No threshold found for HTO260...
+Picking joint bandwidth of 0.118
+Picking joint bandwidth of 0.0627
+Picking joint bandwidth of 0.579
+Picking joint bandwidth of 0.121
+Picking joint bandwidth of 0.0749
+Picking joint bandwidth of 0.0969
+Picking joint bandwidth of 0.111
+Picking joint bandwidth of 0.179
+Picking joint bandwidth of 3.62e-06
+Picking joint bandwidth of 0.0941
+Warning: No layers found matching search pattern provided
+Warning: No layers found matching search pattern provided
+Warning: Default search for "data" layer in "RNA" assay yielded no results; utilizing "counts" layer instead.
+[2025-12-05 17:47:06] [INFO]   Splitting GEM into samples... 
+[2025-12-05 17:47:06] [INFO]   Loading clinical metadata from /home/user3/data_user3/git_repo/_wt/pipe/config/meta_data_prep_251204.csv 
+[2025-12-05 17:47:06] [INFO]   Using demux column: MULTI_ID 
+[2025-12-05 17:47:06] [INFO]     Using demulti_id from metadata: HTO251 
+[2025-12-05 17:47:06] [INFO]     Extracting sample 1_3 (Target ID: HTO251)... 
+[2025-12-05 17:47:06] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO251' (Manifest ID: '1_IS_72'). Checking available IDs: Negative, HTO255, HTO252, HTO265 
+[2025-12-05 17:47:06] [WARNING]     Skipping sample 1_3 due to zero cells. 
+Warning messages:
+1: The `slot` argument of `GetAssayData()` is deprecated as of SeuratObject 5.0.0.
+ℹ Please use the `layer` argument instead. 
+2: In SingleExIPlot(type = type, data = data[, x, drop = FALSE], idents = idents,  :
+  All cells have the same value of HTO259.
+3: Could not find HTO251 in the default search locations, found in ‘HTO’ assay instead 
+4: Could not find HTO252 in the default search locations, found in ‘HTO’ assay instead 
+5: Groups with fewer than two datapoints have been dropped.
+ℹ Set `drop = FALSE` to consider such groups for position adjustment purposes. 
+6: Groups with fewer than two datapoints have been dropped.
+ℹ Set `drop = FALSE` to consider such groups for position adjustment purposes. 
+[2025-12-05 17:47:07] [ERROR] No samples were successfully processed! 
+Error: Step 1 failed: No samples processed
+Execution halted

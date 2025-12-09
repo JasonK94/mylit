@@ -1,0 +1,14 @@
+✨ Initialising pipeline session (start_pipe.R)
+  Step 3 detected
+
+--- Project Session Started: 2025-12-03 15:20:18.382776 ---
+• Loading 6 packages for step 3 …
+  - Missing packages: Seurat, SoupX, ggplot2
+✅ start_pipe.R initialisation complete.
+Warning messages:
+1: Package 'Seurat' is not installed; skipping. 
+2: Package 'SoupX' is not installed; skipping. 
+3: Package 'ggplot2' is not installed; skipping. 
+Error: package or namespace load failed for ‘Seurat’ in loadNamespace(i, c(lib.loc, .libPaths()), versionCheck = vI[[i]]):
+ there is no package called ‘ggplot2’
+Execution halted

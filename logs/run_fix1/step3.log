@@ -1,0 +1,1028 @@
+✨ Initialising pipeline session (start_pipe.R)
+  Step 3 detected
+
+--- Project Session Started: 2025-12-03 16:04:40.911533 ---
+• Loading 6 packages for step 3 …
+✅ start_pipe.R initialisation complete.
+[2025-12-03 16:04:45] [INFO] Step 3: Starting SoupX ambient RNA removal 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-03 16:04:45] [INFO] Loading input from: /data/user3/sobj/pipe/run_fix1/step2/step2_nmz_list.qs 
+[2025-12-03 16:04:59] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_fix1/step2/step2_nmz_list.qs 
+[1] TRUE
+[2025-12-03 16:04:59] [INFO] Processing 97_1 
+[2025-12-03 16:04:59] [INFO]   Loading raw counts for 97_1 
+[2025-12-03 16:05:05] [INFO]   Running SoupX for 97_1 
+[2025-12-03 16:05:05] [INFO]   autoEstCont attempt 1 for 97_1 (tfidfMin=1.00, soupQuantile=0.90) 
+177 genes passed tf-idf cut-off and 148 soup quantile filter.  Taking the top 100.
+Using 1088 independent estimates of rho.
+Estimated global rho of 0.14
+[2025-12-03 16:05:10] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_97_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 177 marker genes
+[2025-12-03 16:05:15] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_97_1.pdf 
+[2025-12-03 16:05:15] [INFO]   Adjusting counts for 97_1 
+Expanding counts from 19 clusters to 2576 cells.
+[2025-12-03 16:05:20] [INFO]   Completed 97_1: 2576 cells 
+[2025-12-03 16:05:20] [INFO] Processing 95_1 
+[2025-12-03 16:05:20] [INFO]   Loading raw counts for 95_1 
+[2025-12-03 16:05:25] [INFO]   Running SoupX for 95_1 
+[2025-12-03 16:05:25] [INFO]   autoEstCont attempt 1 for 95_1 (tfidfMin=1.00, soupQuantile=0.90) 
+4 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 6 independent estimates of rho.
+Estimated global rho of 0.03
+[2025-12-03 16:05:30] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_95_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 4 marker genes
+[2025-12-03 16:05:35] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_95_1.pdf 
+[2025-12-03 16:05:35] [INFO]   Adjusting counts for 95_1 
+Expanding counts from 21 clusters to 2463 cells.
+[2025-12-03 16:05:40] [INFO]   Completed 95_1: 2463 cells 
+[2025-12-03 16:05:40] [INFO] Processing 92_1 
+[2025-12-03 16:05:40] [INFO]   Loading raw counts for 92_1 
+[2025-12-03 16:05:46] [INFO]   Running SoupX for 92_1 
+[2025-12-03 16:05:46] [INFO]   autoEstCont attempt 1 for 92_1 (tfidfMin=1.00, soupQuantile=0.90) 
+30 genes passed tf-idf cut-off and 21 soup quantile filter.  Taking the top 21.
+Using 141 independent estimates of rho.
+Estimated global rho of 0.38
+Estimated contamination is very high (0.38).
+[2025-12-03 16:05:50] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_92_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 30 marker genes
+[2025-12-03 16:05:55] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 92_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:05:55] [INFO]   Adjusting counts for 92_1 
+Expanding counts from 18 clusters to 1814 cells.
+[2025-12-03 16:06:02] [INFO]   Completed 92_1: 1814 cells 
+[2025-12-03 16:06:02] [INFO] Processing 89_1 
+[2025-12-03 16:06:02] [INFO]   Loading raw counts for 89_1 
+[2025-12-03 16:06:08] [INFO]   Running SoupX for 89_1 
+[2025-12-03 16:06:08] [INFO]   autoEstCont attempt 1 for 89_1 (tfidfMin=1.00, soupQuantile=0.90) 
+4 genes passed tf-idf cut-off and 3 soup quantile filter.  Taking the top 3.
+Using 7 independent estimates of rho.
+Estimated global rho of 0.07
+[2025-12-03 16:06:13] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_89_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 4 marker genes
+[2025-12-03 16:06:18] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_89_1.pdf 
+[2025-12-03 16:06:18] [INFO]   Adjusting counts for 89_1 
+Expanding counts from 19 clusters to 2119 cells.
+[2025-12-03 16:06:24] [INFO]   Completed 89_1: 2119 cells 
+[2025-12-03 16:06:24] [INFO] Processing 107_1 
+[2025-12-03 16:06:24] [INFO]   Loading raw counts for 107_1 
+[2025-12-03 16:06:29] [INFO]   Running SoupX for 107_1 
+[2025-12-03 16:06:29] [INFO]   autoEstCont attempt 1 for 107_1 (tfidfMin=1.00, soupQuantile=0.90) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 1 independent estimates of rho.
+Estimated global rho of 0.16
+[2025-12-03 16:06:34] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_107_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 1 marker genes
+`geom_line()`: Each group consists of only one observation.
+ℹ Do you need to adjust the group aesthetic?
+[2025-12-03 16:06:38] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_107_1.pdf 
+[2025-12-03 16:06:38] [INFO]   Adjusting counts for 107_1 
+Expanding counts from 16 clusters to 1824 cells.
+[2025-12-03 16:06:41] [INFO]   Completed 107_1: 1824 cells 
+[2025-12-03 16:06:41] [INFO] Processing 106_1 
+[2025-12-03 16:06:41] [INFO]   Loading raw counts for 106_1 
+[2025-12-03 16:06:47] [INFO]   Running SoupX for 106_1 
+[2025-12-03 16:06:47] [INFO]   autoEstCont attempt 1 for 106_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 5 independent estimates of rho.
+Estimated global rho of 0.01
+[2025-12-03 16:06:50] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_106_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:06:54] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_106_1.pdf 
+[2025-12-03 16:06:54] [INFO]   Adjusting counts for 106_1 
+Expanding counts from 17 clusters to 1716 cells.
+[2025-12-03 16:06:57] [INFO]   Completed 106_1: 1716 cells 
+[2025-12-03 16:06:57] [INFO] Processing 91_1 
+[2025-12-03 16:06:57] [INFO]   Loading raw counts for 91_1 
+[2025-12-03 16:07:02] [INFO]   Running SoupX for 91_1 
+[2025-12-03 16:07:03] [INFO]   autoEstCont attempt 1 for 91_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:07:08] [ERROR]   ERROR: autoEstCont attempt 1 failed for 91_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:07:08] [INFO]   autoEstCont attempt 2 for 91_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:07:14] [ERROR]   ERROR: autoEstCont attempt 2 failed for 91_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:07:14] [INFO]   autoEstCont attempt 3 for 91_1 (tfidfMin=0.80, soupQuantile=0.70) 
+4 genes passed tf-idf cut-off and 4 soup quantile filter.  Taking the top 4.
+Using 28 independent estimates of rho.
+Estimated global rho of 0.04
+[2025-12-03 16:07:19] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70 
+[2025-12-03 16:07:19] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_91_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:07:26] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 91_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:07:26] [INFO]   Adjusting counts for 91_1 
+Expanding counts from 22 clusters to 2541 cells.
+[2025-12-03 16:07:32] [INFO]   Completed 91_1: 2541 cells 
+[2025-12-03 16:07:32] [INFO] Processing 90_1 
+[2025-12-03 16:07:32] [INFO]   Loading raw counts for 90_1 
+[2025-12-03 16:07:37] [INFO]   Running SoupX for 90_1 
+[2025-12-03 16:07:37] [INFO]   autoEstCont attempt 1 for 90_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:07:42] [ERROR]   ERROR: autoEstCont attempt 1 failed for 90_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:07:42] [INFO]   autoEstCont attempt 2 for 90_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:07:45] [ERROR]   ERROR: autoEstCont attempt 2 failed for 90_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:07:45] [INFO]   autoEstCont attempt 3 for 90_1 (tfidfMin=0.80, soupQuantile=0.70) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 9 independent estimates of rho.
+Estimated global rho of 0.08
+[2025-12-03 16:07:48] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70 
+[2025-12-03 16:07:48] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_90_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:07:51] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 90_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:07:51] [INFO]   Adjusting counts for 90_1 
+Expanding counts from 17 clusters to 1460 cells.
+[2025-12-03 16:07:55] [INFO]   Completed 90_1: 1460 cells 
+[2025-12-03 16:07:55] [INFO] Processing 88_1 
+[2025-12-03 16:07:55] [INFO]   Loading raw counts for 88_1 
+[2025-12-03 16:08:00] [INFO]   Running SoupX for 88_1 
+[2025-12-03 16:08:00] [INFO]   autoEstCont attempt 1 for 88_1 (tfidfMin=1.00, soupQuantile=0.90) 
+16 genes passed tf-idf cut-off and 7 soup quantile filter.  Taking the top 7.
+Using 37 independent estimates of rho.
+Estimated global rho of 0.01
+[2025-12-03 16:08:06] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_88_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 16 marker genes
+[2025-12-03 16:08:12] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_88_1.pdf 
+[2025-12-03 16:08:12] [INFO]   Adjusting counts for 88_1 
+Expanding counts from 23 clusters to 2347 cells.
+[2025-12-03 16:08:17] [INFO]   Completed 88_1: 2347 cells 
+[2025-12-03 16:08:17] [INFO] Processing 82_1 
+[2025-12-03 16:08:17] [INFO]   Loading raw counts for 82_1 
+[2025-12-03 16:08:22] [INFO]   Running SoupX for 82_1 
+[2025-12-03 16:08:23] [INFO]   autoEstCont attempt 1 for 82_1 (tfidfMin=1.00, soupQuantile=0.90) 
+4 genes passed tf-idf cut-off and 4 soup quantile filter.  Taking the top 4.
+Using 14 independent estimates of rho.
+Estimated global rho of 0.07
+[2025-12-03 16:08:28] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_82_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 4 marker genes
+[2025-12-03 16:08:33] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_82_1.pdf 
+[2025-12-03 16:08:33] [INFO]   Adjusting counts for 82_1 
+Expanding counts from 20 clusters to 2124 cells.
+[2025-12-03 16:08:38] [INFO]   Completed 82_1: 2124 cells 
+[2025-12-03 16:08:38] [INFO] Processing 70_1 
+[2025-12-03 16:08:38] [INFO]   Loading raw counts for 70_1 
+[2025-12-03 16:08:44] [INFO]   Running SoupX for 70_1 
+[2025-12-03 16:08:44] [INFO]   autoEstCont attempt 1 for 70_1 (tfidfMin=1.00, soupQuantile=0.90) 
+16 genes passed tf-idf cut-off and 11 soup quantile filter.  Taking the top 11.
+Using 51 independent estimates of rho.
+Estimated global rho of 0.34
+Estimated contamination is very high (0.34).
+[2025-12-03 16:08:49] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_70_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 16 marker genes
+[2025-12-03 16:08:52] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 70_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:08:52] [INFO]   Adjusting counts for 70_1 
+Expanding counts from 18 clusters to 2069 cells.
+[2025-12-03 16:08:59] [INFO]   Completed 70_1: 2069 cells 
+[2025-12-03 16:08:59] [INFO] Processing 105_1 
+[2025-12-03 16:08:59] [INFO]   Loading raw counts for 105_1 
+[2025-12-03 16:09:04] [INFO]   Running SoupX for 105_1 
+[2025-12-03 16:09:05] [INFO]   autoEstCont attempt 1 for 105_1 (tfidfMin=1.00, soupQuantile=0.90) 
+1 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:09:07] [ERROR]   ERROR: autoEstCont attempt 1 failed for 105_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:09:07] [INFO]   autoEstCont attempt 2 for 105_1 (tfidfMin=0.90, soupQuantile=0.80) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 12 independent estimates of rho.
+Estimated global rho of 0.02
+[2025-12-03 16:09:10] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80 
+[2025-12-03 16:09:10] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_105_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 1 marker genes
+`geom_line()`: Each group consists of only one observation.
+ℹ Do you need to adjust the group aesthetic?
+[2025-12-03 16:09:13] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_105_1.pdf 
+[2025-12-03 16:09:13] [INFO]   Adjusting counts for 105_1 
+Expanding counts from 14 clusters to 1285 cells.
+[2025-12-03 16:09:16] [INFO]   Completed 105_1: 1285 cells 
+[2025-12-03 16:09:16] [INFO] Processing 84_1 
+[2025-12-03 16:09:16] [INFO]   Loading raw counts for 84_1 
+[2025-12-03 16:09:21] [INFO]   Running SoupX for 84_1 
+[2025-12-03 16:09:22] [INFO]   autoEstCont attempt 1 for 84_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 25 independent estimates of rho.
+Estimated global rho of 0.05
+[2025-12-03 16:09:26] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_84_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:09:31] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_84_1.pdf 
+[2025-12-03 16:09:31] [INFO]   Adjusting counts for 84_1 
+Expanding counts from 18 clusters to 1887 cells.
+[2025-12-03 16:09:35] [INFO]   Completed 84_1: 1887 cells 
+[2025-12-03 16:09:35] [INFO] Processing 81_1 
+[2025-12-03 16:09:35] [INFO]   Loading raw counts for 81_1 
+[2025-12-03 16:09:40] [INFO]   Running SoupX for 81_1 
+[2025-12-03 16:09:40] [INFO]   autoEstCont attempt 1 for 81_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:09:44] [ERROR]   ERROR: autoEstCont attempt 1 failed for 81_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:09:44] [INFO]   autoEstCont attempt 2 for 81_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:09:49] [ERROR]   ERROR: autoEstCont attempt 2 failed for 81_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:09:49] [INFO]   autoEstCont attempt 3 for 81_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:09:53] [ERROR]   ERROR: autoEstCont attempt 3 failed for 81_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:09:53] [INFO]   autoEstCont attempt 4 for 81_1 (tfidfMin=0.70, soupQuantile=0.60) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 18 independent estimates of rho.
+Estimated global rho of 0.45
+Estimated contamination is very high (0.45).
+[2025-12-03 16:09:58] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:09:58] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_81_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:10:01] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 81_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:10:01] [INFO]   Adjusting counts for 81_1 
+Expanding counts from 18 clusters to 1695 cells.
+[2025-12-03 16:10:08] [INFO]   Completed 81_1: 1695 cells 
+[2025-12-03 16:10:08] [INFO] Processing 65_1 
+[2025-12-03 16:10:08] [INFO]   Loading raw counts for 65_1 
+[2025-12-03 16:10:13] [INFO]   Running SoupX for 65_1 
+[2025-12-03 16:10:14] [INFO]   autoEstCont attempt 1 for 65_1 (tfidfMin=1.00, soupQuantile=0.90) 
+27 genes passed tf-idf cut-off and 11 soup quantile filter.  Taking the top 11.
+Using 67 independent estimates of rho.
+Estimated global rho of 0.04
+[2025-12-03 16:10:18] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_65_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 27 marker genes
+[2025-12-03 16:10:22] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_65_1.pdf 
+[2025-12-03 16:10:22] [INFO]   Adjusting counts for 65_1 
+Expanding counts from 20 clusters to 2329 cells.
+[2025-12-03 16:10:27] [INFO]   Completed 65_1: 2329 cells 
+[2025-12-03 16:10:27] [INFO] Processing 64_1 
+[2025-12-03 16:10:27] [INFO]   Loading raw counts for 64_1 
+[2025-12-03 16:10:33] [INFO]   Running SoupX for 64_1 
+[2025-12-03 16:10:33] [INFO]   autoEstCont attempt 1 for 64_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:10:37] [ERROR]   ERROR: autoEstCont attempt 1 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:10:37] [INFO]   autoEstCont attempt 2 for 64_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:10:42] [ERROR]   ERROR: autoEstCont attempt 2 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:10:42] [INFO]   autoEstCont attempt 3 for 64_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:10:46] [ERROR]   ERROR: autoEstCont attempt 3 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:10:46] [INFO]   autoEstCont attempt 4 for 64_1 (tfidfMin=0.70, soupQuantile=0.60) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:10:50] [ERROR]   ERROR: autoEstCont attempt 4 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:10:50] [INFO]   autoEstCont attempt 5 for 64_1 (tfidfMin=0.60, soupQuantile=0.50) 
+3 genes passed tf-idf cut-off and 3 soup quantile filter.  Taking the top 3.
+Using 28 independent estimates of rho.
+Estimated global rho of 0.07
+[2025-12-03 16:10:56] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.60, soupQuantile=0.50 
+[2025-12-03 16:10:56] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_64_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:11:00] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 64_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:11:00] [INFO]   Adjusting counts for 64_1 
+Expanding counts from 20 clusters to 2394 cells.
+[2025-12-03 16:11:05] [INFO]   Completed 64_1: 2394 cells 
+[2025-12-03 16:11:05] [INFO] Processing 55_1 
+[2025-12-03 16:11:05] [INFO]   Loading raw counts for 55_1 
+[2025-12-03 16:11:10] [INFO]   Running SoupX for 55_1 
+[2025-12-03 16:11:11] [INFO]   autoEstCont attempt 1 for 55_1 (tfidfMin=1.00, soupQuantile=0.90) 
+13 genes passed tf-idf cut-off and 6 soup quantile filter.  Taking the top 6.
+Using 43 independent estimates of rho.
+Estimated global rho of 0.01
+[2025-12-03 16:11:17] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_55_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 13 marker genes
+[2025-12-03 16:11:23] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_55_1.pdf 
+[2025-12-03 16:11:23] [INFO]   Adjusting counts for 55_1 
+Expanding counts from 28 clusters to 3930 cells.
+[2025-12-03 16:11:30] [INFO]   Completed 55_1: 3930 cells 
+[2025-12-03 16:11:30] [INFO] Processing 54_1 
+[2025-12-03 16:11:30] [INFO]   Loading raw counts for 54_1 
+[2025-12-03 16:11:36] [INFO]   Running SoupX for 54_1 
+[2025-12-03 16:11:36] [INFO]   autoEstCont attempt 1 for 54_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:11:38] [ERROR]   ERROR: autoEstCont attempt 1 failed for 54_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:11:38] [INFO]   autoEstCont attempt 2 for 54_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:11:40] [ERROR]   ERROR: autoEstCont attempt 2 failed for 54_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:11:40] [INFO]   autoEstCont attempt 3 for 54_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:11:42] [ERROR]   ERROR: autoEstCont attempt 3 failed for 54_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:11:42] [INFO]   autoEstCont attempt 4 for 54_1 (tfidfMin=0.70, soupQuantile=0.60) 
+11 genes passed tf-idf cut-off and 11 soup quantile filter.  Taking the top 11.
+Using 39 independent estimates of rho.
+Estimated global rho of 0.31
+Estimated contamination is very high (0.31).
+[2025-12-03 16:11:45] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:11:45] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_54_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:11:47] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 54_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:11:47] [INFO]   Adjusting counts for 54_1 
+Expanding counts from 11 clusters to 781 cells.
+[2025-12-03 16:11:50] [INFO]   Completed 54_1: 781 cells 
+[2025-12-03 16:11:50] [INFO] Processing 83_1 
+[2025-12-03 16:11:50] [INFO]   Loading raw counts for 83_1 
+[2025-12-03 16:11:54] [INFO]   Running SoupX for 83_1 
+[2025-12-03 16:11:54] [INFO]   autoEstCont attempt 1 for 83_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 11 independent estimates of rho.
+Estimated global rho of 0.02
+[2025-12-03 16:11:59] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_83_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:12:04] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_83_1.pdf 
+[2025-12-03 16:12:04] [INFO]   Adjusting counts for 83_1 
+Expanding counts from 19 clusters to 1696 cells.
+[2025-12-03 16:12:08] [INFO]   Completed 83_1: 1696 cells 
+[2025-12-03 16:12:08] [INFO] Processing 76_1 
+[2025-12-03 16:12:08] [INFO]   Loading raw counts for 76_1 
+[2025-12-03 16:12:12] [INFO]   Running SoupX for 76_1 
+[2025-12-03 16:12:12] [INFO]   autoEstCont attempt 1 for 76_1 (tfidfMin=1.00, soupQuantile=0.90) 
+17 genes passed tf-idf cut-off and 8 soup quantile filter.  Taking the top 8.
+Using 10 independent estimates of rho.
+Estimated global rho of 0.40
+Estimated contamination is very high (0.4).
+[2025-12-03 16:12:17] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_76_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 17 marker genes
+[2025-12-03 16:12:21] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 76_1: invalid fitted means in empty model. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:12:21] [INFO]   Adjusting counts for 76_1 
+Expanding counts from 17 clusters to 1650 cells.
+[2025-12-03 16:12:29] [INFO]   Completed 76_1: 1650 cells 
+[2025-12-03 16:12:29] [INFO] Processing 53_1 
+[2025-12-03 16:12:29] [INFO]   Loading raw counts for 53_1 
+[2025-12-03 16:12:33] [INFO]   Running SoupX for 53_1 
+[2025-12-03 16:12:33] [INFO]   autoEstCont attempt 1 for 53_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 10 independent estimates of rho.
+Estimated global rho of 0.05
+[2025-12-03 16:12:37] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_53_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:12:40] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_53_1.pdf 
+[2025-12-03 16:12:40] [INFO]   Adjusting counts for 53_1 
+Expanding counts from 17 clusters to 1677 cells.
+[2025-12-03 16:12:43] [INFO]   Completed 53_1: 1677 cells 
+[2025-12-03 16:12:43] [INFO] Processing 44_1 
+[2025-12-03 16:12:43] [INFO]   Loading raw counts for 44_1 
+[2025-12-03 16:12:47] [INFO]   Running SoupX for 44_1 
+[2025-12-03 16:12:47] [INFO]   autoEstCont attempt 1 for 44_1 (tfidfMin=1.00, soupQuantile=0.90) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 1 independent estimates of rho.
+Estimated global rho of 0.20
+[2025-12-03 16:12:50] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_44_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 1 marker genes
+`geom_line()`: Each group consists of only one observation.
+ℹ Do you need to adjust the group aesthetic?
+[2025-12-03 16:12:54] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_44_1.pdf 
+[2025-12-03 16:12:54] [INFO]   Adjusting counts for 44_1 
+Expanding counts from 17 clusters to 1736 cells.
+[2025-12-03 16:12:57] [INFO]   Completed 44_1: 1736 cells 
+[2025-12-03 16:12:57] [INFO] Processing 41_1 
+[2025-12-03 16:12:57] [INFO]   Loading raw counts for 41_1 
+[2025-12-03 16:13:02] [INFO]   Running SoupX for 41_1 
+[2025-12-03 16:13:02] [INFO]   autoEstCont attempt 1 for 41_1 (tfidfMin=1.00, soupQuantile=0.90) 
+17 genes passed tf-idf cut-off and 4 soup quantile filter.  Taking the top 4.
+Using 32 independent estimates of rho.
+Estimated global rho of 0.02
+[2025-12-03 16:13:06] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_41_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 17 marker genes
+[2025-12-03 16:13:11] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 41_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:13:11] [INFO]   Adjusting counts for 41_1 
+Expanding counts from 20 clusters to 2117 cells.
+[2025-12-03 16:13:15] [INFO]   Completed 41_1: 2117 cells 
+[2025-12-03 16:13:15] [INFO] Processing 34_1 
+[2025-12-03 16:13:15] [INFO]   Loading raw counts for 34_1 
+[2025-12-03 16:13:19] [INFO]   Running SoupX for 34_1 
+[2025-12-03 16:13:19] [INFO]   autoEstCont attempt 1 for 34_1 (tfidfMin=1.00, soupQuantile=0.90) 
+4 genes passed tf-idf cut-off and 3 soup quantile filter.  Taking the top 3.
+Using 2 independent estimates of rho.
+Estimated global rho of 0.01
+[2025-12-03 16:13:23] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_34_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 4 marker genes
+[2025-12-03 16:13:26] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_34_1.pdf 
+[2025-12-03 16:13:26] [INFO]   Adjusting counts for 34_1 
+Expanding counts from 16 clusters to 1668 cells.
+[2025-12-03 16:13:29] [INFO]   Completed 34_1: 1668 cells 
+[2025-12-03 16:13:29] [INFO] Processing 46_1 
+[2025-12-03 16:13:29] [INFO]   Loading raw counts for 46_1 
+[2025-12-03 16:13:35] [INFO]   Running SoupX for 46_1 
+[2025-12-03 16:13:36] [INFO]   autoEstCont attempt 1 for 46_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:13:39] [ERROR]   ERROR: autoEstCont attempt 1 failed for 46_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:13:39] [INFO]   autoEstCont attempt 2 for 46_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:13:44] [ERROR]   ERROR: autoEstCont attempt 2 failed for 46_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:13:44] [INFO]   autoEstCont attempt 3 for 46_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:13:48] [ERROR]   ERROR: autoEstCont attempt 3 failed for 46_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:13:48] [INFO]   autoEstCont attempt 4 for 46_1 (tfidfMin=0.70, soupQuantile=0.60) 
+8 genes passed tf-idf cut-off and 8 soup quantile filter.  Taking the top 8.
+Using 46 independent estimates of rho.
+Estimated global rho of 0.31
+Estimated contamination is very high (0.31).
+[2025-12-03 16:13:53] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:13:53] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_46_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:13:55] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 46_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:13:55] [INFO]   Adjusting counts for 46_1 
+Expanding counts from 16 clusters to 1932 cells.
+[2025-12-03 16:14:01] [INFO]   Completed 46_1: 1932 cells 
+[2025-12-03 16:14:01] [INFO] Processing 33_1 
+[2025-12-03 16:14:01] [INFO]   Loading raw counts for 33_1 
+[2025-12-03 16:14:08] [INFO]   Running SoupX for 33_1 
+[2025-12-03 16:14:08] [INFO]   autoEstCont attempt 1 for 33_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:14:12] [ERROR]   ERROR: autoEstCont attempt 1 failed for 33_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:14:12] [INFO]   autoEstCont attempt 2 for 33_1 (tfidfMin=0.90, soupQuantile=0.80) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 11 independent estimates of rho.
+Estimated global rho of 0.21
+[2025-12-03 16:14:16] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80 
+[2025-12-03 16:14:16] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_33_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:14:20] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 33_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:14:20] [INFO]   Adjusting counts for 33_1 
+Expanding counts from 18 clusters to 1827 cells.
+[2025-12-03 16:14:27] [INFO]   Completed 33_1: 1827 cells 
+[2025-12-03 16:14:27] [INFO] Processing 43_1 
+[2025-12-03 16:14:27] [INFO]   Loading raw counts for 43_1 
+[2025-12-03 16:14:33] [INFO]   Running SoupX for 43_1 
+[2025-12-03 16:14:33] [INFO]   autoEstCont attempt 1 for 43_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:14:37] [ERROR]   ERROR: autoEstCont attempt 1 failed for 43_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:14:37] [INFO]   autoEstCont attempt 2 for 43_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:14:41] [ERROR]   ERROR: autoEstCont attempt 2 failed for 43_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:14:41] [INFO]   autoEstCont attempt 3 for 43_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:14:45] [ERROR]   ERROR: autoEstCont attempt 3 failed for 43_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:14:45] [INFO]   autoEstCont attempt 4 for 43_1 (tfidfMin=0.70, soupQuantile=0.60) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 16 independent estimates of rho.
+Estimated global rho of 0.08
+[2025-12-03 16:14:49] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:14:49] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_43_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:14:53] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 43_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:14:53] [INFO]   Adjusting counts for 43_1 
+Expanding counts from 17 clusters to 1459 cells.
+[2025-12-03 16:14:57] [INFO]   Completed 43_1: 1459 cells 
+[2025-12-03 16:14:57] [INFO] Processing 38_2 
+[2025-12-03 16:14:57] [INFO]   Loading raw counts for 38_2 
+[2025-12-03 16:15:03] [INFO]   Running SoupX for 38_2 
+[2025-12-03 16:15:03] [INFO]   autoEstCont attempt 1 for 38_2 (tfidfMin=1.00, soupQuantile=0.90) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 8 independent estimates of rho.
+Estimated global rho of 0.10
+[2025-12-03 16:15:06] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_38_2.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 1 marker genes
+`geom_line()`: Each group consists of only one observation.
+ℹ Do you need to adjust the group aesthetic?
+[2025-12-03 16:15:10] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_38_2.pdf 
+[2025-12-03 16:15:10] [INFO]   Adjusting counts for 38_2 
+Expanding counts from 17 clusters to 1622 cells.
+[2025-12-03 16:15:13] [INFO]   Completed 38_2: 1622 cells 
+[2025-12-03 16:15:13] [INFO] Processing 32_1 
+[2025-12-03 16:15:13] [INFO]   Loading raw counts for 32_1 
+[2025-12-03 16:15:19] [INFO]   Running SoupX for 32_1 
+[2025-12-03 16:15:20] [INFO]   autoEstCont attempt 1 for 32_1 (tfidfMin=1.00, soupQuantile=0.90) 
+81 genes passed tf-idf cut-off and 80 soup quantile filter.  Taking the top 80.
+Using 736 independent estimates of rho.
+Estimated global rho of 0.14
+[2025-12-03 16:15:24] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_32_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 81 marker genes
+[2025-12-03 16:15:30] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_32_1.pdf 
+[2025-12-03 16:15:30] [INFO]   Adjusting counts for 32_1 
+Expanding counts from 19 clusters to 2006 cells.
+[2025-12-03 16:15:34] [INFO]   Completed 32_1: 2006 cells 
+[2025-12-03 16:15:34] [INFO] Processing 71_1 
+[2025-12-03 16:15:34] [INFO]   Loading raw counts for 71_1 
+[2025-12-03 16:15:40] [INFO]   Running SoupX for 71_1 
+[2025-12-03 16:15:41] [INFO]   autoEstCont attempt 1 for 71_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:15:44] [ERROR]   ERROR: autoEstCont attempt 1 failed for 71_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:15:44] [INFO]   autoEstCont attempt 2 for 71_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:15:47] [ERROR]   ERROR: autoEstCont attempt 2 failed for 71_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:15:47] [INFO]   autoEstCont attempt 3 for 71_1 (tfidfMin=0.80, soupQuantile=0.70) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 4 independent estimates of rho.
+Estimated global rho of 0.09
+[2025-12-03 16:15:51] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70 
+[2025-12-03 16:15:51] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_71_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:15:54] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 71_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:15:54] [INFO]   Adjusting counts for 71_1 
+Expanding counts from 13 clusters to 855 cells.
+[2025-12-03 16:15:57] [INFO]   Completed 71_1: 855 cells 
+[2025-12-03 16:15:57] [INFO] Processing 75_1 
+[2025-12-03 16:15:57] [INFO]   Loading raw counts for 75_1 
+[2025-12-03 16:16:03] [INFO]   Running SoupX for 75_1 
+[2025-12-03 16:16:03] [INFO]   autoEstCont attempt 1 for 75_1 (tfidfMin=1.00, soupQuantile=0.90) 
+15 genes passed tf-idf cut-off and 10 soup quantile filter.  Taking the top 10.
+Using 173 independent estimates of rho.
+Estimated global rho of 0.18
+[2025-12-03 16:16:10] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_75_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 15 marker genes
+[2025-12-03 16:16:17] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_75_1.pdf 
+[2025-12-03 16:16:17] [INFO]   Adjusting counts for 75_1 
+Expanding counts from 22 clusters to 2385 cells.
+[2025-12-03 16:16:24] [INFO]   Completed 75_1: 2385 cells 
+[2025-12-03 16:16:24] [INFO] Processing 104_1 
+[2025-12-03 16:16:24] [INFO]   Loading raw counts for 104_1 
+[2025-12-03 16:16:30] [INFO]   Running SoupX for 104_1 
+[2025-12-03 16:16:31] [INFO]   autoEstCont attempt 1 for 104_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 16 independent estimates of rho.
+Estimated global rho of 0.07
+[2025-12-03 16:16:33] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_104_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:16:36] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_104_1.pdf 
+[2025-12-03 16:16:36] [INFO]   Adjusting counts for 104_1 
+Expanding counts from 14 clusters to 1501 cells.
+[2025-12-03 16:16:39] [INFO]   Completed 104_1: 1501 cells 
+[2025-12-03 16:16:39] [INFO] Processing 42_1 
+[2025-12-03 16:16:39] [INFO]   Loading raw counts for 42_1 
+[2025-12-03 16:16:45] [INFO]   Running SoupX for 42_1 
+[2025-12-03 16:16:46] [INFO]   autoEstCont attempt 1 for 42_1 (tfidfMin=1.00, soupQuantile=0.90) 
+4 genes passed tf-idf cut-off and 4 soup quantile filter.  Taking the top 4.
+Using 18 independent estimates of rho.
+Estimated global rho of 0.01
+[2025-12-03 16:16:48] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_42_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 4 marker genes
+[2025-12-03 16:16:50] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_42_1.pdf 
+[2025-12-03 16:16:50] [INFO]   Adjusting counts for 42_1 
+Expanding counts from 9 clusters to 544 cells.
+[2025-12-03 16:16:51] [INFO]   Completed 42_1: 544 cells 
+[2025-12-03 16:16:51] [INFO] Processing 80_2 
+[2025-12-03 16:16:51] [INFO]   Loading raw counts for 80_2 
+[2025-12-03 16:16:58] [INFO]   Running SoupX for 80_2 
+[2025-12-03 16:16:58] [INFO]   autoEstCont attempt 1 for 80_2 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:17:02] [ERROR]   ERROR: autoEstCont attempt 1 failed for 80_2: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:17:02] [INFO]   autoEstCont attempt 2 for 80_2 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:17:06] [ERROR]   ERROR: autoEstCont attempt 2 failed for 80_2: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:17:06] [INFO]   autoEstCont attempt 3 for 80_2 (tfidfMin=0.80, soupQuantile=0.70) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 15 independent estimates of rho.
+Estimated global rho of 0.09
+[2025-12-03 16:17:11] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70 
+[2025-12-03 16:17:11] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_80_2.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:17:14] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 80_2: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:17:14] [INFO]   Adjusting counts for 80_2 
+Expanding counts from 16 clusters to 1739 cells.
+[2025-12-03 16:17:18] [INFO]   Completed 80_2: 1739 cells 
+[2025-12-03 16:17:18] [INFO] Processing 29_1 
+[2025-12-03 16:17:18] [INFO]   Loading raw counts for 29_1 
+[2025-12-03 16:17:25] [INFO]   Running SoupX for 29_1 
+[2025-12-03 16:17:26] [INFO]   autoEstCont attempt 1 for 29_1 (tfidfMin=1.00, soupQuantile=0.90) 
+6 genes passed tf-idf cut-off and 6 soup quantile filter.  Taking the top 6.
+Using 14 independent estimates of rho.
+Estimated global rho of 0.33
+Estimated contamination is very high (0.33).
+[2025-12-03 16:17:32] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_29_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 6 marker genes
+[2025-12-03 16:17:38] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_29_1.pdf 
+[2025-12-03 16:17:38] [INFO]   Adjusting counts for 29_1 
+Expanding counts from 20 clusters to 2338 cells.
+[2025-12-03 16:17:49] [INFO]   Completed 29_1: 2338 cells 
+[2025-12-03 16:17:49] [INFO] Processing 60_1 
+[2025-12-03 16:17:49] [INFO]   Loading raw counts for 60_1 
+[2025-12-03 16:17:56] [INFO]   Running SoupX for 60_1 
+[2025-12-03 16:17:57] [INFO]   autoEstCont attempt 1 for 60_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:18:00] [ERROR]   ERROR: autoEstCont attempt 1 failed for 60_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:18:00] [INFO]   autoEstCont attempt 2 for 60_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:18:04] [ERROR]   ERROR: autoEstCont attempt 2 failed for 60_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:18:04] [INFO]   autoEstCont attempt 3 for 60_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:18:08] [ERROR]   ERROR: autoEstCont attempt 3 failed for 60_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:18:08] [INFO]   autoEstCont attempt 4 for 60_1 (tfidfMin=0.70, soupQuantile=0.60) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 9 independent estimates of rho.
+Estimated global rho of 0.49
+Estimated contamination is very high (0.49).
+[2025-12-03 16:18:13] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:18:13] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_60_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:18:17] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 60_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:18:17] [INFO]   Adjusting counts for 60_1 
+Expanding counts from 19 clusters to 1939 cells.
+[2025-12-03 16:18:27] [INFO]   Completed 60_1: 1939 cells 
+[2025-12-03 16:18:27] [INFO] Processing 36_1 
+[2025-12-03 16:18:27] [INFO]   Loading raw counts for 36_1 
+[2025-12-03 16:18:34] [INFO]   Running SoupX for 36_1 
+[2025-12-03 16:18:34] [INFO]   autoEstCont attempt 1 for 36_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:18:40] [ERROR]   ERROR: autoEstCont attempt 1 failed for 36_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:18:40] [INFO]   autoEstCont attempt 2 for 36_1 (tfidfMin=0.90, soupQuantile=0.80) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 15 independent estimates of rho.
+Estimated global rho of 0.66
+Extremely high contamination estimated (0.66).  This likely represents a failure in estimating the contamination fraction.  Set forceAccept=TRUE to proceed with this value.
+[2025-12-03 16:18:45] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80 
+[2025-12-03 16:18:45] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_36_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:18:50] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 36_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:18:50] [INFO]   Adjusting counts for 36_1 
+Expanding counts from 21 clusters to 2563 cells.
+[2025-12-03 16:19:01] [INFO]   Completed 36_1: 2563 cells 
+[2025-12-03 16:19:01] [INFO] Processing 31_1 
+[2025-12-03 16:19:01] [INFO]   Loading raw counts for 31_1 
+[2025-12-03 16:19:08] [INFO]   Running SoupX for 31_1 
+[2025-12-03 16:19:08] [INFO]   autoEstCont attempt 1 for 31_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:19:11] [ERROR]   ERROR: autoEstCont attempt 1 failed for 31_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:19:11] [INFO]   autoEstCont attempt 2 for 31_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:19:14] [ERROR]   ERROR: autoEstCont attempt 2 failed for 31_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:19:14] [INFO]   autoEstCont attempt 3 for 31_1 (tfidfMin=0.80, soupQuantile=0.70) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 12 independent estimates of rho.
+Estimated global rho of 0.14
+[2025-12-03 16:19:17] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70 
+[2025-12-03 16:19:17] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_31_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:19:20] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 31_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:19:20] [INFO]   Adjusting counts for 31_1 
+Expanding counts from 16 clusters to 1828 cells.
+[2025-12-03 16:19:24] [INFO]   Completed 31_1: 1828 cells 
+[2025-12-03 16:19:24] [INFO] Processing 59_1 
+[2025-12-03 16:19:24] [INFO]   Loading raw counts for 59_1 
+[2025-12-03 16:19:31] [INFO]   Running SoupX for 59_1 
+[2025-12-03 16:19:32] [INFO]   autoEstCont attempt 1 for 59_1 (tfidfMin=1.00, soupQuantile=0.90) 
+25 genes passed tf-idf cut-off and 17 soup quantile filter.  Taking the top 17.
+Using 172 independent estimates of rho.
+Estimated global rho of 0.32
+Estimated contamination is very high (0.32).
+[2025-12-03 16:19:36] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_59_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 25 marker genes
+[2025-12-03 16:19:41] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_59_1.pdf 
+[2025-12-03 16:19:41] [INFO]   Adjusting counts for 59_1 
+Expanding counts from 18 clusters to 1957 cells.
+[2025-12-03 16:19:49] [INFO]   Completed 59_1: 1957 cells 
+[2025-12-03 16:19:49] [INFO] Processing 68_1 
+[2025-12-03 16:19:49] [INFO]   Loading raw counts for 68_1 
+[2025-12-03 16:19:56] [INFO]   Running SoupX for 68_1 
+[2025-12-03 16:19:56] [INFO]   autoEstCont attempt 1 for 68_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:20:00] [ERROR]   ERROR: autoEstCont attempt 1 failed for 68_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:20:00] [INFO]   autoEstCont attempt 2 for 68_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:20:05] [ERROR]   ERROR: autoEstCont attempt 2 failed for 68_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:20:05] [INFO]   autoEstCont attempt 3 for 68_1 (tfidfMin=0.80, soupQuantile=0.70) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 16 independent estimates of rho.
+Estimated global rho of 0.61
+Extremely high contamination estimated (0.61).  This likely represents a failure in estimating the contamination fraction.  Set forceAccept=TRUE to proceed with this value.
+[2025-12-03 16:20:09] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70 
+[2025-12-03 16:20:09] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_68_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:20:14] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 68_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:20:14] [INFO]   Adjusting counts for 68_1 
+Expanding counts from 18 clusters to 1645 cells.
+[2025-12-03 16:20:21] [INFO]   Completed 68_1: 1645 cells 
+[2025-12-03 16:20:21] [INFO] Processing 35_1 
+[2025-12-03 16:20:21] [INFO]   Loading raw counts for 35_1 
+[2025-12-03 16:20:28] [INFO]   Running SoupX for 35_1 
+[2025-12-03 16:20:29] [INFO]   autoEstCont attempt 1 for 35_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:20:33] [ERROR]   ERROR: autoEstCont attempt 1 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:20:33] [INFO]   autoEstCont attempt 2 for 35_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:20:37] [ERROR]   ERROR: autoEstCont attempt 2 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:20:37] [INFO]   autoEstCont attempt 3 for 35_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:20:42] [ERROR]   ERROR: autoEstCont attempt 3 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:20:42] [INFO]   autoEstCont attempt 4 for 35_1 (tfidfMin=0.70, soupQuantile=0.60) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:20:47] [ERROR]   ERROR: autoEstCont attempt 4 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:20:47] [INFO]   autoEstCont attempt 5 for 35_1 (tfidfMin=0.60, soupQuantile=0.50) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:20:52] [ERROR]   ERROR: autoEstCont attempt 5 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:20:52] [INFO]   autoEstCont attempt 6 for 35_1 (tfidfMin=0.50, soupQuantile=0.40) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 21 independent estimates of rho.
+Estimated global rho of 0.04
+[2025-12-03 16:20:57] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.50, soupQuantile=0.40 
+[2025-12-03 16:20:57] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_35_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:21:03] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 35_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:21:03] [INFO]   Adjusting counts for 35_1 
+Expanding counts from 19 clusters to 2010 cells.
+[2025-12-03 16:21:08] [INFO]   Completed 35_1: 2010 cells 
+[2025-12-03 16:21:08] [INFO] Processing 117_1 
+[2025-12-03 16:21:08] [INFO]   Loading raw counts for 117_1 
+[2025-12-03 16:21:15] [INFO]   Running SoupX for 117_1 
+[2025-12-03 16:21:15] [INFO]   autoEstCont attempt 1 for 117_1 (tfidfMin=1.00, soupQuantile=0.90) 
+9 genes passed tf-idf cut-off and 5 soup quantile filter.  Taking the top 5.
+Using 60 independent estimates of rho.
+Estimated global rho of 0.01
+[2025-12-03 16:21:21] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_117_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 9 marker genes
+[2025-12-03 16:21:25] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 117_1: invalid fitted means in empty model. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:21:25] [INFO]   Adjusting counts for 117_1 
+Expanding counts from 18 clusters to 1816 cells.
+[2025-12-03 16:21:28] [INFO]   Completed 117_1: 1816 cells 
+[2025-12-03 16:21:28] [INFO] Processing 100_1 
+[2025-12-03 16:21:28] [INFO]   Loading raw counts for 100_1 
+[2025-12-03 16:21:35] [INFO]   Running SoupX for 100_1 
+[2025-12-03 16:21:36] [INFO]   autoEstCont attempt 1 for 100_1 (tfidfMin=1.00, soupQuantile=0.90) 
+20 genes passed tf-idf cut-off and 7 soup quantile filter.  Taking the top 7.
+Using 82 independent estimates of rho.
+Estimated global rho of 0.01
+[2025-12-03 16:21:41] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_100_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 20 marker genes
+[2025-12-03 16:21:48] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_100_1.pdf 
+[2025-12-03 16:21:48] [INFO]   Adjusting counts for 100_1 
+Expanding counts from 23 clusters to 3126 cells.
+[2025-12-03 16:21:53] [INFO]   Completed 100_1: 3126 cells 
+[2025-12-03 16:21:53] [INFO] Processing 51_1 
+[2025-12-03 16:21:53] [INFO]   Loading raw counts for 51_1 
+[2025-12-03 16:22:00] [INFO]   Running SoupX for 51_1 
+[2025-12-03 16:22:01] [INFO]   autoEstCont attempt 1 for 51_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:22:04] [ERROR]   ERROR: autoEstCont attempt 1 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:22:04] [INFO]   autoEstCont attempt 2 for 51_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:22:07] [ERROR]   ERROR: autoEstCont attempt 2 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:22:07] [INFO]   autoEstCont attempt 3 for 51_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:22:11] [ERROR]   ERROR: autoEstCont attempt 3 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:22:11] [INFO]   autoEstCont attempt 4 for 51_1 (tfidfMin=0.70, soupQuantile=0.60) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:22:14] [ERROR]   ERROR: autoEstCont attempt 4 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:22:14] [INFO]   autoEstCont attempt 5 for 51_1 (tfidfMin=0.60, soupQuantile=0.50) 
+12 genes passed tf-idf cut-off and 12 soup quantile filter.  Taking the top 12.
+Using 58 independent estimates of rho.
+Estimated global rho of 0.30
+[2025-12-03 16:22:18] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.60, soupQuantile=0.50 
+[2025-12-03 16:22:18] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_51_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:22:22] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 51_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:22:22] [INFO]   Adjusting counts for 51_1 
+Expanding counts from 13 clusters to 936 cells.
+[2025-12-03 16:22:26] [INFO]   Completed 51_1: 936 cells 
+[2025-12-03 16:22:26] [INFO] Processing 115_1 
+[2025-12-03 16:22:26] [INFO]   Loading raw counts for 115_1 
+[2025-12-03 16:22:33] [INFO]   Running SoupX for 115_1 
+[2025-12-03 16:22:33] [INFO]   autoEstCont attempt 1 for 115_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:22:40] [ERROR]   ERROR: autoEstCont attempt 1 failed for 115_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:22:40] [INFO]   autoEstCont attempt 2 for 115_1 (tfidfMin=0.90, soupQuantile=0.80) 
+3 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:22:44] [ERROR]   ERROR: autoEstCont attempt 2 failed for 115_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:22:44] [INFO]   autoEstCont attempt 3 for 115_1 (tfidfMin=0.80, soupQuantile=0.70) 
+13 genes passed tf-idf cut-off and 13 soup quantile filter.  Taking the top 13.
+Using 147 independent estimates of rho.
+Estimated global rho of 0.36
+Estimated contamination is very high (0.36).
+[2025-12-03 16:22:49] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70 
+[2025-12-03 16:22:49] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_115_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:22:54] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 115_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:22:54] [INFO]   Adjusting counts for 115_1 
+Expanding counts from 22 clusters to 2517 cells.
+[2025-12-03 16:23:06] [INFO]   Completed 115_1: 2517 cells 
+[2025-12-03 16:23:06] [INFO] Processing 113_1 
+[2025-12-03 16:23:06] [INFO]   Loading raw counts for 113_1 
+[2025-12-03 16:23:13] [INFO]   Running SoupX for 113_1 
+[2025-12-03 16:23:14] [INFO]   autoEstCont attempt 1 for 113_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:23:18] [ERROR]   ERROR: autoEstCont attempt 1 failed for 113_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:23:18] [INFO]   autoEstCont attempt 2 for 113_1 (tfidfMin=0.90, soupQuantile=0.80) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 8 independent estimates of rho.
+Estimated global rho of 0.10
+[2025-12-03 16:23:23] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80 
+[2025-12-03 16:23:23] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_113_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:23:28] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 113_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:23:28] [INFO]   Adjusting counts for 113_1 
+Expanding counts from 19 clusters to 2126 cells.
+[2025-12-03 16:23:33] [INFO]   Completed 113_1: 2126 cells 
+[2025-12-03 16:23:33] [INFO] Processing 45_1 
+[2025-12-03 16:23:33] [INFO]   Loading raw counts for 45_1 
+[2025-12-03 16:23:40] [INFO]   Running SoupX for 45_1 
+[2025-12-03 16:23:40] [INFO]   autoEstCont attempt 1 for 45_1 (tfidfMin=1.00, soupQuantile=0.90) 
+3 genes passed tf-idf cut-off and 3 soup quantile filter.  Taking the top 3.
+Using 2 independent estimates of rho.
+Estimated global rho of 0.13
+[2025-12-03 16:23:45] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_45_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 3 marker genes
+[2025-12-03 16:23:50] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_45_1.pdf 
+[2025-12-03 16:23:50] [INFO]   Adjusting counts for 45_1 
+Expanding counts from 17 clusters to 1904 cells.
+[2025-12-03 16:23:54] [INFO]   Completed 45_1: 1904 cells 
+[2025-12-03 16:23:54] [INFO] Processing 48_1 
+[2025-12-03 16:23:54] [INFO]   Loading raw counts for 48_1 
+[2025-12-03 16:24:01] [INFO]   Running SoupX for 48_1 
+[2025-12-03 16:24:01] [INFO]   autoEstCont attempt 1 for 48_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 17 independent estimates of rho.
+Estimated global rho of 0.20
+[2025-12-03 16:24:07] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_48_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:24:11] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_48_1.pdf 
+[2025-12-03 16:24:11] [INFO]   Adjusting counts for 48_1 
+Expanding counts from 20 clusters to 2133 cells.
+[2025-12-03 16:24:16] [INFO]   Completed 48_1: 2133 cells 
+[2025-12-03 16:24:16] [INFO] Processing 112_1 
+[2025-12-03 16:24:16] [INFO]   Loading raw counts for 112_1 
+[2025-12-03 16:24:24] [INFO]   Running SoupX for 112_1 
+[2025-12-03 16:24:25] [INFO]   autoEstCont attempt 1 for 112_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 9 independent estimates of rho.
+Estimated global rho of 0.07
+[2025-12-03 16:24:29] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_112_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:24:34] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_112_1.pdf 
+[2025-12-03 16:24:34] [INFO]   Adjusting counts for 112_1 
+Expanding counts from 18 clusters to 1824 cells.
+[2025-12-03 16:24:38] [INFO]   Completed 112_1: 1824 cells 
+[2025-12-03 16:24:38] [INFO] Processing 111_1 
+[2025-12-03 16:24:38] [INFO]   Loading raw counts for 111_1 
+[2025-12-03 16:24:46] [INFO]   Running SoupX for 111_1 
+[2025-12-03 16:24:46] [INFO]   autoEstCont attempt 1 for 111_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:24:50] [ERROR]   ERROR: autoEstCont attempt 1 failed for 111_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:24:50] [INFO]   autoEstCont attempt 2 for 111_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:24:54] [ERROR]   ERROR: autoEstCont attempt 2 failed for 111_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:24:54] [INFO]   autoEstCont attempt 3 for 111_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:24:58] [ERROR]   ERROR: autoEstCont attempt 3 failed for 111_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:24:58] [INFO]   autoEstCont attempt 4 for 111_1 (tfidfMin=0.70, soupQuantile=0.60) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 6 independent estimates of rho.
+Estimated global rho of 0.44
+Estimated contamination is very high (0.44).
+[2025-12-03 16:25:02] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:25:02] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_111_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:25:06] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 111_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:25:06] [INFO]   Adjusting counts for 111_1 
+Expanding counts from 15 clusters to 1649 cells.
+[2025-12-03 16:25:16] [INFO]   Completed 111_1: 1649 cells 
+[2025-12-03 16:25:16] [INFO] Processing 74_3 
+[2025-12-03 16:25:16] [INFO]   Loading raw counts for 74_3 
+[2025-12-03 16:25:24] [INFO]   Running SoupX for 74_3 
+[2025-12-03 16:25:24] [INFO]   autoEstCont attempt 1 for 74_3 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:25:28] [ERROR]   ERROR: autoEstCont attempt 1 failed for 74_3: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:25:28] [INFO]   autoEstCont attempt 2 for 74_3 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:25:29] [ERROR]   ERROR: autoEstCont attempt 2 failed for 74_3: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:25:29] [INFO]   autoEstCont attempt 3 for 74_3 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:25:31] [ERROR]   ERROR: autoEstCont attempt 3 failed for 74_3: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:25:31] [INFO]   autoEstCont attempt 4 for 74_3 (tfidfMin=0.70, soupQuantile=0.60) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 6 independent estimates of rho.
+Estimated global rho of 0.19
+[2025-12-03 16:25:33] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:25:33] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_74_3.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:25:35] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 74_3: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:25:35] [INFO]   Adjusting counts for 74_3 
+Expanding counts from 10 clusters to 631 cells.
+[2025-12-03 16:25:37] [INFO]   Completed 74_3: 631 cells 
+[2025-12-03 16:25:37] [INFO] Processing 16_1 
+[2025-12-03 16:25:37] [INFO]   Loading raw counts for 16_1 
+[2025-12-03 16:25:44] [INFO]   Running SoupX for 16_1 
+[2025-12-03 16:25:45] [INFO]   autoEstCont attempt 1 for 16_1 (tfidfMin=1.00, soupQuantile=0.90) 
+28 genes passed tf-idf cut-off and 7 soup quantile filter.  Taking the top 7.
+Using 74 independent estimates of rho.
+Estimated global rho of 0.53
+Extremely high contamination estimated (0.53).  This likely represents a failure in estimating the contamination fraction.  Set forceAccept=TRUE to proceed with this value.
+[2025-12-03 16:25:51] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_16_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 28 marker genes
+[2025-12-03 16:25:59] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 16_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:25:59] [INFO]   Adjusting counts for 16_1 
+Expanding counts from 27 clusters to 3448 cells.
+[2025-12-03 16:26:18] [INFO]   Completed 16_1: 3448 cells 
+[2025-12-03 16:26:18] [INFO] Processing 103_1 
+[2025-12-03 16:26:18] [INFO]   Loading raw counts for 103_1 
+[2025-12-03 16:26:26] [INFO]   Running SoupX for 103_1 
+[2025-12-03 16:26:26] [INFO]   autoEstCont attempt 1 for 103_1 (tfidfMin=1.00, soupQuantile=0.90) 
+2 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:26:30] [ERROR]   ERROR: autoEstCont attempt 1 failed for 103_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:26:30] [INFO]   autoEstCont attempt 2 for 103_1 (tfidfMin=0.90, soupQuantile=0.80) 
+7 genes passed tf-idf cut-off and 6 soup quantile filter.  Taking the top 6.
+Using 17 independent estimates of rho.
+Estimated global rho of 0.18
+[2025-12-03 16:26:33] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80 
+[2025-12-03 16:26:33] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_103_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 2 marker genes
+[2025-12-03 16:26:37] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Marker_Distribution_103_1.pdf 
+[2025-12-03 16:26:37] [INFO]   Adjusting counts for 103_1 
+Expanding counts from 15 clusters to 1343 cells.
+[2025-12-03 16:26:41] [INFO]   Completed 103_1: 1343 cells 
+[2025-12-03 16:26:41] [INFO] Processing 110_1 
+[2025-12-03 16:26:41] [INFO]   Loading raw counts for 110_1 
+[2025-12-03 16:26:48] [INFO]   Running SoupX for 110_1 
+[2025-12-03 16:26:49] [INFO]   autoEstCont attempt 1 for 110_1 (tfidfMin=1.00, soupQuantile=0.90) 
+15 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 35 independent estimates of rho.
+Estimated global rho of 0.11
+[2025-12-03 16:26:54] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_110_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 15 marker genes
+[2025-12-03 16:26:58] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 110_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:26:58] [INFO]   Adjusting counts for 110_1 
+Expanding counts from 21 clusters to 2295 cells.
+[2025-12-03 16:27:03] [INFO]   Completed 110_1: 2295 cells 
+[2025-12-03 16:27:03] [INFO] Processing 85_1 
+[2025-12-03 16:27:03] [INFO]   Loading raw counts for 85_1 
+[2025-12-03 16:27:11] [INFO]   Running SoupX for 85_1 
+[2025-12-03 16:27:11] [INFO]   autoEstCont attempt 1 for 85_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:27:14] [ERROR]   ERROR: autoEstCont attempt 1 failed for 85_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:27:14] [INFO]   autoEstCont attempt 2 for 85_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:27:18] [ERROR]   ERROR: autoEstCont attempt 2 failed for 85_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:27:18] [INFO]   autoEstCont attempt 3 for 85_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:27:21] [ERROR]   ERROR: autoEstCont attempt 3 failed for 85_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:27:21] [INFO]   autoEstCont attempt 4 for 85_1 (tfidfMin=0.70, soupQuantile=0.60) 
+2 genes passed tf-idf cut-off and 2 soup quantile filter.  Taking the top 2.
+Using 22 independent estimates of rho.
+Estimated global rho of 0.09
+[2025-12-03 16:27:25] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:27:25] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_85_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:27:29] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 85_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:27:29] [INFO]   Adjusting counts for 85_1 
+Expanding counts from 15 clusters to 1692 cells.
+[2025-12-03 16:27:33] [INFO]   Completed 85_1: 1692 cells 
+[2025-12-03 16:27:33] [INFO] Processing 93_1 
+[2025-12-03 16:27:33] [INFO]   Loading raw counts for 93_1 
+[2025-12-03 16:27:40] [INFO]   Running SoupX for 93_1 
+[2025-12-03 16:27:41] [INFO]   autoEstCont attempt 1 for 93_1 (tfidfMin=1.00, soupQuantile=0.90) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:27:45] [ERROR]   ERROR: autoEstCont attempt 1 failed for 93_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:27:45] [INFO]   autoEstCont attempt 2 for 93_1 (tfidfMin=0.90, soupQuantile=0.80) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:27:50] [ERROR]   ERROR: autoEstCont attempt 2 failed for 93_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:27:50] [INFO]   autoEstCont attempt 3 for 93_1 (tfidfMin=0.80, soupQuantile=0.70) 
+0 genes passed tf-idf cut-off and 0 soup quantile filter.  Taking the top 0.
+[2025-12-03 16:27:55] [ERROR]   ERROR: autoEstCont attempt 3 failed for 93_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile 
+[2025-12-03 16:27:55] [INFO]   autoEstCont attempt 4 for 93_1 (tfidfMin=0.70, soupQuantile=0.60) 
+1 genes passed tf-idf cut-off and 1 soup quantile filter.  Taking the top 1.
+Using 1 independent estimates of rho.
+Estimated global rho of 0.19
+[2025-12-03 16:27:59] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60 
+[2025-12-03 16:27:59] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_fix1/plots/step3_soupx/SoupX_Rho_Distribution_93_1.pdf 
+No gene lists provided, attempting to find and plot cluster marker genes.
+Found 0 marker genes
+[2025-12-03 16:28:04] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 93_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse. 
+[2025-12-03 16:28:04] [INFO]   Adjusting counts for 93_1 
+Expanding counts from 18 clusters to 1982 cells.
+[2025-12-03 16:28:09] [INFO]   Completed 93_1: 1982 cells 
+There were 50 or more warnings (use warnings() to see the first 50)
+[2025-12-03 16:28:09] [INFO] Saving results to: /data/user3/sobj/pipe/run_fix1/step3/step3_soupx_list.qs 
+[2025-12-03 16:28:09] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_fix1/step3/step3_soupx_list_1.qs 
+[2025-12-03 16:28:17] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_fix1/step3/step3_soupx_list_1.qs 
+[2025-12-03 16:28:17] [INFO] Step 3 completed: 56 samples processed 
+Step 3 completed successfully. Processed 56 samples.

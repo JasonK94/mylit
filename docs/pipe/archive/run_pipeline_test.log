@@ -1,0 +1,1434 @@
+Starting pipeline test with Run ID: run_stroke_test_v1 and Downsample: 0.01
+Running Step 1: Read and Demultiplex
+✨ Initialising pipeline session (start_pipe.R)
+  Step 1 detected
+
+--- Project Session Started: 2025-12-05 18:02:40.111406 ---
+• Loading 6 packages for step 1 …
+• Loading local package 'myR' from /home/user3/data_user3/git_repo/mylit/myR …
+Registered S3 methods overwritten by 'FSA':
+  method       from
+  confint.boot car 
+  hist.boot    car 
+Registered S3 method overwritten by 'pROC':
+  method   from            
+  plot.roc spatstat.explore
+Registered S3 methods overwritten by 'proxy':
+  method               from    
+  print.registry_field registry
+  print.registry_entry registry
+⚠️  test_analysis.R is deprecated. Sourcing /data/user3/git_repo/mylit/myR/R/analysis.R
+[conflicted] Will prefer dplyr::select over any other package.
+[conflicted] Will prefer dplyr::summarise over any other package.
+[conflicted] Will prefer dplyr::filter over any other package.
+[conflicted] Will prefer dplyr::mutate over any other package.
+[conflicted] Will prefer dplyr::arrange over any other package.
+[conflicted] Will prefer dplyr::summarize over any other package.
+[conflicted] Will prefer base::intersect over any other package.
+[conflicted] Will prefer base::setdiff over any other package.
+[conflicted] Will prefer base::union over any other package.
+[conflicted] Will prefer base::colMeans over any other package.
+[conflicted] Will prefer base::rowMeans over any other package.
+[conflicted] Will prefer base::colSums over any other package.
+[conflicted] Will prefer base::rowSums over any other package.
+✅ start_pipe.R initialisation complete.
+Warning messages:
+1: replacing previous import ‘S4Arrays::makeNindexFromArrayViewport’ by ‘DelayedArray::makeNindexFromArrayViewport’ when loading ‘SummarizedExperiment’ 
+2: replacing previous import ‘purrr::discard’ by ‘scales::discard’ when loading ‘myR’ 
+3: In eval(expr, envir) :
+  Could not find seurat_utils.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+4: In eval(expr, envir) :
+  Could not find fgs_core.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+5: In eval(expr, envir) :
+  Could not find tml_core.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+6: In eval(expr, envir) :
+  Could not find tml_utils.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+[2025-12-05 18:02:57] [INFO] Step 1: Starting read and demultiplexing 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-05 18:02:57] [INFO] Found 56 SNP samples and 36 HTO samples 
+[2025-12-05 18:02:57] [INFO] Processing SNP samples... 
+[2025-12-05 18:02:57] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1) 
+[2025-12-05 18:02:57] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv) 
+[2025-12-05 18:03:02] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes 
+[2025-12-05 18:03:02] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1) 
+[2025-12-05 18:03:02] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes 
+[2025-12-05 18:03:02] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1) 
+[2025-12-05 18:03:02] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes 
+[2025-12-05 18:03:02] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1) 
+[2025-12-05 18:03:02] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes 
+[2025-12-05 18:03:02] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1) 
+[2025-12-05 18:03:02] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes 
+[2025-12-05 18:03:02] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1) 
+[2025-12-05 18:03:02] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes 
+[2025-12-05 18:03:02] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2) 
+[2025-12-05 18:03:02] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv) 
+[2025-12-05 18:03:05] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes 
+[2025-12-05 18:03:05] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2) 
+[2025-12-05 18:03:05] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes 
+[2025-12-05 18:03:05] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2) 
+[2025-12-05 18:03:05] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes 
+[2025-12-05 18:03:05] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2) 
+[2025-12-05 18:03:05] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes 
+[2025-12-05 18:03:05] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2) 
+[2025-12-05 18:03:05] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes 
+[2025-12-05 18:03:05] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2) 
+[2025-12-05 18:03:05] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes 
+[2025-12-05 18:03:05] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3) 
+[2025-12-05 18:03:05] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv) 
+[2025-12-05 18:03:08] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes 
+[2025-12-05 18:03:08] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3) 
+[2025-12-05 18:03:08] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes 
+[2025-12-05 18:03:08] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3) 
+[2025-12-05 18:03:08] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes 
+[2025-12-05 18:03:08] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3) 
+[2025-12-05 18:03:08] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes 
+[2025-12-05 18:03:08] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3) 
+[2025-12-05 18:03:08] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes 
+[2025-12-05 18:03:08] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3) 
+[2025-12-05 18:03:08] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes 
+[2025-12-05 18:03:08] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4) 
+[2025-12-05 18:03:08] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv) 
+[2025-12-05 18:03:11] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes 
+[2025-12-05 18:03:11] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4) 
+[2025-12-05 18:03:11] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes 
+[2025-12-05 18:03:11] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4) 
+[2025-12-05 18:03:11] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes 
+[2025-12-05 18:03:11] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4) 
+[2025-12-05 18:03:11] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes 
+[2025-12-05 18:03:11] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4) 
+[2025-12-05 18:03:11] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes 
+[2025-12-05 18:03:11] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4) 
+[2025-12-05 18:03:11] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes 
+[2025-12-05 18:03:11] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5) 
+[2025-12-05 18:03:11] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 1-8: 862 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5) 
+[2025-12-05 18:03:16] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes 
+[2025-12-05 18:03:16] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6) 
+[2025-12-05 18:03:16] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 2-1: 545 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6) 
+[2025-12-05 18:03:20] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes 
+[2025-12-05 18:03:20] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7) 
+[2025-12-05 18:03:20] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 3-4: 945 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7) 
+[2025-12-05 18:03:28] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes 
+[2025-12-05 18:03:28] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8) 
+[2025-12-05 18:03:28] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes 
+[2025-12-05 18:03:32] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes 
+[2025-12-05 18:03:32] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-3: 654 barcodes 
+[2025-12-05 18:03:32] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes 
+[2025-12-05 18:03:32] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes 
+[2025-12-05 18:03:32] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes 
+[2025-12-05 18:03:32] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes 
+[2025-12-05 18:03:32] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8) 
+[2025-12-05 18:03:32] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes 
+[2025-12-05 18:03:32] [INFO] Combining SNP barcode mappings... 
+[2025-12-05 18:03:32] [INFO] Total SNP barcodes (across all GEMs): 95815 
+[2025-12-05 18:03:33] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_stroke_test_v1/step1/step1_snp_barcode_mappings.qs 
+[2025-12-05 18:03:33] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_stroke_test_v1/step1/step1_snp_barcode_mapping_list.qs 
+[2025-12-05 18:03:33] [INFO] Processing HTO samples (GEM-centric)... 
+[2025-12-05 18:03:33] [INFO] Processing HTO GEM 1/4: GEM9 (10 samples) 
+[2025-12-05 18:03:33] [INFO]   Loading data for GEM GEM9... 
+10X data contains more than one type and is being returned as a list containing matrices of each type.
+[2025-12-05 18:03:38] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture 
+[2025-12-05 18:03:38] [INFO]   Downsampling GEM to 1.0%... 
+[2025-12-05 18:03:38] [INFO]   Creating Seurat Object for GEM... 
+Normalizing across features
+[2025-12-05 18:03:39] [INFO]   Running Demultiplexing on GEM... 
+[2025-12-05 18:03:39] [INFO]   Demultiplexing method: HTODemux 
+As of Seurat v5, we recommend using AggregateExpression to perform pseudo-bulk analysis.
+This message is displayed once per session.
+First group.by variable `ident` starts with a number, appending `g` to ensure valid variable names
+This message is displayed once every 8 hours.
+[2025-12-05 18:03:39] [WARNING]   HTODemux failed: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux... 
+No threshold found for HTO260...
+No threshold found for HTO264...
+No threshold found for HTO255...
+No threshold found for HTO258...
+Picking joint bandwidth of 0.0965
+Picking joint bandwidth of 0.219
+Picking joint bandwidth of 0.195
+Picking joint bandwidth of 0.0606
+Picking joint bandwidth of 0.0792
+Picking joint bandwidth of 0.141
+Picking joint bandwidth of 0.0858
+Picking joint bandwidth of 0.193
+Picking joint bandwidth of 0.166
+Picking joint bandwidth of 0.251
+Warning: No layers found matching search pattern provided
+Warning: No layers found matching search pattern provided
+Warning: Default search for "data" layer in "RNA" assay yielded no results; utilizing "counts" layer instead.
+[2025-12-05 18:03:40] [INFO]   Splitting GEM into samples... 
+[2025-12-05 18:03:40] [INFO]   Loading clinical metadata from /home/user3/data_user3/git_repo/_wt/pipe/config/meta_data_prep_251204.csv 
+[2025-12-05 18:03:40] [INFO]   Using demux column: MULTI_ID 
+[2025-12-05 18:03:40] [INFO]     Using demulti_id from metadata: HTO251 
+[2025-12-05 18:03:40] [INFO]     Extracting sample 1_3 (Target ID: HTO251)... 
+[2025-12-05 18:03:40] [INFO]     Found 1 cells. 
+[2025-12-05 18:03:40] [INFO]     Using demulti_id from metadata: HTO252 
+[2025-12-05 18:03:40] [INFO]     Extracting sample 2_1 (Target ID: HTO252)... 
+[2025-12-05 18:03:41] [INFO]     Found 2 cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO262 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 2_2 (Target ID: HTO262)... 
+[2025-12-05 18:03:41] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO262' (Manifest ID: '2_2_IS'). Checking available IDs: Negative, HTO256, HTO251, Doublet, HTO252 
+[2025-12-05 18:03:41] [WARNING]     Skipping sample 2_2 due to zero cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO254 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 2_3 (Target ID: HTO254)... 
+[2025-12-05 18:03:41] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO254' (Manifest ID: '2_3_IS'). Checking available IDs: Negative, HTO256, HTO251, Doublet, HTO252 
+[2025-12-05 18:03:41] [WARNING]     Skipping sample 2_3 due to zero cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO255 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 3_1 (Target ID: HTO255)... 
+[2025-12-05 18:03:41] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO255' (Manifest ID: '3_1_ICH_IVH'). Checking available IDs: Negative, HTO256, HTO251, Doublet, HTO252 
+[2025-12-05 18:03:41] [WARNING]     Skipping sample 3_1 due to zero cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO256 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 3_2 (Target ID: HTO256)... 
+[2025-12-05 18:03:41] [INFO]     Found 1 cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO257 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 3_3 (Target ID: HTO257)... 
+[2025-12-05 18:03:41] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO257' (Manifest ID: '3_3_ICH_IVH'). Checking available IDs: Negative, HTO256, HTO251, Doublet, HTO252 
+[2025-12-05 18:03:41] [WARNING]     Skipping sample 3_3 due to zero cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO258 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 4_1 (Target ID: HTO258)... 
+[2025-12-05 18:03:41] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO258' (Manifest ID: '4_1_IS'). Checking available IDs: Negative, HTO256, HTO251, Doublet, HTO252 
+[2025-12-05 18:03:41] [WARNING]     Skipping sample 4_1 due to zero cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO264 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 4_2 (Target ID: HTO264)... 
+[2025-12-05 18:03:41] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO264' (Manifest ID: '4_2_IS'). Checking available IDs: Negative, HTO256, HTO251, Doublet, HTO252 
+[2025-12-05 18:03:41] [WARNING]     Skipping sample 4_2 due to zero cells. 
+[2025-12-05 18:03:41] [INFO]     Using demulti_id from metadata: HTO260 
+[2025-12-05 18:03:41] [INFO]     Extracting sample 4_3 (Target ID: HTO260)... 
+[2025-12-05 18:03:41] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO260' (Manifest ID: '4_3_IS'). Checking available IDs: Negative, HTO256, HTO251, Doublet, HTO252 
+[2025-12-05 18:03:41] [WARNING]     Skipping sample 4_3 due to zero cells. 
+[2025-12-05 18:03:42] [INFO] Processing HTO GEM 2/4: GEM10 (10 samples) 
+[2025-12-05 18:03:42] [INFO]   Loading data for GEM GEM10... 
+10X data contains more than one type and is being returned as a list containing matrices of each type.
+[2025-12-05 18:03:43] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture 
+[2025-12-05 18:03:43] [INFO]   Downsampling GEM to 1.0%... 
+[2025-12-05 18:03:43] [INFO]   Creating Seurat Object for GEM... 
+Normalizing across features
+[2025-12-05 18:03:43] [INFO]   Running Demultiplexing on GEM... 
+[2025-12-05 18:03:43] [INFO]   Demultiplexing method: HTODemux 
+[2025-12-05 18:03:43] [WARNING]   HTODemux failed: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux... 
+No threshold found for HTO251...
+No threshold found for HTO260...
+No threshold found for HTO262...
+No threshold found for HTO265...
+No threshold found for HTO252...
+No threshold found for HTO255...
+No threshold found for HTO256...
+No threshold found for HTO258...
+Picking joint bandwidth of 0.0637
+Picking joint bandwidth of 0.113
+Picking joint bandwidth of 0.172
+Picking joint bandwidth of 0.0741
+Picking joint bandwidth of 0.143
+Picking joint bandwidth of 0.148
+Picking joint bandwidth of 0.149
+Picking joint bandwidth of 0.14
+Picking joint bandwidth of 0.141
+Picking joint bandwidth of 0.17
+Warning: No layers found matching search pattern provided
+Warning: No layers found matching search pattern provided
+Warning: Default search for "data" layer in "RNA" assay yielded no results; utilizing "counts" layer instead.
+[2025-12-05 18:03:45] [INFO]   Splitting GEM into samples... 
+[2025-12-05 18:03:45] [INFO]   Loading clinical metadata from /home/user3/data_user3/git_repo/_wt/pipe/config/meta_data_prep_251204.csv 
+[2025-12-05 18:03:45] [INFO]   Using demux column: MULTI_ID 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO252 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 5_1 (Target ID: HTO252)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO252' (Manifest ID: '5_SAH_24'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 5_1 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO254 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 5_3 (Target ID: HTO254)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO254' (Manifest ID: '5_SAH_72'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 5_3 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO255 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 6_1 (Target ID: HTO255)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO255' (Manifest ID: '6_SAH_24'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 6_1 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO256 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 6_3 (Target ID: HTO256)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO256' (Manifest ID: '6_SAH_72'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 6_3 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO258 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 7_1 (Target ID: HTO258)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO258' (Manifest ID: '7_SAH_24'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 7_1 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO260 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 7_3 (Target ID: HTO260)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO260' (Manifest ID: '7_SAH_72'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 7_3 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO262 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 8_1 (Target ID: HTO262)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO262' (Manifest ID: '8_IS_24'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 8_1 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO264 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 8_3 (Target ID: HTO264)... 
+[2025-12-05 18:03:45] [INFO]     Found 7 cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO265 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 9_1 (Target ID: HTO265)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO265' (Manifest ID: '9_ICH_IVH_24'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 9_1 due to zero cells. 
+[2025-12-05 18:03:45] [INFO]     Using demulti_id from metadata: HTO251 
+[2025-12-05 18:03:45] [INFO]     Extracting sample 9_3 (Target ID: HTO251)... 
+[2025-12-05 18:03:45] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO251' (Manifest ID: '9_ICH_IVH_72'). Checking available IDs: Negative, HTO264, Doublet 
+[2025-12-05 18:03:45] [WARNING]     Skipping sample 9_3 due to zero cells. 
+[2025-12-05 18:03:46] [INFO] Processing HTO GEM 3/4: GEM11 (8 samples) 
+[2025-12-05 18:03:46] [INFO]   Loading data for GEM GEM11... 
+10X data contains more than one type and is being returned as a list containing matrices of each type.
+[2025-12-05 18:03:47] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture 
+[2025-12-05 18:03:47] [INFO]   Downsampling GEM to 1.0%... 
+[2025-12-05 18:03:47] [INFO]   Creating Seurat Object for GEM... 
+Normalizing across features
+[2025-12-05 18:03:47] [INFO]   Running Demultiplexing on GEM... 
+[2025-12-05 18:03:47] [INFO]   Demultiplexing method: HTODemux 
+[2025-12-05 18:03:47] [WARNING]   HTODemux failed: The number of cluster should be at least 1 and at most n-1.. Trying MULTIseqDemux... 
+No threshold found for HTO251...
+No threshold found for HTO252...
+No threshold found for HTO253...
+No threshold found for HTO254...
+No threshold found for HTO255...
+No threshold found for HTO256...
+No threshold found for HTO257...
+No threshold found for HTO258...
+Picking joint bandwidth of 0.0756
+Picking joint bandwidth of 0.103
+Picking joint bandwidth of 0.183
+Picking joint bandwidth of 0.215
+Picking joint bandwidth of 0.271
+Picking joint bandwidth of 0.149
+Picking joint bandwidth of 0.122
+Picking joint bandwidth of 0.165
+Warning: No layers found matching search pattern provided
+Warning: No layers found matching search pattern provided
+Warning: Default search for "data" layer in "RNA" assay yielded no results; utilizing "counts" layer instead.
+[2025-12-05 18:03:48] [INFO]   Splitting GEM into samples... 
+[2025-12-05 18:03:48] [INFO]   Loading clinical metadata from /home/user3/data_user3/git_repo/_wt/pipe/config/meta_data_prep_251204.csv 
+[2025-12-05 18:03:48] [INFO]   Using demux column: MULTI_ID 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO251 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 10_1 (Target ID: HTO251)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO251' (Manifest ID: 'ICH_IVH_10_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 10_1 due to zero cells. 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO252 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 11_1 (Target ID: HTO252)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO252' (Manifest ID: 'ICH_IVH_11_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 11_1 due to zero cells. 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO253 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 13_1 (Target ID: HTO253)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO253' (Manifest ID: 'SAH_13_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 13_1 due to zero cells. 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO254 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 14_1 (Target ID: HTO254)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO254' (Manifest ID: 'IS_14_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 14_1 due to zero cells. 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO255 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 15_1 (Target ID: HTO255)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO255' (Manifest ID: 'SAH_15_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 15_1 due to zero cells. 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO256 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 17_1 (Target ID: HTO256)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO256' (Manifest ID: 'SAH_17_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 17_1 due to zero cells. 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO257 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 18_1 (Target ID: HTO257)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO257' (Manifest ID: 'IS_18_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 18_1 due to zero cells. 
+[2025-12-05 18:03:48] [INFO]     Using demulti_id from metadata: HTO258 
+[2025-12-05 18:03:48] [INFO]     Extracting sample 19_1 (Target ID: HTO258)... 
+[2025-12-05 18:03:48] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO258' (Manifest ID: 'ICH_IVH_19_1'). Checking available IDs: Negative 
+[2025-12-05 18:03:48] [WARNING]     Skipping sample 19_1 due to zero cells. 
+[2025-12-05 18:03:49] [INFO] Processing HTO GEM 4/4: GEM12 (8 samples) 
+[2025-12-05 18:03:49] [INFO]   Loading data for GEM GEM12... 
+10X data contains more than one type and is being returned as a list containing matrices of each type.
+[2025-12-05 18:03:50] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture 
+[2025-12-05 18:03:50] [INFO]   Downsampling GEM to 1.0%... 
+[2025-12-05 18:03:50] [INFO]   Creating Seurat Object for GEM... 
+Normalizing across features
+[2025-12-05 18:03:50] [INFO]   Running Demultiplexing on GEM... 
+[2025-12-05 18:03:50] [INFO]   Demultiplexing method: HTODemux 
+[2025-12-05 18:03:50] [WARNING]   HTODemux failed: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux... 
+No threshold found for HTO251...
+No threshold found for HTO252...
+No threshold found for HTO253...
+No threshold found for HTO255...
+No threshold found for HTO257...
+No threshold found for HTO258...
+Picking joint bandwidth of 0.084
+Picking joint bandwidth of 0.177
+Picking joint bandwidth of 0.261
+Picking joint bandwidth of 0.146
+Picking joint bandwidth of 0.197
+Picking joint bandwidth of 0.0422
+Picking joint bandwidth of 0.437
+Picking joint bandwidth of 0.121
+Warning: No layers found matching search pattern provided
+Warning: No layers found matching search pattern provided
+Warning: Default search for "data" layer in "RNA" assay yielded no results; utilizing "counts" layer instead.
+[2025-12-05 18:03:51] [INFO]   Splitting GEM into samples... 
+[2025-12-05 18:03:51] [INFO]   Loading clinical metadata from /home/user3/data_user3/git_repo/_wt/pipe/config/meta_data_prep_251204.csv 
+[2025-12-05 18:03:51] [INFO]   Using demux column: MULTI_ID 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO251 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 20_1 (Target ID: HTO251)... 
+[2025-12-05 18:03:51] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO251' (Manifest ID: 'SAH_20_1'). Checking available IDs: Negative, HTO256, HTO254, Doublet 
+[2025-12-05 18:03:51] [WARNING]     Skipping sample 20_1 due to zero cells. 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO252 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 21_1 (Target ID: HTO252)... 
+[2025-12-05 18:03:51] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO252' (Manifest ID: 'SAH_21_1'). Checking available IDs: Negative, HTO256, HTO254, Doublet 
+[2025-12-05 18:03:51] [WARNING]     Skipping sample 21_1 due to zero cells. 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO253 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 22_1 (Target ID: HTO253)... 
+[2025-12-05 18:03:51] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO253' (Manifest ID: 'IS_22_1'). Checking available IDs: Negative, HTO256, HTO254, Doublet 
+[2025-12-05 18:03:51] [WARNING]     Skipping sample 22_1 due to zero cells. 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO254 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 23_1 (Target ID: HTO254)... 
+[2025-12-05 18:03:51] [INFO]     Found 1 cells. 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO255 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 24_1 (Target ID: HTO255)... 
+[2025-12-05 18:03:51] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO255' (Manifest ID: 'ICH_IVH_24_1'). Checking available IDs: Negative, HTO256, HTO254, Doublet 
+[2025-12-05 18:03:51] [WARNING]     Skipping sample 24_1 due to zero cells. 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO256 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 25_1 (Target ID: HTO256)... 
+[2025-12-05 18:03:51] [INFO]     Found 4 cells. 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO257 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 27_1 (Target ID: HTO257)... 
+[2025-12-05 18:03:51] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO257' (Manifest ID: 'ICH_IVH_27_1'). Checking available IDs: Negative, HTO256, HTO254, Doublet 
+[2025-12-05 18:03:51] [WARNING]     Skipping sample 27_1 due to zero cells. 
+[2025-12-05 18:03:51] [INFO]     Using demulti_id from metadata: HTO258 
+[2025-12-05 18:03:51] [INFO]     Extracting sample 28_1 (Target ID: HTO258)... 
+[2025-12-05 18:03:51] [WARNING]     WARNING: No singlet cells found for Target ID 'HTO258' (Manifest ID: 'IS_28_1'). Checking available IDs: Negative, HTO256, HTO254, Doublet 
+[2025-12-05 18:03:51] [WARNING]     Skipping sample 28_1 due to zero cells. 
+There were 14 warnings (use warnings() to see them)
+[2025-12-05 18:03:53] [INFO] Creating Seurat objects for SNP samples... 
+[2025-12-05 18:03:53] [INFO]   Creating Seurat object for 97_1 (GEM: GEM1) 
+[2025-12-05 18:04:01] [INFO] Removing 829 demultiplexing doublets from sample 97_1 
+[2025-12-05 18:04:02] [INFO]   Downsampled 97_1: 2837 -> 28 cells (1.0%) 
+[2025-12-05 18:04:02] [INFO]   Completed 97_1: 28 cells 
+[2025-12-05 18:04:02] [INFO]   Creating Seurat object for 95_1 (GEM: GEM1) 
+[2025-12-05 18:04:09] [INFO] Removing 684 demultiplexing doublets from sample 95_1 
+[2025-12-05 18:04:09] [INFO]   Downsampled 95_1: 1834 -> 18 cells (1.0%) 
+[2025-12-05 18:04:09] [INFO]   Completed 95_1: 18 cells 
+[2025-12-05 18:04:09] [INFO]   Creating Seurat object for 92_1 (GEM: GEM1) 
+[2025-12-05 18:04:17] [INFO] Removing 559 demultiplexing doublets from sample 92_1 
+[2025-12-05 18:04:17] [INFO]   Downsampled 92_1: 1299 -> 13 cells (1.0%) 
+[2025-12-05 18:04:17] [INFO]   Completed 92_1: 13 cells 
+[2025-12-05 18:04:17] [INFO]   Creating Seurat object for 89_1 (GEM: GEM1) 
+[2025-12-05 18:04:22] [INFO] Removing 601 demultiplexing doublets from sample 89_1 
+[2025-12-05 18:04:22] [INFO]   Downsampled 89_1: 1557 -> 16 cells (1.0%) 
+[2025-12-05 18:04:22] [INFO]   Completed 89_1: 16 cells 
+[2025-12-05 18:04:22] [INFO]   Creating Seurat object for 107_1 (GEM: GEM1) 
+[2025-12-05 18:04:28] [INFO] Removing 553 demultiplexing doublets from sample 107_1 
+[2025-12-05 18:04:30] [INFO]   Downsampled 107_1: 1324 -> 13 cells (1.0%) 
+[2025-12-05 18:04:30] [INFO]   Completed 107_1: 13 cells 
+[2025-12-05 18:04:30] [INFO]   Creating Seurat object for 106_1 (GEM: GEM1) 
+[2025-12-05 18:04:35] [INFO] Removing 564 demultiplexing doublets from sample 106_1 
+[2025-12-05 18:04:35] [INFO]   Downsampled 106_1: 1197 -> 12 cells (1.0%) 
+[2025-12-05 18:04:35] [INFO]   Completed 106_1: 12 cells 
+[2025-12-05 18:04:35] [INFO]   Creating Seurat object for 91_1 (GEM: GEM2) 
+[2025-12-05 18:04:40] [INFO] Removing 745 demultiplexing doublets from sample 91_1 
+[2025-12-05 18:04:40] [INFO]   Downsampled 91_1: 1802 -> 18 cells (1.0%) 
+[2025-12-05 18:04:40] [INFO]   Completed 91_1: 18 cells 
+[2025-12-05 18:04:40] [INFO]   Creating Seurat object for 90_1 (GEM: GEM2) 
+[2025-12-05 18:04:46] [INFO] Removing 487 demultiplexing doublets from sample 90_1 
+[2025-12-05 18:04:47] [INFO]   Downsampled 90_1: 980 -> 10 cells (1.0%) 
+[2025-12-05 18:04:47] [INFO]   Completed 90_1: 10 cells 
+[2025-12-05 18:04:47] [INFO]   Creating Seurat object for 88_1 (GEM: GEM2) 
+[2025-12-05 18:04:53] [INFO] Removing 689 demultiplexing doublets from sample 88_1 
+[2025-12-05 18:04:53] [INFO]   Downsampled 88_1: 1664 -> 17 cells (1.0%) 
+[2025-12-05 18:04:53] [INFO]   Completed 88_1: 17 cells 
+[2025-12-05 18:04:53] [INFO]   Creating Seurat object for 82_1 (GEM: GEM2) 
+[2025-12-05 18:04:59] [INFO] Removing 689 demultiplexing doublets from sample 82_1 
+[2025-12-05 18:05:01] [INFO]   Downsampled 82_1: 1456 -> 15 cells (1.0%) 
+[2025-12-05 18:05:01] [INFO]   Completed 82_1: 15 cells 
+[2025-12-05 18:05:01] [INFO]   Creating Seurat object for 70_1 (GEM: GEM2) 
+[2025-12-05 18:05:06] [INFO] Removing 602 demultiplexing doublets from sample 70_1 
+[2025-12-05 18:05:06] [INFO]   Downsampled 70_1: 1476 -> 15 cells (1.0%) 
+[2025-12-05 18:05:06] [INFO]   Completed 70_1: 15 cells 
+[2025-12-05 18:05:06] [INFO]   Creating Seurat object for 105_1 (GEM: GEM2) 
+[2025-12-05 18:05:12] [INFO] Removing 396 demultiplexing doublets from sample 105_1 
+[2025-12-05 18:05:13] [INFO]   Downsampled 105_1: 892 -> 9 cells (1.0%) 
+[2025-12-05 18:05:13] [INFO]   Completed 105_1: 9 cells 
+[2025-12-05 18:05:13] [INFO]   Creating Seurat object for 84_1 (GEM: GEM3) 
+[2025-12-05 18:05:19] [INFO] Removing 526 demultiplexing doublets from sample 84_1 
+[2025-12-05 18:05:19] [INFO]   Downsampled 84_1: 1362 -> 14 cells (1.0%) 
+[2025-12-05 18:05:19] [INFO]   Completed 84_1: 14 cells 
+[2025-12-05 18:05:19] [INFO]   Creating Seurat object for 81_1 (GEM: GEM3) 
+[2025-12-05 18:05:27] [INFO] Removing 478 demultiplexing doublets from sample 81_1 
+[2025-12-05 18:05:27] [INFO]   Downsampled 81_1: 1222 -> 12 cells (1.0%) 
+[2025-12-05 18:05:27] [INFO]   Completed 81_1: 12 cells 
+[2025-12-05 18:05:27] [INFO]   Creating Seurat object for 65_1 (GEM: GEM3) 
+[2025-12-05 18:05:33] [INFO] Removing 748 demultiplexing doublets from sample 65_1 
+[2025-12-05 18:05:34] [INFO]   Downsampled 65_1: 1588 -> 16 cells (1.0%) 
+[2025-12-05 18:05:34] [INFO]   Completed 65_1: 16 cells 
+[2025-12-05 18:05:34] [INFO]   Creating Seurat object for 64_1 (GEM: GEM3) 
+[2025-12-05 18:05:41] [INFO] Removing 760 demultiplexing doublets from sample 64_1 
+[2025-12-05 18:05:42] [INFO]   Downsampled 64_1: 1651 -> 17 cells (1.0%) 
+[2025-12-05 18:05:42] [INFO]   Completed 64_1: 17 cells 
+[2025-12-05 18:05:42] [INFO]   Creating Seurat object for 55_1 (GEM: GEM3) 
+[2025-12-05 18:05:47] [INFO] Removing 916 demultiplexing doublets from sample 55_1 
+[2025-12-05 18:05:48] [INFO]   Downsampled 55_1: 3028 -> 30 cells (1.0%) 
+[2025-12-05 18:05:48] [INFO]   Completed 55_1: 30 cells 
+[2025-12-05 18:05:48] [INFO]   Creating Seurat object for 54_1 (GEM: GEM3) 
+[2025-12-05 18:05:53] [INFO] Removing 236 demultiplexing doublets from sample 54_1 
+[2025-12-05 18:05:54] [INFO]   Downsampled 54_1: 548 -> 5 cells (1.0%) 
+[2025-12-05 18:05:54] [INFO]   Completed 54_1: 5 cells 
+[2025-12-05 18:05:54] [INFO]   Creating Seurat object for 83_1 (GEM: GEM4) 
+[2025-12-05 18:05:59] [INFO] Removing 412 demultiplexing doublets from sample 83_1 
+[2025-12-05 18:05:59] [INFO]   Downsampled 83_1: 1287 -> 13 cells (1.0%) 
+[2025-12-05 18:05:59] [INFO]   Completed 83_1: 13 cells 
+[2025-12-05 18:05:59] [INFO]   Creating Seurat object for 76_1 (GEM: GEM4) 
+[2025-12-05 18:06:05] [INFO] Removing 482 demultiplexing doublets from sample 76_1 
+[2025-12-05 18:06:05] [INFO]   Downsampled 76_1: 1172 -> 12 cells (1.0%) 
+[2025-12-05 18:06:05] [INFO]   Completed 76_1: 12 cells 
+[2025-12-05 18:06:05] [INFO]   Creating Seurat object for 53_1 (GEM: GEM4) 
+[2025-12-05 18:06:09] [INFO] Removing 385 demultiplexing doublets from sample 53_1 
+[2025-12-05 18:06:10] [INFO]   Downsampled 53_1: 1298 -> 13 cells (1.0%) 
+[2025-12-05 18:06:10] [INFO]   Completed 53_1: 13 cells 
+[2025-12-05 18:06:10] [INFO]   Creating Seurat object for 44_1 (GEM: GEM4) 
+[2025-12-05 18:06:15] [INFO] Removing 401 demultiplexing doublets from sample 44_1 
+[2025-12-05 18:06:15] [INFO]   Downsampled 44_1: 1340 -> 13 cells (1.0%) 
+[2025-12-05 18:06:15] [INFO]   Completed 44_1: 13 cells 
+[2025-12-05 18:06:15] [INFO]   Creating Seurat object for 41_1 (GEM: GEM4) 
+[2025-12-05 18:06:20] [INFO] Removing 548 demultiplexing doublets from sample 41_1 
+[2025-12-05 18:06:21] [INFO]   Downsampled 41_1: 1571 -> 16 cells (1.0%) 
+[2025-12-05 18:06:21] [INFO]   Completed 41_1: 16 cells 
+[2025-12-05 18:06:21] [INFO]   Creating Seurat object for 34_1 (GEM: GEM4) 
+[2025-12-05 18:06:26] [INFO] Removing 452 demultiplexing doublets from sample 34_1 
+[2025-12-05 18:06:26] [INFO]   Downsampled 34_1: 1237 -> 12 cells (1.0%) 
+[2025-12-05 18:06:26] [INFO]   Completed 34_1: 12 cells 
+[2025-12-05 18:06:26] [INFO]   Creating Seurat object for 46_1 (GEM: GEM5) 
+[2025-12-05 18:06:34] [INFO] Removing 561 demultiplexing doublets from sample 46_1 
+[2025-12-05 18:06:35] [INFO]   Downsampled 46_1: 1373 -> 14 cells (1.0%) 
+[2025-12-05 18:06:35] [INFO]   Completed 46_1: 14 cells 
+[2025-12-05 18:06:35] [INFO]   Creating Seurat object for 33_1 (GEM: GEM5) 
+[2025-12-05 18:06:43] [INFO] Removing 470 demultiplexing doublets from sample 33_1 
+[2025-12-05 18:06:43] [INFO]   Downsampled 33_1: 1384 -> 14 cells (1.0%) 
+[2025-12-05 18:06:43] [INFO]   Completed 33_1: 14 cells 
+[2025-12-05 18:06:43] [INFO]   Creating Seurat object for 43_1 (GEM: GEM5) 
+[2025-12-05 18:06:50] [INFO] Removing 359 demultiplexing doublets from sample 43_1 
+[2025-12-05 18:06:52] [INFO]   Downsampled 43_1: 1111 -> 11 cells (1.0%) 
+[2025-12-05 18:06:52] [INFO]   Completed 43_1: 11 cells 
+[2025-12-05 18:06:52] [INFO]   Creating Seurat object for 38_2 (GEM: GEM5) 
+[2025-12-05 18:06:58] [INFO] Removing 438 demultiplexing doublets from sample 38_2 
+[2025-12-05 18:06:58] [INFO]   Downsampled 38_2: 1195 -> 12 cells (1.0%) 
+[2025-12-05 18:06:58] [INFO]   Completed 38_2: 12 cells 
+[2025-12-05 18:06:58] [INFO]   Creating Seurat object for 32_1 (GEM: GEM5) 
+[2025-12-05 18:07:05] [INFO] Removing 453 demultiplexing doublets from sample 32_1 
+[2025-12-05 18:07:05] [INFO]   Downsampled 32_1: 1555 -> 16 cells (1.0%) 
+[2025-12-05 18:07:05] [INFO]   Completed 32_1: 16 cells 
+[2025-12-05 18:07:05] [INFO]   Creating Seurat object for 71_1 (GEM: GEM5) 
+[2025-12-05 18:07:12] [INFO] Removing 245 demultiplexing doublets from sample 71_1 
+[2025-12-05 18:07:13] [INFO]   Downsampled 71_1: 617 -> 6 cells (1.0%) 
+[2025-12-05 18:07:13] [INFO]   Completed 71_1: 6 cells 
+[2025-12-05 18:07:13] [INFO]   Creating Seurat object for 75_1 (GEM: GEM5) 
+[2025-12-05 18:07:18] [INFO] Removing 556 demultiplexing doublets from sample 75_1 
+[2025-12-05 18:07:19] [INFO]   Downsampled 75_1: 1843 -> 18 cells (1.0%) 
+[2025-12-05 18:07:19] [INFO]   Completed 75_1: 18 cells 
+[2025-12-05 18:07:19] [INFO]   Creating Seurat object for 104_1 (GEM: GEM5) 
+[2025-12-05 18:07:24] [INFO] Removing 426 demultiplexing doublets from sample 104_1 
+[2025-12-05 18:07:26] [INFO]   Downsampled 104_1: 1077 -> 11 cells (1.0%) 
+[2025-12-05 18:07:26] [INFO]   Completed 104_1: 11 cells 
+[2025-12-05 18:07:26] [INFO]   Creating Seurat object for 42_1 (GEM: GEM6) 
+[2025-12-05 18:07:32] [INFO] Removing 165 demultiplexing doublets from sample 42_1 
+[2025-12-05 18:07:32] [INFO]   Downsampled 42_1: 380 -> 4 cells (1.0%) 
+[2025-12-05 18:07:32] [INFO]   Completed 42_1: 4 cells 
+[2025-12-05 18:07:32] [INFO]   Creating Seurat object for 80_2 (GEM: GEM6) 
+[2025-12-05 18:07:41] [INFO] Removing 465 demultiplexing doublets from sample 80_2 
+[2025-12-05 18:07:42] [INFO]   Downsampled 80_2: 1277 -> 13 cells (1.0%) 
+[2025-12-05 18:07:42] [INFO]   Completed 80_2: 13 cells 
+[2025-12-05 18:07:42] [INFO]   Creating Seurat object for 29_1 (GEM: GEM6) 
+[2025-12-05 18:07:49] [INFO] Removing 585 demultiplexing doublets from sample 29_1 
+[2025-12-05 18:07:50] [INFO]   Downsampled 29_1: 1764 -> 18 cells (1.0%) 
+[2025-12-05 18:07:50] [INFO]   Completed 29_1: 18 cells 
+[2025-12-05 18:07:50] [INFO]   Creating Seurat object for 60_1 (GEM: GEM6) 
+[2025-12-05 18:07:59] [INFO] Removing 510 demultiplexing doublets from sample 60_1 
+[2025-12-05 18:07:59] [INFO]   Downsampled 60_1: 1436 -> 14 cells (1.0%) 
+[2025-12-05 18:07:59] [INFO]   Completed 60_1: 14 cells 
+[2025-12-05 18:07:59] [INFO]   Creating Seurat object for 36_1 (GEM: GEM6) 
+[2025-12-05 18:08:05] [INFO] Removing 696 demultiplexing doublets from sample 36_1 
+[2025-12-05 18:08:06] [INFO]   Downsampled 36_1: 1875 -> 19 cells (1.0%) 
+[2025-12-05 18:08:06] [INFO]   Completed 36_1: 19 cells 
+[2025-12-05 18:08:06] [INFO]   Creating Seurat object for 31_1 (GEM: GEM6) 
+[2025-12-05 18:08:15] [INFO] Removing 463 demultiplexing doublets from sample 31_1 
+[2025-12-05 18:08:15] [INFO]   Downsampled 31_1: 1375 -> 14 cells (1.0%) 
+[2025-12-05 18:08:15] [INFO]   Completed 31_1: 14 cells 
+[2025-12-05 18:08:15] [INFO]   Creating Seurat object for 59_1 (GEM: GEM6) 
+[2025-12-05 18:08:21] [INFO] Removing 461 demultiplexing doublets from sample 59_1 
+[2025-12-05 18:08:22] [INFO]   Downsampled 59_1: 1503 -> 15 cells (1.0%) 
+[2025-12-05 18:08:22] [INFO]   Completed 59_1: 15 cells 
+[2025-12-05 18:08:22] [INFO]   Creating Seurat object for 68_1 (GEM: GEM6) 
+[2025-12-05 18:08:31] [INFO] Removing 437 demultiplexing doublets from sample 68_1 
+[2025-12-05 18:08:31] [INFO]   Downsampled 68_1: 1220 -> 12 cells (1.0%) 
+[2025-12-05 18:08:31] [INFO]   Completed 68_1: 12 cells 
+[2025-12-05 18:08:31] [INFO]   Creating Seurat object for 35_1 (GEM: GEM7) 
+[2025-12-05 18:08:39] [INFO] Removing 628 demultiplexing doublets from sample 35_1 
+[2025-12-05 18:08:39] [INFO]   Downsampled 35_1: 1395 -> 14 cells (1.0%) 
+[2025-12-05 18:08:39] [INFO]   Completed 35_1: 14 cells 
+[2025-12-05 18:08:39] [INFO]   Creating Seurat object for 117_1 (GEM: GEM7) 
+[2025-12-05 18:08:47] [INFO] Removing 562 demultiplexing doublets from sample 117_1 
+[2025-12-05 18:08:47] [INFO]   Downsampled 117_1: 1263 -> 13 cells (1.0%) 
+[2025-12-05 18:08:47] [INFO]   Completed 117_1: 13 cells 
+[2025-12-05 18:08:47] [INFO]   Creating Seurat object for 100_1 (GEM: GEM7) 
+[2025-12-05 18:08:55] [INFO] Removing 927 demultiplexing doublets from sample 100_1 
+[2025-12-05 18:08:56] [INFO]   Downsampled 100_1: 2209 -> 22 cells (1.0%) 
+[2025-12-05 18:08:56] [INFO]   Completed 100_1: 22 cells 
+[2025-12-05 18:08:56] [INFO]   Creating Seurat object for 51_1 (GEM: GEM7) 
+[2025-12-05 18:09:04] [INFO] Removing 383 demultiplexing doublets from sample 51_1 
+[2025-12-05 18:09:04] [INFO]   Downsampled 51_1: 562 -> 6 cells (1.0%) 
+[2025-12-05 18:09:04] [INFO]   Completed 51_1: 6 cells 
+[2025-12-05 18:09:04] [INFO]   Creating Seurat object for 115_1 (GEM: GEM7) 
+[2025-12-05 18:09:11] [INFO] Removing 690 demultiplexing doublets from sample 115_1 
+[2025-12-05 18:09:11] [INFO]   Downsampled 115_1: 1845 -> 18 cells (1.0%) 
+[2025-12-05 18:09:11] [INFO]   Completed 115_1: 18 cells 
+[2025-12-05 18:09:11] [INFO]   Creating Seurat object for 113_1 (GEM: GEM7) 
+[2025-12-05 18:09:19] [INFO] Removing 556 demultiplexing doublets from sample 113_1 
+[2025-12-05 18:09:20] [INFO]   Downsampled 113_1: 1575 -> 16 cells (1.0%) 
+[2025-12-05 18:09:20] [INFO]   Completed 113_1: 16 cells 
+[2025-12-05 18:09:20] [INFO]   Creating Seurat object for 45_1 (GEM: GEM7) 
+[2025-12-05 18:09:27] [INFO] Removing 597 demultiplexing doublets from sample 45_1 
+[2025-12-05 18:09:28] [INFO]   Downsampled 45_1: 1330 -> 13 cells (1.0%) 
+[2025-12-05 18:09:28] [INFO]   Completed 45_1: 13 cells 
+[2025-12-05 18:09:28] [INFO]   Creating Seurat object for 48_1 (GEM: GEM7) 
+[2025-12-05 18:09:36] [INFO] Removing 637 demultiplexing doublets from sample 48_1 
+[2025-12-05 18:09:36] [INFO]   Downsampled 48_1: 1500 -> 15 cells (1.0%) 
+[2025-12-05 18:09:36] [INFO]   Completed 48_1: 15 cells 
+[2025-12-05 18:09:36] [INFO]   Creating Seurat object for 112_1 (GEM: GEM8) 
+[2025-12-05 18:09:44] [INFO] Removing 662 demultiplexing doublets from sample 112_1 
+[2025-12-05 18:09:45] [INFO]   Downsampled 112_1: 1178 -> 12 cells (1.0%) 
+[2025-12-05 18:09:45] [INFO]   Completed 112_1: 12 cells 
+[2025-12-05 18:09:45] [INFO]   Creating Seurat object for 111_1 (GEM: GEM8) 
+[2025-12-05 18:09:55] [INFO] Removing 548 demultiplexing doublets from sample 111_1 
+[2025-12-05 18:09:55] [INFO]   Downsampled 111_1: 1121 -> 11 cells (1.0%) 
+[2025-12-05 18:09:55] [INFO]   Completed 111_1: 11 cells 
+[2025-12-05 18:09:55] [INFO]   Creating Seurat object for 74_3 (GEM: GEM8) 
+[2025-12-05 18:10:03] [INFO] Removing 247 demultiplexing doublets from sample 74_3 
+[2025-12-05 18:10:04] [INFO]   Downsampled 74_3: 407 -> 4 cells (1.0%) 
+[2025-12-05 18:10:04] [INFO]   Completed 74_3: 4 cells 
+[2025-12-05 18:10:04] [INFO]   Creating Seurat object for 16_1 (GEM: GEM8) 
+[2025-12-05 18:10:13] [INFO] Removing 943 demultiplexing doublets from sample 16_1 
+[2025-12-05 18:10:14] [INFO]   Downsampled 16_1: 2656 -> 27 cells (1.0%) 
+[2025-12-05 18:10:14] [INFO]   Completed 16_1: 27 cells 
+[2025-12-05 18:10:14] [INFO]   Creating Seurat object for 103_1 (GEM: GEM8) 
+[2025-12-05 18:10:21] [INFO] Removing 496 demultiplexing doublets from sample 103_1 
+[2025-12-05 18:10:21] [INFO]   Downsampled 103_1: 854 -> 9 cells (1.0%) 
+[2025-12-05 18:10:21] [INFO]   Completed 103_1: 9 cells 
+[2025-12-05 18:10:21] [INFO]   Creating Seurat object for 110_1 (GEM: GEM8) 
+[2025-12-05 18:10:29] [INFO] Removing 732 demultiplexing doublets from sample 110_1 
+[2025-12-05 18:10:30] [INFO]   Downsampled 110_1: 1582 -> 16 cells (1.0%) 
+[2025-12-05 18:10:30] [INFO]   Completed 110_1: 16 cells 
+[2025-12-05 18:10:30] [INFO]   Creating Seurat object for 85_1 (GEM: GEM8) 
+[2025-12-05 18:10:38] [INFO] Removing 575 demultiplexing doublets from sample 85_1 
+[2025-12-05 18:10:38] [INFO]   Downsampled 85_1: 1139 -> 11 cells (1.0%) 
+[2025-12-05 18:10:38] [INFO]   Completed 85_1: 11 cells 
+[2025-12-05 18:10:38] [INFO]   Creating Seurat object for 93_1 (GEM: GEM8) 
+[2025-12-05 18:10:46] [INFO] Removing 735 demultiplexing doublets from sample 93_1 
+[2025-12-05 18:10:47] [INFO]   Downsampled 93_1: 1270 -> 13 cells (1.0%) 
+[2025-12-05 18:10:47] [INFO]   Completed 93_1: 13 cells 
+[2025-12-05 18:10:47] [INFO] Saving results to: /data/user3/sobj/pipe/run_stroke_test_v1/step1/step1_demulti_list.qs 
+[2025-12-05 18:10:47] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_stroke_test_v1/step1/step1_demulti_list.qs 
+[2025-12-05 18:10:47] [INFO] Step 1 completed: 62 samples processed (56 SNP, 6 HTO) 
+Step 1 completed successfully. Processed 62 samples.
+Running Step 2: Normalize and Cluster
+✨ Initialising pipeline session (start_pipe.R)
+  Step 2 detected
+
+--- Project Session Started: 2025-12-05 18:10:49.351067 ---
+• Loading 5 packages for step 2 …
+✅ start_pipe.R initialisation complete.
+[2025-12-05 18:10:53] [INFO] Step 2: Starting LogNormalize normalization and clustering 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-05 18:10:53] [INFO] Loading input from: /data/user3/sobj/pipe/run_stroke_test_v1/step1/step1_demulti_list.qs 
+[2025-12-05 18:10:53] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_stroke_test_v1/step1/step1_demulti_list.qs 
+[2025-12-05 18:10:53] [INFO] Processing 97_1 
+[2025-12-05 18:10:53] [INFO]   Calculating QC metrics for 97_1 
+[2025-12-05 18:10:54] [INFO]   QC filtering: 28 -> 21 cells 
+[2025-12-05 18:10:54] [INFO]   Performing LogNormalize for 97_1 
+[2025-12-05 18:10:55] [INFO]   Running PCA for 97_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+[2025-12-05 18:10:55] [INFO]   Clustering for 97_1 
+[2025-12-05 18:10:56] [INFO]   Completed 97_1: 21 cells 
+[2025-12-05 18:10:56] [INFO] Processing 95_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 95_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 95_1: Fewer than 20 cells after QC (17 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 92_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 92_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 92_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 89_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 89_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 89_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 107_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 107_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 107_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 106_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 106_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 106_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 91_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 91_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 91_1: Fewer than 20 cells after QC (18 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 90_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 90_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 90_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 88_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 88_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 88_1: Fewer than 20 cells after QC (17 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 82_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 82_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 82_1: Fewer than 20 cells after QC (15 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 70_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 70_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 70_1: Fewer than 20 cells after QC (15 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 105_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 105_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 105_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 84_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 84_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 84_1: Fewer than 20 cells after QC (14 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 81_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 81_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 81_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 65_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 65_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 65_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 64_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 64_1 
+[2025-12-05 18:10:56] [ERROR] !!! ERROR in step 2 processing 64_1: Fewer than 20 cells after QC (17 cells), skipping sample !!! 
+[2025-12-05 18:10:56] [INFO] Processing 55_1 
+[2025-12-05 18:10:56] [INFO]   Calculating QC metrics for 55_1 
+[2025-12-05 18:10:56] [INFO]   QC filtering: 30 -> 30 cells 
+[2025-12-05 18:10:56] [INFO]   Performing LogNormalize for 55_1 
+[2025-12-05 18:10:57] [INFO]   Running PCA for 55_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+[2025-12-05 18:10:57] [INFO]   Clustering for 55_1 
+[2025-12-05 18:10:58] [INFO]   Completed 55_1: 30 cells 
+[2025-12-05 18:10:58] [INFO] Processing 54_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 54_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 54_1: Fewer than 20 cells after QC (5 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 83_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 83_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 83_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 76_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 76_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 76_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 53_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 53_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 53_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 44_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 44_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 44_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 41_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 41_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 41_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 34_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 34_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 34_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 46_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 46_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 46_1: Fewer than 20 cells after QC (14 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 33_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 33_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 33_1: Fewer than 20 cells after QC (14 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 43_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 43_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 43_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 38_2 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 38_2 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 38_2: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 32_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 32_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 32_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 71_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 71_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 71_1: Fewer than 20 cells after QC (6 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 75_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 75_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 75_1: Fewer than 20 cells after QC (18 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 104_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 104_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 104_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 42_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 42_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 42_1: Fewer than 20 cells after QC (4 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 80_2 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 80_2 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 80_2: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 29_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 29_1 
+[2025-12-05 18:10:58] [ERROR] !!! ERROR in step 2 processing 29_1: Fewer than 20 cells after QC (18 cells), skipping sample !!! 
+[2025-12-05 18:10:58] [INFO] Processing 60_1 
+[2025-12-05 18:10:58] [INFO]   Calculating QC metrics for 60_1 
+[2025-12-05 18:10:59] [ERROR] !!! ERROR in step 2 processing 60_1: Fewer than 20 cells after QC (14 cells), skipping sample !!! 
+[2025-12-05 18:10:59] [INFO] Processing 36_1 
+[2025-12-05 18:10:59] [INFO]   Calculating QC metrics for 36_1 
+[2025-12-05 18:10:59] [ERROR] !!! ERROR in step 2 processing 36_1: Fewer than 20 cells after QC (19 cells), skipping sample !!! 
+[2025-12-05 18:10:59] [INFO] Processing 31_1 
+[2025-12-05 18:10:59] [INFO]   Calculating QC metrics for 31_1 
+[2025-12-05 18:10:59] [ERROR] !!! ERROR in step 2 processing 31_1: Fewer than 20 cells after QC (14 cells), skipping sample !!! 
+[2025-12-05 18:10:59] [INFO] Processing 59_1 
+[2025-12-05 18:10:59] [INFO]   Calculating QC metrics for 59_1 
+[2025-12-05 18:10:59] [ERROR] !!! ERROR in step 2 processing 59_1: Fewer than 20 cells after QC (15 cells), skipping sample !!! 
+[2025-12-05 18:10:59] [INFO] Processing 68_1 
+[2025-12-05 18:10:59] [INFO]   Calculating QC metrics for 68_1 
+[2025-12-05 18:10:59] [ERROR] !!! ERROR in step 2 processing 68_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-05 18:10:59] [INFO] Processing 35_1 
+[2025-12-05 18:10:59] [INFO]   Calculating QC metrics for 35_1 
+[2025-12-05 18:10:59] [ERROR] !!! ERROR in step 2 processing 35_1: Fewer than 20 cells after QC (14 cells), skipping sample !!! 
+[2025-12-05 18:10:59] [INFO] Processing 117_1 
+[2025-12-05 18:10:59] [INFO]   Calculating QC metrics for 117_1 
+[2025-12-05 18:10:59] [ERROR] !!! ERROR in step 2 processing 117_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:10:59] [INFO] Processing 100_1 
+[2025-12-05 18:10:59] [INFO]   Calculating QC metrics for 100_1 
+[2025-12-05 18:10:59] [INFO]   QC filtering: 22 -> 21 cells 
+[2025-12-05 18:10:59] [INFO]   Performing LogNormalize for 100_1 
+[2025-12-05 18:11:00] [INFO]   Running PCA for 100_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+[2025-12-05 18:11:00] [INFO]   Clustering for 100_1 
+[2025-12-05 18:11:00] [INFO]   Completed 100_1: 21 cells 
+[2025-12-05 18:11:00] [INFO] Processing 51_1 
+[2025-12-05 18:11:00] [INFO]   Calculating QC metrics for 51_1 
+[2025-12-05 18:11:00] [ERROR] !!! ERROR in step 2 processing 51_1: Fewer than 20 cells after QC (6 cells), skipping sample !!! 
+[2025-12-05 18:11:00] [INFO] Processing 115_1 
+[2025-12-05 18:11:00] [INFO]   Calculating QC metrics for 115_1 
+[2025-12-05 18:11:00] [ERROR] !!! ERROR in step 2 processing 115_1: Fewer than 20 cells after QC (18 cells), skipping sample !!! 
+[2025-12-05 18:11:00] [INFO] Processing 113_1 
+[2025-12-05 18:11:00] [INFO]   Calculating QC metrics for 113_1 
+[2025-12-05 18:11:00] [ERROR] !!! ERROR in step 2 processing 113_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-05 18:11:00] [INFO] Processing 45_1 
+[2025-12-05 18:11:00] [INFO]   Calculating QC metrics for 45_1 
+[2025-12-05 18:11:01] [ERROR] !!! ERROR in step 2 processing 45_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:11:01] [INFO] Processing 48_1 
+[2025-12-05 18:11:01] [INFO]   Calculating QC metrics for 48_1 
+[2025-12-05 18:11:01] [ERROR] !!! ERROR in step 2 processing 48_1: Fewer than 20 cells after QC (15 cells), skipping sample !!! 
+[2025-12-05 18:11:01] [INFO] Processing 112_1 
+[2025-12-05 18:11:01] [INFO]   Calculating QC metrics for 112_1 
+[2025-12-05 18:11:01] [ERROR] !!! ERROR in step 2 processing 112_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-05 18:11:01] [INFO] Processing 111_1 
+[2025-12-05 18:11:01] [INFO]   Calculating QC metrics for 111_1 
+[2025-12-05 18:11:01] [ERROR] !!! ERROR in step 2 processing 111_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-05 18:11:01] [INFO] Processing 74_3 
+[2025-12-05 18:11:01] [INFO]   Calculating QC metrics for 74_3 
+[2025-12-05 18:11:01] [ERROR] !!! ERROR in step 2 processing 74_3: Fewer than 20 cells after QC (4 cells), skipping sample !!! 
+[2025-12-05 18:11:01] [INFO] Processing 16_1 
+[2025-12-05 18:11:01] [INFO]   Calculating QC metrics for 16_1 
+[2025-12-05 18:11:01] [INFO]   QC filtering: 27 -> 25 cells 
+[2025-12-05 18:11:01] [INFO]   Performing LogNormalize for 16_1 
+[2025-12-05 18:11:01] [INFO]   Running PCA for 16_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+[2025-12-05 18:11:02] [INFO]   Clustering for 16_1 
+[2025-12-05 18:11:02] [INFO]   Completed 16_1: 25 cells 
+[2025-12-05 18:11:02] [INFO] Processing 103_1 
+[2025-12-05 18:11:02] [INFO]   Calculating QC metrics for 103_1 
+[2025-12-05 18:11:02] [ERROR] !!! ERROR in step 2 processing 103_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-05 18:11:02] [INFO] Processing 110_1 
+[2025-12-05 18:11:02] [INFO]   Calculating QC metrics for 110_1 
+[2025-12-05 18:11:02] [ERROR] !!! ERROR in step 2 processing 110_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-05 18:11:02] [INFO] Processing 85_1 
+[2025-12-05 18:11:02] [INFO]   Calculating QC metrics for 85_1 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 85_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-05 18:11:03] [INFO] Processing 93_1 
+[2025-12-05 18:11:03] [INFO]   Calculating QC metrics for 93_1 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 93_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-05 18:11:03] [INFO] Processing 1_3 
+[2025-12-05 18:11:03] [INFO]   Calculating QC metrics for 1_3 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 1_3: incorrect number of dimensions !!! 
+[2025-12-05 18:11:03] [INFO] Processing 2_1 
+[2025-12-05 18:11:03] [INFO]   Calculating QC metrics for 2_1 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 2_1: Fewer than 20 cells after QC (2 cells), skipping sample !!! 
+[2025-12-05 18:11:03] [INFO] Processing 3_2 
+[2025-12-05 18:11:03] [INFO]   Calculating QC metrics for 3_2 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 3_2: incorrect number of dimensions !!! 
+[2025-12-05 18:11:03] [INFO] Processing 8_3 
+[2025-12-05 18:11:03] [INFO]   Calculating QC metrics for 8_3 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 8_3: Fewer than 20 cells after QC (7 cells), skipping sample !!! 
+[2025-12-05 18:11:03] [INFO] Processing 23_1 
+[2025-12-05 18:11:03] [INFO]   Calculating QC metrics for 23_1 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 23_1: incorrect number of dimensions !!! 
+[2025-12-05 18:11:03] [INFO] Processing 25_1 
+[2025-12-05 18:11:03] [INFO]   Calculating QC metrics for 25_1 
+[2025-12-05 18:11:03] [ERROR] !!! ERROR in step 2 processing 25_1: Fewer than 20 cells after QC (4 cells), skipping sample !!! 
+Warning messages:
+1: Object should have two dimensions, attempting to coerce to matrix 
+2: Object should have two dimensions, attempting to coerce to matrix 
+3: Object should have two dimensions, attempting to coerce to matrix 
+4: Object should have two dimensions, attempting to coerce to matrix 
+[2025-12-05 18:11:03] [INFO] Saving results to: /data/user3/sobj/pipe/run_stroke_test_v1/step2/step2_nmz_list.qs 
+[2025-12-05 18:11:03] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_stroke_test_v1/step2/step2_nmz_list.qs 
+[2025-12-05 18:11:03] [INFO] Step 2 completed: 4 samples processed 
+Step 2 completed successfully. Processed 4 samples.
+Running Step 3: Ambient RNA Removal
+✨ Initialising pipeline session (start_pipe.R)
+  Step 3 detected
+
+--- Project Session Started: 2025-12-05 18:11:05.092983 ---
+• Loading 6 packages for step 3 …
+✅ start_pipe.R initialisation complete.
+[2025-12-05 18:11:09] [INFO] Step 3: Starting SoupX ambient RNA removal 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-05 18:11:10] [INFO] Loading input from: /data/user3/sobj/pipe/run_stroke_test_v1/step2/step2_nmz_list.qs 
+[2025-12-05 18:11:10] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_stroke_test_v1/step2/step2_nmz_list.qs 
+[2025-12-05 18:11:10] [INFO] Processing 97_1 
+[2025-12-05 18:11:10] [INFO]   Loading raw counts for 97_1 
+[2025-12-05 18:11:19] [INFO]   Running SoupX for 97_1 
+[2025-12-05 18:11:20] [INFO]   autoEstCont attempt 1 for 97_1 (tfidfMin=1.00, soupQuantile=0.90) 
+[2025-12-05 18:11:21] [ERROR]   ERROR: autoEstCont attempt 1 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:21] [INFO]   autoEstCont attempt 2 for 97_1 (tfidfMin=0.90, soupQuantile=0.80) 
+[2025-12-05 18:11:22] [ERROR]   ERROR: autoEstCont attempt 2 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:22] [INFO]   autoEstCont attempt 3 for 97_1 (tfidfMin=0.80, soupQuantile=0.70) 
+[2025-12-05 18:11:23] [ERROR]   ERROR: autoEstCont attempt 3 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:23] [INFO]   autoEstCont attempt 4 for 97_1 (tfidfMin=0.70, soupQuantile=0.60) 
+[2025-12-05 18:11:24] [ERROR]   ERROR: autoEstCont attempt 4 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:24] [INFO]   autoEstCont attempt 5 for 97_1 (tfidfMin=0.60, soupQuantile=0.50) 
+[2025-12-05 18:11:25] [ERROR]   ERROR: autoEstCont attempt 5 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:25] [INFO]   autoEstCont attempt 6 for 97_1 (tfidfMin=0.50, soupQuantile=0.40) 
+[2025-12-05 18:11:26] [ERROR]   ERROR: autoEstCont attempt 6 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:26] [INFO]   autoEstCont attempt 7 for 97_1 (tfidfMin=0.40, soupQuantile=0.30) 
+[2025-12-05 18:11:27] [ERROR]   ERROR: autoEstCont attempt 7 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:27] [INFO]   autoEstCont attempt 8 for 97_1 (tfidfMin=0.30, soupQuantile=0.20) 
+[2025-12-05 18:11:28] [ERROR]   ERROR: autoEstCont attempt 8 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:28] [INFO]   autoEstCont attempt 9 for 97_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:11:29] [ERROR]   ERROR: autoEstCont attempt 9 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:29] [INFO]   autoEstCont attempt 10 for 97_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:11:30] [ERROR]   ERROR: autoEstCont attempt 10 failed for 97_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:30] [WARNING]   autoEstCont failed for 97_1 at minimum thresholds. Skipping SoupX correction. 
+[2025-12-05 18:11:30] [WARNING]   Skipping SoupX for 97_1 due to autoEstCont failure (keeping original counts) 
+[2025-12-05 18:11:30] [WARNING] Skipping 95_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 92_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 89_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 107_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 106_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 91_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 90_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 88_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 82_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 70_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 105_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 84_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 81_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 65_1 (not in input) 
+[2025-12-05 18:11:30] [WARNING] Skipping 64_1 (not in input) 
+[2025-12-05 18:11:30] [INFO] Processing 55_1 
+[2025-12-05 18:11:30] [INFO]   Loading raw counts for 55_1 
+[2025-12-05 18:11:38] [INFO]   Running SoupX for 55_1 
+[2025-12-05 18:11:39] [INFO]   autoEstCont attempt 1 for 55_1 (tfidfMin=1.00, soupQuantile=0.90) 
+[2025-12-05 18:11:40] [ERROR]   ERROR: autoEstCont attempt 1 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:40] [INFO]   autoEstCont attempt 2 for 55_1 (tfidfMin=0.90, soupQuantile=0.80) 
+[2025-12-05 18:11:41] [ERROR]   ERROR: autoEstCont attempt 2 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:41] [INFO]   autoEstCont attempt 3 for 55_1 (tfidfMin=0.80, soupQuantile=0.70) 
+[2025-12-05 18:11:42] [ERROR]   ERROR: autoEstCont attempt 3 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:42] [INFO]   autoEstCont attempt 4 for 55_1 (tfidfMin=0.70, soupQuantile=0.60) 
+[2025-12-05 18:11:43] [ERROR]   ERROR: autoEstCont attempt 4 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:43] [INFO]   autoEstCont attempt 5 for 55_1 (tfidfMin=0.60, soupQuantile=0.50) 
+[2025-12-05 18:11:44] [ERROR]   ERROR: autoEstCont attempt 5 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:44] [INFO]   autoEstCont attempt 6 for 55_1 (tfidfMin=0.50, soupQuantile=0.40) 
+[2025-12-05 18:11:45] [ERROR]   ERROR: autoEstCont attempt 6 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:45] [INFO]   autoEstCont attempt 7 for 55_1 (tfidfMin=0.40, soupQuantile=0.30) 
+[2025-12-05 18:11:45] [ERROR]   ERROR: autoEstCont attempt 7 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:45] [INFO]   autoEstCont attempt 8 for 55_1 (tfidfMin=0.30, soupQuantile=0.20) 
+[2025-12-05 18:11:46] [ERROR]   ERROR: autoEstCont attempt 8 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:46] [INFO]   autoEstCont attempt 9 for 55_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:11:47] [ERROR]   ERROR: autoEstCont attempt 9 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:47] [INFO]   autoEstCont attempt 10 for 55_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:11:48] [ERROR]   ERROR: autoEstCont attempt 10 failed for 55_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:48] [WARNING]   autoEstCont failed for 55_1 at minimum thresholds. Skipping SoupX correction. 
+[2025-12-05 18:11:48] [WARNING]   Skipping SoupX for 55_1 due to autoEstCont failure (keeping original counts) 
+[2025-12-05 18:11:48] [WARNING] Skipping 54_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 83_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 76_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 53_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 44_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 41_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 34_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 46_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 33_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 43_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 38_2 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 32_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 71_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 75_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 104_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 42_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 80_2 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 29_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 60_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 36_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 31_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 59_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 68_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 35_1 (not in input) 
+[2025-12-05 18:11:48] [WARNING] Skipping 117_1 (not in input) 
+[2025-12-05 18:11:48] [INFO] Processing 100_1 
+[2025-12-05 18:11:48] [INFO]   Loading raw counts for 100_1 
+[2025-12-05 18:11:57] [INFO]   Running SoupX for 100_1 
+[2025-12-05 18:11:57] [INFO]   autoEstCont attempt 1 for 100_1 (tfidfMin=1.00, soupQuantile=0.90) 
+[2025-12-05 18:11:58] [ERROR]   ERROR: autoEstCont attempt 1 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:58] [INFO]   autoEstCont attempt 2 for 100_1 (tfidfMin=0.90, soupQuantile=0.80) 
+[2025-12-05 18:11:59] [ERROR]   ERROR: autoEstCont attempt 2 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:11:59] [INFO]   autoEstCont attempt 3 for 100_1 (tfidfMin=0.80, soupQuantile=0.70) 
+[2025-12-05 18:12:00] [ERROR]   ERROR: autoEstCont attempt 3 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:00] [INFO]   autoEstCont attempt 4 for 100_1 (tfidfMin=0.70, soupQuantile=0.60) 
+[2025-12-05 18:12:01] [ERROR]   ERROR: autoEstCont attempt 4 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:01] [INFO]   autoEstCont attempt 5 for 100_1 (tfidfMin=0.60, soupQuantile=0.50) 
+[2025-12-05 18:12:02] [ERROR]   ERROR: autoEstCont attempt 5 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:02] [INFO]   autoEstCont attempt 6 for 100_1 (tfidfMin=0.50, soupQuantile=0.40) 
+[2025-12-05 18:12:03] [ERROR]   ERROR: autoEstCont attempt 6 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:03] [INFO]   autoEstCont attempt 7 for 100_1 (tfidfMin=0.40, soupQuantile=0.30) 
+[2025-12-05 18:12:03] [ERROR]   ERROR: autoEstCont attempt 7 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:03] [INFO]   autoEstCont attempt 8 for 100_1 (tfidfMin=0.30, soupQuantile=0.20) 
+[2025-12-05 18:12:04] [ERROR]   ERROR: autoEstCont attempt 8 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:04] [INFO]   autoEstCont attempt 9 for 100_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:12:05] [ERROR]   ERROR: autoEstCont attempt 9 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:05] [INFO]   autoEstCont attempt 10 for 100_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:12:06] [ERROR]   ERROR: autoEstCont attempt 10 failed for 100_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:06] [WARNING]   autoEstCont failed for 100_1 at minimum thresholds. Skipping SoupX correction. 
+[2025-12-05 18:12:06] [WARNING]   Skipping SoupX for 100_1 due to autoEstCont failure (keeping original counts) 
+[2025-12-05 18:12:06] [WARNING] Skipping 51_1 (not in input) 
+[2025-12-05 18:12:06] [WARNING] Skipping 115_1 (not in input) 
+[2025-12-05 18:12:06] [WARNING] Skipping 113_1 (not in input) 
+[2025-12-05 18:12:06] [WARNING] Skipping 45_1 (not in input) 
+[2025-12-05 18:12:06] [WARNING] Skipping 48_1 (not in input) 
+[2025-12-05 18:12:06] [WARNING] Skipping 112_1 (not in input) 
+[2025-12-05 18:12:06] [WARNING] Skipping 111_1 (not in input) 
+[2025-12-05 18:12:06] [WARNING] Skipping 74_3 (not in input) 
+[2025-12-05 18:12:06] [INFO] Processing 16_1 
+[2025-12-05 18:12:06] [INFO]   Loading raw counts for 16_1 
+[2025-12-05 18:12:15] [INFO]   Running SoupX for 16_1 
+[2025-12-05 18:12:16] [INFO]   autoEstCont attempt 1 for 16_1 (tfidfMin=1.00, soupQuantile=0.90) 
+[2025-12-05 18:12:17] [ERROR]   ERROR: autoEstCont attempt 1 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:17] [INFO]   autoEstCont attempt 2 for 16_1 (tfidfMin=0.90, soupQuantile=0.80) 
+[2025-12-05 18:12:18] [ERROR]   ERROR: autoEstCont attempt 2 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:18] [INFO]   autoEstCont attempt 3 for 16_1 (tfidfMin=0.80, soupQuantile=0.70) 
+[2025-12-05 18:12:19] [ERROR]   ERROR: autoEstCont attempt 3 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:19] [INFO]   autoEstCont attempt 4 for 16_1 (tfidfMin=0.70, soupQuantile=0.60) 
+[2025-12-05 18:12:19] [ERROR]   ERROR: autoEstCont attempt 4 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:19] [INFO]   autoEstCont attempt 5 for 16_1 (tfidfMin=0.60, soupQuantile=0.50) 
+[2025-12-05 18:12:20] [ERROR]   ERROR: autoEstCont attempt 5 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:20] [INFO]   autoEstCont attempt 6 for 16_1 (tfidfMin=0.50, soupQuantile=0.40) 
+[2025-12-05 18:12:21] [ERROR]   ERROR: autoEstCont attempt 6 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:21] [INFO]   autoEstCont attempt 7 for 16_1 (tfidfMin=0.40, soupQuantile=0.30) 
+[2025-12-05 18:12:22] [ERROR]   ERROR: autoEstCont attempt 7 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:22] [INFO]   autoEstCont attempt 8 for 16_1 (tfidfMin=0.30, soupQuantile=0.20) 
+[2025-12-05 18:12:23] [ERROR]   ERROR: autoEstCont attempt 8 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:23] [INFO]   autoEstCont attempt 9 for 16_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:12:24] [ERROR]   ERROR: autoEstCont attempt 9 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:24] [INFO]   autoEstCont attempt 10 for 16_1 (tfidfMin=0.30, soupQuantile=0.10) 
+[2025-12-05 18:12:25] [ERROR]   ERROR: autoEstCont attempt 10 failed for 16_1: length of 'dimnames' [1] not equal to array extent 
+[2025-12-05 18:12:25] [WARNING]   autoEstCont failed for 16_1 at minimum thresholds. Skipping SoupX correction. 
+[2025-12-05 18:12:25] [WARNING]   Skipping SoupX for 16_1 due to autoEstCont failure (keeping original counts) 
+[2025-12-05 18:12:25] [WARNING] Skipping 103_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 110_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 85_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 93_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 1_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 2_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 2_2 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 2_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 3_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 3_2 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 3_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 4_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 4_2 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 4_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 5_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 5_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 6_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 6_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 7_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 7_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 8_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 8_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 9_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 9_3 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 10_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 11_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 13_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 14_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 15_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 17_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 18_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 19_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 20_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 21_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 22_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 23_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 24_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 25_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 27_1 (not in input) 
+[2025-12-05 18:12:25] [WARNING] Skipping 28_1 (not in input) 
+There were 50 or more warnings (use warnings() to see the first 50)
+[2025-12-05 18:12:25] [INFO] Saving results to: /data/user3/sobj/pipe/run_stroke_test_v1/step3/step3_soupx_list.qs 
+[2025-12-05 18:12:25] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_stroke_test_v1/step3/step3_soupx_list.qs 
+[2025-12-05 18:12:25] [INFO] Step 3 completed: 4 samples processed 
+Step 3 completed successfully. Processed 4 samples.
+Running Step 4: SCTransform
+✨ Initialising pipeline session (start_pipe.R)
+  Step 4 detected
+
+--- Project Session Started: 2025-12-05 18:12:27.401116 ---
+• Loading 5 packages for step 4 …
+✅ start_pipe.R initialisation complete.
+[2025-12-05 18:12:31] [INFO] Step 4: Starting SCTransform normalization 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-05 18:12:32] [INFO] Loading input from: /data/user3/sobj/pipe/run_stroke_test_v1/step3/step3_soupx_list.qs 
+[2025-12-05 18:12:32] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_stroke_test_v1/step3/step3_soupx_list.qs 
+[2025-12-05 18:12:32] [INFO] Processing 97_1 
+[2025-12-05 18:12:32] [INFO]   Performing SCTransform for 97_1 (this may take a while) 
+Running SCTransform on assay: RNA
+vst.flavor='v2' set. Using model with fixed slope and excluding poisson genes.
+Calculating cell attributes from input UMI matrix: log_umi
+Variance stabilizing transformation of count matrix of size 986 by 21
+Model formula is y ~ log_umi
+Get Negative Binomial regression parameters per gene
+Using 747 genes, 21 cells
+Found 15 outliers - those will be ignored in fitting/regularization step
+
+Skip calculation of full residual matrix
+Will not return corrected UMI because residual type is not set to 'pearson'
+Calculating gene attributes
+Wall clock passed: Time difference of 2.126273 secs
+Setting min_variance based on median UMI:  0.04
+Calculating variance for residuals of type pearson for 986 genes
+Determine variable features
+Setting min_variance based on median UMI:  0.04
+Calculating residuals of type pearson for 986 genes
+  |                                                                              |                                                                      |   0%  |                                                                              |==================                                                    |  25%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================================                  |  75%  |                                                                              |======================================================================| 100%
+Computing corrected UMI count matrix
+Centering data matrix
+  |                                                                              |                                                                      |   0%  |                                                                              |===================================                                   |  50%  |                                                                              |======================================================================| 100%
+Place corrected count matrix in counts slot
+Set default assay to SCT
+[2025-12-05 18:12:39] [INFO]   Running PCA for 97_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+[2025-12-05 18:12:39] [INFO]   Completed 97_1: 21 cells 
+[2025-12-05 18:12:39] [INFO] Processing 55_1 
+[2025-12-05 18:12:39] [INFO]   Performing SCTransform for 55_1 (this may take a while) 
+Running SCTransform on assay: RNA
+vst.flavor='v2' set. Using model with fixed slope and excluding poisson genes.
+Calculating cell attributes from input UMI matrix: log_umi
+Variance stabilizing transformation of count matrix of size 2637 by 30
+Model formula is y ~ log_umi
+Get Negative Binomial regression parameters per gene
+Using 1635 genes, 30 cells
+Found 265 outliers - those will be ignored in fitting/regularization step
+
+Skip calculation of full residual matrix
+Will not return corrected UMI because residual type is not set to 'pearson'
+Calculating gene attributes
+Wall clock passed: Time difference of 1.606359 secs
+Setting min_variance based on median UMI:  0.04
+Calculating variance for residuals of type pearson for 2637 genes
+Determine variable features
+Setting min_variance based on median UMI:  0.04
+Calculating residuals of type pearson for 2637 genes
+  |                                                                              |                                                                      |   0%  |                                                                              |======                                                                |   9%  |                                                                              |=============                                                         |  18%  |                                                                              |===================                                                   |  27%  |                                                                              |=========================                                             |  36%  |                                                                              |================================                                      |  45%  |                                                                              |======================================                                |  55%  |                                                                              |=============================================                         |  64%  |                                                                              |===================================================                   |  73%  |                                                                              |=========================================================             |  82%  |                                                                              |================================================================      |  91%  |                                                                              |======================================================================| 100%
+Computing corrected UMI count matrix
+Centering data matrix
+  |                                                                              |                                                                      |   0%  |                                                                              |==================                                                    |  25%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================================                  |  75%  |                                                                              |======================================================================| 100%
+Place corrected count matrix in counts slot
+Set default assay to SCT
+[2025-12-05 18:12:41] [INFO]   Running PCA for 55_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+Warning: Number of dimensions changing from 20 to 29
+[2025-12-05 18:12:41] [INFO]   Completed 55_1: 30 cells 
+[2025-12-05 18:12:41] [INFO] Processing 100_1 
+[2025-12-05 18:12:41] [INFO]   Performing SCTransform for 100_1 (this may take a while) 
+Running SCTransform on assay: RNA
+vst.flavor='v2' set. Using model with fixed slope and excluding poisson genes.
+Calculating cell attributes from input UMI matrix: log_umi
+Variance stabilizing transformation of count matrix of size 1000 by 21
+Model formula is y ~ log_umi
+Get Negative Binomial regression parameters per gene
+Using 672 genes, 21 cells
+Found 123 outliers - those will be ignored in fitting/regularization step
+
+Skip calculation of full residual matrix
+Will not return corrected UMI because residual type is not set to 'pearson'
+Calculating gene attributes
+Wall clock passed: Time difference of 1.139123 secs
+Setting min_variance based on median UMI:  0.04
+Calculating variance for residuals of type pearson for 1000 genes
+Determine variable features
+Setting min_variance based on median UMI:  0.04
+Calculating residuals of type pearson for 1000 genes
+  |                                                                              |                                                                      |   0%  |                                                                              |==================                                                    |  25%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================================                  |  75%  |                                                                              |======================================================================| 100%
+Computing corrected UMI count matrix
+Centering data matrix
+  |                                                                              |                                                                      |   0%  |                                                                              |===================================                                   |  50%  |                                                                              |======================================================================| 100%
+Place corrected count matrix in counts slot
+Set default assay to SCT
+[2025-12-05 18:12:42] [INFO]   Running PCA for 100_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+[2025-12-05 18:12:42] [INFO]   Completed 100_1: 21 cells 
+[2025-12-05 18:12:42] [INFO] Processing 16_1 
+[2025-12-05 18:12:42] [INFO]   Performing SCTransform for 16_1 (this may take a while) 
+Running SCTransform on assay: RNA
+vst.flavor='v2' set. Using model with fixed slope and excluding poisson genes.
+Calculating cell attributes from input UMI matrix: log_umi
+Variance stabilizing transformation of count matrix of size 4191 by 25
+Model formula is y ~ log_umi
+Get Negative Binomial regression parameters per gene
+Using 2000 genes, 25 cells
+Found 458 outliers - those will be ignored in fitting/regularization step
+
+Skip calculation of full residual matrix
+Will not return corrected UMI because residual type is not set to 'pearson'
+Calculating gene attributes
+Wall clock passed: Time difference of 1.647347 secs
+Setting min_variance based on median UMI:  0.04
+Calculating variance for residuals of type pearson for 4191 genes
+Determine variable features
+Setting min_variance based on median UMI:  0.04
+Calculating residuals of type pearson for 3000 genes
+  |                                                                              |                                                                      |   0%  |                                                                              |======                                                                |   8%  |                                                                              |============                                                          |  17%  |                                                                              |==================                                                    |  25%  |                                                                              |=======================                                               |  33%  |                                                                              |=============================                                         |  42%  |                                                                              |===================================                                   |  50%  |                                                                              |=========================================                             |  58%  |                                                                              |===============================================                       |  67%  |                                                                              |====================================================                  |  75%  |                                                                              |==========================================================            |  83%  |                                                                              |================================================================      |  92%  |                                                                              |======================================================================| 100%
+Computing corrected UMI count matrix
+Centering data matrix
+  |                                                                              |                                                                      |   0%  |                                                                              |==================                                                    |  25%  |                                                                              |===================================                                   |  50%  |                                                                              |====================================================                  |  75%  |                                                                              |======================================================================| 100%
+Place corrected count matrix in counts slot
+Set default assay to SCT
+[2025-12-05 18:12:44] [INFO]   Running PCA for 16_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+Warning: Number of dimensions changing from 20 to 24
+[2025-12-05 18:12:44] [INFO]   Completed 16_1: 25 cells 
+Warning message:
+replacing previous import ‘S4Arrays::makeNindexFromArrayViewport’ by ‘DelayedArray::makeNindexFromArrayViewport’ when loading ‘SummarizedExperiment’ 
+[2025-12-05 18:12:44] [INFO] Saving results to: /data/user3/sobj/pipe/run_stroke_test_v1/step4/step4_sct_list.qs 
+[2025-12-05 18:12:45] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_stroke_test_v1/step4/step4_sct_list.qs 
+[2025-12-05 18:12:45] [INFO] Step 4 completed: 4 samples processed 
+Step 4 completed successfully. Processed 4 samples.
+Running Step 5: DoubletFinder
+✨ Initialising pipeline session (start_pipe.R)
+  Step 5 detected
+
+--- Project Session Started: 2025-12-05 18:12:46.660409 ---
+• Loading 7 packages for step 5 …
+✅ start_pipe.R initialisation complete.
+Warning message:
+replacing previous import ‘S4Arrays::makeNindexFromArrayViewport’ by ‘DelayedArray::makeNindexFromArrayViewport’ when loading ‘SummarizedExperiment’ 
+[2025-12-05 18:13:01] [INFO] Step 5: Starting doublet detection (scDblFinder) 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-05 18:13:01] [INFO] Loading input from: /data/user3/sobj/pipe/run_stroke_test_v1/step4/step4_sct_list.qs 
+[2025-12-05 18:13:01] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_stroke_test_v1/step4/step4_sct_list.qs 
+[2025-12-05 18:13:01] [INFO] Processing 97_1 
+[2025-12-05 18:13:01] [INFO]   SCT assay found for 97_1 (from Step 4) 
+[2025-12-05 18:13:01] [INFO]   Running scDblFinder for 97_1 
+Clustering cells...
+3 clusters
+Creating ~1500 artificial doublets...
+Dimensional reduction
+Evaluating kNN...
+Training model...
+iter=0, 0 cells excluded from training.
+iter=1, 0 cells excluded from training.
+iter=2, 0 cells excluded from training.
+Threshold found:0.595
+1 (4.8%) doublets called
+[2025-12-05 18:13:07] [INFO]   Keeping all cells (including doublets) for 97_1 
+[2025-12-05 18:13:07] [INFO]   Completed 97_1: 21 cells 
+[2025-12-05 18:13:07] [INFO] Processing 55_1 
+[2025-12-05 18:13:07] [INFO]   SCT assay found for 55_1 (from Step 4) 
+[2025-12-05 18:13:07] [INFO]   Running scDblFinder for 55_1 
+Clustering cells...
+4 clusters
+Creating ~1500 artificial doublets...
+Dimensional reduction
+Evaluating kNN...
+Training model...
+iter=0, 1 cells excluded from training.
+iter=1, 1 cells excluded from training.
+iter=2, 1 cells excluded from training.
+Threshold found:0.618
+1 (3.3%) doublets called
+[2025-12-05 18:13:12] [INFO]   Keeping all cells (including doublets) for 55_1 
+[2025-12-05 18:13:12] [INFO]   Completed 55_1: 30 cells 
+[2025-12-05 18:13:12] [INFO] Processing 100_1 
+[2025-12-05 18:13:12] [INFO]   SCT assay found for 100_1 (from Step 4) 
+[2025-12-05 18:13:12] [INFO]   Running scDblFinder for 100_1 
+Clustering cells...
+3 clusters
+Creating ~1500 artificial doublets...
+Dimensional reduction
+Evaluating kNN...
+Training model...
+iter=0, 0 cells excluded from training.
+iter=1, 0 cells excluded from training.
+iter=2, 0 cells excluded from training.
+Threshold found:0.598
+1 (4.8%) doublets called
+[2025-12-05 18:13:16] [INFO]   Keeping all cells (including doublets) for 100_1 
+[2025-12-05 18:13:16] [INFO]   Completed 100_1: 21 cells 
+[2025-12-05 18:13:16] [INFO] Processing 16_1 
+[2025-12-05 18:13:16] [INFO]   SCT assay found for 16_1 (from Step 4) 
+[2025-12-05 18:13:16] [INFO]   Running scDblFinder for 16_1 
+Clustering cells...
+2 clusters
+Creating ~1500 artificial doublets...
+Dimensional reduction
+Evaluating kNN...
+Training model...
+iter=0, 0 cells excluded from training.
+iter=1, 0 cells excluded from training.
+iter=2, 0 cells excluded from training.
+Threshold found:0.6
+1 (4%) doublets called
+[2025-12-05 18:13:20] [INFO]   Keeping all cells (including doublets) for 16_1 
+[2025-12-05 18:13:20] [INFO]   Completed 16_1: 25 cells 
+Warning messages:
+1: In scDblFinder(sce, clusters = use_clusters) :
+  scDblFinder might not work well with very low numbers of cells.
+2: In scDblFinder(sce, clusters = use_clusters) :
+  scDblFinder might not work well with very low numbers of cells.
+3: In scDblFinder(sce, clusters = use_clusters) :
+  scDblFinder might not work well with very low numbers of cells.
+4: In scDblFinder(sce, clusters = use_clusters) :
+  scDblFinder might not work well with very low numbers of cells.
+[2025-12-05 18:13:20] [INFO] Saving results to: /data/user3/sobj/pipe/run_stroke_test_v1/step5/step5_doublet_list.qs 
+[2025-12-05 18:13:20] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_stroke_test_v1/step5/step5_doublet_list.qs 
+[2025-12-05 18:13:20] [INFO] Step 5 completed: 4 samples processed 
+Step 5 completed successfully. Processed 4 samples.
+Running Step 6: Integration
+✨ Initialising pipeline session (start_pipe.R)
+  Step 6 detected
+
+--- Project Session Started: 2025-12-05 18:13:22.095145 ---
+• Loading 5 packages for step 6 …
+• Loading local package 'myR' from /home/user3/data_user3/git_repo/mylit/myR …
+Registered S3 methods overwritten by 'FSA':
+  method       from
+  confint.boot car 
+  hist.boot    car 
+Registered S3 method overwritten by 'pROC':
+  method   from            
+  plot.roc spatstat.explore
+Registered S3 methods overwritten by 'proxy':
+  method               from    
+  print.registry_field registry
+  print.registry_entry registry
+⚠️  test_analysis.R is deprecated. Sourcing /data/user3/git_repo/mylit/myR/R/analysis.R
+[conflicted] Will prefer dplyr::select over any other package.
+[conflicted] Will prefer dplyr::summarise over any other package.
+[conflicted] Will prefer dplyr::filter over any other package.
+[conflicted] Will prefer dplyr::mutate over any other package.
+[conflicted] Will prefer dplyr::arrange over any other package.
+[conflicted] Will prefer dplyr::summarize over any other package.
+[conflicted] Will prefer base::intersect over any other package.
+[conflicted] Will prefer base::setdiff over any other package.
+[conflicted] Will prefer base::union over any other package.
+[conflicted] Will prefer base::colMeans over any other package.
+[conflicted] Will prefer base::rowMeans over any other package.
+[conflicted] Will prefer base::colSums over any other package.
+[conflicted] Will prefer base::rowSums over any other package.
+• Configured future with memory limit: 200 GB
+✅ start_pipe.R initialisation complete.
+Warning messages:
+1: replacing previous import ‘S4Arrays::makeNindexFromArrayViewport’ by ‘DelayedArray::makeNindexFromArrayViewport’ when loading ‘SummarizedExperiment’ 
+2: replacing previous import ‘purrr::discard’ by ‘scales::discard’ when loading ‘myR’ 
+3: In eval(expr, envir) :
+  Could not find seurat_utils.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+4: In eval(expr, envir) :
+  Could not find fgs_core.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+5: In eval(expr, envir) :
+  Could not find tml_core.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+6: In eval(expr, envir) :
+  Could not find tml_utils.R to source from signature.R (dir: /data/user3/git_repo/_wt/pipe/scripts/pipe)
+[2025-12-05 18:13:37] [INFO] Step 6: Starting integration (RPCA) 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-05 18:13:37] [INFO] Setting up parallel processing... 
+[2025-12-05 18:13:37] [INFO] Using 4 workers for parallel processing 
+[2025-12-05 18:13:39] [INFO] Loading input from: /data/user3/sobj/pipe/run_stroke_test_v1/step5/step5_doublet_list.qs 
+[2025-12-05 18:13:39] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_stroke_test_v1/step5/step5_doublet_list.qs 
+[2025-12-05 18:13:39] [INFO] Merging all samples... 
+[2025-12-05 18:13:39] [INFO] Merging 4 samples: 97_1, 55_1, 100_1, 16_1 
+[2025-12-05 18:13:39] [INFO]   Sample 1: 97_1 has 21 cells 
+[2025-12-05 18:13:39] [INFO]   Sample 2: 55_1 has 30 cells 
+[2025-12-05 18:13:39] [INFO]   Sample 3: 100_1 has 21 cells 
+[2025-12-05 18:13:39] [INFO]   Sample 4: 16_1 has 25 cells 
+[2025-12-05 18:13:43] [INFO] Merged object has 97 cells 
+[2025-12-05 18:13:43] [INFO] Enhancing metadata... 
+[2025-12-05 18:13:43] [INFO] Joining with clinical metadata from: /home/user3/Clinical information/meta_data_prep_251113.csv 
+New names:
+• `` -> `...1`
+[2025-12-05 18:13:43] [INFO] Conflict or difference in column 'GEM'. Keeping original as 'GEM' and new as 'GEM_csv'. 
+[2025-12-05 18:13:43] [INFO] Clinical metadata joined successfully. 
+[2025-12-05 18:13:43] [INFO] Adding metadata from config... 
+[2025-12-05 18:13:43] [INFO] Adding columns from config: batch_name, set_name, project_name, sample_col, gem_col, batch_col, set_col, project_col, batch_col_meta_data, set_name_col_meta 
+[2025-12-05 18:13:43] [INFO] Creating SET column from GEM (Fallback)... 
+[2025-12-05 18:13:43] [INFO] SET distribution: SET1=51, SET2=46 
+[2025-12-05 18:13:43] [INFO] Performing RPCA integration (Default: SCT + FindIntegrationAnchors)... 
+[2025-12-05 18:13:43] [INFO] Splitting by batch column: GEM 
+Error: Need at least 2 batches for integration, but only 0 batch(es) with >= 50 cells
+In addition: Warning message:
+The following variables were found in both object meta data and the default assay: GEM
+Returning meta data; if you want the feature, please use the assay's key (eg. rna_GEM) 
+Execution halted

@@ -1,0 +1,320 @@
+[2025-12-04 11:06:35] Starting run: run_ag_ds_scvi
+[2025-12-04 11:06:35] [INFO] Step 6: Starting integration (scVI)
+[2025-12-04 11:06:35] [INFO] Setting up parallel processing...
+[2025-12-04 11:06:35] [INFO] Using 4 workers for parallel processing
+[2025-12-04 11:06:37] [INFO] Using custom input directory: /data/user3/sobj/pipe/run_ag_ds
+[2025-12-04 11:06:37] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:06:54] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:06:54] [INFO] Merging all samples...
+[2025-12-04 11:06:54] [INFO] Merging 56 samples: 97_1, 95_1, 92_1, 89_1, 107_1, 106_1, 91_1, 90_1, 88_1, 82_1, 70_1, 105_1, 84_1, 81_1, 65_1, 64_1, 55_1, 54_1, 83_1, 76_1, 53_1, 44_1, 41_1, 34_1, 46_1, 33_1, 43_1, 38_2, 32_1, 71_1, 75_1, 104_1, 42_1, 80_2, 29_1, 60_1, 36_1, 31_1, 59_1, 68_1, 35_1, 117_1, 100_1, 51_1, 115_1, 113_1, 45_1, 48_1, 112_1, 111_1, 74_3, 16_1, 103_1, 110_1, 85_1, 93_1
+[2025-12-04 11:06:54] [INFO]   Sample 1: 97_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 2: 95_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 3: 92_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 4: 89_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 5: 107_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 6: 106_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 7: 91_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 8: 90_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 9: 88_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 10: 82_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 11: 70_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 12: 105_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 13: 84_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 14: 81_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 15: 65_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 16: 64_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 17: 55_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 18: 54_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 19: 83_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 20: 76_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 21: 53_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 22: 44_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 23: 41_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 24: 34_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 25: 46_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 26: 33_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 27: 43_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 28: 38_2 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 29: 32_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 30: 71_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 31: 75_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 32: 104_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 33: 42_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 34: 80_2 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 35: 29_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 36: 60_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 37: 36_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 38: 31_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 39: 59_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 40: 68_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 41: 35_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 42: 117_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 43: 100_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 44: 51_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 45: 115_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 46: 113_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 47: 45_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 48: 48_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 49: 112_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 50: 111_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 51: 74_3 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 52: 16_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 53: 103_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 54: 110_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 55: 85_1 has 500 cells
+[2025-12-04 11:06:54] [INFO]   Sample 56: 93_1 has 500 cells
+[2025-12-04 11:08:05] [INFO] Merged object has 28000 cells
+[2025-12-04 11:08:05] [INFO] Enhancing metadata...
+[2025-12-04 11:08:05] [INFO] Joining with clinical metadata from: /home/user3/Clinical information/meta_data_prep_251113.csv
+[2025-12-04 11:08:05] [INFO] Conflict or difference in column 'GEM'. Keeping both versions.
+[2025-12-04 11:08:05] [INFO] Clinical metadata joined successfully.
+[2025-12-04 11:08:05] [INFO] Adding metadata from config...
+
+========================================
+NEW RUN STARTED (same run_id: run_ag_ds_scvi)
+========================================
+[2025-12-04 11:09:45] Starting run: run_ag_ds_scvi
+[2025-12-04 11:09:45] [INFO] Step 6: Starting integration (scVI)
+[2025-12-04 11:09:45] [INFO] Setting up parallel processing...
+[2025-12-04 11:09:45] [INFO] Using 4 workers for parallel processing
+[2025-12-04 11:09:47] [INFO] Using custom input directory: /data/user3/sobj/pipe/run_ag_ds
+[2025-12-04 11:09:47] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:10:04] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:10:04] [INFO] Merging all samples...
+[2025-12-04 11:10:04] [INFO] Merging 56 samples: 97_1, 95_1, 92_1, 89_1, 107_1, 106_1, 91_1, 90_1, 88_1, 82_1, 70_1, 105_1, 84_1, 81_1, 65_1, 64_1, 55_1, 54_1, 83_1, 76_1, 53_1, 44_1, 41_1, 34_1, 46_1, 33_1, 43_1, 38_2, 32_1, 71_1, 75_1, 104_1, 42_1, 80_2, 29_1, 60_1, 36_1, 31_1, 59_1, 68_1, 35_1, 117_1, 100_1, 51_1, 115_1, 113_1, 45_1, 48_1, 112_1, 111_1, 74_3, 16_1, 103_1, 110_1, 85_1, 93_1
+[2025-12-04 11:10:04] [INFO]   Sample 1: 97_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 2: 95_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 3: 92_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 4: 89_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 5: 107_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 6: 106_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 7: 91_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 8: 90_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 9: 88_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 10: 82_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 11: 70_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 12: 105_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 13: 84_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 14: 81_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 15: 65_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 16: 64_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 17: 55_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 18: 54_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 19: 83_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 20: 76_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 21: 53_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 22: 44_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 23: 41_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 24: 34_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 25: 46_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 26: 33_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 27: 43_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 28: 38_2 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 29: 32_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 30: 71_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 31: 75_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 32: 104_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 33: 42_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 34: 80_2 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 35: 29_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 36: 60_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 37: 36_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 38: 31_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 39: 59_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 40: 68_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 41: 35_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 42: 117_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 43: 100_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 44: 51_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 45: 115_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 46: 113_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 47: 45_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 48: 48_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 49: 112_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 50: 111_1 has 500 cells
+[2025-12-04 11:10:04] [INFO
+========================================
+NEW RUN STARTED (same run_id: run_ag_ds_scvi)
+========================================
+[2025-12-04 11:15:10] Starting run: run_ag_ds_scvi
+[2025-12-04 11:15:10] [INFO] Step 6: Starting integration (scVI)
+[2025-12-04 11:15:10] [INFO] Setting up parallel processing...
+[2025-12-04 11:15:10] [INFO] Using 4 workers for parallel processing
+[2025-12-04 11:15:12] [INFO] Using custom input directory: /data/user3/sobj/pipe/run_ag_ds
+[2025-12-04 11:15:12] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:15:28] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:15:28] [INFO] Merging all samples...
+[2025-12-04 11:15:28] [INFO] Merging 56 samples: 97_1, 95_1, 92_1, 89_1, 107_1, 106_1, 91_1, 90_1, 88_1, 82_1, 70_1, 105_1, 84_1, 81_1, 65_1, 64_1, 55_1, 54_1, 83_1, 76_1, 53_1, 44_1, 41_1, 34_1, 46_1, 33_1, 43_1, 38_2, 32_1, 71_1, 75_1, 104_1, 42_1, 80_2, 29_1, 60_1, 36_1, 31_1, 59_1, 68_1, 35_1, 117_1, 100_1, 51_1, 115_1, 113_1, 45_1, 48_1, 112_1, 111_1, 74_3, 16_1, 103_1, 110_1, 85_1, 93_1
+[2025-12-04 11:15:28] [INFO]   Sample 1: 97_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 2: 95_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 3: 92_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 4: 89_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 5: 107_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 6: 106_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 7: 91_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 8: 90_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 9: 88_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 10: 82_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 11: 70_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 12: 105_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 13: 84_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 14: 81_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 15: 65_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 16: 64_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 17: 55_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 18: 54_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 19: 83_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 20: 76_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 21: 53_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 22: 44_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 23: 41_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 24: 34_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 25: 46_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 26: 33_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 27: 43_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 28: 38_2 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 29: 32_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 30: 71_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 31: 75_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 32: 104_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 33: 42_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 34: 80_2 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 35: 29_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 36: 60_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 37: 36_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 38: 31_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 39: 59_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 40: 68_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 41: 35_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 42: 117_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 43: 100_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 44: 51_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 45: 115_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 46: 113_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 47: 45_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 48: 48_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 49: 112_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 50: 111_1 has 500 cells
+[2025-12-04 11:15:28] [INFO
+========================================
+NEW RUN STARTED (same run_id: run_ag_ds_scvi)
+========================================
+[2025-12-04 11:18:03] Starting run: run_ag_ds_scvi
+[2025-12-04 11:18:03] [INFO] Step 6: Starting integration (scVI)
+[2025-12-04 11:18:03] [INFO] Setting up parallel processing...
+[2025-12-04 11:18:03] [INFO] Using 4 workers for parallel processing
+[2025-12-04 11:18:05] [INFO] Using custom input directory: /data/user3/sobj/pipe/run_ag_ds
+[2025-12-04 11:18:05] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:18:21] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag_ds/step5/step5_doublet_list.qs
+[2025-12-04 11:18:21] [INFO] Merging all samples...
+[2025-12-04 11:18:21] [INFO] Merging 56 samples: 97_1, 95_1, 92_1, 89_1, 107_1, 106_1, 91_1, 90_1, 88_1, 82_1, 70_1, 105_1, 84_1, 81_1, 65_1, 64_1, 55_1, 54_1, 83_1, 76_1, 53_1, 44_1, 41_1, 34_1, 46_1, 33_1, 43_1, 38_2, 32_1, 71_1, 75_1, 104_1, 42_1, 80_2, 29_1, 60_1, 36_1, 31_1, 59_1, 68_1, 35_1, 117_1, 100_1, 51_1, 115_1, 113_1, 45_1, 48_1, 112_1, 111_1, 74_3, 16_1, 103_1, 110_1, 85_1, 93_1
+[2025-12-04 11:18:21] [INFO]   Sample 1: 97_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 2: 95_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 3: 92_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 4: 89_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 5: 107_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 6: 106_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 7: 91_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 8: 90_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 9: 88_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 10: 82_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 11: 70_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 12: 105_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 13: 84_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 14: 81_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 15: 65_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 16: 64_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 17: 55_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 18: 54_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 19: 83_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 20: 76_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 21: 53_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 22: 44_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 23: 41_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 24: 34_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 25: 46_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 26: 33_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 27: 43_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 28: 38_2 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 29: 32_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 30: 71_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 31: 75_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 32: 104_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 33: 42_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 34: 80_2 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 35: 29_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 36: 60_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 37: 36_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 38: 31_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 39: 59_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 40: 68_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 41: 35_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 42: 117_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 43: 100_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 44: 51_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 45: 115_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 46: 113_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 47: 45_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 48: 48_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 49: 112_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 50: 111_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 51: 74_3 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 52: 16_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 53: 103_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 54: 110_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 55: 85_1 has 500 cells
+[2025-12-04 11:10:04] [INFO]   Sample 56: 93_1 has 500 cells
+[2025-12-04 11:11:16] [INFO] Merged object has 28000 cells
+[2025-12-04 11:11:16] [INFO] Enhancing metadata...
+[2025-12-04 11:11:16] [INFO] Joining with clinical metadata from: /home/user3/Clinical information/meta_data_prep_251113.csv
+[2025-12-04 11:11:16] [INFO] Conflict or difference in column 'GEM'. Keeping original as 'GEM' and new as 'GEM_csv'.
+[2025-12-04 11:11:16] [INFO] Clinical metadata joined successfully.
+[2025-12-04 11:11:16] [INFO] Adding metadata from config...
+[2025-12-04 11:11:16] [INFO] Creating SET column from GEM (Fallback)...
+[2025-12-04 11:11:16] [INFO] SET distribution: SET1=12000, SET2=16000
+[2025-12-04 11:11:16] [INFO] Performing scVI integration (Default: IntegrateLayers)...
+[2025-12-04 11:11:19] [INFO] Running pre-processing (Normalize, Scale, PCA)...
+[2025-12-04 11:30:23] [INFO] Running scVIIntegration with batch='SET'...
+[2025-12-04 13:08:20] [INFO] integrated.scvi loadings: 0 features, 0 dimensions
+[2025-12-04 13:08:20] [INFO] scVIIntegration completed. Saving intermediate result to: /data/user3/sobj/pipe/run_ag_ds_scvi/step6/step6_integration_scvi.qs
+[2025-12-04 13:08:36] [INFO] Running downstream analysis...
+]   Sample 51: 74_3 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 52: 16_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 53: 103_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 54: 110_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 55: 85_1 has 500 cells
+[2025-12-04 11:18:21] [INFO]   Sample 56: 93_1 has 500 cells
+[2025-12-04 11:19:33] [INFO] Merged object has 28000 cells
+[2025-12-04 11:19:33] [INFO] Enhancing metadata...
+[2025-12-04 11:19:33] [INFO] Joining with clinical metadata from: /home/user3/Clinical information/meta_data_prep_251113.csv
+[2025-12-04 11:19:33] [INFO] Conflict or difference in column 'GEM'. Keeping original as 'GEM' and new as 'GEM_csv'.
+[2025-12-04 11:19:33] [INFO] Clinical metadata joined successfully.
+[2025-12-04 11:19:33] [INFO] Adding metadata from config...
+[2025-12-04 11:19:33] [INFO] Adding columns from config: SET, SET_DETAIL
+[2025-12-04 11:19:33] [INFO] SET distribution: SET1=12000, SET2=16000
+[2025-12-04 11:19:33] [INFO] Performing scVI integration (Default: IntegrateLayers)...
+[2025-12-04 11:19:35] [INFO] Running pre-processing (Normalize, Scale, PCA)...
+[2025-12-04 11:38:20] [INFO] Running scVIIntegration with batch='SET'...
+[2025-12-04 13:17:13] [INFO] integrated.scvi loadings: 0 features, 0 dimensions
+[2025-12-04 13:17:13] [INFO] scVIIntegration completed. Saving intermediate result to: /data/user3/sobj/pipe/run_ag_ds_scvi/step6/step6_integration_scvi.qs
+[2025-12-04 13:17:31] [INFO] Running downstream analysis...
+]   Sample 51: 74_3 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 52: 16_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 53: 103_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 54: 110_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 55: 85_1 has 500 cells
+[2025-12-04 11:15:28] [INFO]   Sample 56: 93_1 has 500 cells
+[2025-12-04 11:16:41] [INFO] Merged object has 28000 cells
+[2025-12-04 11:16:41] [INFO] Enhancing metadata...
+[2025-12-04 11:16:41] [INFO] Joining with clinical metadata from: /home/user3/Clinical information/meta_data_prep_251113.csv
+[2025-12-04 11:16:41] [INFO] Conflict or difference in column 'GEM'. Keeping original as 'GEM' and new as 'GEM_csv'.
+[2025-12-04 11:16:41] [INFO] Clinical metadata joined successfully.
+[2025-12-04 11:16:41] [INFO] Adding metadata from config...
+[2025-12-04 11:16:41] [INFO] Adding columns from config: SET, SET_DETAIL
+[2025-12-04 11:16:41] [INFO] SET distribution: Other=28000
+[2025-12-04 11:16:41] [INFO] Performing scVI integration (Default: IntegrateLayers)...
+[2025-12-04 11:16:44] [INFO] Running pre-processing (Normalize, Scale, PCA)...
+[2025-12-04 11:36:09] [INFO] Running scVIIntegration with batch='SET'...
+[2025-12-04 13:19:01] [INFO] integrated.scvi loadings: 0 features, 0 dimensions
+[2025-12-04 13:19:01] [INFO] scVIIntegration completed. Saving intermediate result to: /data/user3/sobj/pipe/run_ag_ds_scvi/step6/step6_integration_scvi.qs
+[2025-12-04 13:19:18] [INFO] Running downstream analysis...
