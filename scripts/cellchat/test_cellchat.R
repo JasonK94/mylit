@@ -1,7 +1,11 @@
-
 # scripts/cellchat/test_cellchat.R
 
-# Load libraries
+# Set library path to shared renv
+renv_lib <- "/home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu"
+if (dir.exists(renv_lib)) {
+  .libPaths(c(renv_lib, .libPaths()))
+}
+
 suppressPackageStartupMessages({
   library(Seurat)
   library(CellChat)
@@ -11,51 +15,34 @@ suppressPackageStartupMessages({
 })
 
 # Source wrapper
-# Assuming running from project root
-if (file.exists("myR/R/cci_cellchat_wrapper.R")) {
-  source("myR/R/cci_cellchat_wrapper.R")
-} else {
-  stop("Wrapper file not found. Please run from project root.")
+wrapper_path <- "myR/R/cci_cellchat_wrapper.R"
+if (!file.exists(wrapper_path)) {
+  wrapper_path <- "/home/user3/data_user3/git_repo/_wt/cellchat/myR/R/cci_cellchat_wrapper.R"
 }
+source(wrapper_path)
 
-# Load data
+# Data path
 data_path <- "/data/user3/sobj/IS6_sex_added_0.1x_251110.qs"
-if (!file.exists(data_path)) {
-  stop("Data file not found: ", data_path)
-}
-
-message("Loading data from ", data_path)
-sobj <- qs::qread(data_path)
-
-# Subset for quick testing
-message("Subsetting to 500 cells for quick testing...")
-set.seed(123)
-sobj <- sobj[, sample(colnames(sobj), 500)]
-
-# Check metadata
-message("Metadata columns: ", paste(colnames(sobj@meta.data), collapse = ", "))
-# User said cluster info is in $anno3.scvi
 group_col <- "anno3.scvi"
 
-if (!group_col %in% colnames(sobj@meta.data)) {
-  stop("Group column '", group_col, "' not found in metadata.")
-}
+# Run analysis using the wrapper with path input
+# This tests:
+# 1. Path input support
+# 2. Logging (check logs/cc/runX)
+# 3. Checkpointing (will create output_dir/checkpoints)
+# 4. qs usage
 
-# Run analysis
-output_dir <- "docs/cellchat/test_run"
-message("Running CellChat analysis...")
+output_dir <- "docs/cellchat/test_run_cli"
+if (dir.exists(output_dir)) unlink(output_dir, recursive = TRUE)
 
-# Use a subset of DB for faster testing if needed, or full DB
-# db.use = "Secreted Signaling" 
-# For now, let's try full DB but maybe limit cores to avoid OOM if machine is small
-# User said "renv installed", so environment should be fine.
+message("Running CellChat analysis via wrapper...")
 
 cellchat <- run_cellchat_analysis(
-  sobj = sobj,
+  input_data = data_path,
   group.by = group_col,
-  species = "human", 
+  species = "human",
   output_dir = output_dir,
-  n_cores = 4,
+  n_cores = 4, # Use fewer cores for testing
   verbose = TRUE
 )
 
