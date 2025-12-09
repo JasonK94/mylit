@@ -41,6 +41,10 @@ option_list <- list(
         type = "character", default = NULL,
         help = "Comma-separated list of split groups to analyze (e.g. '2,1') [Optional, analyzes all if not specified]", metavar = "groups"
     ),
+    make_option(c("-d", "--db_use"),
+        type = "character", default = NULL,
+        help = "Interaction DB subset: 'Secreted Signaling', 'ECM-Receptor', or 'Cell-Cell Contact'. Can specify multiple comma-separated. Uses all if not specified. [Optional]", metavar = "db_type"
+    ),
     make_option(c("-m", "--min_cells"),
         type = "integer", default = 10,
         help = "Minimum cells per group [default: %default]", metavar = "int"
@@ -79,11 +83,20 @@ if (is.null(opt$input) || is.null(opt$group_by)) {
 subset_split_val <- NULL
 if (!is.null(opt$subset_split)) {
     subset_split_val <- strsplit(opt$subset_split, ",")[[1]]
+    # Trim whitespace
+    subset_split_val <- trimws(subset_split_val)
     # Try to convert to numeric if possible
     subset_split_numeric <- suppressWarnings(as.numeric(subset_split_val))
     if (!any(is.na(subset_split_numeric))) {
         subset_split_val <- subset_split_numeric
     }
+}
+
+# Parse db_use if provided
+db_use_val <- NULL
+if (!is.null(opt$db_use)) {
+    db_use_val <- strsplit(opt$db_use, ",")[[1]]
+    db_use_val <- trimws(db_use_val)
 }
 
 # Source the wrapper function
@@ -108,12 +121,16 @@ if (!is.null(opt$split_by)) {
         message("Subset Split: ", paste(subset_split_val, collapse = ", "))
     }
 }
+if (!is.null(db_use_val)) {
+    message("DB Use: ", paste(db_use_val, collapse = ", "))
+}
 
 run_cellchat_analysis(
     input_data = opt$input,
     group.by = opt$group_by,
     split.by = opt$split_by,
     subset.split = subset_split_val,
+    db.use = db_use_val,
     min.cells.group = opt$min_cells,
     species = opt$species,
     assay_name = opt$assay,

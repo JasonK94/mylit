@@ -1,59 +1,55 @@
-# CellChat Analysis Commands
+# CellChat Analysis - Improved Commands
 
-## Issue Analysis
-The original analysis combined all patient samples together, resulting in:
-- Over-aggregated signals (too strong)
-- Bubble plots that are too dense to interpret
+## Current Status
+- X2 (g3="2") completed: 624 interactions still seems high
+- X1 (g3="1") incomplete: stopped during computeCommunProb
 
-## Solution: Split by Sample/Condition
+## Recommended: Use stricter filtering
 
-### Option 1: Split by condition (g3 status)
+### Option 1: Higher min.cells threshold
 ```bash
-# Analyze only g3="2" patients
+# Analyze g3="2" with stricter filtering
 Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/run_cellchat_cli.R \
   -i /data/user3/sobj/is2_IS_3_1_plots.qs \
   -g anno3 \
   -b g3 \
   --subset_split "2" \
-  -m 20 \
-  -o /data/user3/sobj/cci/cellchat/run_g3split_anno3
+  -m 50 \
+  -o /data/user3/sobj/cci/cellchat/run4_g3split_anno3_strict
 
-# Analyze both g3="2" and g3="1"
+# Analyze both with strict filtering
 Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/run_cellchat_cli.R \
   -i /data/user3/sobj/is2_IS_3_1_plots.qs \
   -g anno3 \
   -b g3 \
   --subset_split "2,1" \
-  -m 20 \
-  -o /data/user3/sobj/cci/cellchat/run_g3split_anno3
+  -m 50 \
+  -o /data/user3/sobj/cci/cellchat/run4_g3split_anno3_strict
 ```
 
-### Option 2: Split by patient (hos_no)
+### Option 2: Per-patient analysis (most conservative)
 ```bash
-# Will create separate analysis for each patient
+# This will create one analysis per patient - much cleaner signals
 Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/run_cellchat_cli.R \
   -i /data/user3/sobj/is2_IS_3_1_plots.qs \
   -g anno3 \
   -b hos_no \
-  -m 20 \
-  -o /data/user3/sobj/cci/cellchat/run_patient_split_anno3
+  -m 30 \
+  -o /data/user3/sobj/cci/cellchat/run4_per_patient
 ```
 
-### Option 3: Higher filtering threshold (no splitting)
-```bash
-# Use higher min.cells to reduce noise
-Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/run_cellchat_cli.R \
-  -i /data/user3/sobj/is2_IS_3_1_plots.qs \
-  -g anno3 \
-  -m 50 \
-  -o /data/user3/sobj/cci/cellchat/run_highfilt_anno3
-```
+### Option 3: Subset to specific DB
+Add this to the CLI later - use only "Secreted Signaling" interactions
 
-## Parameters
-- `-i`: Input Seurat object file
-- `-g`: Cell type grouping column
-- `-b`: Split by this metadata column (e.g., g3, hos_no)
-- `--subset_split`: Comma-separated list of specific split groups to analyze
-- `-m`: Minimum cells per cell type group (higher = stricter filtering, less noise)
-- `-o`: Output directory
-- `-c`: Number of cores (default: 16)
+## Analysis
+Current X2 results:
+- 24,866 cells (g3="2" only - correctly split!)
+- 25 cell types
+- 624 interactions (still quite high)
+- 45 pathways
+
+The split worked correctly, but you're right that the signal is still strong. This is because:
+1. Still analyzing 24,866 cells together (multiple patients combined within g3="2")
+2. All interaction types included (Secreted, ECM, Cell-Cell Contact)
+
+Better approach: Split by individual patient (hos_no) for cleanest signal.
