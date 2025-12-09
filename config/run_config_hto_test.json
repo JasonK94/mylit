@@ -1,0 +1,11 @@
+{
+    "run_id": "run_hto_test",
+    "output_base_dir": "/data/user3/sobj/pipe",
+    "steps": {
+        "step1_demultiplex": {
+            "output_step1_demulti": "step1_demulti_list.qs",
+            "demultiplex_doublet_removal": true,
+            "plots": true
+        }
+    }
+}

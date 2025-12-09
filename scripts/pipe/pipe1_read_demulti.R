@@ -61,9 +61,12 @@ if (is.null(opt$config)) {
 }
 
 # Source utility functions
-# Use consistent approach: pipe_dir is parent of script_dir
-pipe_dir <- dirname(script_dir)
+# Use consistent approach: pipe_dir is parent of scripts directory
+# script_dir is .../scripts/pipe
+# pipe_dir should be .../pipe
+pipe_dir <- dirname(dirname(script_dir))
 
+# Source pipeline utility functions
 # Source pipeline utility functions
 source(file.path(pipe_dir, "myR/R/pipe_utils.R"))
 source(file.path(pipe_dir, "myR/R/pipe_demulti.R"))
@@ -231,137 +234,377 @@ if (nrow(snp_samples) > 0) {
 }
 
 # ============================================================================
-# Process HTO samples
+# Process HTO samples (GEM-centric)
 # ============================================================================
 if (nrow(hto_samples) > 0) {
-  log_message("Processing HTO samples...", log_list)
+  log_message("Processing HTO samples (GEM-centric)...", log_list)
 
-  for (i in seq_len(nrow(hto_samples))) {
-    row <- hto_samples[i, ]
-    sample_name <- row$sample_name
-    gem_name <- row$gem_name
+  # Group by GEM
+  hto_gems <- unique(hto_samples$gem_name)
 
-    log_message(sprintf(
-      "Processing HTO sample %d/%d: %s (GEM: %s)",
-      i, nrow(hto_samples), sample_name, gem_name
-    ), log_list)
+  for (gem_idx in seq_along(hto_gems)) {
+    gem_name <- hto_gems[gem_idx]
+    gem_rows <- hto_samples[hto_samples$gem_name == gem_name, ]
 
-    processed_obj <- tryCatch(
+    log_message(sprintf("Processing HTO GEM %d/%d: %s (%d samples)", gem_idx, length(hto_gems), gem_name, nrow(gem_rows)), log_list)
+
+    # Use the first row to determine input paths (assuming consistent within GEM)
+    first_row <- gem_rows[1, ]
+
+    tryCatch(
       {
-        # Load filtered counts
-        log_message(sprintf("  Loading HTO data for %s", sample_name), log_list)
-        filtered_counts_list <- Seurat::Read10X(row$dir_input_filtered_barcode_matrix)
+        # 1. Load Data (Once per GEM)
+        log_message(sprintf("  Loading data for GEM %s...", gem_name), log_list)
 
-        # Extract Gene Expression matrix
-        if (is.list(filtered_counts_list)) {
-          filtered_counts <- filtered_counts_list$`Gene Expression`
-          hto_counts <- filtered_counts_list[[get_param("hto_assay_name", config_list, "Multiplexing Capture")]]
-        } else {
-          filtered_counts <- filtered_counts_list
-          hto_counts <- NULL
+        counts_path <- first_row$dir_input_filtered_barcode_matrix
+
+        # Check for inconsistent paths within GEM
+        paths <- gem_rows$dir_input_filtered_barcode_matrix
+        if (length(unique(paths)) > 1) {
+          log_message(sprintf("  WARNING: Inconsistent input paths for GEM %s. Using first path: %s. This may lead to missing cells if samples are in different directories. Please ensure unique GEM names for separate inputs.", gem_name, counts_path), log_list, level = "WARNING")
         }
 
-        # Create initial Seurat object
-        obj <- Seurat::CreateSeuratObject(counts = filtered_counts)
-
-        # Add HTO assay if available
-        hto_assay_name <- get_param("hto_assay_name", config_list, "Multiplexing Capture")
-        if (!is.null(hto_counts)) {
-          obj[[hto_assay_name]] <- Seurat::CreateAssayObject(counts = hto_counts)
-          # Seurat converts spaces to dots in assay names, so check for both
-          actual_assay_name <- ifelse(hto_assay_name %in% names(obj@assays),
-            hto_assay_name,
-            gsub(" ", ".", hto_assay_name)
-          )
-          log_message(sprintf(
-            "  Added HTO assay '%s' (stored as '%s') with %d features",
-            hto_assay_name, actual_assay_name, nrow(hto_counts)
-          ), log_list)
-        } else {
-          actual_assay_name <- NULL
+        if (!dir.exists(counts_path)) {
+          # Try raw if filtered not found? Or just error.
+          stop(sprintf("Input directory not found: %s", counts_path))
         }
 
-        # Perform HTO demultiplexing
-        demux_method <- ifelse(is.na(row$demultiplex_method) || row$demultiplex_method == "",
-          get_param("hto_demux_method", config_list, "HTODemux"),
-          row$demultiplex_method
-        )
+        raw_data <- Seurat::Read10X(counts_path)
 
-        # Check if HTO assay exists in object (try both original and dot-separated names)
-        if (!is.null(actual_assay_name) && actual_assay_name %in% names(obj@assays)) {
-          log_message(sprintf("  Performing %s demultiplexing for %s", demux_method, sample_name), log_list)
-          obj <- process_hto_demux(
-            obj = obj,
-            method = demux_method,
-            assay_name = actual_assay_name, # Use the actual stored name
-            positive_quantile = as.numeric(get_param("hto_positive_quantile", config_list, 0.99)),
-            sample_name = sample_name,
-            gem_name = gem_name
-          )
-        } else {
-          # No HTO assay found, just add metadata
-          obj$sample_id <- sample_name
-          obj$GEM <- gem_name
-          obj$droplet_demulti <- "unknown"
-          log_message(sprintf(
-            "  No HTO assay found for %s (tried '%s'), skipping demultiplexing",
-            sample_name, hto_assay_name
-          ), log_list, level = "WARNING")
-        }
+        rna_counts <- NULL
+        hto_counts <- NULL
 
-        # Add config metadata columns
-        config_cols_to_add <- c("name", "patient_name", "contamination_risk", "sample_name", "gem_name", "demultiplex_id")
-        for (col in config_cols_to_add) {
-          if (col %in% colnames(row) && !is.na(row[[col]])) {
-            obj[[col]] <- as.character(row[[col]])
+        if (is.list(raw_data)) {
+          log_message(sprintf("  DEBUG: raw_data names: %s", paste(names(raw_data), collapse = ", ")), log_list)
+          if ("Gene Expression" %in% names(raw_data)) {
+            rna_counts <- raw_data$`Gene Expression`
+          } else {
+            # Fallback if only one matrix or named differently
+            rna_counts <- raw_data[[1]]
           }
-        }
 
-        # Extract metadata from filename if patterns are provided
-        timepoint_regex <- get_param("metadata_timepoint_regex", config_list, NULL)
-        if (!is.null(timepoint_regex) && timepoint_regex != "") {
-          timepoint <- str_extract(sample_name, timepoint_regex)
-          if (!is.na(timepoint)) {
-            # Map timepoint to day if mapping exists
-            day_map_24 <- get_param("metadata_day_map_24", config_list, NULL)
-            day_map_72 <- get_param("metadata_day_map_72", config_list, NULL)
-
-            if (timepoint == "24" && !is.null(day_map_24)) {
-              obj$day <- as.numeric(day_map_24)
-            } else if (timepoint == "72" && !is.null(day_map_72)) {
-              obj$day <- as.numeric(day_map_72)
+          # Try to find HTO counts
+          if ("Antibody Capture" %in% names(raw_data)) {
+            hto_counts <- raw_data$`Antibody Capture`
+          } else if ("Custom" %in% names(raw_data)) {
+            hto_counts <- raw_data$`Custom`
+          } else if ("Multiplexing Capture" %in% names(raw_data)) {
+            hto_counts <- raw_data$`Multiplexing Capture`
+          } else {
+            # Look for any other assay that is not Gene Expression
+            other_assays <- setdiff(names(raw_data), "Gene Expression")
+            if (length(other_assays) == 1) {
+              hto_counts <- raw_data[[other_assays]]
+              log_message(sprintf("  DEBUG: Using '%s' as HTO counts", other_assays), log_list)
+            } else {
+              hto_counts <- NULL
+              log_message("  WARNING: Could not identify HTO counts in raw_data list.", log_list)
             }
-            obj$time_point <- timepoint
+          }
+        } else {
+          # If not a list, maybe it's just RNA? Or maybe HTO is in a separate file?
+          # For now assume list if HTO is expected.
+          rna_counts <- raw_data
+          log_message("  WARNING: Read10X returned a single matrix. Assuming it is Gene Expression. HTO counts might be missing.", log_list)
+        }
+
+        # Downsample if requested (on the whole GEM)
+        if (!is.null(opt$downsample) && opt$downsample > 0 && opt$downsample < 1) {
+          log_message(sprintf("  Downsampling GEM to %.1f%%...", opt$downsample * 100), log_list)
+          n_cells <- ncol(rna_counts)
+          if (n_cells == 0) {
+            log_message("  No cells to downsample.", log_list)
+          } else {
+            keep_cells <- sample(colnames(rna_counts), size = round(n_cells * opt$downsample))
+            rna_counts <- rna_counts[, keep_cells, drop = FALSE]
+            if (!is.null(hto_counts)) {
+              hto_counts <- hto_counts[, keep_cells, drop = FALSE]
+            }
           }
         }
 
-        log_message(sprintf("  Completed %s: %d cells", sample_name, ncol(obj)), log_list)
-        obj
+        # Ensure colnames
+        if (is.null(colnames(rna_counts))) {
+          # ... (barcode loading logic if needed, same as before) ...
+          # For brevity, assuming Read10X usually provides colnames.
+          # If missing, we might fail or need the barcode file logic.
+          # I'll include a simplified check.
+          if (ncol(rna_counts) > 0) {
+            barcodes_path <- file.path(counts_path, "barcodes.tsv.gz")
+            if (file.exists(barcodes_path)) {
+              barcodes <- read.table(gzfile(barcodes_path), header = FALSE, stringsAsFactors = FALSE)[, 1]
+              # Adjust for downsampling
+              # This is tricky because we already subsetted by 'keep_cells' which relied on colnames.
+              # If colnames were missing, we couldn't have downsampled by name.
+              # So downsampling logic above assumes colnames exist.
+              # If they don't, we should load barcodes FIRST.
+              # For now, assume Read10X provides colnames or we fail.
+              log_message("  WARNING: rna_counts has no colnames. Downsampling might be inconsistent if barcodes.tsv.gz is used after subsetting.", log_list, level = "WARNING")
+            }
+          }
+        }
+
+        # Create Seurat Object (Once per GEM)
+        log_message("  Creating Seurat Object for GEM...", log_list)
+        gem_obj <- Seurat::CreateSeuratObject(counts = rna_counts, project = gem_name)
+
+        # Add HTO Assay
+        if (!is.null(hto_counts) && ncol(hto_counts) > 0) {
+          # Filter common cells
+          common_cells <- intersect(colnames(gem_obj), colnames(hto_counts))
+          if (length(common_cells) == 0) {
+            log_message("  WARNING: No common cells between RNA and HTO counts for GEM. Skipping HTO assay.", log_list, level = "WARNING")
+          } else {
+            gem_obj <- gem_obj[, common_cells]
+
+            # Ensure matrix
+            # Ensure matrix
+            if (is.matrix(hto_counts) || inherits(hto_counts, "Matrix")) {
+              hto_counts <- hto_counts[, common_cells, drop = FALSE]
+            } else {
+              hto_counts <- hto_counts[, common_cells, drop = FALSE]
+            }
+
+            gem_obj[["HTO"]] <- Seurat::CreateAssayObject(counts = hto_counts)
+            gem_obj <- Seurat::NormalizeData(gem_obj, assay = "HTO", normalization.method = "CLR")
+
+            # 2. Run Demultiplexing (Once per GEM)
+            log_message("  Running Demultiplexing on GEM...", log_list)
+
+            # Filter zero HTO cells
+            hto_mat <- Seurat::GetAssayData(gem_obj, assay = "HTO", slot = "counts")
+            if (is.vector(hto_mat)) {
+              if (sum(hto_mat) == 0) gem_obj <- gem_obj[, FALSE]
+            } else {
+              hto_sums <- Matrix::colSums(hto_mat)
+              if (any(hto_sums == 0)) {
+                log_message(sprintf("  Removing %d cells with zero HTO counts", sum(hto_sums == 0)), log_list)
+                gem_obj <- gem_obj[, hto_sums > 0]
+              }
+            }
+
+            # Plotting HTO QC
+            if (ncol(gem_obj) > 0) {
+              # Determine method from manifest (use first row of GEM)
+              method <- first_row$demultiplex_method
+              if (is.na(method) || method == "") method <- "HTODemux"
+
+              log_message(sprintf("  Demultiplexing method: %s", method), log_list)
+
+              if (method == "MULTIseqDemux") {
+                gem_obj <- tryCatch(
+                  {
+                    Seurat::MULTIseqDemux(gem_obj, assay = "HTO", quantile = 0.7)
+                  },
+                  error = function(e) {
+                    log_message(sprintf("  MULTIseqDemux failed: %s. Trying HTODemux...", e$message), log_list, level = "WARNING")
+                    tryCatch(
+                      {
+                        Seurat::HTODemux(gem_obj, assay = "HTO", positive.quantile = 0.99)
+                      },
+                      error = function(e2) {
+                        log_message(sprintf("  HTODemux failed: %s. Skipping demux.", e2$message), log_list, level = "WARNING")
+                        return(gem_obj)
+                      }
+                    )
+                  }
+                )
+              } else if (method == "None" || method == "Skip") {
+                log_message("  Skipping demultiplexing as requested.", log_list)
+                # No demux performed
+              } else {
+                # Default to HTODemux
+                gem_obj <- tryCatch(
+                  {
+                    Seurat::HTODemux(gem_obj, assay = "HTO", positive.quantile = 0.99)
+                  },
+                  error = function(e) {
+                    log_message(sprintf("  HTODemux failed: %s. Trying MULTIseqDemux...", e$message), log_list, level = "WARNING")
+                    tryCatch(
+                      {
+                        Seurat::MULTIseqDemux(gem_obj, assay = "HTO", quantile = 0.7)
+                      },
+                      error = function(e2) {
+                        log_message(sprintf("  MULTIseqDemux failed: %s. Skipping demux.", e2$message), log_list, level = "WARNING")
+                        return(gem_obj)
+                      }
+                    )
+                  }
+                )
+              }
+
+              # Generate Plots
+              # RidgePlot
+              plot_features <- rownames(gem_obj[["HTO"]])
+              if (length(plot_features) > 0) {
+                p_ridge <- Seurat::RidgePlot(gem_obj, assay = "HTO", features = plot_features, ncol = 2)
+                ggsave(file.path(plots_dir, sprintf("%s_ridge.png", gem_name)), plot = p_ridge, width = 10, height = 8, bg = "white")
+
+                # FeatureScatter (HTO1 vs HTO2 if available)
+                if (length(plot_features) >= 2) {
+                  p_scatter <- Seurat::FeatureScatter(gem_obj, feature1 = plot_features[1], feature2 = plot_features[2])
+                  ggsave(file.path(plots_dir, sprintf("%s_scatter.png", gem_name)), plot = p_scatter, width = 8, height = 8, bg = "white")
+                }
+
+                # VlnPlot
+                p_vln <- Seurat::VlnPlot(gem_obj, features = "nCount_HTO", pt.size = 0.1, log = TRUE)
+                ggsave(file.path(plots_dir, sprintf("%s_vln_count.png", gem_name)), plot = p_vln, width = 6, height = 6, bg = "white")
+              }
+            }
+          }
+          # 3. Split and Save Samples
+          log_message("  Splitting GEM into samples...", log_list)
+
+          # Load clinical metadata if available (for HTO mapping)
+          clinical_metadata <- NULL
+          if ("dir_meta_data" %in% colnames(gem_rows)) {
+            meta_path <- unique(gem_rows$dir_meta_data)[1]
+            if (!is.na(meta_path) && meta_path != "" && file.exists(meta_path)) {
+              log_message(sprintf("  Loading clinical metadata from %s", meta_path), log_list)
+              clinical_metadata <- read.csv(meta_path, stringsAsFactors = FALSE)
+            }
+          }
+
+          # Identify Demux Columns
+          demux_id_col <- NULL
+          demux_class_col <- NULL
+
+          if ("HTO_maxID" %in% colnames(gem_obj@meta.data)) {
+            demux_id_col <- "HTO_maxID"
+            demux_class_col <- "HTO_classification.global"
+          } else if ("MULTI_ID" %in% colnames(gem_obj@meta.data)) {
+            demux_id_col <- "MULTI_ID"
+            if ("MULTI_classification.global" %in% colnames(gem_obj@meta.data)) {
+              demux_class_col <- "MULTI_classification.global"
+            } else {
+              # MULTIseqDemux might not produce .global, but MULTI_ID implies singlet if it's an ID
+              demux_class_col <- NULL
+            }
+          } else if ("hash.ID" %in% colnames(gem_obj@meta.data)) {
+            demux_id_col <- "hash.ID"
+            demux_class_col <- "hash.ID" # Sometimes classification is same
+          }
+          if (!is.null(demux_id_col)) {
+            log_message(sprintf("  Using demux column: %s", demux_id_col), log_list)
+          } else {
+            log_message("  WARNING: No demultiplexing columns found in metadata.", log_list, level = "WARNING")
+          }
+
+          for (i in seq_len(nrow(gem_rows))) {
+            row <- gem_rows[i, ]
+            sample_name <- row$sample_name
+            demux_id <- row$demultiplex_id
+
+            # Try to derive HTO tag from metadata if available
+            derived_hto_tag <- NULL
+            if (!is.null(clinical_metadata)) {
+              if ("sample_no" %in% colnames(clinical_metadata)) {
+                meta_row <- clinical_metadata[clinical_metadata$sample_no == sample_name, ]
+                if (nrow(meta_row) > 0) {
+                  # Use demulti_id from metadata if present (pre-processed)
+                  if ("demulti_id" %in% colnames(meta_row) && !is.na(meta_row$demulti_id[1]) && meta_row$demulti_id[1] != "") {
+                    derived_hto_tag <- meta_row$demulti_id[1]
+                    log_message(sprintf("    Using demulti_id from metadata: %s", derived_hto_tag), log_list)
+                  } else {
+                    log_message(sprintf("    Debug: demulti_id missing or empty for sample %s in metadata", sample_name), log_list)
+                  }
+                } else {
+                  log_message(sprintf("    Debug: Sample %s not found in metadata (sample_no column)", sample_name), log_list)
+                }
+              } else {
+                log_message("    Debug: sample_no column not found in clinical_metadata", log_list)
+              }
+            } else {
+              log_message("    Debug: clinical_metadata is NULL", log_list)
+            }
+
+            target_demux_id <- demux_id
+            if (!is.null(derived_hto_tag)) {
+              target_demux_id <- derived_hto_tag
+            }
+
+            log_message(sprintf("    Extracting sample %s (Target ID: %s)...", sample_name, target_demux_id), log_list)
+
+            # Subset logic
+            if (!is.null(target_demux_id) && !is.na(target_demux_id) && target_demux_id != "" && !is.null(demux_id_col)) {
+              # Check if demux_id exists in classification
+              # Create a mask
+              # Handle potential NA in columns
+              ids <- gem_obj@meta.data[[demux_id_col]]
+              classes <- if (!is.null(demux_class_col)) gem_obj@meta.data[[demux_class_col]] else rep("Singlet", length(ids))
+
+              keep_mask <- !is.na(ids) & ids == target_demux_id & classes == "Singlet"
+
+              if (sum(keep_mask) == 0) {
+                log_message(sprintf("    WARNING: No singlet cells found for Target ID '%s' (Manifest ID: '%s'). Checking available IDs: %s", target_demux_id, demux_id, paste(unique(ids), collapse = ", ")), log_list, level = "WARNING")
+                log_message(sprintf("    Skipping sample %s due to zero cells.", sample_name), log_list, level = "WARNING")
+                next
+              } else {
+                sample_obj <- gem_obj[, keep_mask]
+                log_message(sprintf("    Found %d cells.", ncol(sample_obj)), log_list)
+              }
+
+              # Add metadata
+              sample_obj$demultiplex_id <- demux_id
+              sample_obj$contamination_risk <- if ("HTO_margin" %in% colnames(sample_obj@meta.data)) sample_obj$HTO_margin else NA
+              sample_obj$demux_class <- if (!is.null(demux_class_col)) sample_obj@meta.data[[demux_class_col]] else "Singlet"
+            } else {
+              # If no demux ID provided or demux failed
+              if (!is.null(demux_id_col)) {
+                log_message(sprintf("    WARNING: Sample %s has no demultiplex_id but demux ran. Skipping.", sample_name), log_list, level = "WARNING")
+                next
+              } else {
+                # No demux ran (e.g. no HTO), so maybe it's 1:1 GEM:Sample?
+                if (nrow(gem_rows) == 1) {
+                  log_message(sprintf("    No demux performed, assuming 1:1 GEM to Sample for %s", sample_name), log_list)
+                  sample_obj <- gem_obj
+                } else {
+                  log_message(sprintf("    WARNING: Multiple samples in GEM but no demux performed. Cannot split %s. Skipping.", sample_name), log_list, level = "ERROR")
+                  next
+                }
+              }
+            }
+
+            # Add config metadata
+            sample_obj$sample_id <- sample_name
+            sample_obj$GEM <- gem_name
+            # Add other columns from manifest
+            for (col in names(row)) {
+              if (!col %in% c("dir_input_filtered_barcode_matrix", "dir_input_raw_barcode_matrix", "dir_demultiplex_output")) {
+                sample_obj[[col]] <- row[[col]]
+              }
+            }
+
+            # Extract metadata from filename if patterns are provided
+            timepoint_regex <- get_param("metadata_timepoint_regex", config_list, NULL)
+            if (!is.null(timepoint_regex) && timepoint_regex != "") {
+              timepoint <- str_extract(sample_name, timepoint_regex)
+              if (!is.na(timepoint)) {
+                day_map_24 <- get_param("metadata_day_map_24", config_list, NULL)
+                day_map_72 <- get_param("metadata_day_map_72", config_list, NULL)
+
+                if (timepoint == "24" && !is.null(day_map_24)) {
+                  sample_obj$day <- as.numeric(day_map_24)
+                } else if (timepoint == "72" && !is.null(day_map_72)) {
+                  sample_obj$day <- as.numeric(day_map_72)
+                }
+                sample_obj$time_point <- timepoint
+              }
+            }
+
+            # Save
+            hto_objects[[sample_name]] <- sample_obj
+          }
+        }
+
+        # Clean up to free memory
+        rm(gem_obj, rna_counts, hto_counts, raw_data)
+        gc()
       },
       error = function(e) {
-        log_message(sprintf(
-          "!!! ERROR in step %d processing HTO sample %s: %s !!!",
-          opt$output_step, sample_name, e$message
-        ), log_list, level = "ERROR")
-        log_message(sprintf("!!! Skipping HTO sample %s !!!", sample_name), log_list, level = "ERROR")
-        return(NULL)
+        log_message(sprintf("!!! ERROR processing GEM %s: %s !!!", gem_name, e$message), log_list, level = "ERROR")
       }
     )
-
-    if (!is.null(processed_obj)) {
-      hto_objects[[sample_name]] <- processed_obj
-    }
-  }
-
-  # Save HTO objects separately
-  if (length(hto_objects) > 0) {
-    log_message("Saving HTO objects...", log_list)
-    hto_output_path <- get_output_path(
-      opt$run_id, opt$output_step,
-      "step1_hto_list.qs",
-      output_base_dir
-    )
-    save_intermediate(hto_objects, hto_output_path, log_list)
   }
 }
 

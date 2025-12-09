@@ -13,6 +13,7 @@
 myR.Rcheck/   
 # devtools::build() 결과물
 myR_*.tar.gz
+myR/man
 
 # RStudio
 .Rhistory
@@ -52,6 +53,7 @@ rmd/
 *loom
 *mtx
 *mtx.gz
+/home/user3/data_user3/git_repo/_wt/pipe/logs
 
 # Internal documentation (not for public repository)
 docs-main/SECURITY_REVIEW_REPORT.md

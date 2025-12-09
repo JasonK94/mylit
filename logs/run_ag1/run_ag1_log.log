@@ -1,0 +1,1868 @@
+[2025-12-03 16:21:58] Starting run: run_ag1
+[2025-12-03 16:21:58] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 16:21:58] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 16:21:58] [INFO] Processing SNP samples...
+[2025-12-03 16:21:58] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 16:21:58] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv)
+[2025-12-03 16:22:03] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes
+[2025-12-03 16:22:03] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 16:22:03] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes
+[2025-12-03 16:22:03] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 16:22:03] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes
+[2025-12-03 16:22:03] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 16:22:03] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes
+[2025-12-03 16:22:03] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 16:22:03] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes
+[2025-12-03 16:22:03] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 16:22:03] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes
+[2025-12-03 16:22:03] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 16:22:03] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv)
+[2025-12-03 16:22:06] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes
+[2025-12-03 16:22:06] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 16:22:06] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes
+[2025-12-03 16:22:06] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 16:22:06] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes
+[2025-12-03 16:22:06] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 16:22:06] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes
+[2025-12-03 16:22:06] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 16:22:06] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes
+[2025-12-03 16:22:06] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 16:22:06] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes
+[2025-12-03 16:22:06] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 16:22:06] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv)
+[2025-12-03 16:22:09] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes
+[2025-12-03 16:22:09] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 16:22:09] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes
+[2025-12-03 16:22:09] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 16:22:09] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes
+[2025-12-03 16:22:09] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 16:22:09] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes
+[2025-12-03 16:22:09] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 16:22:09] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes
+[2025-12-03 16:22:09] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 16:22:09] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes
+[2025-12-03 16:22:09] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-03 16:22:09] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv)
+[2025-12-03 16:22:11] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes
+[2025-12-03 16:22:11] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 16:22:11] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes
+[2025-12-03 16:22:11] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 16:22:11] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes
+[2025-12-03 16:22:11] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 16:22:11] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes
+[2025-12-03 16:22:11] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 16:22:11] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes
+[2025-12-03 16:22:11] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 16:22:11] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes
+[2025-12-03 16:22:11] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 16:22:11] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 1-8: 862 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 16:22:16] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes
+[2025-12-03 16:22:16] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 16:22:16] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 2-1: 545 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 16:22:20] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes
+[2025-12-03 16:22:20] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 16:22:20] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 3-4: 945 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 16:22:27] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes
+[2025-12-03 16:22:27] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 16:22:27] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes
+[2025-12-03 16:22:31] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes
+[2025-12-03 16:22:31] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-3: 654 barcodes
+[2025-12-03 16:22:31] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes
+[2025-12-03 16:22:31] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes
+[2025-12-03 16:22:31] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes
+[2025-12-03 16:22:31] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes
+[2025-12-03 16:22:31] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 16:22:31] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes
+[2025-12-03 16:22:31] [INFO] Combining SNP barcode mappings...
+[2025-12-03 16:22:31] [INFO] Total SNP barcodes (across all GEMs): 95815
+[2025-12-03 16:22:31] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step1/step1_snp_barcode_mappings.qs
+[2025-12-03 16:22:31] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step1/step1_snp_barcode_mapping_list.qs
+[2025-12-03 16:22:31] [INFO] Creating Seurat objects for SNP samples...
+[2025-12-03 16:22:31] [INFO]   Creating Seurat object for 97_1 (GEM: GEM1)
+[2025-12-03 16:22:42] [INFO]   Completed 97_1: 3666 cells
+[2025-12-03 16:22:42] [INFO]   Creating Seurat object for 95_1 (GEM: GEM1)
+[2025-12-03 16:22:49] [INFO]   Completed 95_1: 2518 cells
+[2025-12-03 16:22:49] [INFO]   Creating Seurat object for 92_1 (GEM: GEM1)
+[2025-12-03 16:22:56] [INFO]   Completed 92_1: 1858 cells
+[2025-12-03 16:22:56] [INFO]   Creating Seurat object for 89_1 (GEM: GEM1)
+[2025-12-03 16:23:03] [INFO]   Completed 89_1: 2158 cells
+[2025-12-03 16:23:03] [INFO]   Creating Seurat object for 107_1 (GEM: GEM1)
+[2025-12-03 16:23:10] [INFO]   Completed 107_1: 1877 cells
+[2025-12-03 16:23:10] [INFO]   Creating Seurat object for 106_1 (GEM: GEM1)
+[2025-12-03 16:23:15] [INFO]   Completed 106_1: 1761 cells
+[2025-12-03 16:23:15] [INFO]   Creating Seurat object for 91_1 (GEM: GEM2)
+[2025-12-03 16:23:21] [INFO]   Completed 91_1: 2547 cells
+[2025-12-03 16:23:21] [INFO]   Creating Seurat object for 90_1 (GEM: GEM2)
+[2025-12-03 16:23:27] [INFO]   Completed 90_1: 1467 cells
+[2025-12-03 16:23:27] [INFO]   Creating Seurat object for 88_1 (GEM: GEM2)
+[2025-12-03 16:23:34] [INFO]   Completed 88_1: 2353 cells
+[2025-12-03 16:23:34] [INFO]   Creating Seurat object for 82_1 (GEM: GEM2)
+[2025-12-03 16:23:39] [INFO]   Completed 82_1: 2145 cells
+[2025-12-03 16:23:39] [INFO]   Creating Seurat object for 70_1 (GEM: GEM2)
+[2025-12-03 16:23:43] [INFO]   Completed 70_1: 2078 cells
+[2025-12-03 16:23:43] [INFO]   Creating Seurat object for 105_1 (GEM: GEM2)
+[2025-12-03 16:23:49] [INFO]   Completed 105_1: 1288 cells
+[2025-12-03 16:23:49] [INFO]   Creating Seurat object for 84_1 (GEM: GEM3)
+[2025-12-03 16:23:55] [INFO]   Completed 84_1: 1888 cells
+[2025-12-03 16:23:55] [INFO]   Creating Seurat object for 81_1 (GEM: GEM3)
+[2025-12-03 16:24:01] [INFO]   Completed 81_1: 1700 cells
+[2025-12-03 16:24:01] [INFO]   Creating Seurat object for 65_1 (GEM: GEM3)
+[2025-12-03 16:24:07] [INFO]   Completed 65_1: 2336 cells
+[2025-12-03 16:24:07] [INFO]   Creating Seurat object for 64_1 (GEM: GEM3)
+[2025-12-03 16:24:13] [INFO]   Completed 64_1: 2411 cells
+[2025-12-03 16:24:13] [INFO]   Creating Seurat object for 55_1 (GEM: GEM3)
+[2025-12-03 16:24:19] [INFO]   Completed 55_1: 3944 cells
+[2025-12-03 16:24:19] [INFO]   Creating Seurat object for 54_1 (GEM: GEM3)
+[2025-12-03 16:24:25] [INFO]   Completed 54_1: 784 cells
+[2025-12-03 16:24:25] [INFO]   Creating Seurat object for 83_1 (GEM: GEM4)
+[2025-12-03 16:24:30] [INFO]   Completed 83_1: 1699 cells
+[2025-12-03 16:24:30] [INFO]   Creating Seurat object for 76_1 (GEM: GEM4)
+[2025-12-03 16:24:35] [INFO]   Completed 76_1: 1654 cells
+[2025-12-03 16:24:35] [INFO]   Creating Seurat object for 53_1 (GEM: GEM4)
+[2025-12-03 16:24:39] [INFO]   Completed 53_1: 1683 cells
+[2025-12-03 16:24:39] [INFO]   Creating Seurat object for 44_1 (GEM: GEM4)
+[2025-12-03 16:24:44] [INFO]   Completed 44_1: 1741 cells
+[2025-12-03 16:24:44] [INFO]   Creating Seurat object for 41_1 (GEM: GEM4)
+[2025-12-03 16:24:47] [INFO]   Completed 41_1: 2119 cells
+[2025-12-03 16:24:47] [INFO]   Creating Seurat object for 34_1 (GEM: GEM4)
+[2025-12-03 16:24:52] [INFO]   Completed 34_1: 1689 cells
+[2025-12-03 16:24:52] [INFO]   Creating Seurat object for 46_1 (GEM: GEM5)
+[2025-12-03 16:24:58] [INFO]   Completed 46_1: 1934 cells
+[2025-12-03 16:24:58] [INFO]   Creating Seurat object for 33_1 (GEM: GEM5)
+[2025-12-03 16:25:04] [INFO]   Completed 33_1: 1854 cells
+[2025-12-03 16:25:04] [INFO]   Creating Seurat object for 43_1 (GEM: GEM5)
+[2025-12-03 16:25:10] [INFO]   Completed 43_1: 1470 cells
+[2025-12-03 16:25:10] [INFO]   Creating Seurat object for 38_2 (GEM: GEM5)
+[2025-12-03 16:25:17] [INFO]   Completed 38_2: 1633 cells
+[2025-12-03 16:25:17] [INFO]   Creating Seurat object for 32_1 (GEM: GEM5)
+[2025-12-03 16:25:23] [INFO]   Completed 32_1: 2008 cells
+[2025-12-03 16:25:23] [INFO]   Creating Seurat object for 71_1 (GEM: GEM5)
+[2025-12-03 16:25:29] [INFO]   Completed 71_1: 862 cells
+[2025-12-03 16:25:29] [INFO]   Creating Seurat object for 75_1 (GEM: GEM5)
+[2025-12-03 16:25:35] [INFO]   Completed 75_1: 2399 cells
+[2025-12-03 16:25:35] [INFO]   Creating Seurat object for 104_1 (GEM: GEM5)
+[2025-12-03 16:25:42] [INFO]   Completed 104_1: 1503 cells
+[2025-12-03 16:25:42] [INFO]   Creating Seurat object for 42_1 (GEM: GEM6)
+[2025-12-03 16:25:49] [INFO]   Completed 42_1: 545 cells
+[2025-12-03 16:25:49] [INFO]   Creating Seurat object for 80_2 (GEM: GEM6)
+[2025-12-03 16:25:56] [INFO]   Completed 80_2: 1742 cells
+[2025-12-03 16:25:56] [INFO]   Creating Seurat object for 29_1 (GEM: GEM6)
+[2025-12-03 16:26:02] [INFO]   Completed 29_1: 2349 cells
+[2025-12-03 16:26:02] [INFO]   Creating Seurat object for 60_1 (GEM: GEM6)
+[2025-12-03 16:26:09] [INFO]   Completed 60_1: 1946 cells
+[2025-12-03 16:26:09] [INFO]   Creating Seurat object for 36_1 (GEM: GEM6)
+[2025-12-03 16:26:16] [INFO]   Completed 36_1: 2571 cells
+[2025-12-03 16:26:16] [INFO]   Creating Seurat object for 31_1 (GEM: GEM6)
+[2025-12-03 16:26:22] [INFO]   Completed 31_1: 1838 cells
+[2025-12-03 16:26:22] [INFO]   Creating Seurat object for 59_1 (GEM: GEM6)
+[2025-12-03 16:26:29] [INFO]   Completed 59_1: 1964 cells
+[2025-12-03 16:26:29] [INFO]   Creating Seurat object for 68_1 (GEM: GEM6)
+[2025-12-03 16:26:37] [INFO]   Completed 68_1: 1657 cells
+[2025-12-03 16:26:37] [INFO]   Creating Seurat object for 35_1 (GEM: GEM7)
+[2025-12-03 16:26:44] [INFO]   Completed 35_1: 2023 cells
+[2025-12-03 16:26:44] [INFO]   Creating Seurat object for 117_1 (GEM: GEM7)
+[2025-12-03 16:26:50] [INFO]   Completed 117_1: 1825 cells
+[2025-12-03 16:26:50] [INFO]   Creating Seurat object for 100_1 (GEM: GEM7)
+[2025-12-03 16:26:57] [INFO]   Completed 100_1: 3136 cells
+[2025-12-03 16:26:57] [INFO]   Creating Seurat object for 51_1 (GEM: GEM7)
+[2025-12-03 16:27:03] [INFO]   Completed 51_1: 945 cells
+[2025-12-03 16:27:03] [INFO]   Creating Seurat object for 115_1 (GEM: GEM7)
+[2025-12-03 16:27:10] [INFO]   Completed 115_1: 2535 cells
+[2025-12-03 16:27:10] [INFO]   Creating Seurat object for 113_1 (GEM: GEM7)
+[2025-12-03 16:27:16] [INFO]   Completed 113_1: 2131 cells
+[2025-12-03 16:27:16] [INFO]   Creating Seurat object for 45_1 (GEM: GEM7)
+[2025-12-03 16:27:22] [INFO]   Completed 45_1: 1927 cells
+[2025-12-03 16:27:22] [INFO]   Creating Seurat object for 48_1 (GEM: GEM7)
+[2025-12-03 16:27:29] [INFO]   Completed 48_1: 2137 cells
+[2025-12-03 16:27:29] [INFO]   Creating Seurat object for 112_1 (GEM: GEM8)
+[2025-12-03 16:27:36] [INFO]   Completed 112_1: 1840 cells
+[2025-12-03 16:27:36] [INFO]   Creating Seurat object for 111_1 (GEM: GEM8)
+[2025-12-03 16:27:43] [INFO]   Completed 111_1: 1669 cells
+[2025-12-03 16:27:43] [INFO]   Creating Seurat object for 74_3 (GEM: GEM8)
+[2025-12-03 16:27:51] [INFO]   Completed 74_3: 654 cells
+[2025-12-03 16:27:51] [INFO]   Creating Seurat object for 16_1 (GEM: GEM8)
+[2025-12-03 16:27:59] [INFO]   Completed 16_1: 3599 cells
+[2025-12-03 16:27:59] [INFO]   Creating Seurat object for 103_1 (GEM: GEM8)
+[2025-12-03 16:28:07] [INFO]   Completed 103_1: 1350 cells
+[2025-12-03 16:28:07] [INFO]   Creating Seurat object for 110_1 (GEM: GEM8)
+[2025-12-03 16:28:13] [INFO]   Completed 110_1: 2314 cells
+[2025-12-03 16:28:13] [INFO]   Creating Seurat object for 85_1 (GEM: GEM8)
+[2025-12-03 16:28:21] [INFO]   Completed 85_1: 1714 cells
+[2025-12-03 16:28:21] [INFO]   Creating Seurat object for 93_1 (GEM: GEM8)
+[2025-12-03 16:28:28] [INFO]   Completed 93_1: 2005 cells
+[2025-12-03 16:28:28] [INFO] Saving results to: /data/user3/sobj/pipe/run_ag1/step1/step1_demulti_list.qs
+[2025-12-03 16:28:32] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step1/step1_demulti_list.qs
+[2025-12-03 16:28:32] [INFO] Step 1 completed: 56 samples processed (56 SNP, 0 HTO)
+
+========================================
+NEW RUN STARTED (same run_id: run_ag1)
+========================================
+[2025-12-03 16:28:46] Starting run: run_ag1
+[2025-12-03 16:28:46] [INFO] Step 2: Starting LogNormalize normalization and clustering
+[2025-12-03 16:28:46] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag1/step1/step1_demulti_list.qs
+[2025-12-03 16:28:52] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag1/step1/step1_demulti_list.qs
+[2025-12-03 16:28:52] [INFO] Processing 97_1
+[2025-12-03 16:28:52] [INFO]   Calculating QC metrics for 97_1
+[2025-12-03 16:28:53] [INFO]   QC filtering: 3666 -> 2576 cells
+[2025-12-03 16:28:53] [INFO]   Performing LogNormalize for 97_1
+[2025-12-03 16:28:54] [INFO]   Running PCA for 97_1
+[2025-12-03 16:28:55] [INFO]   Clustering for 97_1
+[2025-12-03 16:28:56] [INFO]   Completed 97_1: 2576 cells
+[2025-12-03 16:28:56] [INFO] Processing 95_1
+[2025-12-03 16:28:56] [INFO]   Calculating QC metrics for 95_1
+[2025-12-03 16:28:57] [INFO]   QC filtering: 2518 -> 2463 cells
+[2025-12-03 16:28:57] [INFO]   Performing LogNormalize for 95_1
+[2025-12-03 16:28:58] [INFO]   Running PCA for 95_1
+[2025-12-03 16:28:58] [INFO]   Clustering for 95_1
+[2025-12-03 16:29:00] [INFO]   Completed 95_1: 2463 cells
+[2025-12-03 16:29:00] [INFO] Processing 92_1
+[2025-12-03 16:29:00] [INFO]   Calculating QC metrics for 92_1
+[2025-12-03 16:29:00] [INFO]   QC filtering: 1858 -> 1814 cells
+[2025-12-03 16:29:00] [INFO]   Performing LogNormalize for 92_1
+[2025-12-03 16:29:01] [INFO]   Running PCA for 92_1
+[2025-12-03 16:29:01] [INFO]   Clustering for 92_1
+[2025-12-03 16:29:02] [INFO]   Completed 92_1: 1814 cells
+[2025-12-03 16:29:02] [INFO] Processing 89_1
+[2025-12-03 16:29:02] [INFO]   Calculating QC metrics for 89_1
+[2025-12-03 16:29:03] [INFO]   QC filtering: 2158 -> 2119 cells
+[2025-12-03 16:29:03] [INFO]   Performing LogNormalize for 89_1
+[2025-12-03 16:29:04] [INFO]   Running PCA for 89_1
+[2025-12-03 16:29:04] [INFO]   Clustering for 89_1
+[2025-12-03 16:29:05] [INFO]   Completed 89_1: 2119 cells
+[2025-12-03 16:29:05] [INFO] Processing 107_1
+[2025-12-03 16:29:05] [INFO]   Calculating QC metrics for 107_1
+[2025-12-03 16:29:06] [INFO]   QC filtering: 1877 -> 1824 cells
+[2025-12-03 16:29:06] [INFO]   Performing LogNormalize for 107_1
+[2025-12-03 16:29:07] [INFO]   Running PCA for 107_1
+[2025-12-03 16:29:07] [INFO]   Clustering for 107_1
+[2025-12-03 16:29:08] [INFO]   Completed 107_1: 1824 cells
+[2025-12-03 16:29:08] [INFO] Processing 106_1
+[2025-12-03 16:29:08] [INFO]   Calculating QC metrics for 106_1
+[2025-12-03 16:29:09] [INFO]   QC filtering: 1761 -> 1716 cells
+[2025-12-03 16:29:09] [INFO]   Performing LogNormalize for 106_1
+[2025-12-03 16:29:09] [INFO]   Running PCA for 106_1
+[2025-12-03 16:29:10] [INFO]   Clustering for 106_1
+[2025-12-03 16:29:11] [INFO]   Completed 106_1: 1716 cells
+[2025-12-03 16:29:11] [INFO] Processing 91_1
+[2025-12-03 16:29:11] [INFO]   Calculating QC metrics for 91_1
+[2025-12-03 16:29:11] [INFO]   QC filtering: 2547 -> 2541 cells
+[2025-12-03 16:29:11] [INFO]   Performing LogNormalize for 91_1
+[2025-12-03 16:29:12] [INFO]   Running PCA for 91_1
+[2025-12-03 16:29:13] [INFO]   Clustering for 91_1
+[2025-12-03 16:29:14] [INFO]   Completed 91_1: 2541 cells
+[2025-12-03 16:29:14] [INFO] Processing 90_1
+[2025-12-03 16:29:14] [INFO]   Calculating QC metrics for 90_1
+[2025-12-03 16:29:15] [INFO]   QC filtering: 1467 -> 1460 cells
+[2025-12-03 16:29:15] [INFO]   Performing LogNormalize for 90_1
+[2025-12-03 16:29:15] [INFO]   Running PCA for 90_1
+[2025-12-03 16:29:16] [INFO]   Clustering for 90_1
+[2025-12-03 16:29:17] [INFO]   Completed 90_1: 1460 cells
+[2025-12-03 16:29:17] [INFO] Processing 88_1
+[2025-12-03 16:29:17] [INFO]   Calculating QC metrics for 88_1
+[2025-12-03 16:29:17] [INFO]   QC filtering: 2353 -> 2347 cells
+[2025-12-03 16:29:17] [INFO]   Performing LogNormalize for 88_1
+[2025-12-03 16:29:18] [INFO]   Running PCA for 88_1
+[2025-12-03 16:29:19] [INFO]   Clustering for 88_1
+[2025-12-03 16:29:20] [INFO]   Completed 88_1: 2347 cells
+[2025-12-03 16:29:20] [INFO] Processing 82_1
+[2025-12-03 16:29:20] [INFO]   Calculating QC metrics for 82_1
+[2025-12-03 16:29:20] [INFO]   QC filtering: 2145 -> 2124 cells
+[2025-12-03 16:29:20] [INFO]   Performing LogNormalize for 82_1
+[2025-12-03 16:29:21] [INFO]   Running PCA for 82_1
+[2025-12-03 16:29:22] [INFO]   Clustering for 82_1
+[2025-12-03 16:29:23] [INFO]   Completed 82_1: 2124 cells
+[2025-12-03 16:29:23] [INFO] Processing 70_1
+[2025-12-03 16:29:23] [INFO]   Calculating QC metrics for 70_1
+[2025-12-03 16:29:23] [INFO]   QC filtering: 2078 -> 2069 cells
+[2025-12-03 16:29:23] [INFO]   Performing LogNormalize for 70_1
+[2025-12-03 16:29:24] [INFO]   Running PCA for 70_1
+[2025-12-03 16:29:25] [INFO]   Clustering for 70_1
+[2025-12-03 16:29:26] [INFO]   Completed 70_1: 2069 cells
+[2025-12-03 16:29:26] [INFO] Processing 105_1
+[2025-12-03 16:29:26] [INFO]   Calculating QC metrics for 105_1
+[2025-12-03 16:29:26] [INFO]   QC filtering: 1288 -> 1285 cells
+[2025-12-03 16:29:26] [INFO]   Performing LogNormalize for 105_1
+[2025-12-03 16:29:27] [INFO]   Running PCA for 105_1
+[2025-12-03 16:29:28] [INFO]   Clustering for 105_1
+[2025-12-03 16:29:29] [INFO]   Completed 105_1: 1285 cells
+[2025-12-03 16:29:29] [INFO] Processing 84_1
+[2025-12-03 16:29:29] [INFO]   Calculating QC metrics for 84_1
+[2025-12-03 16:29:29] [INFO]   QC filtering: 1888 -> 1887 cells
+[2025-12-03 16:29:29] [INFO]   Performing LogNormalize for 84_1
+[2025-12-03 16:29:30] [INFO]   Running PCA for 84_1
+[2025-12-03 16:29:30] [INFO]   Clustering for 84_1
+[2025-12-03 16:29:31] [INFO]   Completed 84_1: 1887 cells
+[2025-12-03 16:29:31] [INFO] Processing 81_1
+[2025-12-03 16:29:31] [INFO]   Calculating QC metrics for 81_1
+[2025-12-03 16:29:32] [INFO]   QC filtering: 1700 -> 1695 cells
+[2025-12-03 16:29:32] [INFO]   Performing LogNormalize for 81_1
+[2025-12-03 16:29:33] [INFO]   Running PCA for 81_1
+[2025-12-03 16:29:33] [INFO]   Clustering for 81_1
+[2025-12-03 16:29:34] [INFO]   Completed 81_1: 1695 cells
+[2025-12-03 16:29:34] [INFO] Processing 65_1
+[2025-12-03 16:29:34] [INFO]   Calculating QC metrics for 65_1
+[2025-12-03 16:29:34] [INFO]   QC filtering: 2336 -> 2329 cells
+[2025-12-03 16:29:34] [INFO]   Performing LogNormalize for 65_1
+[2025-12-03 16:29:35] [INFO]   Running PCA for 65_1
+[2025-12-03 16:29:36] [INFO]   Clustering for 65_1
+[2025-12-03 16:29:37] [INFO]   Completed 65_1: 2329 cells
+[2025-12-03 16:29:37] [INFO] Processing 64_1
+[2025-12-03 16:29:37] [INFO]   Calculating QC metrics for 64_1
+[2025-12-03 16:29:38] [INFO]   QC filtering: 2411 -> 2394 cells
+[2025-12-03 16:29:38] [INFO]   Performing LogNormalize for 64_1
+[2025-12-03 16:29:39] [INFO]   Running PCA for 64_1
+[2025-12-03 16:29:39] [INFO]   Clustering for 64_1
+[2025-12-03 16:29:41] [INFO]   Completed 64_1: 2394 cells
+[2025-12-03 16:29:41] [INFO] Processing 55_1
+[2025-12-03 16:29:41] [INFO]   Calculating QC metrics for 55_1
+[2025-12-03 16:29:41] [INFO]   QC filtering: 3944 -> 3930 cells
+[2025-12-03 16:29:41] [INFO]   Performing LogNormalize for 55_1
+[2025-12-03 16:29:42] [INFO]   Running PCA for 55_1
+[2025-12-03 16:29:44] [INFO]   Clustering for 55_1
+[2025-12-03 16:29:45] [INFO]   Completed 55_1: 3930 cells
+[2025-12-03 16:29:45] [INFO] Processing 54_1
+[2025-12-03 16:29:45] [INFO]   Calculating QC metrics for 54_1
+[2025-12-03 16:29:45] [INFO]   QC filtering: 784 -> 781 cells
+[2025-12-03 16:29:45] [INFO]   Performing LogNormalize for 54_1
+[2025-12-03 16:29:46] [INFO]   Running PCA for 54_1
+[2025-12-03 16:29:46] [INFO]   Clustering for 54_1
+[2025-12-03 16:29:47] [INFO]   Completed 54_1: 781 cells
+[2025-12-03 16:29:47] [INFO] Processing 83_1
+[2025-12-03 16:29:47] [INFO]   Calculating QC metrics for 83_1
+[2025-12-03 16:29:47] [INFO]   QC filtering: 1699 -> 1696 cells
+[2025-12-03 16:29:47] [INFO]   Performing LogNormalize for 83_1
+[2025-12-03 16:29:48] [INFO]   Running PCA for 83_1
+[2025-12-03 16:29:49] [INFO]   Clustering for 83_1
+[2025-12-03 16:29:50] [INFO]   Completed 83_1: 1696 cells
+[2025-12-03 16:29:50] [INFO] Processing 76_1
+[2025-12-03 16:29:50] [INFO]   Calculating QC metrics for 76_1
+[2025-12-03 16:29:50] [INFO]   QC filtering: 1654 -> 1650 cells
+[2025-12-03 16:29:50] [INFO]   Performing LogNormalize for 76_1
+[2025-12-03 16:29:51] [INFO]   Running PCA for 76_1
+[2025-12-03 16:29:51] [INFO]   Clustering for 76_1
+[2025-12-03 16:29:52] [INFO]   Completed 76_1: 1650 cells
+[2025-12-03 16:29:52] [INFO] Processing 53_1
+[2025-12-03 16:29:52] [INFO]   Calculating QC metrics for 53_1
+[2025-12-03 16:29:53] [INFO]   QC filtering: 1683 -> 1677 cells
+[2025-12-03 16:29:53] [INFO]   Performing LogNormalize for 53_1
+[2025-12-03 16:29:54] [INFO]   Running PCA for 53_1
+[2025-12-03 16:29:54] [INFO]   Clustering for 53_1
+[2025-12-03 16:29:55] [INFO]   Completed 53_1: 1677 cells
+[2025-12-03 16:29:55] [INFO] Processing 44_1
+[2025-12-03 16:29:55] [INFO]   Calculating QC metrics for 44_1
+[2025-12-03 16:29:55] [INFO]   QC filtering: 1741 -> 1736 cells
+[2025-12-03 16:29:55] [INFO]   Performing LogNormalize for 44_1
+[2025-12-03 16:29:56] [INFO]   Running PCA for 44_1
+[2025-12-03 16:29:57] [INFO]   Clustering for 44_1
+[2025-12-03 16:29:58] [INFO]   Completed 44_1: 1736 cells
+[2025-12-03 16:29:58] [INFO] Processing 41_1
+[2025-12-03 16:29:58] [INFO]   Calculating QC metrics for 41_1
+[2025-12-03 16:29:58] [INFO]   QC filtering: 2119 -> 2117 cells
+[2025-12-03 16:29:58] [INFO]   Performing LogNormalize for 41_1
+[2025-12-03 16:29:59] [INFO]   Running PCA for 41_1
+[2025-12-03 16:30:00] [INFO]   Clustering for 41_1
+[2025-12-03 16:30:01] [INFO]   Completed 41_1: 2117 cells
+[2025-12-03 16:30:01] [INFO] Processing 34_1
+[2025-12-03 16:30:01] [INFO]   Calculating QC metrics for 34_1
+[2025-12-03 16:30:01] [INFO]   QC filtering: 1689 -> 1668 cells
+[2025-12-03 16:30:01] [INFO]   Performing LogNormalize for 34_1
+[2025-12-03 16:30:02] [INFO]   Running PCA for 34_1
+[2025-12-03 16:30:02] [INFO]   Clustering for 34_1
+[2025-12-03 16:30:03] [INFO]   Completed 34_1: 1668 cells
+[2025-12-03 16:30:03] [INFO] Processing 46_1
+[2025-12-03 16:30:03] [INFO]   Calculating QC metrics for 46_1
+[2025-12-03 16:30:04] [INFO]   QC filtering: 1934 -> 1932 cells
+[2025-12-03 16:30:04] [INFO]   Performing LogNormalize for 46_1
+[2025-12-03 16:30:05] [INFO]   Running PCA for 46_1
+[2025-12-03 16:30:06] [INFO]   Clustering for 46_1
+[2025-12-03 16:30:07] [INFO]   Completed 46_1: 1932 cells
+[2025-12-03 16:30:07] [INFO] Processing 33_1
+[2025-12-03 16:30:07] [INFO]   Calculating QC metrics for 33_1
+[2025-12-03 16:30:07] [INFO]   QC filtering: 1854 -> 1827 cells
+[2025-12-03 16:30:07] [INFO]   Performing LogNormalize for 33_1
+[2025-12-03 16:30:08] [INFO]   Running PCA for 33_1
+[2025-12-03 16:30:09] [INFO]   Clustering for 33_1
+[2025-12-03 16:30:10] [INFO]   Completed 33_1: 1827 cells
+[2025-12-03 16:30:10] [INFO] Processing 43_1
+[2025-12-03 16:30:10] [INFO]   Calculating QC metrics for 43_1
+[2025-12-03 16:30:10] [INFO]   QC filtering: 1470 -> 1459 cells
+[2025-12-03 16:30:10] [INFO]   Performing LogNormalize for 43_1
+[2025-12-03 16:30:11] [INFO]   Running PCA for 43_1
+[2025-12-03 16:30:11] [INFO]   Clustering for 43_1
+[2025-12-03 16:30:12] [INFO]   Completed 43_1: 1459 cells
+[2025-12-03 16:30:12] [INFO] Processing 38_2
+[2025-12-03 16:30:12] [INFO]   Calculating QC metrics for 38_2
+[2025-12-03 16:30:12] [INFO]   QC filtering: 1633 -> 1622 cells
+[2025-12-03 16:30:12] [INFO]   Performing LogNormalize for 38_2
+[2025-12-03 16:30:13] [INFO]   Running PCA for 38_2
+[2025-12-03 16:30:14] [INFO]   Clustering for 38_2
+[2025-12-03 16:30:15] [INFO]   Completed 38_2: 1622 cells
+[2025-12-03 16:30:15] [INFO] Processing 32_1
+[2025-12-03 16:30:15] [INFO]   Calculating QC metrics for 32_1
+[2025-12-03 16:30:15] [INFO]   QC filtering: 2008 -> 2006 cells
+[2025-12-03 16:30:15] [INFO]   Performing LogNormalize for 32_1
+[2025-12-03 16:30:16] [INFO]   Running PCA for 32_1
+[2025-12-03 16:30:17] [INFO]   Clustering for 32_1
+[2025-12-03 16:30:18] [INFO]   Completed 32_1: 2006 cells
+[2025-12-03 16:30:18] [INFO] Processing 71_1
+[2025-12-03 16:30:18] [INFO]   Calculating QC metrics for 71_1
+[2025-12-03 16:30:18] [INFO]   QC filtering: 862 -> 855 cells
+[2025-12-03 16:30:18] [INFO]   Performing LogNormalize for 71_1
+[2025-12-03 16:30:19] [INFO]   Running PCA for 71_1
+[2025-12-03 16:30:19] [INFO]   Clustering for 71_1
+[2025-12-03 16:30:20] [INFO]   Completed 71_1: 855 cells
+[2025-12-03 16:30:20] [INFO] Processing 75_1
+[2025-12-03 16:30:20] [INFO]   Calculating QC metrics for 75_1
+[2025-12-03 16:30:20] [INFO]   QC filtering: 2399 -> 2385 cells
+[2025-12-03 16:30:20] [INFO]   Performing LogNormalize for 75_1
+[2025-12-03 16:30:21] [INFO]   Running PCA for 75_1
+[2025-12-03 16:30:22] [INFO]   Clustering for 75_1
+[2025-12-03 16:30:23] [INFO]   Completed 75_1: 2385 cells
+[2025-12-03 16:30:23] [INFO] Processing 104_1
+[2025-12-03 16:30:23] [INFO]   Calculating QC metrics for 104_1
+[2025-12-03 16:30:23] [INFO]   QC filtering: 1503 -> 1501 cells
+[2025-12-03 16:30:23] [INFO]   Performing LogNormalize for 104_1
+[2025-12-03 16:30:24] [INFO]   Running PCA for 104_1
+[2025-12-03 16:30:25] [INFO]   Clustering for 104_1
+[2025-12-03 16:30:26] [INFO]   Completed 104_1: 1501 cells
+[2025-12-03 16:30:26] [INFO] Processing 42_1
+[2025-12-03 16:30:26] [INFO]   Calculating QC metrics for 42_1
+[2025-12-03 16:30:26] [INFO]   QC filtering: 545 -> 544 cells
+[2025-12-03 16:30:26] [INFO]   Performing LogNormalize for 42_1
+[2025-12-03 16:30:27] [INFO]   Running PCA for 42_1
+[2025-12-03 16:30:27] [INFO]   Clustering for 42_1
+[2025-12-03 16:30:28] [INFO]   Completed 42_1: 544 cells
+[2025-12-03 16:30:28] [INFO] Processing 80_2
+[2025-12-03 16:30:28] [INFO]   Calculating QC metrics for 80_2
+[2025-12-03 16:30:28] [INFO]   QC filtering: 1742 -> 1739 cells
+[2025-12-03 16:30:28] [INFO]   Performing LogNormalize for 80_2
+[2025-12-03 16:30:29] [INFO]   Running PCA for 80_2
+[2025-12-03 16:30:29] [INFO]   Clustering for 80_2
+[2025-12-03 16:30:30] [INFO]   Completed 80_2: 1739 cells
+[2025-12-03 16:30:30] [INFO] Processing 29_1
+[2025-12-03 16:30:30] [INFO]   Calculating QC metrics for 29_1
+[2025-12-03 16:30:31] [INFO]   QC filtering: 2349 -> 2338 cells
+[2025-12-03 16:30:31] [INFO]   Performing LogNormalize for 29_1
+[2025-12-03 16:30:32] [INFO]   Running PCA for 29_1
+[2025-12-03 16:30:32] [INFO]   Clustering for 29_1
+[2025-12-03 16:30:34] [INFO]   Completed 29_1: 2338 cells
+[2025-12-03 16:30:34] [INFO] Processing 60_1
+[2025-12-03 16:30:34] [INFO]   Calculating QC metrics for 60_1
+[2025-12-03 16:30:34] [INFO]   QC filtering: 1946 -> 1939 cells
+[2025-12-03 16:30:34] [INFO]   Performing LogNormalize for 60_1
+[2025-12-03 16:30:35] [INFO]   Running PCA for 60_1
+[2025-12-03 16:30:35] [INFO]   Clustering for 60_1
+[2025-12-03 16:30:37] [INFO]   Completed 60_1: 1939 cells
+[2025-12-03 16:30:37] [INFO] Processing 36_1
+[2025-12-03 16:30:37] [INFO]   Calculating QC metrics for 36_1
+[2025-12-03 16:30:37] [INFO]   QC filtering: 2571 -> 2563 cells
+[2025-12-03 16:30:37] [INFO]   Performing LogNormalize for 36_1
+[2025-12-03 16:30:38] [INFO]   Running PCA for 36_1
+[2025-12-03 16:30:39] [INFO]   Clustering for 36_1
+[2025-12-03 16:30:40] [INFO]   Completed 36_1: 2563 cells
+[2025-12-03 16:30:40] [INFO] Processing 31_1
+[2025-12-03 16:30:40] [INFO]   Calculating QC metrics for 31_1
+[2025-12-03 16:30:41] [INFO]   QC filtering: 1838 -> 1828 cells
+[2025-12-03 16:30:41] [INFO]   Performing LogNormalize for 31_1
+[2025-12-03 16:30:41] [INFO]   Running PCA for 31_1
+[2025-12-03 16:30:42] [INFO]   Clustering for 31_1
+[2025-12-03 16:30:43] [INFO]   Completed 31_1: 1828 cells
+[2025-12-03 16:30:43] [INFO] Processing 59_1
+[2025-12-03 16:30:43] [INFO]   Calculating QC metrics for 59_1
+[2025-12-03 16:30:43] [INFO]   QC filtering: 1964 -> 1957 cells
+[2025-12-03 16:30:43] [INFO]   Performing LogNormalize for 59_1
+[2025-12-03 16:30:44] [INFO]   Running PCA for 59_1
+[2025-12-03 16:30:45] [INFO]   Clustering for 59_1
+[2025-12-03 16:30:46] [INFO]   Completed 59_1: 1957 cells
+[2025-12-03 16:30:46] [INFO] Processing 68_1
+[2025-12-03 16:30:46] [INFO]   Calculating QC metrics for 68_1
+[2025-12-03 16:30:46] [INFO]   QC filtering: 1657 -> 1645 cells
+[2025-12-03 16:30:46] [INFO]   Performing LogNormalize for 68_1
+[2025-12-03 16:30:47] [INFO]   Running PCA for 68_1
+[2025-12-03 16:30:48] [INFO]   Clustering for 68_1
+[2025-12-03 16:30:49] [INFO]   Completed 68_1: 1645 cells
+[2025-12-03 16:30:49] [INFO] Processing 35_1
+[2025-12-03 16:30:49] [INFO]   Calculating QC metrics for 35_1
+[2025-12-03 16:30:49] [INFO]   QC filtering: 2023 -> 2010 cells
+[2025-12-03 16:30:49] [INFO]   Performing LogNormalize for 35_1
+[2025-12-03 16:30:50] [INFO]   Running PCA for 35_1
+[2025-12-03 16:30:50] [INFO]   Clustering for 35_1
+[2025-12-03 16:30:52] [INFO]   Completed 35_1: 2010 cells
+[2025-12-03 16:30:52] [INFO] Processing 117_1
+[2025-12-03 16:30:52] [INFO]   Calculating QC metrics for 117_1
+[2025-12-03 16:30:52] [INFO]   QC filtering: 1825 -> 1816 cells
+[2025-12-03 16:30:52] [INFO]   Performing LogNormalize for 117_1
+[2025-12-03 16:30:53] [INFO]   Running PCA for 117_1
+[2025-12-03 16:30:54] [INFO]   Clustering for 117_1
+[2025-12-03 16:30:55] [INFO]   Completed 117_1: 1816 cells
+[2025-12-03 16:30:55] [INFO] Processing 100_1
+[2025-12-03 16:30:55] [INFO]   Calculating QC metrics for 100_1
+[2025-12-03 16:30:55] [INFO]   QC filtering: 3136 -> 3126 cells
+[2025-12-03 16:30:55] [INFO]   Performing LogNormalize for 100_1
+[2025-12-03 16:30:56] [INFO]   Running PCA for 100_1
+[2025-12-03 16:30:57] [INFO]   Clustering for 100_1
+[2025-12-03 16:30:58] [INFO]   Completed 100_1: 3126 cells
+[2025-12-03 16:30:58] [INFO] Processing 51_1
+[2025-12-03 16:30:58] [INFO]   Calculating QC metrics for 51_1
+[2025-12-03 16:30:59] [INFO]   QC filtering: 945 -> 936 cells
+[2025-12-03 16:30:59] [INFO]   Performing LogNormalize for 51_1
+[2025-12-03 16:30:59] [INFO]   Running PCA for 51_1
+[2025-12-03 16:31:00] [INFO]   Clustering for 51_1
+[2025-12-03 16:31:01] [INFO]   Completed 51_1: 936 cells
+[2025-12-03 16:31:01] [INFO] Processing 115_1
+[2025-12-03 16:31:01] [INFO]   Calculating QC metrics for 115_1
+[2025-12-03 16:31:01] [INFO]   QC filtering: 2535 -> 2517 cells
+[2025-12-03 16:31:01] [INFO]   Performing LogNormalize for 115_1
+[2025-12-03 16:31:02] [INFO]   Running PCA for 115_1
+[2025-12-03 16:31:03] [INFO]   Clustering for 115_1
+[2025-12-03 16:31:04] [INFO]   Completed 115_1: 2517 cells
+[2025-12-03 16:31:04] [INFO] Processing 113_1
+[2025-12-03 16:31:04] [INFO]   Calculating QC metrics for 113_1
+[2025-12-03 16:31:05] [INFO]   QC filtering: 2131 -> 2126 cells
+[2025-12-03 16:31:05] [INFO]   Performing LogNormalize for 113_1
+[2025-12-03 16:31:06] [INFO]   Running PCA for 113_1
+[2025-12-03 16:31:06] [INFO]   Clustering for 113_1
+[2025-12-03 16:31:07] [INFO]   Completed 113_1: 2126 cells
+[2025-12-03 16:31:07] [INFO] Processing 45_1
+[2025-12-03 16:31:07] [INFO]   Calculating QC metrics for 45_1
+[2025-12-03 16:31:08] [INFO]   QC filtering: 1927 -> 1904 cells
+[2025-12-03 16:31:08] [INFO]   Performing LogNormalize for 45_1
+[2025-12-03 16:31:09] [INFO]   Running PCA for 45_1
+[2025-12-03 16:31:09] [INFO]   Clustering for 45_1
+[2025-12-03 16:31:10] [INFO]   Completed 45_1: 1904 cells
+[2025-12-03 16:31:10] [INFO] Processing 48_1
+[2025-12-03 16:31:10] [INFO]   Calculating QC metrics for 48_1
+[2025-12-03 16:31:10] [INFO]   QC filtering: 2137 -> 2133 cells
+[2025-12-03 16:31:10] [INFO]   Performing LogNormalize for 48_1
+[2025-12-03 16:31:11] [INFO]   Running PCA for 48_1
+[2025-12-03 16:31:12] [INFO]   Clustering for 48_1
+[2025-12-03 16:31:13] [INFO]   Completed 48_1: 2133 cells
+[2025-12-03 16:31:13] [INFO] Processing 112_1
+[2025-12-03 16:31:13] [INFO]   Calculating QC metrics for 112_1
+[2025-12-03 16:31:14] [INFO]   QC filtering: 1840 -> 1824 cells
+[2025-12-03 16:31:14] [INFO]   Performing LogNormalize for 112_1
+[2025-12-03 16:31:14] [INFO]   Running PCA for 112_1
+[2025-12-03 16:31:15] [INFO]   Clustering for 112_1
+[2025-12-03 16:31:16] [INFO]   Completed 112_1: 1824 cells
+[2025-12-03 16:31:16] [INFO] Processing 111_1
+[2025-12-03 16:31:16] [INFO]   Calculating QC metrics for 111_1
+[2025-12-03 16:31:16] [INFO]   QC filtering: 1669 -> 1649 cells
+[2025-12-03 16:31:16] [INFO]   Performing LogNormalize for 111_1
+[2025-12-03 16:31:17] [INFO]   Running PCA for 111_1
+[2025-12-03 16:31:18] [INFO]   Clustering for 111_1
+[2025-12-03 16:31:19] [INFO]   Completed 111_1: 1649 cells
+[2025-12-03 16:31:19] [INFO] Processing 74_3
+[2025-12-03 16:31:19] [INFO]   Calculating QC metrics for 74_3
+[2025-12-03 16:31:19] [INFO]   QC filtering: 654 -> 631 cells
+[2025-12-03 16:31:19] [INFO]   Performing LogNormalize for 74_3
+[2025-12-03 16:31:20] [INFO]   Running PCA for 74_3
+[2025-12-03 16:31:20] [INFO]   Clustering for 74_3
+[2025-12-03 16:31:21] [INFO]   Completed 74_3: 631 cells
+[2025-12-03 16:31:21] [INFO] Processing 16_1
+[2025-12-03 16:31:21] [INFO]   Calculating QC metrics for 16_1
+[2025-12-03 16:31:21] [INFO]   QC filtering: 3599 -> 3448 cells
+[2025-12-03 16:31:21] [INFO]   Performing LogNormalize for 16_1
+[2025-12-03 16:31:23] [INFO]   Running PCA for 16_1
+[2025-12-03 16:31:24] [INFO]   Clustering for 16_1
+[2025-12-03 16:31:25] [INFO]   Completed 16_1: 3448 cells
+[2025-12-03 16:31:25] [INFO] Processing 103_1
+[2025-12-03 16:31:25] [INFO]   Calculating QC metrics for 103_1
+[2025-12-03 16:31:25] [INFO]   QC filtering: 1350 -> 1343 cells
+[2025-12-03 16:31:25] [INFO]   Performing LogNormalize for 103_1
+[2025-12-03 16:31:26] [INFO]   Running PCA for 103_1
+[2025-12-03 16:31:27] [INFO]   Clustering for 103_1
+[2025-12-03 16:31:28] [INFO]   Completed 103_1: 1343 cells
+[2025-12-03 16:31:28] [INFO] Processing 110_1
+[2025-12-03 16:31:28] [INFO]   Calculating QC metrics for 110_1
+[2025-12-03 16:31:28] [INFO]   QC filtering: 2314 -> 2295 cells
+[2025-12-03 16:31:28] [INFO]   Performing LogNormalize for 110_1
+[2025-12-03 16:31:29] [INFO]   Running PCA for 110_1
+[2025-12-03 16:31:30] [INFO]   Clustering for 110_1
+[2025-12-03 16:31:31] [INFO]   Completed 110_1: 2295 cells
+[2025-12-03 16:31:31] [INFO] Processing 85_1
+[2025-12-03 16:31:31] [INFO]   Calculating QC metrics for 85_1
+[2025-12-03 16:31:31] [INFO]   QC filtering: 1714 -> 1692 cells
+[2025-12-03 16:31:31] [INFO]   Performing LogNormalize for 85_1
+[2025-12-03 16:31:32] [INFO]   Running PCA for 85_1
+[2025-12-03 16:31:33] [INFO]   Clustering for 85_1
+[2025-12-03 16:31:34] [INFO]   Completed 85_1: 1692 cells
+[2025-12-03 16:31:34] [INFO] Processing 93_1
+[2025-12-03 16:31:34] [INFO]   Calculating QC metrics for 93_1
+[2025-12-03 16:31:34] [INFO]   QC filtering: 2005 -> 1982 cells
+[2025-12-03 16:31:34] [INFO]   Performing LogNormalize for 93_1
+[2025-12-03 16:31:35] [INFO]   Running PCA for 93_1
+[2025-12-03 16:31:35] [INFO]   Clustering for 93_1
+[2025-12-03 16:31:37] [INFO]   Completed 93_1: 1982 cells
+[2025-12-03 16:31:37] [INFO] Saving results to: /data/user3/sobj/pipe/run_ag1/step2/step2_nmz_list.qs
+[2025-12-03 16:31:59] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step2/step2_nmz_list.qs
+[2025-12-03 16:31:59] [INFO] Step 2 completed: 56 samples processed
+
+========================================
+NEW RUN STARTED (same run_id: run_ag1)
+========================================
+[2025-12-03 16:32:12] Starting run: run_ag1
+[2025-12-03 16:32:12] [INFO] Step 3: Starting SoupX ambient RNA removal
+[2025-12-03 16:32:12] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag1/step2/step2_nmz_list.qs
+[2025-12-03 16:32:27] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag1/step2/step2_nmz_list.qs
+[2025-12-03 16:32:27] [INFO] Processing 97_1
+[2025-12-03 16:32:27] [INFO]   Loading raw counts for 97_1
+[2025-12-03 16:32:33] [INFO]   Running SoupX for 97_1
+[2025-12-03 16:32:33] [INFO]   autoEstCont attempt 1 for 97_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:32:37] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_97_1.pdf
+[2025-12-03 16:32:42] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_97_1.pdf
+[2025-12-03 16:32:42] [INFO]   Adjusting counts for 97_1
+[2025-12-03 16:32:47] [INFO]   Completed 97_1: 2576 cells
+[2025-12-03 16:32:47] [INFO] Processing 95_1
+[2025-12-03 16:32:47] [INFO]   Loading raw counts for 95_1
+[2025-12-03 16:32:52] [INFO]   Running SoupX for 95_1
+[2025-12-03 16:32:52] [INFO]   autoEstCont attempt 1 for 95_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:32:57] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_95_1.pdf
+[2025-12-03 16:33:01] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_95_1.pdf
+[2025-12-03 16:33:01] [INFO]   Adjusting counts for 95_1
+[2025-12-03 16:33:06] [INFO]   Completed 95_1: 2463 cells
+[2025-12-03 16:33:06] [INFO] Processing 92_1
+[2025-12-03 16:33:06] [INFO]   Loading raw counts for 92_1
+[2025-12-03 16:33:12] [INFO]   Running SoupX for 92_1
+[2025-12-03 16:33:12] [INFO]   autoEstCont attempt 1 for 92_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:33:16] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_92_1.pdf
+[2025-12-03 16:33:21] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 92_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:33:21] [INFO]   Adjusting counts for 92_1
+[2025-12-03 16:33:28] [INFO]   Completed 92_1: 1814 cells
+[2025-12-03 16:33:28] [INFO] Processing 89_1
+[2025-12-03 16:33:28] [INFO]   Loading raw counts for 89_1
+[2025-12-03 16:33:34] [INFO]   Running SoupX for 89_1
+[2025-12-03 16:33:34] [INFO]   autoEstCont attempt 1 for 89_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:33:38] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_89_1.pdf
+[2025-12-03 16:33:43] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_89_1.pdf
+[2025-12-03 16:33:43] [INFO]   Adjusting counts for 89_1
+[2025-12-03 16:33:47] [INFO]   Completed 89_1: 2119 cells
+[2025-12-03 16:33:47] [INFO] Processing 107_1
+[2025-12-03 16:33:47] [INFO]   Loading raw counts for 107_1
+[2025-12-03 16:33:53] [INFO]   Running SoupX for 107_1
+[2025-12-03 16:33:53] [INFO]   autoEstCont attempt 1 for 107_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:33:56] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_107_1.pdf
+[2025-12-03 16:34:00] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_107_1.pdf
+[2025-12-03 16:34:00] [INFO]   Adjusting counts for 107_1
+[2025-12-03 16:34:04] [INFO]   Completed 107_1: 1824 cells
+[2025-12-03 16:34:04] [INFO] Processing 106_1
+[2025-12-03 16:34:04] [INFO]   Loading raw counts for 106_1
+[2025-12-03 16:34:09] [INFO]   Running SoupX for 106_1
+[2025-12-03 16:34:09] [INFO]   autoEstCont attempt 1 for 106_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:34:14] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_106_1.pdf
+[2025-12-03 16:34:17] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_106_1.pdf
+[2025-12-03 16:34:17] [INFO]   Adjusting counts for 106_1
+[2025-12-03 16:34:21] [INFO]   Completed 106_1: 1716 cells
+[2025-12-03 16:34:21] [INFO] Processing 91_1
+[2025-12-03 16:34:21] [INFO]   Loading raw counts for 91_1
+[2025-12-03 16:34:26] [INFO]   Running SoupX for 91_1
+[2025-12-03 16:34:27] [INFO]   autoEstCont attempt 1 for 91_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:34:32] [ERROR]   ERROR: autoEstCont attempt 1 failed for 91_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:34:32] [INFO]   autoEstCont attempt 2 for 91_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:34:38] [ERROR]   ERROR: autoEstCont attempt 2 failed for 91_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:34:38] [INFO]   autoEstCont attempt 3 for 91_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:34:44] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70
+[2025-12-03 16:34:44] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_91_1.pdf
+[2025-12-03 16:34:49] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 91_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:34:49] [INFO]   Adjusting counts for 91_1
+[2025-12-03 16:34:54] [INFO]   Completed 91_1: 2541 cells
+[2025-12-03 16:34:54] [INFO] Processing 90_1
+[2025-12-03 16:34:54] [INFO]   Loading raw counts for 90_1
+[2025-12-03 16:34:59] [INFO]   Running SoupX for 90_1
+[2025-12-03 16:35:00] [INFO]   autoEstCont attempt 1 for 90_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:35:03] [ERROR]   ERROR: autoEstCont attempt 1 failed for 90_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:35:03] [INFO]   autoEstCont attempt 2 for 90_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:35:06] [ERROR]   ERROR: autoEstCont attempt 2 failed for 90_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:35:06] [INFO]   autoEstCont attempt 3 for 90_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:35:10] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70
+[2025-12-03 16:35:10] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_90_1.pdf
+[2025-12-03 16:35:13] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 90_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:35:13] [INFO]   Adjusting counts for 90_1
+[2025-12-03 16:35:17] [INFO]   Completed 90_1: 1460 cells
+[2025-12-03 16:35:17] [INFO] Processing 88_1
+[2025-12-03 16:35:17] [INFO]   Loading raw counts for 88_1
+[2025-12-03 16:35:22] [INFO]   Running SoupX for 88_1
+[2025-12-03 16:35:22] [INFO]   autoEstCont attempt 1 for 88_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:35:27] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_88_1.pdf
+[2025-12-03 16:35:34] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_88_1.pdf
+[2025-12-03 16:35:34] [INFO]   Adjusting counts for 88_1
+[2025-12-03 16:35:39] [INFO]   Completed 88_1: 2347 cells
+[2025-12-03 16:35:39] [INFO] Processing 82_1
+[2025-12-03 16:35:39] [INFO]   Loading raw counts for 82_1
+[2025-12-03 16:35:44] [INFO]   Running SoupX for 82_1
+[2025-12-03 16:35:44] [INFO]   autoEstCont attempt 1 for 82_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:35:49] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_82_1.pdf
+[2025-12-03 16:35:54] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_82_1.pdf
+[2025-12-03 16:35:54] [INFO]   Adjusting counts for 82_1
+[2025-12-03 16:35:58] [INFO]   Completed 82_1: 2124 cells
+[2025-12-03 16:35:58] [INFO] Processing 70_1
+[2025-12-03 16:35:58] [INFO]   Loading raw counts for 70_1
+[2025-12-03 16:36:03] [INFO]   Running SoupX for 70_1
+[2025-12-03 16:36:03] [INFO]   autoEstCont attempt 1 for 70_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:36:07] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_70_1.pdf
+[2025-12-03 16:36:11] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 70_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:36:11] [INFO]   Adjusting counts for 70_1
+[2025-12-03 16:36:18] [INFO]   Completed 70_1: 2069 cells
+[2025-12-03 16:36:18] [INFO] Processing 105_1
+[2025-12-03 16:36:18] [INFO]   Loading raw counts for 105_1
+[2025-12-03 16:36:24] [INFO]   Running SoupX for 105_1
+[2025-12-03 16:36:24] [INFO]   autoEstCont attempt 1 for 105_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:36:27] [ERROR]   ERROR: autoEstCont attempt 1 failed for 105_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:36:27] [INFO]   autoEstCont attempt 2 for 105_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:36:29] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80
+[2025-12-03 16:36:29] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_105_1.pdf
+[2025-12-03 16:36:32] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_105_1.pdf
+[2025-12-03 16:36:32] [INFO]   Adjusting counts for 105_1
+[2025-12-03 16:36:35] [INFO]   Completed 105_1: 1285 cells
+[2025-12-03 16:36:35] [INFO] Processing 84_1
+[2025-12-03 16:36:35] [INFO]   Loading raw counts for 84_1
+[2025-12-03 16:36:40] [INFO]   Running SoupX for 84_1
+[2025-12-03 16:36:41] [INFO]   autoEstCont attempt 1 for 84_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:36:45] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_84_1.pdf
+[2025-12-03 16:36:50] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_84_1.pdf
+[2025-12-03 16:36:50] [INFO]   Adjusting counts for 84_1
+[2025-12-03 16:36:54] [INFO]   Completed 84_1: 1887 cells
+[2025-12-03 16:36:54] [INFO] Processing 81_1
+[2025-12-03 16:36:54] [INFO]   Loading raw counts for 81_1
+[2025-12-03 16:36:59] [INFO]   Running SoupX for 81_1
+[2025-12-03 16:37:00] [INFO]   autoEstCont attempt 1 for 81_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:37:04] [ERROR]   ERROR: autoEstCont attempt 1 failed for 81_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:37:04] [INFO]   autoEstCont attempt 2 for 81_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:37:08] [ERROR]   ERROR: autoEstCont attempt 2 failed for 81_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:37:08] [INFO]   autoEstCont attempt 3 for 81_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:37:12] [ERROR]   ERROR: autoEstCont attempt 3 failed for 81_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:37:12] [INFO]   autoEstCont attempt 4 for 81_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:37:15] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:37:15] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_81_1.pdf
+[2025-12-03 16:37:19] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 81_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:37:19] [INFO]   Adjusting counts for 81_1
+[2025-12-03 16:37:26] [INFO]   Completed 81_1: 1695 cells
+[2025-12-03 16:37:26] [INFO] Processing 65_1
+[2025-12-03 16:37:26] [INFO]   Loading raw counts for 65_1
+[2025-12-03 16:37:32] [INFO]   Running SoupX for 65_1
+[2025-12-03 16:37:32] [INFO]   autoEstCont attempt 1 for 65_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:37:36] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_65_1.pdf
+[2025-12-03 16:37:41] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_65_1.pdf
+[2025-12-03 16:37:41] [INFO]   Adjusting counts for 65_1
+[2025-12-03 16:37:46] [INFO]   Completed 65_1: 2329 cells
+[2025-12-03 16:37:46] [INFO] Processing 64_1
+[2025-12-03 16:37:46] [INFO]   Loading raw counts for 64_1
+[2025-12-03 16:37:51] [INFO]   Running SoupX for 64_1
+[2025-12-03 16:37:52] [INFO]   autoEstCont attempt 1 for 64_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:37:56] [ERROR]   ERROR: autoEstCont attempt 1 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:37:56] [INFO]   autoEstCont attempt 2 for 64_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:38:01] [ERROR]   ERROR: autoEstCont attempt 2 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:38:01] [INFO]   autoEstCont attempt 3 for 64_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:38:05] [ERROR]   ERROR: autoEstCont attempt 3 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:38:05] [INFO]   autoEstCont attempt 4 for 64_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:38:10] [ERROR]   ERROR: autoEstCont attempt 4 failed for 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:38:10] [INFO]   autoEstCont attempt 5 for 64_1 (tfidfMin=0.60, soupQuantile=0.50)
+[2025-12-03 16:38:15] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.60, soupQuantile=0.50
+[2025-12-03 16:38:15] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_64_1.pdf
+[2025-12-03 16:38:18] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 64_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:38:18] [INFO]   Adjusting counts for 64_1
+[2025-12-03 16:38:23] [INFO]   Completed 64_1: 2394 cells
+[2025-12-03 16:38:23] [INFO] Processing 55_1
+[2025-12-03 16:38:23] [INFO]   Loading raw counts for 55_1
+[2025-12-03 16:38:28] [INFO]   Running SoupX for 55_1
+[2025-12-03 16:38:29] [INFO]   autoEstCont attempt 1 for 55_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:38:35] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_55_1.pdf
+[2025-12-03 16:38:42] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_55_1.pdf
+[2025-12-03 16:38:42] [INFO]   Adjusting counts for 55_1
+[2025-12-03 16:38:49] [INFO]   Completed 55_1: 3930 cells
+[2025-12-03 16:38:49] [INFO] Processing 54_1
+[2025-12-03 16:38:49] [INFO]   Loading raw counts for 54_1
+[2025-12-03 16:38:54] [INFO]   Running SoupX for 54_1
+[2025-12-03 16:38:55] [INFO]   autoEstCont attempt 1 for 54_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:38:57] [ERROR]   ERROR: autoEstCont attempt 1 failed for 54_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:38:57] [INFO]   autoEstCont attempt 2 for 54_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:38:59] [ERROR]   ERROR: autoEstCont attempt 2 failed for 54_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:38:59] [INFO]   autoEstCont attempt 3 for 54_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:39:01] [ERROR]   ERROR: autoEstCont attempt 3 failed for 54_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:39:01] [INFO]   autoEstCont attempt 4 for 54_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:39:04] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:39:04] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_54_1.pdf
+[2025-12-03 16:39:06] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 54_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:39:06] [INFO]   Adjusting counts for 54_1
+[2025-12-03 16:39:09] [INFO]   Completed 54_1: 781 cells
+[2025-12-03 16:39:09] [INFO] Processing 83_1
+[2025-12-03 16:39:09] [INFO]   Loading raw counts for 83_1
+[2025-12-03 16:39:13] [INFO]   Running SoupX for 83_1
+[2025-12-03 16:39:14] [INFO]   autoEstCont attempt 1 for 83_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:39:19] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_83_1.pdf
+[2025-12-03 16:39:23] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_83_1.pdf
+[2025-12-03 16:39:23] [INFO]   Adjusting counts for 83_1
+[2025-12-03 16:39:26] [INFO]   Completed 83_1: 1696 cells
+[2025-12-03 16:39:26] [INFO] Processing 76_1
+[2025-12-03 16:39:26] [INFO]   Loading raw counts for 76_1
+[2025-12-03 16:39:31] [INFO]   Running SoupX for 76_1
+[2025-12-03 16:39:31] [INFO]   autoEstCont attempt 1 for 76_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:39:34] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_76_1.pdf
+[2025-12-03 16:39:38] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 76_1: invalid fitted means in empty model. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:39:38] [INFO]   Adjusting counts for 76_1
+[2025-12-03 16:39:44] [INFO]   Completed 76_1: 1650 cells
+[2025-12-03 16:39:44] [INFO] Processing 53_1
+[2025-12-03 16:39:44] [INFO]   Loading raw counts for 53_1
+[2025-12-03 16:39:48] [INFO]   Running SoupX for 53_1
+[2025-12-03 16:39:49] [INFO]   autoEstCont attempt 1 for 53_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:39:52] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_53_1.pdf
+[2025-12-03 16:39:56] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_53_1.pdf
+[2025-12-03 16:39:56] [INFO]   Adjusting counts for 53_1
+[2025-12-03 16:39:59] [INFO]   Completed 53_1: 1677 cells
+[2025-12-03 16:39:59] [INFO] Processing 44_1
+[2025-12-03 16:39:59] [INFO]   Loading raw counts for 44_1
+[2025-12-03 16:40:04] [INFO]   Running SoupX for 44_1
+[2025-12-03 16:40:04] [INFO]   autoEstCont attempt 1 for 44_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:40:08] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_44_1.pdf
+[2025-12-03 16:40:12] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_44_1.pdf
+[2025-12-03 16:40:12] [INFO]   Adjusting counts for 44_1
+[2025-12-03 16:40:16] [INFO]   Completed 44_1: 1736 cells
+[2025-12-03 16:40:16] [INFO] Processing 41_1
+[2025-12-03 16:40:16] [INFO]   Loading raw counts for 41_1
+[2025-12-03 16:40:21] [INFO]   Running SoupX for 41_1
+[2025-12-03 16:40:21] [INFO]   autoEstCont attempt 1 for 41_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:40:26] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_41_1.pdf
+[2025-12-03 16:40:32] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 41_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:40:32] [INFO]   Adjusting counts for 41_1
+[2025-12-03 16:40:36] [INFO]   Completed 41_1: 2117 cells
+[2025-12-03 16:40:36] [INFO] Processing 34_1
+[2025-12-03 16:40:36] [INFO]   Loading raw counts for 34_1
+[2025-12-03 16:40:41] [INFO]   Running SoupX for 34_1
+[2025-12-03 16:40:41] [INFO]   autoEstCont attempt 1 for 34_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:40:46] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_34_1.pdf
+[2025-12-03 16:40:49] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_34_1.pdf
+[2025-12-03 16:40:49] [INFO]   Adjusting counts for 34_1
+[2025-12-03 16:40:51] [INFO]   Completed 34_1: 1668 cells
+[2025-12-03 16:40:51] [INFO] Processing 46_1
+[2025-12-03 16:40:51] [INFO]   Loading raw counts for 46_1
+[2025-12-03 16:40:58] [INFO]   Running SoupX for 46_1
+[2025-12-03 16:40:58] [INFO]   autoEstCont attempt 1 for 46_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:41:02] [ERROR]   ERROR: autoEstCont attempt 1 failed for 46_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:41:02] [INFO]   autoEstCont attempt 2 for 46_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:41:05] [ERROR]   ERROR: autoEstCont attempt 2 failed for 46_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:41:05] [INFO]   autoEstCont attempt 3 for 46_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:41:09] [ERROR]   ERROR: autoEstCont attempt 3 failed for 46_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:41:09] [INFO]   autoEstCont attempt 4 for 46_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:41:13] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:41:13] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_46_1.pdf
+[2025-12-03 16:41:17] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 46_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:41:17] [INFO]   Adjusting counts for 46_1
+[2025-12-03 16:41:23] [INFO]   Completed 46_1: 1932 cells
+[2025-12-03 16:41:23] [INFO] Processing 33_1
+[2025-12-03 16:41:23] [INFO]   Loading raw counts for 33_1
+[2025-12-03 16:41:30] [INFO]   Running SoupX for 33_1
+[2025-12-03 16:41:30] [INFO]   autoEstCont attempt 1 for 33_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:41:35] [ERROR]   ERROR: autoEstCont attempt 1 failed for 33_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:41:35] [INFO]   autoEstCont attempt 2 for 33_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:41:40] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80
+[2025-12-03 16:41:40] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_33_1.pdf
+[2025-12-03 16:41:45] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 33_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:41:45] [INFO]   Adjusting counts for 33_1
+[2025-12-03 16:41:53] [INFO]   Completed 33_1: 1827 cells
+[2025-12-03 16:41:53] [INFO] Processing 43_1
+[2025-12-03 16:41:53] [INFO]   Loading raw counts for 43_1
+[2025-12-03 16:41:59] [INFO]   Running SoupX for 43_1
+[2025-12-03 16:41:59] [INFO]   autoEstCont attempt 1 for 43_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:42:04] [ERROR]   ERROR: autoEstCont attempt 1 failed for 43_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:42:04] [INFO]   autoEstCont attempt 2 for 43_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:42:07] [ERROR]   ERROR: autoEstCont attempt 2 failed for 43_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:42:07] [INFO]   autoEstCont attempt 3 for 43_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:42:11] [ERROR]   ERROR: autoEstCont attempt 3 failed for 43_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:42:11] [INFO]   autoEstCont attempt 4 for 43_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:42:15] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:42:15] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_43_1.pdf
+[2025-12-03 16:42:19] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 43_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:42:19] [INFO]   Adjusting counts for 43_1
+[2025-12-03 16:42:22] [INFO]   Completed 43_1: 1459 cells
+[2025-12-03 16:42:22] [INFO] Processing 38_2
+[2025-12-03 16:42:22] [INFO]   Loading raw counts for 38_2
+[2025-12-03 16:42:28] [INFO]   Running SoupX for 38_2
+[2025-12-03 16:42:28] [INFO]   autoEstCont attempt 1 for 38_2 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:42:32] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_38_2.pdf
+[2025-12-03 16:42:37] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_38_2.pdf
+[2025-12-03 16:42:37] [INFO]   Adjusting counts for 38_2
+[2025-12-03 16:42:40] [INFO]   Completed 38_2: 1622 cells
+[2025-12-03 16:42:40] [INFO] Processing 32_1
+[2025-12-03 16:42:40] [INFO]   Loading raw counts for 32_1
+[2025-12-03 16:42:47] [INFO]   Running SoupX for 32_1
+[2025-12-03 16:42:47] [INFO]   autoEstCont attempt 1 for 32_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:42:52] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_32_1.pdf
+[2025-12-03 16:42:58] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_32_1.pdf
+[2025-12-03 16:42:58] [INFO]   Adjusting counts for 32_1
+[2025-12-03 16:43:03] [INFO]   Completed 32_1: 2006 cells
+[2025-12-03 16:43:03] [INFO] Processing 71_1
+[2025-12-03 16:43:03] [INFO]   Loading raw counts for 71_1
+[2025-12-03 16:43:10] [INFO]   Running SoupX for 71_1
+[2025-12-03 16:43:10] [INFO]   autoEstCont attempt 1 for 71_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:43:14] [ERROR]   ERROR: autoEstCont attempt 1 failed for 71_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:43:14] [INFO]   autoEstCont attempt 2 for 71_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:43:17] [ERROR]   ERROR: autoEstCont attempt 2 failed for 71_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:43:17] [INFO]   autoEstCont attempt 3 for 71_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:43:20] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70
+[2025-12-03 16:43:20] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_71_1.pdf
+[2025-12-03 16:43:22] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 71_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:43:22] [INFO]   Adjusting counts for 71_1
+[2025-12-03 16:43:25] [INFO]   Completed 71_1: 855 cells
+[2025-12-03 16:43:25] [INFO] Processing 75_1
+[2025-12-03 16:43:25] [INFO]   Loading raw counts for 75_1
+[2025-12-03 16:43:31] [INFO]   Running SoupX for 75_1
+[2025-12-03 16:43:31] [INFO]   autoEstCont attempt 1 for 75_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:43:36] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_75_1.pdf
+[2025-12-03 16:43:43] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_75_1.pdf
+[2025-12-03 16:43:43] [INFO]   Adjusting counts for 75_1
+[2025-12-03 16:43:48] [INFO]   Completed 75_1: 2385 cells
+[2025-12-03 16:43:48] [INFO] Processing 104_1
+[2025-12-03 16:43:48] [INFO]   Loading raw counts for 104_1
+[2025-12-03 16:43:55] [INFO]   Running SoupX for 104_1
+[2025-12-03 16:43:55] [INFO]   autoEstCont attempt 1 for 104_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:43:58] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_104_1.pdf
+[2025-12-03 16:44:02] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_104_1.pdf
+[2025-12-03 16:44:02] [INFO]   Adjusting counts for 104_1
+[2025-12-03 16:44:05] [INFO]   Completed 104_1: 1501 cells
+[2025-12-03 16:44:05] [INFO] Processing 42_1
+[2025-12-03 16:44:05] [INFO]   Loading raw counts for 42_1
+[2025-12-03 16:44:12] [INFO]   Running SoupX for 42_1
+[2025-12-03 16:44:12] [INFO]   autoEstCont attempt 1 for 42_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:44:15] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_42_1.pdf
+[2025-12-03 16:44:18] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_42_1.pdf
+[2025-12-03 16:44:18] [INFO]   Adjusting counts for 42_1
+[2025-12-03 16:44:19] [INFO]   Completed 42_1: 544 cells
+[2025-12-03 16:44:19] [INFO] Processing 80_2
+[2025-12-03 16:44:19] [INFO]   Loading raw counts for 80_2
+[2025-12-03 16:44:27] [INFO]   Running SoupX for 80_2
+[2025-12-03 16:44:27] [INFO]   autoEstCont attempt 1 for 80_2 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:44:31] [ERROR]   ERROR: autoEstCont attempt 1 failed for 80_2: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:44:31] [INFO]   autoEstCont attempt 2 for 80_2 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:44:35] [ERROR]   ERROR: autoEstCont attempt 2 failed for 80_2: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:44:35] [INFO]   autoEstCont attempt 3 for 80_2 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:44:39] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70
+[2025-12-03 16:44:39] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_80_2.pdf
+[2025-12-03 16:44:44] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 80_2: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:44:44] [INFO]   Adjusting counts for 80_2
+[2025-12-03 16:44:48] [INFO]   Completed 80_2: 1739 cells
+[2025-12-03 16:44:48] [INFO] Processing 29_1
+[2025-12-03 16:44:48] [INFO]   Loading raw counts for 29_1
+[2025-12-03 16:44:55] [INFO]   Running SoupX for 29_1
+[2025-12-03 16:44:55] [INFO]   autoEstCont attempt 1 for 29_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:44:59] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_29_1.pdf
+[2025-12-03 16:45:04] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_29_1.pdf
+[2025-12-03 16:45:04] [INFO]   Adjusting counts for 29_1
+[2025-12-03 16:45:14] [INFO]   Completed 29_1: 2338 cells
+[2025-12-03 16:45:14] [INFO] Processing 60_1
+[2025-12-03 16:45:14] [INFO]   Loading raw counts for 60_1
+[2025-12-03 16:45:21] [INFO]   Running SoupX for 60_1
+[2025-12-03 16:45:21] [INFO]   autoEstCont attempt 1 for 60_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:45:26] [ERROR]   ERROR: autoEstCont attempt 1 failed for 60_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:45:26] [INFO]   autoEstCont attempt 2 for 60_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:45:30] [ERROR]   ERROR: autoEstCont attempt 2 failed for 60_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:45:30] [INFO]   autoEstCont attempt 3 for 60_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:45:34] [ERROR]   ERROR: autoEstCont attempt 3 failed for 60_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:45:34] [INFO]   autoEstCont attempt 4 for 60_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:45:40] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:45:40] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_60_1.pdf
+[2025-12-03 16:45:44] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 60_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:45:44] [INFO]   Adjusting counts for 60_1
+[2025-12-03 16:45:55] [INFO]   Completed 60_1: 1939 cells
+[2025-12-03 16:45:55] [INFO] Processing 36_1
+[2025-12-03 16:45:55] [INFO]   Loading raw counts for 36_1
+[2025-12-03 16:46:02] [INFO]   Running SoupX for 36_1
+[2025-12-03 16:46:02] [INFO]   autoEstCont attempt 1 for 36_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:46:09] [ERROR]   ERROR: autoEstCont attempt 1 failed for 36_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:46:09] [INFO]   autoEstCont attempt 2 for 36_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:46:13] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80
+[2025-12-03 16:46:13] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_36_1.pdf
+[2025-12-03 16:46:18] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 36_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:46:18] [INFO]   Adjusting counts for 36_1
+[2025-12-03 16:46:28] [INFO]   Completed 36_1: 2563 cells
+[2025-12-03 16:46:28] [INFO] Processing 31_1
+[2025-12-03 16:46:28] [INFO]   Loading raw counts for 31_1
+[2025-12-03 16:46:35] [INFO]   Running SoupX for 31_1
+[2025-12-03 16:46:36] [INFO]   autoEstCont attempt 1 for 31_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:46:39] [ERROR]   ERROR: autoEstCont attempt 1 failed for 31_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:46:39] [INFO]   autoEstCont attempt 2 for 31_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:46:43] [ERROR]   ERROR: autoEstCont attempt 2 failed for 31_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:46:43] [INFO]   autoEstCont attempt 3 for 31_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:46:47] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70
+[2025-12-03 16:46:47] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_31_1.pdf
+[2025-12-03 16:46:51] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 31_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:46:51] [INFO]   Adjusting counts for 31_1
+[2025-12-03 16:46:55] [INFO]   Completed 31_1: 1828 cells
+[2025-12-03 16:46:55] [INFO] Processing 59_1
+[2025-12-03 16:46:55] [INFO]   Loading raw counts for 59_1
+[2025-12-03 16:47:03] [INFO]   Running SoupX for 59_1
+[2025-12-03 16:47:03] [INFO]   autoEstCont attempt 1 for 59_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:47:08] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_59_1.pdf
+[2025-12-03 16:47:14] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_59_1.pdf
+[2025-12-03 16:47:14] [INFO]   Adjusting counts for 59_1
+[2025-12-03 16:47:22] [INFO]   Completed 59_1: 1957 cells
+[2025-12-03 16:47:22] [INFO] Processing 68_1
+[2025-12-03 16:47:22] [INFO]   Loading raw counts for 68_1
+[2025-12-03 16:47:29] [INFO]   Running SoupX for 68_1
+[2025-12-03 16:47:30] [INFO]   autoEstCont attempt 1 for 68_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:47:34] [ERROR]   ERROR: autoEstCont attempt 1 failed for 68_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:47:34] [INFO]   autoEstCont attempt 2 for 68_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:47:38] [ERROR]   ERROR: autoEstCont attempt 2 failed for 68_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:47:38] [INFO]   autoEstCont attempt 3 for 68_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:47:42] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70
+[2025-12-03 16:47:42] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_68_1.pdf
+[2025-12-03 16:47:46] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 68_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:47:46] [INFO]   Adjusting counts for 68_1
+[2025-12-03 16:47:55] [INFO]   Completed 68_1: 1645 cells
+[2025-12-03 16:47:55] [INFO] Processing 35_1
+[2025-12-03 16:47:55] [INFO]   Loading raw counts for 35_1
+[2025-12-03 16:48:02] [INFO]   Running SoupX for 35_1
+[2025-12-03 16:48:03] [INFO]   autoEstCont attempt 1 for 35_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:48:08] [ERROR]   ERROR: autoEstCont attempt 1 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:48:08] [INFO]   autoEstCont attempt 2 for 35_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:48:13] [ERROR]   ERROR: autoEstCont attempt 2 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:48:13] [INFO]   autoEstCont attempt 3 for 35_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:48:18] [ERROR]   ERROR: autoEstCont attempt 3 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:48:18] [INFO]   autoEstCont attempt 4 for 35_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:48:23] [ERROR]   ERROR: autoEstCont attempt 4 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:48:23] [INFO]   autoEstCont attempt 5 for 35_1 (tfidfMin=0.60, soupQuantile=0.50)
+[2025-12-03 16:48:29] [ERROR]   ERROR: autoEstCont attempt 5 failed for 35_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:48:29] [INFO]   autoEstCont attempt 6 for 35_1 (tfidfMin=0.50, soupQuantile=0.40)
+[2025-12-03 16:48:34] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.50, soupQuantile=0.40
+[2025-12-03 16:48:34] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_35_1.pdf
+[2025-12-03 16:48:38] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 35_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:48:38] [INFO]   Adjusting counts for 35_1
+[2025-12-03 16:48:43] [INFO]   Completed 35_1: 2010 cells
+[2025-12-03 16:48:43] [INFO] Processing 117_1
+[2025-12-03 16:48:43] [INFO]   Loading raw counts for 117_1
+[2025-12-03 16:48:50] [INFO]   Running SoupX for 117_1
+[2025-12-03 16:48:50] [INFO]   autoEstCont attempt 1 for 117_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:48:55] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_117_1.pdf
+[2025-12-03 16:49:00] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 117_1: invalid fitted means in empty model. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:49:00] [INFO]   Adjusting counts for 117_1
+[2025-12-03 16:49:04] [INFO]   Completed 117_1: 1816 cells
+[2025-12-03 16:49:04] [INFO] Processing 100_1
+[2025-12-03 16:49:04] [INFO]   Loading raw counts for 100_1
+[2025-12-03 16:49:12] [INFO]   Running SoupX for 100_1
+[2025-12-03 16:49:12] [INFO]   autoEstCont attempt 1 for 100_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:49:19] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_100_1.pdf
+[2025-12-03 16:49:27] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_100_1.pdf
+[2025-12-03 16:49:27] [INFO]   Adjusting counts for 100_1
+[2025-12-03 16:49:33] [INFO]   Completed 100_1: 3126 cells
+[2025-12-03 16:49:33] [INFO] Processing 51_1
+[2025-12-03 16:49:33] [INFO]   Loading raw counts for 51_1
+[2025-12-03 16:49:41] [INFO]   Running SoupX for 51_1
+[2025-12-03 16:49:41] [INFO]   autoEstCont attempt 1 for 51_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:49:44] [ERROR]   ERROR: autoEstCont attempt 1 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:49:44] [INFO]   autoEstCont attempt 2 for 51_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:49:47] [ERROR]   ERROR: autoEstCont attempt 2 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:49:47] [INFO]   autoEstCont attempt 3 for 51_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:49:51] [ERROR]   ERROR: autoEstCont attempt 3 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:49:51] [INFO]   autoEstCont attempt 4 for 51_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:49:54] [ERROR]   ERROR: autoEstCont attempt 4 failed for 51_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:49:54] [INFO]   autoEstCont attempt 5 for 51_1 (tfidfMin=0.60, soupQuantile=0.50)
+[2025-12-03 16:49:59] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.60, soupQuantile=0.50
+[2025-12-03 16:49:59] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_51_1.pdf
+[2025-12-03 16:50:01] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 51_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:50:01] [INFO]   Adjusting counts for 51_1
+[2025-12-03 16:50:04] [INFO]   Completed 51_1: 936 cells
+[2025-12-03 16:50:04] [INFO] Processing 115_1
+[2025-12-03 16:50:04] [INFO]   Loading raw counts for 115_1
+[2025-12-03 16:50:11] [INFO]   Running SoupX for 115_1
+[2025-12-03 16:50:12] [INFO]   autoEstCont attempt 1 for 115_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:50:16] [ERROR]   ERROR: autoEstCont attempt 1 failed for 115_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:50:16] [INFO]   autoEstCont attempt 2 for 115_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:50:21] [ERROR]   ERROR: autoEstCont attempt 2 failed for 115_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:50:21] [INFO]   autoEstCont attempt 3 for 115_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:50:26] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.80, soupQuantile=0.70
+[2025-12-03 16:50:26] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_115_1.pdf
+[2025-12-03 16:50:31] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 115_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:50:31] [INFO]   Adjusting counts for 115_1
+[2025-12-03 16:50:42] [INFO]   Completed 115_1: 2517 cells
+[2025-12-03 16:50:42] [INFO] Processing 113_1
+[2025-12-03 16:50:42] [INFO]   Loading raw counts for 113_1
+[2025-12-03 16:50:50] [INFO]   Running SoupX for 113_1
+[2025-12-03 16:50:50] [INFO]   autoEstCont attempt 1 for 113_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:50:54] [ERROR]   ERROR: autoEstCont attempt 1 failed for 113_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:50:54] [INFO]   autoEstCont attempt 2 for 113_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:50:58] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80
+[2025-12-03 16:50:58] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_113_1.pdf
+[2025-12-03 16:51:03] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 113_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:51:03] [INFO]   Adjusting counts for 113_1
+[2025-12-03 16:51:07] [INFO]   Completed 113_1: 2126 cells
+[2025-12-03 16:51:07] [INFO] Processing 45_1
+[2025-12-03 16:51:07] [INFO]   Loading raw counts for 45_1
+[2025-12-03 16:51:14] [INFO]   Running SoupX for 45_1
+[2025-12-03 16:51:14] [INFO]   autoEstCont attempt 1 for 45_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:51:19] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_45_1.pdf
+[2025-12-03 16:51:22] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_45_1.pdf
+[2025-12-03 16:51:22] [INFO]   Adjusting counts for 45_1
+[2025-12-03 16:51:26] [INFO]   Completed 45_1: 1904 cells
+[2025-12-03 16:51:26] [INFO] Processing 48_1
+[2025-12-03 16:51:26] [INFO]   Loading raw counts for 48_1
+[2025-12-03 16:51:33] [INFO]   Running SoupX for 48_1
+[2025-12-03 16:51:33] [INFO]   autoEstCont attempt 1 for 48_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:51:38] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_48_1.pdf
+[2025-12-03 16:51:43] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_48_1.pdf
+[2025-12-03 16:51:43] [INFO]   Adjusting counts for 48_1
+[2025-12-03 16:51:48] [INFO]   Completed 48_1: 2133 cells
+[2025-12-03 16:51:48] [INFO] Processing 112_1
+[2025-12-03 16:51:48] [INFO]   Loading raw counts for 112_1
+[2025-12-03 16:51:56] [INFO]   Running SoupX for 112_1
+[2025-12-03 16:51:56] [INFO]   autoEstCont attempt 1 for 112_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:52:00] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_112_1.pdf
+[2025-12-03 16:52:05] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_112_1.pdf
+[2025-12-03 16:52:05] [INFO]   Adjusting counts for 112_1
+[2025-12-03 16:52:10] [INFO]   Completed 112_1: 1824 cells
+[2025-12-03 16:52:10] [INFO] Processing 111_1
+[2025-12-03 16:52:10] [INFO]   Loading raw counts for 111_1
+[2025-12-03 16:52:18] [INFO]   Running SoupX for 111_1
+[2025-12-03 16:52:18] [INFO]   autoEstCont attempt 1 for 111_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:52:22] [ERROR]   ERROR: autoEstCont attempt 1 failed for 111_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:52:22] [INFO]   autoEstCont attempt 2 for 111_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:52:26] [ERROR]   ERROR: autoEstCont attempt 2 failed for 111_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:52:26] [INFO]   autoEstCont attempt 3 for 111_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:52:30] [ERROR]   ERROR: autoEstCont attempt 3 failed for 111_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:52:30] [INFO]   autoEstCont attempt 4 for 111_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:52:34] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:52:34] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_111_1.pdf
+[2025-12-03 16:52:38] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 111_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:52:38] [INFO]   Adjusting counts for 111_1
+[2025-12-03 16:52:45] [INFO]   Completed 111_1: 1649 cells
+[2025-12-03 16:52:45] [INFO] Processing 74_3
+[2025-12-03 16:52:45] [INFO]   Loading raw counts for 74_3
+[2025-12-03 16:52:53] [INFO]   Running SoupX for 74_3
+[2025-12-03 16:52:54] [INFO]   autoEstCont attempt 1 for 74_3 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:52:56] [ERROR]   ERROR: autoEstCont attempt 1 failed for 74_3: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:52:56] [INFO]   autoEstCont attempt 2 for 74_3 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:52:58] [ERROR]   ERROR: autoEstCont attempt 2 failed for 74_3: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:52:58] [INFO]   autoEstCont attempt 3 for 74_3 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:53:00] [ERROR]   ERROR: autoEstCont attempt 3 failed for 74_3: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:53:00] [INFO]   autoEstCont attempt 4 for 74_3 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:53:02] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:53:02] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_74_3.pdf
+[2025-12-03 16:53:04] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 74_3: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:53:04] [INFO]   Adjusting counts for 74_3
+[2025-12-03 16:53:06] [INFO]   Completed 74_3: 631 cells
+[2025-12-03 16:53:06] [INFO] Processing 16_1
+[2025-12-03 16:53:06] [INFO]   Loading raw counts for 16_1
+[2025-12-03 16:53:15] [INFO]   Running SoupX for 16_1
+[2025-12-03 16:53:15] [INFO]   autoEstCont attempt 1 for 16_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:53:22] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_16_1.pdf
+[2025-12-03 16:53:29] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 16_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:53:29] [INFO]   Adjusting counts for 16_1
+[2025-12-03 16:53:49] [INFO]   Completed 16_1: 3448 cells
+[2025-12-03 16:53:49] [INFO] Processing 103_1
+[2025-12-03 16:53:49] [INFO]   Loading raw counts for 103_1
+[2025-12-03 16:53:56] [INFO]   Running SoupX for 103_1
+[2025-12-03 16:53:57] [INFO]   autoEstCont attempt 1 for 103_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:54:00] [ERROR]   ERROR: autoEstCont attempt 1 failed for 103_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:54:00] [INFO]   autoEstCont attempt 2 for 103_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:54:04] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.90, soupQuantile=0.80
+[2025-12-03 16:54:04] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_103_1.pdf
+[2025-12-03 16:54:07] [INFO]   Saved Marker Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Marker_Distribution_103_1.pdf
+[2025-12-03 16:54:07] [INFO]   Adjusting counts for 103_1
+[2025-12-03 16:54:10] [INFO]   Completed 103_1: 1343 cells
+[2025-12-03 16:54:10] [INFO] Processing 110_1
+[2025-12-03 16:54:10] [INFO]   Loading raw counts for 110_1
+[2025-12-03 16:54:18] [INFO]   Running SoupX for 110_1
+[2025-12-03 16:54:18] [INFO]   autoEstCont attempt 1 for 110_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:54:23] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_110_1.pdf
+[2025-12-03 16:54:28] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 110_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:54:28] [INFO]   Adjusting counts for 110_1
+[2025-12-03 16:54:33] [INFO]   Completed 110_1: 2295 cells
+[2025-12-03 16:54:33] [INFO] Processing 85_1
+[2025-12-03 16:54:33] [INFO]   Loading raw counts for 85_1
+[2025-12-03 16:54:41] [INFO]   Running SoupX for 85_1
+[2025-12-03 16:54:41] [INFO]   autoEstCont attempt 1 for 85_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:54:45] [ERROR]   ERROR: autoEstCont attempt 1 failed for 85_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:54:45] [INFO]   autoEstCont attempt 2 for 85_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:54:48] [ERROR]   ERROR: autoEstCont attempt 2 failed for 85_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:54:48] [INFO]   autoEstCont attempt 3 for 85_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:54:51] [ERROR]   ERROR: autoEstCont attempt 3 failed for 85_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:54:51] [INFO]   autoEstCont attempt 4 for 85_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:54:55] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:54:55] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_85_1.pdf
+[2025-12-03 16:54:59] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 85_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:54:59] [INFO]   Adjusting counts for 85_1
+[2025-12-03 16:55:02] [INFO]   Completed 85_1: 1692 cells
+[2025-12-03 16:55:02] [INFO] Processing 93_1
+[2025-12-03 16:55:02] [INFO]   Loading raw counts for 93_1
+[2025-12-03 16:55:10] [INFO]   Running SoupX for 93_1
+[2025-12-03 16:55:11] [INFO]   autoEstCont attempt 1 for 93_1 (tfidfMin=1.00, soupQuantile=0.90)
+[2025-12-03 16:55:15] [ERROR]   ERROR: autoEstCont attempt 1 failed for 93_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:55:15] [INFO]   autoEstCont attempt 2 for 93_1 (tfidfMin=0.90, soupQuantile=0.80)
+[2025-12-03 16:55:19] [ERROR]   ERROR: autoEstCont attempt 2 failed for 93_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:55:19] [INFO]   autoEstCont attempt 3 for 93_1 (tfidfMin=0.80, soupQuantile=0.70)
+[2025-12-03 16:55:24] [ERROR]   ERROR: autoEstCont attempt 3 failed for 93_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile
+[2025-12-03 16:55:24] [INFO]   autoEstCont attempt 4 for 93_1 (tfidfMin=0.70, soupQuantile=0.60)
+[2025-12-03 16:55:28] [INFO]   autoEstCont succeeded after lowering thresholds to tfidfMin=0.70, soupQuantile=0.60
+[2025-12-03 16:55:28] [INFO]   Saved Rho Distribution plot: /data/user3/sobj/pipe/run_ag1/plots/step3_soupx/SoupX_Rho_Distribution_93_1.pdf
+[2025-12-03 16:55:32] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 93_1: subscript out of bounds. Try lowering soupx_tfidf_min or soupx_soup_quantile in config if markers are sparse.
+[2025-12-03 16:55:32] [INFO]   Adjusting counts for 93_1
+[2025-12-03 16:55:36] [INFO]   Completed 93_1: 1982 cells
+[2025-12-03 16:55:36] [INFO] Saving results to: /data/user3/sobj/pipe/run_ag1/step3/step3_soupx_list.qs
+[2025-12-03 16:55:44] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step3/step3_soupx_list.qs
+[2025-12-03 16:55:44] [INFO] Step 3 completed: 56 samples processed
+
+========================================
+NEW RUN STARTED (same run_id: run_ag1)
+========================================
+[2025-12-03 16:55:56] Starting run: run_ag1
+[2025-12-03 16:55:56] [INFO] Step 4: Starting SCTransform normalization
+[2025-12-03 16:55:56] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag1/step3/step3_soupx_list.qs
+[2025-12-03 16:56:03] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag1/step3/step3_soupx_list.qs
+[2025-12-03 16:56:03] [INFO] Processing 97_1
+[2025-12-03 16:56:03] [INFO]   Performing SCTransform for 97_1 (this may take a while)
+[2025-12-03 16:56:17] [INFO]   Running PCA for 97_1
+[2025-12-03 16:56:22] [INFO]   Completed 97_1: 2576 cells
+[2025-12-03 16:56:22] [INFO] Processing 95_1
+[2025-12-03 16:56:22] [INFO]   Performing SCTransform for 95_1 (this may take a while)
+[2025-12-03 16:56:32] [INFO]   Running PCA for 95_1
+[2025-12-03 16:56:35] [INFO]   Completed 95_1: 2463 cells
+[2025-12-03 16:56:35] [INFO] Processing 92_1
+[2025-12-03 16:56:35] [INFO]   Performing SCTransform for 92_1 (this may take a while)
+[2025-12-03 16:56:42] [INFO]   Running PCA for 92_1
+[2025-12-03 16:56:46] [INFO]   Completed 92_1: 1814 cells
+[2025-12-03 16:56:46] [INFO] Processing 89_1
+[2025-12-03 16:56:46] [INFO]   Performing SCTransform for 89_1 (this may take a while)
+[2025-12-03 16:56:54] [INFO]   Running PCA for 89_1
+[2025-12-03 16:56:58] [INFO]   Completed 89_1: 2119 cells
+[2025-12-03 16:56:58] [INFO] Processing 107_1
+[2025-12-03 16:56:58] [INFO]   Performing SCTransform for 107_1 (this may take a while)
+[2025-12-03 16:57:05] [INFO]   Running PCA for 107_1
+[2025-12-03 16:57:08] [INFO]   Completed 107_1: 1824 cells
+[2025-12-03 16:57:08] [INFO] Processing 106_1
+[2025-12-03 16:57:08] [INFO]   Performing SCTransform for 106_1 (this may take a while)
+[2025-12-03 16:57:15] [INFO]   Running PCA for 106_1
+[2025-12-03 16:57:17] [INFO]   Completed 106_1: 1716 cells
+[2025-12-03 16:57:17] [INFO] Processing 91_1
+[2025-12-03 16:57:17] [INFO]   Performing SCTransform for 91_1 (this may take a while)
+[2025-12-03 16:57:26] [INFO]   Running PCA for 91_1
+[2025-12-03 16:57:30] [INFO]   Completed 91_1: 2541 cells
+[2025-12-03 16:57:30] [INFO] Processing 90_1
+[2025-12-03 16:57:30] [INFO]   Performing SCTransform for 90_1 (this may take a while)
+[2025-12-03 16:57:36] [INFO]   Running PCA for 90_1
+[2025-12-03 16:57:38] [INFO]   Completed 90_1: 1460 cells
+[2025-12-03 16:57:38] [INFO] Processing 88_1
+[2025-12-03 16:57:38] [INFO]   Performing SCTransform for 88_1 (this may take a while)
+[2025-12-03 16:57:47] [INFO]   Running PCA for 88_1
+[2025-12-03 16:57:50] [INFO]   Completed 88_1: 2347 cells
+[2025-12-03 16:57:50] [INFO] Processing 82_1
+[2025-12-03 16:57:50] [INFO]   Performing SCTransform for 82_1 (this may take a while)
+[2025-12-03 16:57:58] [INFO]   Running PCA for 82_1
+[2025-12-03 16:58:03] [INFO]   Completed 82_1: 2124 cells
+[2025-12-03 16:58:03] [INFO] Processing 70_1
+[2025-12-03 16:58:03] [INFO]   Performing SCTransform for 70_1 (this may take a while)
+[2025-12-03 16:58:11] [INFO]   Running PCA for 70_1
+[2025-12-03 16:58:15] [INFO]   Completed 70_1: 2069 cells
+[2025-12-03 16:58:15] [INFO] Processing 105_1
+[2025-12-03 16:58:15] [INFO]   Performing SCTransform for 105_1 (this may take a while)
+[2025-12-03 16:58:20] [INFO]   Running PCA for 105_1
+[2025-12-03 16:58:22] [INFO]   Completed 105_1: 1285 cells
+[2025-12-03 16:58:22] [INFO] Processing 84_1
+[2025-12-03 16:58:22] [INFO]   Performing SCTransform for 84_1 (this may take a while)
+[2025-12-03 16:58:29] [INFO]   Running PCA for 84_1
+[2025-12-03 16:58:33] [INFO]   Completed 84_1: 1887 cells
+[2025-12-03 16:58:33] [INFO] Processing 81_1
+[2025-12-03 16:58:33] [INFO]   Performing SCTransform for 81_1 (this may take a while)
+[2025-12-03 16:58:39] [INFO]   Running PCA for 81_1
+[2025-12-03 16:58:42] [INFO]   Completed 81_1: 1695 cells
+[2025-12-03 16:58:42] [INFO] Processing 65_1
+[2025-12-03 16:58:42] [INFO]   Performing SCTransform for 65_1 (this may take a while)
+[2025-12-03 16:58:51] [INFO]   Running PCA for 65_1
+[2025-12-03 16:58:55] [INFO]   Completed 65_1: 2329 cells
+[2025-12-03 16:58:55] [INFO] Processing 64_1
+[2025-12-03 16:58:55] [INFO]   Performing SCTransform for 64_1 (this may take a while)
+[2025-12-03 16:59:04] [INFO]   Running PCA for 64_1
+[2025-12-03 16:59:09] [INFO]   Completed 64_1: 2394 cells
+[2025-12-03 16:59:09] [INFO] Processing 55_1
+[2025-12-03 16:59:09] [INFO]   Performing SCTransform for 55_1 (this may take a while)
+[2025-12-03 16:59:23] [INFO]   Running PCA for 55_1
+[2025-12-03 16:59:28] [INFO]   Completed 55_1: 3930 cells
+[2025-12-03 16:59:28] [INFO] Processing 54_1
+[2025-12-03 16:59:28] [INFO]   Performing SCTransform for 54_1 (this may take a while)
+[2025-12-03 16:59:32] [INFO]   Running PCA for 54_1
+[2025-12-03 16:59:33] [INFO]   Completed 54_1: 781 cells
+[2025-12-03 16:59:33] [INFO] Processing 83_1
+[2025-12-03 16:59:33] [INFO]   Performing SCTransform for 83_1 (this may take a while)
+[2025-12-03 16:59:39] [INFO]   Running PCA for 83_1
+[2025-12-03 16:59:41] [INFO]   Completed 83_1: 1696 cells
+[2025-12-03 16:59:41] [INFO] Processing 76_1
+[2025-12-03 16:59:41] [INFO]   Performing SCTransform for 76_1 (this may take a while)
+[2025-12-03 16:59:47] [INFO]   Running PCA for 76_1
+[2025-12-03 16:59:49] [INFO]   Completed 76_1: 1650 cells
+[2025-12-03 16:59:49] [INFO] Processing 53_1
+[2025-12-03 16:59:49] [INFO]   Performing SCTransform for 53_1 (this may take a while)
+[2025-12-03 16:59:56] [INFO]   Running PCA for 53_1
+[2025-12-03 16:59:59] [INFO]   Completed 53_1: 1677 cells
+[2025-12-03 16:59:59] [INFO] Processing 44_1
+[2025-12-03 16:59:59] [INFO]   Performing SCTransform for 44_1 (this may take a while)
+[2025-12-03 17:00:06] [INFO]   Running PCA for 44_1
+[2025-12-03 17:00:09] [INFO]   Completed 44_1: 1736 cells
+[2025-12-03 17:00:09] [INFO] Processing 41_1
+[2025-12-03 17:00:09] [INFO]   Performing SCTransform for 41_1 (this may take a while)
+[2025-12-03 17:00:17] [INFO]   Running PCA for 41_1
+[2025-12-03 17:00:20] [INFO]   Completed 41_1: 2117 cells
+[2025-12-03 17:00:20] [INFO] Processing 34_1
+[2025-12-03 17:00:20] [INFO]   Performing SCTransform for 34_1 (this may take a while)
+[2025-12-03 17:00:26] [INFO]   Running PCA for 34_1
+[2025-12-03 17:00:28] [INFO]   Completed 34_1: 1668 cells
+[2025-12-03 17:00:28] [INFO] Processing 46_1
+[2025-12-03 17:00:28] [INFO]   Performing SCTransform for 46_1 (this may take a while)
+[2025-12-03 17:00:36] [INFO]   Running PCA for 46_1
+[2025-12-03 17:00:39] [INFO]   Completed 46_1: 1932 cells
+[2025-12-03 17:00:39] [INFO] Processing 33_1
+[2025-12-03 17:00:39] [INFO]   Performing SCTransform for 33_1 (this may take a while)
+[2025-12-03 17:00:46] [INFO]   Running PCA for 33_1
+[2025-12-03 17:00:50] [INFO]   Completed 33_1: 1827 cells
+[2025-12-03 17:00:50] [INFO] Processing 43_1
+[2025-12-03 17:00:50] [INFO]   Performing SCTransform for 43_1 (this may take a while)
+[2025-12-03 17:00:55] [INFO]   Running PCA for 43_1
+[2025-12-03 17:00:58] [INFO]   Completed 43_1: 1459 cells
+[2025-12-03 17:00:58] [INFO] Processing 38_2
+[2025-12-03 17:00:58] [INFO]   Performing SCTransform for 38_2 (this may take a while)
+[2025-12-03 17:01:05] [INFO]   Running PCA for 38_2
+[2025-12-03 17:01:07] [INFO]   Completed 38_2: 1622 cells
+[2025-12-03 17:01:07] [INFO] Processing 32_1
+[2025-12-03 17:01:07] [INFO]   Performing SCTransform for 32_1 (this may take a while)
+[2025-12-03 17:01:15] [INFO]   Running PCA for 32_1
+[2025-12-03 17:01:20] [INFO]   Completed 32_1: 2006 cells
+[2025-12-03 17:01:20] [INFO] Processing 71_1
+[2025-12-03 17:01:20] [INFO]   Performing SCTransform for 71_1 (this may take a while)
+[2025-12-03 17:01:24] [INFO]   Running PCA for 71_1
+[2025-12-03 17:01:26] [INFO]   Completed 71_1: 855 cells
+[2025-12-03 17:01:26] [INFO] Processing 75_1
+[2025-12-03 17:01:26] [INFO]   Performing SCTransform for 75_1 (this may take a while)
+[2025-12-03 17:01:34] [INFO]   Running PCA for 75_1
+[2025-12-03 17:01:39] [INFO]   Completed 75_1: 2385 cells
+[2025-12-03 17:01:39] [INFO] Processing 104_1
+[2025-12-03 17:01:39] [INFO]   Performing SCTransform for 104_1 (this may take a while)
+[2025-12-03 17:01:45] [INFO]   Running PCA for 104_1
+[2025-12-03 17:01:48] [INFO]   Completed 104_1: 1501 cells
+[2025-12-03 17:01:48] [INFO] Processing 42_1
+[2025-12-03 17:01:48] [INFO]   Performing SCTransform for 42_1 (this may take a while)
+[2025-12-03 17:01:51] [INFO]   Running PCA for 42_1
+[2025-12-03 17:01:52] [INFO]   Completed 42_1: 544 cells
+[2025-12-03 17:01:52] [INFO] Processing 80_2
+[2025-12-03 17:01:52] [INFO]   Performing SCTransform for 80_2 (this may take a while)
+[2025-12-03 17:01:59] [INFO]   Running PCA for 80_2
+[2025-12-03 17:02:03] [INFO]   Completed 80_2: 1739 cells
+[2025-12-03 17:02:03] [INFO] Processing 29_1
+[2025-12-03 17:02:03] [INFO]   Performing SCTransform for 29_1 (this may take a while)
+[2025-12-03 17:02:12] [INFO]   Running PCA for 29_1
+[2025-12-03 17:02:16] [INFO]   Completed 29_1: 2338 cells
+[2025-12-03 17:02:16] [INFO] Processing 60_1
+[2025-12-03 17:02:16] [INFO]   Performing SCTransform for 60_1 (this may take a while)
+[2025-12-03 17:02:23] [INFO]   Running PCA for 60_1
+[2025-12-03 17:02:26] [INFO]   Completed 60_1: 1939 cells
+[2025-12-03 17:02:26] [INFO] Processing 36_1
+[2025-12-03 17:02:26] [INFO]   Performing SCTransform for 36_1 (this may take a while)
+[2025-12-03 17:02:35] [INFO]   Running PCA for 36_1
+[2025-12-03 17:02:38] [INFO]   Completed 36_1: 2563 cells
+[2025-12-03 17:02:38] [INFO] Processing 31_1
+[2025-12-03 17:02:38] [INFO]   Performing SCTransform for 31_1 (this may take a while)
+[2025-12-03 17:02:45] [INFO]   Running PCA for 31_1
+[2025-12-03 17:02:48] [INFO]   Completed 31_1: 1828 cells
+[2025-12-03 17:02:48] [INFO] Processing 59_1
+[2025-12-03 17:02:48] [INFO]   Performing SCTransform for 59_1 (this may take a while)
+[2025-12-03 17:02:56] [INFO]   Running PCA for 59_1
+[2025-12-03 17:02:59] [INFO]   Completed 59_1: 1957 cells
+[2025-12-03 17:02:59] [INFO] Processing 68_1
+[2025-12-03 17:02:59] [INFO]   Performing SCTransform for 68_1 (this may take a while)
+[2025-12-03 17:03:05] [INFO]   Running PCA for 68_1
+[2025-12-03 17:03:07] [INFO]   Completed 68_1: 1645 cells
+[2025-12-03 17:03:07] [INFO] Processing 35_1
+[2025-12-03 17:03:07] [INFO]   Performing SCTransform for 35_1 (this may take a while)
+[2025-12-03 17:03:15] [INFO]   Running PCA for 35_1
+[2025-12-03 17:03:18] [INFO]   Completed 35_1: 2010 cells
+[2025-12-03 17:03:18] [INFO] Processing 117_1
+[2025-12-03 17:03:18] [INFO]   Performing SCTransform for 117_1 (this may take a while)
+[2025-12-03 17:03:25] [INFO]   Running PCA for 117_1
+[2025-12-03 17:03:27] [INFO]   Completed 117_1: 1816 cells
+[2025-12-03 17:03:27] [INFO] Processing 100_1
+[2025-12-03 17:03:27] [INFO]   Performing SCTransform for 100_1 (this may take a while)
+[2025-12-03 17:03:38] [INFO]   Running PCA for 100_1
+[2025-12-03 17:03:42] [INFO]   Completed 100_1: 3126 cells
+[2025-12-03 17:03:42] [INFO] Processing 51_1
+[2025-12-03 17:03:42] [INFO]   Performing SCTransform for 51_1 (this may take a while)
+[2025-12-03 17:03:46] [INFO]   Running PCA for 51_1
+[2025-12-03 17:03:47] [INFO]   Completed 51_1: 936 cells
+[2025-12-03 17:03:47] [INFO] Processing 115_1
+[2025-12-03 17:03:47] [INFO]   Performing SCTransform for 115_1 (this may take a while)
+[2025-12-03 17:03:57] [INFO]   Running PCA for 115_1
+[2025-12-03 17:04:02] [INFO]   Completed 115_1: 2517 cells
+[2025-12-03 17:04:02] [INFO] Processing 113_1
+[2025-12-03 17:04:02] [INFO]   Performing SCTransform for 113_1 (this may take a while)
+[2025-12-03 17:04:10] [INFO]   Running PCA for 113_1
+[2025-12-03 17:04:15] [INFO]   Completed 113_1: 2126 cells
+[2025-12-03 17:04:15] [INFO] Processing 45_1
+[2025-12-03 17:04:15] [INFO]   Performing SCTransform for 45_1 (this may take a while)
+[2025-12-03 17:04:23] [INFO]   Running PCA for 45_1
+[2025-12-03 17:04:27] [INFO]   Completed 45_1: 1904 cells
+[2025-12-03 17:04:27] [INFO] Processing 48_1
+[2025-12-03 17:04:27] [INFO]   Performing SCTransform for 48_1 (this may take a while)
+[2025-12-03 17:04:35] [INFO]   Running PCA for 48_1
+[2025-12-03 17:04:39] [INFO]   Completed 48_1: 2133 cells
+[2025-12-03 17:04:39] [INFO] Processing 112_1
+[2025-12-03 17:04:39] [INFO]   Performing SCTransform for 112_1 (this may take a while)
+[2025-12-03 17:04:46] [INFO]   Running PCA for 112_1
+[2025-12-03 17:04:51] [INFO]   Completed 112_1: 1824 cells
+[2025-12-03 17:04:51] [INFO] Processing 111_1
+[2025-12-03 17:04:51] [INFO]   Performing SCTransform for 111_1 (this may take a while)
+[2025-12-03 17:04:57] [INFO]   Running PCA for 111_1
+[2025-12-03 17:05:00] [INFO]   Completed 111_1: 1649 cells
+[2025-12-03 17:05:00] [INFO] Processing 74_3
+[2025-12-03 17:05:00] [INFO]   Performing SCTransform for 74_3 (this may take a while)
+[2025-12-03 17:05:03] [INFO]   Running PCA for 74_3
+[2025-12-03 17:05:04] [INFO]   Completed 74_3: 631 cells
+[2025-12-03 17:05:04] [INFO] Processing 16_1
+[2025-12-03 17:05:04] [INFO]   Performing SCTransform for 16_1 (this may take a while)
+[2025-12-03 17:05:17] [INFO]   Running PCA for 16_1
+[2025-12-03 17:05:23] [INFO]   Completed 16_1: 3448 cells
+[2025-12-03 17:05:23] [INFO] Processing 103_1
+[2025-12-03 17:05:23] [INFO]   Performing SCTransform for 103_1 (this may take a while)
+[2025-12-03 17:05:29] [INFO]   Running PCA for 103_1
+[2025-12-03 17:05:31] [INFO]   Completed 103_1: 1343 cells
+[2025-12-03 17:05:31] [INFO] Processing 110_1
+[2025-12-03 17:05:31] [INFO]   Performing SCTransform for 110_1 (this may take a while)
+[2025-12-03 17:05:40] [INFO]   Running PCA for 110_1
+[2025-12-03 17:05:45] [INFO]   Completed 110_1: 2295 cells
+[2025-12-03 17:05:45] [INFO] Processing 85_1
+[2025-12-03 17:05:45] [INFO]   Performing SCTransform for 85_1 (this may take a while)
+[2025-12-03 17:05:52] [INFO]   Running PCA for 85_1
+[2025-12-03 17:05:56] [INFO]   Completed 85_1: 1692 cells
+[2025-12-03 17:05:56] [INFO] Processing 93_1
+[2025-12-03 17:05:56] [INFO]   Performing SCTransform for 93_1 (this may take a while)
+[2025-12-03 17:06:03] [INFO]   Running PCA for 93_1
+[2025-12-03 17:06:07] [INFO]   Completed 93_1: 1982 cells
+[2025-12-03 17:06:07] [INFO] Saving results to: /data/user3/sobj/pipe/run_ag1/step4/step4_sct_list.qs
+[2025-12-03 17:06:29] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step4/step4_sct_list.qs
+[2025-12-03 17:06:29] [INFO] Step 4 completed: 56 samples processed
+
+========================================
+NEW RUN STARTED (same run_id: run_ag1)
+========================================
+[2025-12-03 17:06:52] Starting run: run_ag1
+[2025-12-03 17:06:52] [INFO] Step 5: Starting doublet detection (scDblFinder)
+[2025-12-03 17:06:53] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag1/step4/step4_sct_list.qs
+[2025-12-03 17:07:21] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag1/step4/step4_sct_list.qs
+[2025-12-03 17:07:21] [INFO] Processing 97_1
+[2025-12-03 17:07:21] [INFO]   SCT assay found for 97_1 (from Step 4)
+[2025-12-03 17:07:21] [INFO]   Running scDblFinder for 97_1
+[2025-12-03 17:07:31] [INFO]   Keeping all cells (including doublets) for 97_1
+[2025-12-03 17:07:31] [INFO]   Completed 97_1: 2576 cells
+[2025-12-03 17:07:31] [INFO] Processing 95_1
+[2025-12-03 17:07:31] [INFO]   SCT assay found for 95_1 (from Step 4)
+[2025-12-03 17:07:31] [INFO]   Running scDblFinder for 95_1
+[2025-12-03 17:07:40] [INFO]   Keeping all cells (including doublets) for 95_1
+[2025-12-03 17:07:40] [INFO]   Completed 95_1: 2463 cells
+[2025-12-03 17:07:40] [INFO] Processing 92_1
+[2025-12-03 17:07:40] [INFO]   SCT assay found for 92_1 (from Step 4)
+[2025-12-03 17:07:40] [INFO]   Running scDblFinder for 92_1
+[2025-12-03 17:07:48] [INFO]   Keeping all cells (including doublets) for 92_1
+[2025-12-03 17:07:48] [INFO]   Completed 92_1: 1814 cells
+[2025-12-03 17:07:48] [INFO] Processing 89_1
+[2025-12-03 17:07:48] [INFO]   SCT assay found for 89_1 (from Step 4)
+[2025-12-03 17:07:48] [INFO]   Running scDblFinder for 89_1
+[2025-12-03 17:07:56] [INFO]   Keeping all cells (including doublets) for 89_1
+[2025-12-03 17:07:56] [INFO]   Completed 89_1: 2119 cells
+[2025-12-03 17:07:56] [INFO] Processing 107_1
+[2025-12-03 17:07:56] [INFO]   SCT assay found for 107_1 (from Step 4)
+[2025-12-03 17:07:56] [INFO]   Running scDblFinder for 107_1
+[2025-12-03 17:08:04] [INFO]   Keeping all cells (including doublets) for 107_1
+[2025-12-03 17:08:04] [INFO]   Completed 107_1: 1824 cells
+[2025-12-03 17:08:04] [INFO] Processing 106_1
+[2025-12-03 17:08:04] [INFO]   SCT assay found for 106_1 (from Step 4)
+[2025-12-03 17:08:04] [INFO]   Running scDblFinder for 106_1
+[2025-12-03 17:08:11] [INFO]   Keeping all cells (including doublets) for 106_1
+[2025-12-03 17:08:11] [INFO]   Completed 106_1: 1716 cells
+[2025-12-03 17:08:11] [INFO] Processing 91_1
+[2025-12-03 17:08:11] [INFO]   SCT assay found for 91_1 (from Step 4)
+[2025-12-03 17:08:11] [INFO]   Running scDblFinder for 91_1
+[2025-12-03 17:08:20] [INFO]   Keeping all cells (including doublets) for 91_1
+[2025-12-03 17:08:20] [INFO]   Completed 91_1: 2541 cells
+[2025-12-03 17:08:20] [INFO] Processing 90_1
+[2025-12-03 17:08:20] [INFO]   SCT assay found for 90_1 (from Step 4)
+[2025-12-03 17:08:20] [INFO]   Running scDblFinder for 90_1
+[2025-12-03 17:08:28] [INFO]   Keeping all cells (including doublets) for 90_1
+[2025-12-03 17:08:28] [INFO]   Completed 90_1: 1460 cells
+[2025-12-03 17:08:28] [INFO] Processing 88_1
+[2025-12-03 17:08:28] [INFO]   SCT assay found for 88_1 (from Step 4)
+[2025-12-03 17:08:28] [INFO]   Running scDblFinder for 88_1
+[2025-12-03 17:08:37] [INFO]   Keeping all cells (including doublets) for 88_1
+[2025-12-03 17:08:37] [INFO]   Completed 88_1: 2347 cells
+[2025-12-03 17:08:37] [INFO] Processing 82_1
+[2025-12-03 17:08:37] [INFO]   SCT assay found for 82_1 (from Step 4)
+[2025-12-03 17:08:37] [INFO]   Running scDblFinder for 82_1
+[2025-12-03 17:08:45] [INFO]   Keeping all cells (including doublets) for 82_1
+[2025-12-03 17:08:45] [INFO]   Completed 82_1: 2124 cells
+[2025-12-03 17:08:45] [INFO] Processing 70_1
+[2025-12-03 17:08:45] [INFO]   SCT assay found for 70_1 (from Step 4)
+[2025-12-03 17:08:45] [INFO]   Running scDblFinder for 70_1
+[2025-12-03 17:08:53] [INFO]   Keeping all cells (including doublets) for 70_1
+[2025-12-03 17:08:53] [INFO]   Completed 70_1: 2069 cells
+[2025-12-03 17:08:53] [INFO] Processing 105_1
+[2025-12-03 17:08:53] [INFO]   SCT assay found for 105_1 (from Step 4)
+[2025-12-03 17:08:53] [INFO]   Running scDblFinder for 105_1
+[2025-12-03 17:09:00] [INFO]   Keeping all cells (including doublets) for 105_1
+[2025-12-03 17:09:00] [INFO]   Completed 105_1: 1285 cells
+[2025-12-03 17:09:00] [INFO] Processing 84_1
+[2025-12-03 17:09:00] [INFO]   SCT assay found for 84_1 (from Step 4)
+[2025-12-03 17:09:00] [INFO]   Running scDblFinder for 84_1
+[2025-12-03 17:09:07] [INFO]   Keeping all cells (including doublets) for 84_1
+[2025-12-03 17:09:07] [INFO]   Completed 84_1: 1887 cells
+[2025-12-03 17:09:07] [INFO] Processing 81_1
+[2025-12-03 17:09:07] [INFO]   SCT assay found for 81_1 (from Step 4)
+[2025-12-03 17:09:07] [INFO]   Running scDblFinder for 81_1
+[2025-12-03 17:09:14] [INFO]   Keeping all cells (including doublets) for 81_1
+[2025-12-03 17:09:14] [INFO]   Completed 81_1: 1695 cells
+[2025-12-03 17:09:14] [INFO] Processing 65_1
+[2025-12-03 17:09:14] [INFO]   SCT assay found for 65_1 (from Step 4)
+[2025-12-03 17:09:14] [INFO]   Running scDblFinder for 65_1
+[2025-12-03 17:09:23] [INFO]   Keeping all cells (including doublets) for 65_1
+[2025-12-03 17:09:23] [INFO]   Completed 65_1: 2329 cells
+[2025-12-03 17:09:23] [INFO] Processing 64_1
+[2025-12-03 17:09:23] [INFO]   SCT assay found for 64_1 (from Step 4)
+[2025-12-03 17:09:23] [INFO]   Running scDblFinder for 64_1
+[2025-12-03 17:09:32] [INFO]   Keeping all cells (including doublets) for 64_1
+[2025-12-03 17:09:32] [INFO]   Completed 64_1: 2394 cells
+[2025-12-03 17:09:32] [INFO] Processing 55_1
+[2025-12-03 17:09:32] [INFO]   SCT assay found for 55_1 (from Step 4)
+[2025-12-03 17:09:32] [INFO]   Running scDblFinder for 55_1
+[2025-12-03 17:09:46] [INFO]   Keeping all cells (including doublets) for 55_1
+[2025-12-03 17:09:46] [INFO]   Completed 55_1: 3930 cells
+[2025-12-03 17:09:46] [INFO] Processing 54_1
+[2025-12-03 17:09:46] [INFO]   SCT assay found for 54_1 (from Step 4)
+[2025-12-03 17:09:46] [INFO]   Running scDblFinder for 54_1
+[2025-12-03 17:09:52] [INFO]   Keeping all cells (including doublets) for 54_1
+[2025-12-03 17:09:52] [INFO]   Completed 54_1: 781 cells
+[2025-12-03 17:09:52] [INFO] Processing 83_1
+[2025-12-03 17:09:52] [INFO]   SCT assay found for 83_1 (from Step 4)
+[2025-12-03 17:09:52] [INFO]   Running scDblFinder for 83_1
+[2025-12-03 17:09:59] [INFO]   Keeping all cells (including doublets) for 83_1
+[2025-12-03 17:09:59] [INFO]   Completed 83_1: 1696 cells
+[2025-12-03 17:09:59] [INFO] Processing 76_1
+[2025-12-03 17:09:59] [INFO]   SCT assay found for 76_1 (from Step 4)
+[2025-12-03 17:09:59] [INFO]   Running scDblFinder for 76_1
+[2025-12-03 17:10:06] [INFO]   Keeping all cells (including doublets) for 76_1
+[2025-12-03 17:10:06] [INFO]   Completed 76_1: 1650 cells
+[2025-12-03 17:10:06] [INFO] Processing 53_1
+[2025-12-03 17:10:06] [INFO]   SCT assay found for 53_1 (from Step 4)
+[2025-12-03 17:10:06] [INFO]   Running scDblFinder for 53_1
+[2025-12-03 17:10:13] [INFO]   Keeping all cells (including doublets) for 53_1
+[2025-12-03 17:10:13] [INFO]   Completed 53_1: 1677 cells
+[2025-12-03 17:10:13] [INFO] Processing 44_1
+[2025-12-03 17:10:13] [INFO]   SCT assay found for 44_1 (from Step 4)
+[2025-12-03 17:10:13] [INFO]   Running scDblFinder for 44_1
+[2025-12-03 17:10:20] [INFO]   Keeping all cells (including doublets) for 44_1
+[2025-12-03 17:10:20] [INFO]   Completed 44_1: 1736 cells
+[2025-12-03 17:10:20] [INFO] Processing 41_1
+[2025-12-03 17:10:20] [INFO]   SCT assay found for 41_1 (from Step 4)
+[2025-12-03 17:10:20] [INFO]   Running scDblFinder for 41_1
+[2025-12-03 17:10:28] [INFO]   Keeping all cells (including doublets) for 41_1
+[2025-12-03 17:10:28] [INFO]   Completed 41_1: 2117 cells
+[2025-12-03 17:10:28] [INFO] Processing 34_1
+[2025-12-03 17:10:28] [INFO]   SCT assay found for 34_1 (from Step 4)
+[2025-12-03 17:10:28] [INFO]   Running scDblFinder for 34_1
+[2025-12-03 17:10:36] [INFO]   Keeping all cells (including doublets) for 34_1
+[2025-12-03 17:10:36] [INFO]   Completed 34_1: 1668 cells
+[2025-12-03 17:10:36] [INFO] Processing 46_1
+[2025-12-03 17:10:36] [INFO]   SCT assay found for 46_1 (from Step 4)
+[2025-12-03 17:10:36] [INFO]   Running scDblFinder for 46_1
+[2025-12-03 17:10:43] [INFO]   Keeping all cells (including doublets) for 46_1
+[2025-12-03 17:10:44] [INFO]   Completed 46_1: 1932 cells
+[2025-12-03 17:10:44] [INFO] Processing 33_1
+[2025-12-03 17:10:44] [INFO]   SCT assay found for 33_1 (from Step 4)
+[2025-12-03 17:10:44] [INFO]   Running scDblFinder for 33_1
+[2025-12-03 17:10:51] [INFO]   Keeping all cells (including doublets) for 33_1
+[2025-12-03 17:10:51] [INFO]   Completed 33_1: 1827 cells
+[2025-12-03 17:10:51] [INFO] Processing 43_1
+[2025-12-03 17:10:51] [INFO]   SCT assay found for 43_1 (from Step 4)
+[2025-12-03 17:10:51] [INFO]   Running scDblFinder for 43_1
+[2025-12-03 17:10:58] [INFO]   Keeping all cells (including doublets) for 43_1
+[2025-12-03 17:10:58] [INFO]   Completed 43_1: 1459 cells
+[2025-12-03 17:10:58] [INFO] Processing 38_2
+[2025-12-03 17:10:58] [INFO]   SCT assay found for 38_2 (from Step 4)
+[2025-12-03 17:10:58] [INFO]   Running scDblFinder for 38_2
+[2025-12-03 17:11:05] [INFO]   Keeping all cells (including doublets) for 38_2
+[2025-12-03 17:11:05] [INFO]   Completed 38_2: 1622 cells
+[2025-12-03 17:11:05] [INFO] Processing 32_1
+[2025-12-03 17:11:05] [INFO]   SCT assay found for 32_1 (from Step 4)
+[2025-12-03 17:11:05] [INFO]   Running scDblFinder for 32_1
+[2025-12-03 17:11:13] [INFO]   Keeping all cells (including doublets) for 32_1
+[2025-12-03 17:11:13] [INFO]   Completed 32_1: 2006 cells
+[2025-12-03 17:11:13] [INFO] Processing 71_1
+[2025-12-03 17:11:13] [INFO]   SCT assay found for 71_1 (from Step 4)
+[2025-12-03 17:11:13] [INFO]   Running scDblFinder for 71_1
+[2025-12-03 17:11:19] [INFO]   Keeping all cells (including doublets) for 71_1
+[2025-12-03 17:11:19] [INFO]   Completed 71_1: 855 cells
+[2025-12-03 17:11:19] [INFO] Processing 75_1
+[2025-12-03 17:11:19] [INFO]   SCT assay found for 75_1 (from Step 4)
+[2025-12-03 17:11:19] [INFO]   Running scDblFinder for 75_1
+[2025-12-03 17:11:29] [INFO]   Keeping all cells (including doublets) for 75_1
+[2025-12-03 17:11:29] [INFO]   Completed 75_1: 2385 cells
+[2025-12-03 17:11:29] [INFO] Processing 104_1
+[2025-12-03 17:11:29] [INFO]   SCT assay found for 104_1 (from Step 4)
+[2025-12-03 17:11:29] [INFO]   Running scDblFinder for 104_1
+[2025-12-03 17:11:36] [INFO]   Keeping all cells (including doublets) for 104_1
+[2025-12-03 17:11:36] [INFO]   Completed 104_1: 1501 cells
+[2025-12-03 17:11:36] [INFO] Processing 42_1
+[2025-12-03 17:11:36] [INFO]   SCT assay found for 42_1 (from Step 4)
+[2025-12-03 17:11:36] [INFO]   Running scDblFinder for 42_1
+[2025-12-03 17:11:42] [INFO]   Keeping all cells (including doublets) for 42_1
+[2025-12-03 17:11:42] [INFO]   Completed 42_1: 544 cells
+[2025-12-03 17:11:42] [INFO] Processing 80_2
+[2025-12-03 17:11:42] [INFO]   SCT assay found for 80_2 (from Step 4)
+[2025-12-03 17:11:42] [INFO]   Running scDblFinder for 80_2
+[2025-12-03 17:11:49] [INFO]   Keeping all cells (including doublets) for 80_2
+[2025-12-03 17:11:49] [INFO]   Completed 80_2: 1739 cells
+[2025-12-03 17:11:49] [INFO] Processing 29_1
+[2025-12-03 17:11:49] [INFO]   SCT assay found for 29_1 (from Step 4)
+[2025-12-03 17:11:49] [INFO]   Running scDblFinder for 29_1
+[2025-12-03 17:11:58] [INFO]   Keeping all cells (including doublets) for 29_1
+[2025-12-03 17:11:58] [INFO]   Completed 29_1: 2338 cells
+[2025-12-03 17:11:58] [INFO] Processing 60_1
+[2025-12-03 17:11:58] [INFO]   SCT assay found for 60_1 (from Step 4)
+[2025-12-03 17:11:58] [INFO]   Running scDblFinder for 60_1
+[2025-12-03 17:12:06] [INFO]   Keeping all cells (including doublets) for 60_1
+[2025-12-03 17:12:06] [INFO]   Completed 60_1: 1939 cells
+[2025-12-03 17:12:06] [INFO] Processing 36_1
+[2025-12-03 17:12:06] [INFO]   SCT assay found for 36_1 (from Step 4)
+[2025-12-03 17:12:06] [INFO]   Running scDblFinder for 36_1
+[2025-12-03 17:12:15] [INFO]   Keeping all cells (including doublets) for 36_1
+[2025-12-03 17:12:15] [INFO]   Completed 36_1: 2563 cells
+[2025-12-03 17:12:15] [INFO] Processing 31_1
+[2025-12-03 17:12:15] [INFO]   SCT assay found for 31_1 (from Step 4)
+[2025-12-03 17:12:15] [INFO]   Running scDblFinder for 31_1
+[2025-12-03 17:12:23] [INFO]   Keeping all cells (including doublets) for 31_1
+[2025-12-03 17:12:23] [INFO]   Completed 31_1: 1828 cells
+[2025-12-03 17:12:23] [INFO] Processing 59_1
+[2025-12-03 17:12:23] [INFO]   SCT assay found for 59_1 (from Step 4)
+[2025-12-03 17:12:23] [INFO]   Running scDblFinder for 59_1
+[2025-12-03 17:12:31] [INFO]   Keeping all cells (including doublets) for 59_1
+[2025-12-03 17:12:31] [INFO]   Completed 59_1: 1957 cells
+[2025-12-03 17:12:31] [INFO] Processing 68_1
+[2025-12-03 17:12:31] [INFO]   SCT assay found for 68_1 (from Step 4)
+[2025-12-03 17:12:31] [INFO]   Running scDblFinder for 68_1
+[2025-12-03 17:12:38] [INFO]   Keeping all cells (including doublets) for 68_1
+[2025-12-03 17:12:38] [INFO]   Completed 68_1: 1645 cells
+[2025-12-03 17:12:38] [INFO] Processing 35_1
+[2025-12-03 17:12:38] [INFO]   SCT assay found for 35_1 (from Step 4)
+[2025-12-03 17:12:38] [INFO]   Running scDblFinder for 35_1
+[2025-12-03 17:12:46] [INFO]   Keeping all cells (including doublets) for 35_1
+[2025-12-03 17:12:46] [INFO]   Completed 35_1: 2010 cells
+[2025-12-03 17:12:46] [INFO] Processing 117_1
+[2025-12-03 17:12:46] [INFO]   SCT assay found for 117_1 (from Step 4)
+[2025-12-03 17:12:46] [INFO]   Running scDblFinder for 117_1
+[2025-12-03 17:12:54] [INFO]   Keeping all cells (including doublets) for 117_1
+[2025-12-03 17:12:54] [INFO]   Completed 117_1: 1816 cells
+[2025-12-03 17:12:54] [INFO] Processing 100_1
+[2025-12-03 17:12:54] [INFO]   SCT assay found for 100_1 (from Step 4)
+[2025-12-03 17:12:54] [INFO]   Running scDblFinder for 100_1
+[2025-12-03 17:13:05] [INFO]   Keeping all cells (including doublets) for 100_1
+[2025-12-03 17:13:05] [INFO]   Completed 100_1: 3126 cells
+[2025-12-03 17:13:05] [INFO] Processing 51_1
+[2025-12-03 17:13:05] [INFO]   SCT assay found for 51_1 (from Step 4)
+[2025-12-03 17:13:05] [INFO]   Running scDblFinder for 51_1
+[2025-12-03 17:13:12] [INFO]   Keeping all cells (including doublets) for 51_1
+[2025-12-03 17:13:12] [INFO]   Completed 51_1: 936 cells
+[2025-12-03 17:13:12] [INFO] Processing 115_1
+[2025-12-03 17:13:12] [INFO]   SCT assay found for 115_1 (from Step 4)
+[2025-12-03 17:13:12] [INFO]   Running scDblFinder for 115_1
+[2025-12-03 17:13:21] [INFO]   Keeping all cells (including doublets) for 115_1
+[2025-12-03 17:13:21] [INFO]   Completed 115_1: 2517 cells
+[2025-12-03 17:13:21] [INFO] Processing 113_1
+[2025-12-03 17:13:21] [INFO]   SCT assay found for 113_1 (from Step 4)
+[2025-12-03 17:13:21] [INFO]   Running scDblFinder for 113_1
+[2025-12-03 17:13:29] [INFO]   Keeping all cells (including doublets) for 113_1
+[2025-12-03 17:13:29] [INFO]   Completed 113_1: 2126 cells
+[2025-12-03 17:13:29] [INFO] Processing 45_1
+[2025-12-03 17:13:29] [INFO]   SCT assay found for 45_1 (from Step 4)
+[2025-12-03 17:13:29] [INFO]   Running scDblFinder for 45_1
+[2025-12-03 17:13:37] [INFO]   Keeping all cells (including doublets) for 45_1
+[2025-12-03 17:13:37] [INFO]   Completed 45_1: 1904 cells
+[2025-12-03 17:13:37] [INFO] Processing 48_1
+[2025-12-03 17:13:37] [INFO]   SCT assay found for 48_1 (from Step 4)
+[2025-12-03 17:13:37] [INFO]   Running scDblFinder for 48_1
+[2025-12-03 17:13:45] [INFO]   Keeping all cells (including doublets) for 48_1
+[2025-12-03 17:13:45] [INFO]   Completed 48_1: 2133 cells
+[2025-12-03 17:13:45] [INFO] Processing 112_1
+[2025-12-03 17:13:45] [INFO]   SCT assay found for 112_1 (from Step 4)
+[2025-12-03 17:13:45] [INFO]   Running scDblFinder for 112_1
+[2025-12-03 17:13:53] [INFO]   Keeping all cells (including doublets) for 112_1
+[2025-12-03 17:13:53] [INFO]   Completed 112_1: 1824 cells
+[2025-12-03 17:13:53] [INFO] Processing 111_1
+[2025-12-03 17:13:53] [INFO]   SCT assay found for 111_1 (from Step 4)
+[2025-12-03 17:13:53] [INFO]   Running scDblFinder for 111_1
+[2025-12-03 17:14:00] [INFO]   Keeping all cells (including doublets) for 111_1
+[2025-12-03 17:14:00] [INFO]   Completed 111_1: 1649 cells
+[2025-12-03 17:14:00] [INFO] Processing 74_3
+[2025-12-03 17:14:00] [INFO]   SCT assay found for 74_3 (from Step 4)
+[2025-12-03 17:14:00] [INFO]   Running scDblFinder for 74_3
+[2025-12-03 17:14:05] [INFO]   Keeping all cells (including doublets) for 74_3
+[2025-12-03 17:14:05] [INFO]   Completed 74_3: 631 cells
+[2025-12-03 17:14:05] [INFO] Processing 16_1
+[2025-12-03 17:14:05] [INFO]   SCT assay found for 16_1 (from Step 4)
+[2025-12-03 17:14:05] [INFO]   Running scDblFinder for 16_1
+[2025-12-03 17:14:17] [INFO]   Keeping all cells (including doublets) for 16_1
+[2025-12-03 17:14:17] [INFO]   Completed 16_1: 3448 cells
+[2025-12-03 17:14:17] [INFO] Processing 103_1
+[2025-12-03 17:14:17] [INFO]   SCT assay found for 103_1 (from Step 4)
+[2025-12-03 17:14:17] [INFO]   Running scDblFinder for 103_1
+[2025-12-03 17:14:24] [INFO]   Keeping all cells (including doublets) for 103_1
+[2025-12-03 17:14:24] [INFO]   Completed 103_1: 1343 cells
+[2025-12-03 17:14:24] [INFO] Processing 110_1
+[2025-12-03 17:14:24] [INFO]   SCT assay found for 110_1 (from Step 4)
+[2025-12-03 17:14:24] [INFO]   Running scDblFinder for 110_1
+[2025-12-03 17:14:32] [INFO]   Keeping all cells (including doublets) for 110_1
+[2025-12-03 17:14:32] [INFO]   Completed 110_1: 2295 cells
+[2025-12-03 17:14:32] [INFO] Processing 85_1
+[2025-12-03 17:14:32] [INFO]   SCT assay found for 85_1 (from Step 4)
+[2025-12-03 17:14:32] [INFO]   Running scDblFinder for 85_1
+[2025-12-03 17:14:40] [INFO]   Keeping all cells (including doublets) for 85_1
+[2025-12-03 17:14:40] [INFO]   Completed 85_1: 1692 cells
+[2025-12-03 17:14:40] [INFO] Processing 93_1
+[2025-12-03 17:14:40] [INFO]   SCT assay found for 93_1 (from Step 4)
+[2025-12-03 17:14:40] [INFO]   Running scDblFinder for 93_1
+[2025-12-03 17:14:48] [INFO]   Keeping all cells (including doublets) for 93_1
+[2025-12-03 17:14:48] [INFO]   Completed 93_1: 1982 cells
+[2025-12-03 17:14:48] [INFO] Saving results to: /data/user3/sobj/pipe/run_ag1/step5/step5_doublet_list.qs
+[2025-12-03 17:15:09] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step5/step5_doublet_list.qs
+[2025-12-03 17:15:09] [INFO] Step 5 completed: 56 samples processed
+
+========================================
+NEW RUN STARTED (same run_id: run_ag1)
+========================================
+[2025-12-03 17:15:31] Starting run: run_ag1
+[2025-12-03 17:15:31] [INFO] Step 6: Starting integration (scVI)
+[2025-12-03 17:15:31] [INFO] Setting up parallel processing...
+[2025-12-03 17:15:31] [INFO] Using 4 workers for parallel processing
+[2025-12-03 17:15:33] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag1/step5/step5_doublet_list.qs
+[2025-12-03 17:16:03] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag1/step5/step5_doublet_list.qs
+[2025-12-03 17:16:03] [INFO] Merging all samples...
+[2025-12-03 17:16:03] [INFO] Merging 56 samples: 97_1, 95_1, 92_1, 89_1, 107_1, 106_1, 91_1, 90_1, 88_1, 82_1, 70_1, 105_1, 84_1, 81_1, 65_1, 64_1, 55_1, 54_1, 83_1, 76_1, 53_1, 44_1, 41_1, 34_1, 46_1, 33_1, 43_1, 38_2, 32_1, 71_1, 75_1, 104_1, 42_1, 80_2, 29_1, 60_1, 36_1, 31_1, 59_1, 68_1, 35_1, 117_1, 100_1, 51_1, 115_1, 113_1, 45_1, 48_1, 112_1, 111_1, 74_3, 16_1, 103_1, 110_1, 85_1, 93_1
+[2025-12-03 17:16:03] [INFO]   Sample 1: 97_1 has 2576 cells
+[2025-12-03 17:16:03] [INFO]   Sample 2: 95_1 has 2463 cells
+[2025-12-03 17:16:03] [INFO]   Sample 3: 92_1 has 1814 cells
+[2025-12-03 17:16:03] [INFO]   Sample 4: 89_1 has 2119 cells
+[2025-12-03 17:16:03] [INFO]   Sample 5: 107_1 has 1824 cells
+[2025-12-03 17:16:03] [INFO]   Sample 6: 106_1 has 1716 cells
+[2025-12-03 17:16:03] [INFO]   Sample 7: 91_1 has 2541 cells
+[2025-12-03 17:16:03] [INFO]   Sample 8: 90_1 has 1460 cells
+[2025-12-03 17:16:03] [INFO]   Sample 9: 88_1 has 2347 cells
+[2025-12-03 17:16:03] [INFO]   Sample 10: 82_1 has 2124 cells
+[2025-12-03 17:16:03] [INFO]   Sample 11: 70_1 has 2069 cells
+[2025-12-03 17:16:03] [INFO]   Sample 12: 105_1 has 1285 cells
+[2025-12-03 17:16:03] [INFO]   Sample 13: 84_1 has 1887 cells
+[2025-12-03 17:16:03] [INFO]   Sample 14: 81_1 has 1695 cells
+[2025-12-03 17:16:03] [INFO]   Sample 15: 65_1 has 2329 cells
+[2025-12-03 17:16:03] [INFO]   Sample 16: 64_1 has 2394 cells
+[2025-12-03 17:16:03] [INFO]   Sample 17: 55_1 has 3930 cells
+[2025-12-03 17:16:03] [INFO]   Sample 18: 54_1 has 781 cells
+[2025-12-03 17:16:03] [INFO]   Sample 19: 83_1 has 1696 cells
+[2025-12-03 17:16:03] [INFO]   Sample 20: 76_1 has 1650 cells
+[2025-12-03 17:16:03] [INFO]   Sample 21: 53_1 has 1677 cells
+[2025-12-03 17:16:03] [INFO]   Sample 22: 44_1 has 1736 cells
+[2025-12-03 17:16:03] [INFO]   Sample 23: 41_1 has 2117 cells
+[2025-12-03 17:16:03] [INFO]   Sample 24: 34_1 has 1668 cells
+[2025-12-03 17:16:03] [INFO]   Sample 25: 46_1 has 1932 cells
+[2025-12-03 17:16:03] [INFO]   Sample 26: 33_1 has 1827 cells
+[2025-12-03 17:16:03] [INFO]   Sample 27: 43_1 has 1459 cells
+[2025-12-03 17:16:03] [INFO]   Sample 28: 38_2 has 1622 cells
+[2025-12-03 17:16:03] [INFO]   Sample 29: 32_1 has 2006 cells
+[2025-12-03 17:16:03] [INFO]   Sample 30: 71_1 has 855 cells
+[2025-12-03 17:16:03] [INFO]   Sample 31: 75_1 has 2385 cells
+[2025-12-03 17:16:03] [INFO]   Sample 32: 104_1 has 1501 cells
+[2025-12-03 17:16:03] [INFO]   Sample 33: 42_1 has 544 cells
+[2025-12-03 17:16:03] [INFO]   Sample 34: 80_2 has 1739 cells
+[2025-12-03 17:16:03] [INFO]   Sample 35: 29_1 has 2338 cells
+[2025-12-03 17:16:03] [INFO]   Sample 36: 60_1 has 1939 cells
+[2025-12-03 17:16:03] [INFO]   Sample 37: 36_1 has 2563 cells
+[2025-12-03 17:16:03] [INFO]   Sample 38: 31_1 has 1828 cells
+[2025-12-03 17:16:03] [INFO]   Sample 39: 59_1 has 1957 cells
+[2025-12-03 17:16:03] [INFO]   Sample 40: 68_1 has 1645 cells
+[2025-12-03 17:16:03] [INFO]   Sample 41: 35_1 has 2010 cells
+[2025-12-03 17:16:03] [INFO]   Sample 42: 117_1 has 1816 cells
+[2025-12-03 17:16:03] [INFO]   Sample 43: 100_1 has 3126 cells
+[2025-12-03 17:16:03] [INFO]   Sample 44: 51_1 has 936 cells
+[2025-12-03 17:16:03] [INFO]   Sample 45: 115_1 has 2517 cells
+[2025-12-03 17:16:03] [INFO]   Sample 46: 113_1 has 2126 cells
+[2025-12-03 17:16:03] [INFO]   Sample 47: 45_1 has 1904 cells
+[2025-12-03 17:16:03] [INFO]   Sample 48: 48_1 has 2133 cells
+[2025-12-03 17:16:03] [INFO]   Sample 49: 112_1 has 1824 cells
+[2025-12-03 17:16:03] [INFO]   Sample 50: 111_1 has 1649 cells
+[2025-12-03 17:16:03] [INFO]   Sample 51: 74_3 has 631 cells
+[2025-12-03 17:16:03] [INFO]   Sample 52: 16_1 has 3448 cells
+[2025-12-03 17:16:03] [INFO]   Sample 53: 103_1 has 1343 cells
+[2025-12-03 17:16:03] [INFO]   Sample 54: 110_1 has 2295 cells
+[2025-12-03 17:16:03] [INFO]   Sample 55: 85_1 has 1692 cells
+[2025-12-03 17:16:03] [INFO]   Sample 56: 93_1 has 1982 cells
+[2025-12-03 17:19:20] [INFO] Merged object has 107470 cells
+[2025-12-03 17:19:20] [INFO] Performing scVI integration...
+[2025-12-03 17:19:25] [INFO] Python: /home/user3/miniconda3/envs/scvi-env/bin/python
+[2025-12-03 17:19:25] [INFO] Batch distribution: GEM1=12512, GEM2=11826, GEM3=13016, GEM4=10544, GEM5=13587, GEM6=14553, GEM7=16568, GEM8=14864
+[2025-12-03 17:19:25] [INFO] RNA assay layers: counts.1, counts.2, counts.3, counts.4, counts.5, counts.6, counts.7, counts.8, counts.9, counts.10, counts.11, counts.12, counts.13, counts.14, counts.15, counts.16, counts.17, counts.18, counts.19, counts.20, counts.21, counts.22, counts.23, counts.24, counts.25, counts.26, counts.27, counts.28, counts.29, counts.30, counts.31, counts.32, counts.33, counts.34, counts.35, counts.36, counts.37, counts.38, counts.39, counts.40, counts.41, counts.42, counts.43, counts.44, counts.45, counts.46, counts.47, counts.48, counts.49, counts.50, counts.51, counts.52, counts.53, counts.54, counts.55, counts.56
+[2025-12-03 17:19:25] [INFO] Joining layers for scVI...
+[2025-12-03 17:19:48] [INFO] Running scVIIntegration (scVI handles normalization internally)...
+[2025-12-03 17:19:48] [INFO] Cell count before integration: 107470
+[2025-12-03 17:19:48] [ERROR] !!! ERROR in scVIIntegration: None of the features provided are found in this assay !!!
+[2025-12-03 17:19:48] [INFO] Retrying with PCA as orig.reduction...
+[2025-12-03 19:00:45] [INFO] Cell count after integration: 107470
+[2025-12-03 19:00:45] [INFO] integrated.scvi reduction: 107470 cells, 30 dimensions
+[2025-12-03 19:00:45] [INFO] integrated.scvi loadings: 0 features, 0 dimensions
+[2025-12-03 19:00:45] [INFO] scVIIntegration completed. Saving intermediate result to: /data/user3/sobj/pipe/run_ag1/step6/step6_integration_scvi.qs
+[2025-12-03 19:01:34] [INFO] Running downstream analysis...
+[2025-12-03 19:01:34] [INFO] Finding neighbors using dims: 1
+[2025-12-03 19:02:12] [INFO] Finding clusters...
+[2025-12-03 19:02:35] [INFO] Running UMAP...
+[2025-12-03 19:02:35] [ERROR] !!! ERROR in downstream analysis: Please provide as many or more dims than n.components: 1 dims provided, 2 UMAP components requested !!!
+[2025-12-03 19:02:35] [WARNING] Returning object with integration only (without downstream analysis)
+[2025-12-03 19:02:35] [INFO] Downstream analysis completed
+[2025-12-03 19:02:35] [INFO] Saving final integrated object to: /data/user3/sobj/pipe/run_ag1/step6/step6_integration_scvi.qs
+[2025-12-03 19:02:35] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_ag1/step6/step6_integration_scvi_1.qs
+[2025-12-03 19:03:25] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_ag1/step6/step6_integration_scvi_1.qs
+[2025-12-03 19:03:25] [INFO] Step 6 completed: Integration finished with 107470 cells
+[2025-12-03 19:03:25] [INFO] Final reduction 'integrated.scvi': 107470 cells, 30 dimensions

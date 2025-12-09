@@ -1,0 +1,1311 @@
+[2025-12-04 17:56:37] Starting run: run_test_v1
+[2025-12-04 17:56:37] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 17:56:37] [INFO] Found 56 SNP samples and 36 HTO samples
+[2025-12-04 17:56:37] [INFO] Processing SNP samples...
+[2025-12-04 17:56:37] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-04 17:56:37] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv)
+[2025-12-04 17:56:42] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes
+[2025-12-04 17:56:42] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-04 17:56:42] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes
+[2025-12-04 17:56:42] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-04 17:56:42] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes
+[2025-12-04 17:56:42] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-04 17:56:42] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes
+[2025-12-04 17:56:42] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-04 17:56:42] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes
+[2025-12-04 17:56:42] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-04 17:56:42] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes
+[2025-12-04 17:56:42] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-04 17:56:42] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv)
+[2025-12-04 17:56:45] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes
+[2025-12-04 17:56:45] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-04 17:56:45] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes
+[2025-12-04 17:56:45] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-04 17:56:45] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes
+[2025-12-04 17:56:45] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-04 17:56:45] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes
+[2025-12-04 17:56:45] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-04 17:56:45] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes
+[2025-12-04 17:56:45] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-04 17:56:45] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes
+[2025-12-04 17:56:45] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-04 17:56:45] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv)
+[2025-12-04 17:56:48] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes
+[2025-12-04 17:56:48] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-04 17:56:48] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes
+[2025-12-04 17:56:48] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-04 17:56:48] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes
+[2025-12-04 17:56:48] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-04 17:56:48] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes
+[2025-12-04 17:56:48] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-04 17:56:48] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes
+[2025-12-04 17:56:48] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-04 17:56:48] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes
+[2025-12-04 17:56:48] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-04 17:56:48] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv)
+[2025-12-04 17:56:50] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes
+[2025-12-04 17:56:50] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-04 17:56:50] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes
+[2025-12-04 17:56:50] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-04 17:56:50] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes
+[2025-12-04 17:56:50] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-04 17:56:50] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes
+[2025-12-04 17:56:50] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-04 17:56:50] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes
+[2025-12-04 17:56:50] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-04 17:56:50] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes
+[2025-12-04 17:56:50] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-04 17:56:50] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 1-8: 862 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-04 17:56:55] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes
+[2025-12-04 17:56:55] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-04 17:56:55] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 2-1: 545 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-04 17:56:58] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes
+[2025-12-04 17:56:58] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-04 17:56:58] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 3-4: 945 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-04 17:57:06] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes
+[2025-12-04 17:57:06] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-04 17:57:06] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes
+[2025-12-04 17:57:10] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes
+[2025-12-04 17:57:10] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-3: 654 barcodes
+[2025-12-04 17:57:10] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes
+[2025-12-04 17:57:10] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes
+[2025-12-04 17:57:10] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes
+[2025-12-04 17:57:10] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes
+[2025-12-04 17:57:10] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-04 17:57:10] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes
+[2025-12-04 17:57:10] [INFO] Combining SNP barcode mappings...
+[2025-12-04 17:57:10] [INFO] Total SNP barcodes (across all GEMs): 95815
+[2025-12-04 17:57:10] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings.qs
+[2025-12-04 17:57:10] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list.qs
+[2025-12-04 17:57:10] [INFO] Processing HTO samples...
+[2025-12-04 17:57:10] [INFO] Processing HTO sample 1/36: 1_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 17:57:10] [INFO]   Running HTODemux for sample 1_3
+[2025-12-04 17:57:35] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 17:57:35] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 17:57:35] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 17:57:35] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 17:57:44] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 17:57:44] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 17:58:44] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 17:58:46] [ERROR] !!! ERROR in step 1 processing HTO sample 1_3: 'x' must be an array of at least two dimensions !!!
+[2025-12-04 17:58:46] [ERROR] !!! Skipping HTO sample 1_3 !!!
+[2025-12-04 17:58:46] [INFO] Processing HTO sample 2/36: 2_1 (GEM: GEM9, Method: HTO)
+[2025-12-04 17:58:46] [INFO]   Running HTODemux for sample 2_1
+[2025-12-04 17:59:02] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 17:59:02] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 17:59:02] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 17:59:02] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 17:59:11] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 17:59:11] [INFO]   DEBUG: Adding HTO assay...
+
+========================================
+NEW RUN STARTED (same run_id: run_test_v1)
+========================================
+[2025-12-04 18:01:08] Starting run: run_test_v1
+[2025-12-04 18:01:08] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 18:01:08] [INFO] Found 56 SNP samples and 36 HTO samples
+[2025-12-04 18:01:08] [INFO] Processing SNP samples...
+[2025-12-04 18:01:08] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-04 18:01:08] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv)
+[2025-12-04 18:01:13] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes
+[2025-12-04 18:01:13] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-04 18:01:13] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes
+[2025-12-04 18:01:13] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-04 18:01:13] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes
+[2025-12-04 18:01:13] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-04 18:01:13] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes
+[2025-12-04 18:01:13] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-04 18:01:13] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes
+[2025-12-04 18:01:13] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-04 18:01:13] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes
+[2025-12-04 18:01:13] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-04 18:01:13] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv)
+[2025-12-04 18:01:16] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes
+[2025-12-04 18:01:16] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-04 18:01:16] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes
+[2025-12-04 18:01:16] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-04 18:01:16] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes
+[2025-12-04 18:01:16] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-04 18:01:16] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes
+[2025-12-04 18:01:16] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-04 18:01:16] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes
+[2025-12-04 18:01:16] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-04 18:01:16] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes
+[2025-12-04 18:01:16] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-04 18:01:16] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv)
+[2025-12-04 18:01:19] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes
+[2025-12-04 18:01:19] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-04 18:01:19] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes
+[2025-12-04 18:01:19] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-04 18:01:19] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes
+[2025-12-04 18:01:19] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-04 18:01:19] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes
+[2025-12-04 18:01:19] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-04 18:01:19] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes
+[2025-12-04 18:01:19] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-04 18:01:19] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes
+[2025-12-04 18:01:19] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-04 18:01:19] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv)
+[2025-12-04 18:01:21] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes
+[2025-12-04 18:01:21] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-04 18:01:21] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes
+[2025-12-04 18:01:21] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-04 18:01:21] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes
+[2025-12-04 18:01:21] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-04 18:01:21] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes
+[2025-12-04 18:01:21] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-04 18:01:21] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes
+[2025-12-04 18:01:21] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-04 18:01:21] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes
+[2025-12-04 18:01:21] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-04 18:01:21] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 1-8: 862 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-04 18:01:26] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes
+[2025-12-04 18:01:26] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-04 18:01:26] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 2-1: 545 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-04 18:01:29] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes
+[2025-12-04 18:01:29] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-04 18:01:29] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 3-4: 945 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-04 18:01:36] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes
+[2025-12-04 18:01:36] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-04 18:01:36] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes
+[2025-12-04 18:01:41] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes
+[2025-12-04 18:01:41] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-3: 654 barcodes
+[2025-12-04 18:01:41] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes
+[2025-12-04 18:01:41] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes
+[2025-12-04 18:01:41] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes
+[2025-12-04 18:01:41] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes
+[2025-12-04 18:01:41] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-04 18:01:41] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes
+[2025-12-04 18:01:41] [INFO] Combining SNP barcode mappings...
+[2025-12-04 18:01:41] [INFO] Total SNP barcodes (across all GEMs): 95815
+[2025-12-04 18:01:41] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_1.qs
+[2025-12-04 18:01:41] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_1.qs
+[2025-12-04 18:01:41] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_1.qs
+[2025-12-04 18:01:41] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_1.qs
+[2025-12-04 18:01:41] [INFO] Processing HTO samples...
+[2025-12-04 18:01:41] [INFO] Processing HTO sample 1/36: 1_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:01:41] [INFO]   Running HTODemux for sample 1_3
+[2025-12-04 18:02:06] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:02:06] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:02:06] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:02:06] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:02:14] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:02:14] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:03:16] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:03:17] [ERROR] !!! ERROR in step 1 processing HTO sample 1_3: 'x' must be an array of at least two dimensions !!!
+[2025-12-04 18:03:17] [ERROR] !!! Skipping HTO sample 1_3 !!!
+[2025-12-04 18:03:17] [INFO] Processing HTO sample 2/36: 2_1 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:03:17] [INFO]   Running HTODemux for sample 2_1
+[2025-12-04 18:03:33] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:03:33] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:03:33] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:03:33] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:03:42] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:03:42] [INFO]   DEBUG: Adding HTO assay...
+
+========================================
+NEW RUN STARTED (same run_id: run_test_v1)
+========================================
+[2025-12-04 18:12:32] Starting run: run_test_v1
+[2025-12-04 18:12:32] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 18:12:32] [INFO] Found 56 SNP samples and 36 HTO samples
+[2025-12-04 18:12:32] [INFO] Processing SNP samples...
+[2025-12-04 18:12:32] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-04 18:12:32] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv)
+[2025-12-04 18:12:37] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes
+[2025-12-04 18:12:37] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-04 18:12:37] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes
+[2025-12-04 18:12:37] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-04 18:12:37] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes
+[2025-12-04 18:12:37] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-04 18:12:37] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes
+[2025-12-04 18:12:37] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-04 18:12:37] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes
+[2025-12-04 18:12:37] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-04 18:12:37] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes
+[2025-12-04 18:12:37] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-04 18:12:37] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv)
+[2025-12-04 18:12:40] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes
+[2025-12-04 18:12:40] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-04 18:12:40] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes
+[2025-12-04 18:12:40] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-04 18:12:40] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes
+[2025-12-04 18:12:40] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-04 18:12:40] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes
+[2025-12-04 18:12:40] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-04 18:12:40] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes
+[2025-12-04 18:12:40] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-04 18:12:40] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes
+[2025-12-04 18:12:40] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-04 18:12:40] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv)
+[2025-12-04 18:12:43] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes
+[2025-12-04 18:12:43] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-04 18:12:43] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes
+[2025-12-04 18:12:43] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-04 18:12:43] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes
+[2025-12-04 18:12:43] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-04 18:12:43] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes
+[2025-12-04 18:12:43] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-04 18:12:43] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes
+[2025-12-04 18:12:43] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-04 18:12:43] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes
+[2025-12-04 18:12:43] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-04 18:12:43] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv)
+[2025-12-04 18:12:45] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes
+[2025-12-04 18:12:45] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-04 18:12:45] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes
+[2025-12-04 18:12:45] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-04 18:12:45] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes
+[2025-12-04 18:12:45] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-04 18:12:45] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes
+[2025-12-04 18:12:45] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-04 18:12:45] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes
+[2025-12-04 18:12:45] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-04 18:12:45] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes
+[2025-12-04 18:12:45] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-04 18:12:45] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 1-8: 862 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-04 18:12:50] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes
+[2025-12-04 18:12:50] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-04 18:12:50] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 2-1: 545 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-04 18:12:54] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes
+[2025-12-04 18:12:54] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-04 18:12:54] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 3-4: 945 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-04 18:13:02] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes
+[2025-12-04 18:13:02] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-04 18:13:02] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes
+[2025-12-04 18:13:06] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes
+[2025-12-04 18:13:06] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-3: 654 barcodes
+[2025-12-04 18:13:06] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes
+[2025-12-04 18:13:06] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes
+[2025-12-04 18:13:06] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes
+[2025-12-04 18:13:06] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes
+[2025-12-04 18:13:06] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-04 18:13:06] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes
+[2025-12-04 18:13:06] [INFO] Combining SNP barcode mappings...
+[2025-12-04 18:13:06] [INFO] Total SNP barcodes (across all GEMs): 95815
+[2025-12-04 18:13:06] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_2.qs
+[2025-12-04 18:13:06] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_2.qs
+[2025-12-04 18:13:06] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_2.qs
+[2025-12-04 18:13:06] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_2.qs
+[2025-12-04 18:13:06] [INFO] Processing HTO samples...
+[2025-12-04 18:13:06] [INFO] Processing HTO sample 1/36: 1_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:13:06] [INFO]   Running HTODemux for sample 1_3
+[2025-12-04 18:13:32] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:13:32] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:13:32] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:13:32] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:13:41] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:13:41] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:14:51] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:14:52] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:14:52] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:15:43] [WARNING]   No HTO assay found for 1_3 (tried 'Multiplexing Capture'), skipping demultiplexing
+[2025-12-04 18:15:45] [INFO]   Completed 1_3: 506405 cells
+[2025-12-04 18:15:45] [INFO] Processing HTO sample 2/36: 2_1 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:15:45] [INFO]   Running HTODemux for sample 2_1
+[2025-12-04 18:16:02] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:16:02] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:16:02] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:16:02] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:16:10] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:16:10] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:17:20] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:17:22] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:17:22] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:18:07] [WARNING]   No HTO assay found for 2_1 (tried 'Multiplexing Capture'), skipping demultiplexing
+[2025-12-04 18:18:09] [INFO]   Completed 2_1: 506405 cells
+[2025-12-04 18:18:09] [INFO] Processing HTO sample 3/36: 2_2 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:18:09] [INFO]   Running HTODemux for sample 2_2
+[2025-12-04 18:18:25] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:18:25] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:18:25] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:18:25] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:18:33] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:18:33] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:19:44] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:19:45] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:19:46] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:20:31] [WARNING]   No HTO assay found for 2_2 (tried 'Multiplexing Capture'), skipping demultiplexing
+[2025-12-04 18:20:33] [INFO]   Completed 2_2: 506405 cells
+[2025-12-04 18:20:33] [INFO] Processing HTO sample 4/36: 2_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:20:33] [INFO]   Running HTODemux for sample 2_3
+[2025-12-04 18:20:50] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:20:50] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:20:50] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:20:50] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:20:58] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:20:58] [INFO]   DEBUG: Adding HTO assay...
+
+========================================
+NEW RUN STARTED (same run_id: run_test_v1)
+========================================
+[2025-12-04 18:24:43] Starting run: run_test_v1
+[2025-12-04 18:24:43] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 18:24:43] [INFO] Found 56 SNP samples and 36 HTO samples
+[2025-12-04 18:24:43] [INFO] Processing SNP samples...
+[2025-12-04 18:24:43] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-04 18:24:43] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv)
+[2025-12-04 18:24:48] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes
+[2025-12-04 18:24:48] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-04 18:24:48] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes
+[2025-12-04 18:24:48] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-04 18:24:48] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes
+[2025-12-04 18:24:48] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-04 18:24:48] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes
+[2025-12-04 18:24:48] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-04 18:24:48] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes
+[2025-12-04 18:24:48] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-04 18:24:48] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes
+[2025-12-04 18:24:48] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-04 18:24:48] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv)
+[2025-12-04 18:24:51] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes
+[2025-12-04 18:24:51] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-04 18:24:51] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes
+[2025-12-04 18:24:51] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-04 18:24:51] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes
+[2025-12-04 18:24:51] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-04 18:24:51] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes
+[2025-12-04 18:24:51] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-04 18:24:51] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes
+[2025-12-04 18:24:51] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-04 18:24:51] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes
+[2025-12-04 18:24:51] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-04 18:24:51] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv)
+[2025-12-04 18:24:54] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes
+[2025-12-04 18:24:54] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-04 18:24:54] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes
+[2025-12-04 18:24:54] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-04 18:24:54] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes
+[2025-12-04 18:24:54] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-04 18:24:54] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes
+[2025-12-04 18:24:54] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-04 18:24:54] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes
+[2025-12-04 18:24:54] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-04 18:24:54] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes
+[2025-12-04 18:24:54] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-04 18:24:54] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv)
+[2025-12-04 18:24:56] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes
+[2025-12-04 18:24:56] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-04 18:24:56] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes
+[2025-12-04 18:24:56] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-04 18:24:56] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes
+[2025-12-04 18:24:56] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-04 18:24:56] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes
+[2025-12-04 18:24:56] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-04 18:24:56] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes
+[2025-12-04 18:24:56] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-04 18:24:56] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes
+[2025-12-04 18:24:56] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-04 18:24:56] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 1-8: 862 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-04 18:25:01] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes
+[2025-12-04 18:25:01] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-04 18:25:01] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv)
+[2025-12-04 18:25:04] [INFO]   Current assignment snapshot for 2-1: 545 barcodes
+[2025-12-04 18:25:04] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-04 18:25:04] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes
+[2025-12-04 18:25:04] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-04 18:25:05] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes
+[2025-12-04 18:25:05] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-04 18:25:05] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes
+[2025-12-04 18:25:05] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-04 18:25:05] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes
+[2025-12-04 18:25:05] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-04 18:25:05] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes
+[2025-12-04 18:25:05] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-04 18:25:05] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes
+[2025-12-04 18:25:05] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-04 18:25:05] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes
+[2025-12-04 18:25:05] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-04 18:25:05] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 3-4: 945 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-04 18:25:12] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes
+[2025-12-04 18:25:12] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-04 18:25:12] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes
+[2025-12-04 18:25:16] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes
+[2025-12-04 18:25:16] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-3: 654 barcodes
+[2025-12-04 18:25:16] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes
+[2025-12-04 18:25:16] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes
+[2025-12-04 18:25:16] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes
+[2025-12-04 18:25:16] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes
+[2025-12-04 18:25:16] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-04 18:25:16] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes
+[2025-12-04 18:25:16] [INFO] Combining SNP barcode mappings...
+[2025-12-04 18:25:16] [INFO] Total SNP barcodes (across all GEMs): 95815
+[2025-12-04 18:25:16] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_3.qs
+[2025-12-04 18:25:16] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_3.qs
+[2025-12-04 18:25:16] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_3.qs
+[2025-12-04 18:25:16] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_3.qs
+
+========================================
+NEW RUN STARTED (same run_id: run_test_v1)
+========================================
+[2025-12-04 18:30:56] Starting run: run_test_v1
+[2025-12-04 18:30:56] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 18:30:56] [INFO] Found 56 SNP samples and 36 HTO samples
+[2025-12-04 18:30:56] [INFO] Processing SNP samples...
+[2025-12-04 18:30:56] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-04 18:30:56] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv)
+[2025-12-04 18:31:01] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes
+[2025-12-04 18:31:01] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-04 18:31:01] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes
+[2025-12-04 18:31:01] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-04 18:31:01] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes
+[2025-12-04 18:31:01] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-04 18:31:01] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes
+[2025-12-04 18:31:01] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-04 18:31:01] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes
+[2025-12-04 18:31:01] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-04 18:31:01] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes
+[2025-12-04 18:31:01] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-04 18:31:01] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv)
+[2025-12-04 18:31:04] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes
+[2025-12-04 18:31:04] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-04 18:31:04] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes
+[2025-12-04 18:31:04] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-04 18:31:04] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes
+[2025-12-04 18:31:04] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-04 18:31:04] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes
+[2025-12-04 18:31:04] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-04 18:31:04] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes
+[2025-12-04 18:31:04] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-04 18:31:04] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes
+[2025-12-04 18:31:04] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-04 18:31:04] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv)
+[2025-12-04 18:31:06] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes
+[2025-12-04 18:31:06] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-04 18:31:06] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes
+[2025-12-04 18:31:06] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-04 18:31:07] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes
+[2025-12-04 18:31:07] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-04 18:31:07] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes
+[2025-12-04 18:31:07] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-04 18:31:07] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes
+[2025-12-04 18:31:07] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-04 18:31:07] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes
+[2025-12-04 18:31:07] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-04 18:31:07] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv)
+[2025-12-04 18:31:09] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes
+[2025-12-04 18:31:09] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-04 18:31:09] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes
+[2025-12-04 18:31:09] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-04 18:31:09] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes
+[2025-12-04 18:31:09] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-04 18:31:09] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes
+[2025-12-04 18:31:09] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-04 18:31:09] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes
+[2025-12-04 18:31:09] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-04 18:31:09] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes
+[2025-12-04 18:31:09] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-04 18:31:09] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 1-8: 862 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-04 18:31:14] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes
+[2025-12-04 18:31:14] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-04 18:31:14] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 2-1: 545 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-04 18:31:17] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes
+[2025-12-04 18:31:17] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-04 18:31:17] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 3-4: 945 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-04 18:31:24] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes
+[2025-12-04 18:31:24] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-04 18:31:24] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes
+[2025-12-04 18:31:29] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes
+[2025-12-04 18:31:29] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-3: 654 barcodes
+[2025-12-04 18:31:29] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes
+[2025-12-04 18:31:29] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes
+[2025-12-04 18:31:29] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes
+[2025-12-04 18:31:29] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes
+[2025-12-04 18:31:29] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-04 18:31:29] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes
+[2025-12-04 18:31:29] [INFO] Combining SNP barcode mappings...
+[2025-12-04 18:31:29] [INFO] Total SNP barcodes (across all GEMs): 95815
+[2025-12-04 18:31:29] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_4.qs
+[2025-12-04 18:31:29] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_4.qs
+[2025-12-04 18:31:29] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_4.qs
+[2025-12-04 18:31:29] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_4.qs
+
+========================================
+NEW RUN STARTED (same run_id: run_test_v1)
+========================================
+[2025-12-04 18:36:55] Starting run: run_test_v1
+[2025-12-04 18:36:55] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 18:36:56] [INFO] Found 56 SNP samples and 36 HTO samples
+[2025-12-04 18:36:56] [INFO] Processing SNP samples...
+[2025-12-04 18:36:56] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-04 18:36:56] [INFO]   Parsing demux posterior for GEM GEM1 (/home/user3/demux/xlot_1_posterior.csv)
+[2025-12-04 18:37:00] [INFO]   Current assignment snapshot for CD_24_14264_PBD_SRA_1: 3666 barcodes
+[2025-12-04 18:37:00] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-04 18:37:00] [INFO]   Current assignment snapshot for CD_24_14267_PBD_SRA_1: 2518 barcodes
+[2025-12-04 18:37:00] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-04 18:37:00] [INFO]   Current assignment snapshot for CD_24_14268_PBD_SRA_1: 1858 barcodes
+[2025-12-04 18:37:00] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-04 18:37:00] [INFO]   Current assignment snapshot for CD_24_14266_PBD_SRA_1: 2158 barcodes
+[2025-12-04 18:37:00] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-04 18:37:00] [INFO]   Current assignment snapshot for CD_24_14265_PBD_SRA_1: 1877 barcodes
+[2025-12-04 18:37:00] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-04 18:37:00] [INFO]   Current assignment snapshot for CD_24_14269_PBD_SRA_1: 1761 barcodes
+[2025-12-04 18:37:00] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-04 18:37:00] [INFO]   Parsing demux posterior for GEM GEM2 (/home/user3/demux/xlot_2_posterior.csv)
+[2025-12-04 18:37:03] [INFO]   Current assignment snapshot for CD_24_14271_PBD_SRA_1: 2547 barcodes
+[2025-12-04 18:37:03] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-04 18:37:03] [INFO]   Current assignment snapshot for CD_24_14274_PBD_SRA_1: 1467 barcodes
+[2025-12-04 18:37:03] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-04 18:37:03] [INFO]   Current assignment snapshot for CD_24_14272_PBD_SRA_1: 2353 barcodes
+[2025-12-04 18:37:03] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-04 18:37:03] [INFO]   Current assignment snapshot for CD_24_14275_PBD_SRA_1: 2145 barcodes
+[2025-12-04 18:37:03] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-04 18:37:03] [INFO]   Current assignment snapshot for CD_24_14270_PBD_SRA_1: 2078 barcodes
+[2025-12-04 18:37:03] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-04 18:37:03] [INFO]   Current assignment snapshot for CD_24_14273_PBD_SRA_1: 1288 barcodes
+[2025-12-04 18:37:03] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-04 18:37:03] [INFO]   Parsing demux posterior for GEM GEM3 (/home/user3/demux/xlot_3_posterior.csv)
+[2025-12-04 18:37:06] [INFO]   Current assignment snapshot for CD_24_14280_PBD_SRA_1: 1888 barcodes
+[2025-12-04 18:37:06] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-04 18:37:06] [INFO]   Current assignment snapshot for CD_24_14276_PBD_SRA_1: 1700 barcodes
+[2025-12-04 18:37:06] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-04 18:37:06] [INFO]   Current assignment snapshot for CD_24_14281_PBD_SRA_1: 2336 barcodes
+[2025-12-04 18:37:06] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-04 18:37:06] [INFO]   Current assignment snapshot for CD_24_14277_PBD_SRA_1: 2411 barcodes
+[2025-12-04 18:37:06] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-04 18:37:06] [INFO]   Current assignment snapshot for CD_24_14279_PBD_SRA_1: 3944 barcodes
+[2025-12-04 18:37:06] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-04 18:37:06] [INFO]   Current assignment snapshot for CD_24_14278_PBD_SRA_1: 784 barcodes
+[2025-12-04 18:37:06] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-04 18:37:06] [INFO]   Parsing demux posterior for GEM GEM4 (/home/user3/demux/xlot_4_posterior.csv)
+[2025-12-04 18:37:08] [INFO]   Current assignment snapshot for CD_24_14284_PBD_SRA_1: 1699 barcodes
+[2025-12-04 18:37:08] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-04 18:37:08] [INFO]   Current assignment snapshot for CD_24_14287_PBD_SRA_1: 1654 barcodes
+[2025-12-04 18:37:08] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-04 18:37:08] [INFO]   Current assignment snapshot for CD_24_14283_PBD_SRA_1: 1683 barcodes
+[2025-12-04 18:37:08] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-04 18:37:08] [INFO]   Current assignment snapshot for CD_24_14282_PBD_SRA_1: 1741 barcodes
+[2025-12-04 18:37:08] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-04 18:37:08] [INFO]   Current assignment snapshot for CD_24_14285_PBD_SRA_1: 2119 barcodes
+[2025-12-04 18:37:08] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-04 18:37:08] [INFO]   Current assignment snapshot for CD_24_14286_PBD_SRA_1: 1689 barcodes
+[2025-12-04 18:37:08] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-04 18:37:08] [INFO]   Parsing demux posterior for GEM GEM5 (/home/user3/demux/xlot_5_posterior.csv)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 1-1: 1934 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 1-3: 1854 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 1-5: 1470 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 1-6: 1633 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 1-7: 2008 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 1-8: 862 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 5-1: 2399 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-04 18:37:13] [INFO]   Current assignment snapshot for 5-5: 1503 barcodes
+[2025-12-04 18:37:13] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-04 18:37:13] [INFO]   Parsing demux posterior for GEM GEM6 (/home/user3/demux/xlot_6_posterior.csv)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 2-1: 545 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 2-2: 1742 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 2-3: 2349 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 2-4: 1946 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 2-5: 2571 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 2-6: 1838 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 2-8: 1964 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-04 18:37:16] [INFO]   Current assignment snapshot for 5-7: 1657 barcodes
+[2025-12-04 18:37:16] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-04 18:37:16] [INFO]   Parsing demux posterior for GEM GEM7 (/home/user3/demux/xlot_7_posterior.csv)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 3-1: 2023 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 3-2: 1825 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 3-3: 3136 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 3-4: 945 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 3-5: 2535 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 3-6: 2131 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 3-8: 1927 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-04 18:37:23] [INFO]   Current assignment snapshot for 5-3: 2137 barcodes
+[2025-12-04 18:37:23] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-04 18:37:23] [INFO]   Parsing demux posterior for GEM GEM8 (/home/user3/demux/xlot_8_posterior.csv)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-1: 1840 barcodes
+[2025-12-04 18:37:28] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-2: 1669 barcodes
+[2025-12-04 18:37:28] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-3: 654 barcodes
+[2025-12-04 18:37:28] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-4: 3599 barcodes
+[2025-12-04 18:37:28] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-5: 1350 barcodes
+[2025-12-04 18:37:28] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-6: 2314 barcodes
+[2025-12-04 18:37:28] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-7: 1714 barcodes
+[2025-12-04 18:37:28] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-04 18:37:28] [INFO]   Current assignment snapshot for 4-8: 2005 barcodes
+[2025-12-04 18:37:28] [INFO] Combining SNP barcode mappings...
+[2025-12-04 18:37:28] [INFO] Total SNP barcodes (across all GEMs): 95815
+[2025-12-04 18:37:28] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_5.qs
+[2025-12-04 18:37:28] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mappings_5.qs
+[2025-12-04 18:37:28] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_5.qs
+[2025-12-04 18:37:28] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test_v1/step1/step1_snp_barcode_mapping_list_5.qs
+[2025-12-04 18:37:28] [INFO] Processing HTO samples...
+[2025-12-04 18:37:28] [INFO] Processing HTO sample 1/36: 1_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:37:28] [INFO]   Running HTODemux for sample 1_3
+[2025-12-04 18:37:53] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:37:53] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:37:53] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:37:53] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:38:02] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:38:02] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:39:08] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:39:10] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:39:10] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:40:00] [INFO]   Completed 1_3: 506405 cells
+[2025-12-04 18:40:00] [INFO] Processing HTO sample 2/36: 2_1 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:40:00] [INFO]   Running HTODemux for sample 2_1
+[2025-12-04 18:40:17] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:40:17] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:40:17] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:40:17] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:40:25] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:40:25] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:41:31] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:41:33] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:41:33] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:42:19] [INFO]   Completed 2_1: 506405 cells
+[2025-12-04 18:42:19] [INFO] Processing HTO sample 3/36: 2_2 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:42:19] [INFO]   Running HTODemux for sample 2_2
+[2025-12-04 18:42:35] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:42:35] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:42:35] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:42:35] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:42:44] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:42:44] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:43:50] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:43:51] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:43:51] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:44:38] [INFO]   Completed 2_2: 506405 cells
+[2025-12-04 18:44:38] [INFO] Processing HTO sample 4/36: 2_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:44:38] [INFO]   Running HTODemux for sample 2_3
+[2025-12-04 18:44:54] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:44:54] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:44:54] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:44:54] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:45:02] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:45:02] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:46:08] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:46:10] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:46:10] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:46:55] [INFO]   Completed 2_3: 506405 cells
+[2025-12-04 18:46:55] [INFO] Processing HTO sample 5/36: 3_1 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:46:55] [INFO]   Running HTODemux for sample 3_1
+[2025-12-04 18:47:11] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:47:11] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:47:11] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:47:11] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:47:18] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:47:18] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:48:24] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:48:25] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:48:25] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:49:10] [INFO]   Completed 3_1: 506405 cells
+[2025-12-04 18:49:10] [INFO] Processing HTO sample 6/36: 3_2 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:49:10] [INFO]   Running HTODemux for sample 3_2
+[2025-12-04 18:49:24] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:49:24] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:49:24] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:49:24] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:49:32] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:49:32] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:50:38] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:50:40] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:50:40] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:51:25] [INFO]   Completed 3_2: 506405 cells
+[2025-12-04 18:51:25] [INFO] Processing HTO sample 7/36: 3_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:51:25] [INFO]   Running HTODemux for sample 3_3
+[2025-12-04 18:51:39] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:51:39] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:51:39] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:51:39] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:51:48] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:51:48] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:52:54] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:52:56] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:52:56] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:53:41] [INFO]   Completed 3_3: 506405 cells
+[2025-12-04 18:53:41] [INFO] Processing HTO sample 8/36: 4_1 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:53:41] [INFO]   Running HTODemux for sample 4_1
+[2025-12-04 18:53:55] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:53:55] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:53:55] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:53:55] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:54:03] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:54:03] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:55:10] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:55:11] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:55:11] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:55:58] [INFO]   Completed 4_1: 506405 cells
+[2025-12-04 18:55:58] [INFO] Processing HTO sample 9/36: 4_2 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:55:58] [INFO]   Running HTODemux for sample 4_2
+[2025-12-04 18:56:12] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:56:12] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:56:12] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:56:12] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:56:18] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:56:18] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:57:24] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:57:26] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:57:26] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:58:10] [INFO]   Completed 4_2: 506405 cells
+[2025-12-04 18:58:10] [INFO] Processing HTO sample 10/36: 4_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:58:10] [INFO]   Running HTODemux for sample 4_3
+[2025-12-04 18:58:25] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:58:25] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:58:25] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1
+[2025-12-04 18:58:25] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:58:34] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:58:34] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:59:40] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:59:41] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x684674
+[2025-12-04 18:59:41] [INFO]   Removing 178269 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:00:25] [INFO]   Completed 4_3: 506405 cells
+[2025-12-04 19:00:25] [INFO] Processing HTO sample 11/36: 5_1 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:00:25] [INFO]   Running HTODemux for sample 5_1
+[2025-12-04 19:00:40] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:00:40] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:00:40] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:00:40] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:00:49] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:00:49] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:01:54] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:01:56] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:01:56] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:02:36] [INFO]   Completed 5_1: 427434 cells
+[2025-12-04 19:02:36] [INFO] Processing HTO sample 12/36: 5_3 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:02:36] [INFO]   Running HTODemux for sample 5_3
+[2025-12-04 19:02:53] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:02:53] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:02:53] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:02:53] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:03:00] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:03:00] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:04:05] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:04:07] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:04:07] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:04:44] [INFO]   Completed 5_3: 427434 cells
+[2025-12-04 19:04:44] [INFO] Processing HTO sample 13/36: 6_1 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:04:44] [INFO]   Running HTODemux for sample 6_1
+[2025-12-04 19:04:59] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:04:59] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:04:59] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:04:59] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:05:09] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:05:09] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:06:14] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:06:15] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:06:15] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:06:53] [INFO]   Completed 6_1: 427434 cells
+[2025-12-04 19:06:53] [INFO] Processing HTO sample 14/36: 6_3 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:06:53] [INFO]   Running HTODemux for sample 6_3
+[2025-12-04 19:07:09] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:07:09] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:07:09] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:07:09] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:07:18] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:07:18] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:08:22] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:08:24] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:08:24] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:09:03] [INFO]   Completed 6_3: 427434 cells
+[2025-12-04 19:09:03] [INFO] Processing HTO sample 15/36: 7_1 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:09:03] [INFO]   Running HTODemux for sample 7_1
+[2025-12-04 19:09:18] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:09:18] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:09:18] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:09:18] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:09:25] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:09:25] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:10:30] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:10:31] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:10:31] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:11:10] [INFO]   Completed 7_1: 427434 cells
+[2025-12-04 19:11:10] [INFO] Processing HTO sample 16/36: 7_3 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:11:10] [INFO]   Running HTODemux for sample 7_3
+[2025-12-04 19:11:26] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:11:26] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:11:26] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:11:26] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:11:36] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:11:36] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:12:40] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:12:42] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:12:42] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:13:20] [INFO]   Completed 7_3: 427434 cells
+[2025-12-04 19:13:20] [INFO] Processing HTO sample 17/36: 8_1 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:13:20] [INFO]   Running HTODemux for sample 8_1
+[2025-12-04 19:13:38] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:13:38] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:13:38] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:13:38] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:13:45] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:13:45] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:14:50] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:14:51] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:14:51] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:15:29] [INFO]   Completed 8_1: 427434 cells
+[2025-12-04 19:15:29] [INFO] Processing HTO sample 18/36: 8_3 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:15:29] [INFO]   Running HTODemux for sample 8_3
+[2025-12-04 19:15:45] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:15:45] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:15:45] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:15:45] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:15:54] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:15:54] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:16:59] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:17:00] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:17:00] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:17:39] [INFO]   Completed 8_3: 427434 cells
+[2025-12-04 19:17:39] [INFO] Processing HTO sample 19/36: 9_1 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:17:39] [INFO]   Running HTODemux for sample 9_1
+[2025-12-04 19:17:54] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:17:54] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:17:54] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:17:54] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:18:04] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:18:04] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:19:08] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:19:10] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:19:10] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:19:46] [INFO]   Completed 9_1: 427434 cells
+[2025-12-04 19:19:46] [INFO] Processing HTO sample 20/36: 9_3 (GEM: GEM10, Method: HTO)
+[2025-12-04 19:19:46] [INFO]   Running HTODemux for sample 9_3
+[2025-12-04 19:20:01] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:20:01] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:20:01] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:20:01] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:20:09] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:20:09] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:21:14] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:21:16] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 19:21:16] [INFO]   Removing 249946 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:21:56] [INFO]   Completed 9_3: 427434 cells
+[2025-12-04 19:21:56] [INFO] Processing HTO sample 21/36: 10_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:21:56] [INFO]   Running HTODemux for sample 10_1
+[2025-12-04 19:22:01] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:22:01] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:22:01] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:22:01] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:22:09] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:22:09] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:23:11] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:23:13] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:23:13] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:23:25] [WARNING]   WARNING: HTODemux failed for 10_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:23:55] [INFO]   Completed 10_1: 580165 cells
+[2025-12-04 19:23:55] [INFO] Processing HTO sample 22/36: 11_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:23:55] [INFO]   Running HTODemux for sample 11_1
+[2025-12-04 19:24:00] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:24:00] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:24:00] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:24:00] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:24:07] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:24:07] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:25:11] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:25:12] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:25:12] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:25:24] [WARNING]   WARNING: HTODemux failed for 11_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:25:54] [INFO]   Completed 11_1: 580165 cells
+[2025-12-04 19:25:54] [INFO] Processing HTO sample 23/36: 13_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:25:54] [INFO]   Running HTODemux for sample 13_1
+[2025-12-04 19:26:00] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:26:00] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:26:00] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:26:00] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:26:07] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:26:07] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:27:10] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:27:12] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:27:12] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:27:24] [WARNING]   WARNING: HTODemux failed for 13_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:27:56] [INFO]   Completed 13_1: 580165 cells
+[2025-12-04 19:27:56] [INFO] Processing HTO sample 24/36: 14_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:27:56] [INFO]   Running HTODemux for sample 14_1
+[2025-12-04 19:28:01] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:28:01] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:28:01] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:28:01] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:28:08] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:28:08] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:29:11] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:29:12] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:29:12] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:29:24] [WARNING]   WARNING: HTODemux failed for 14_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:29:55] [INFO]   Completed 14_1: 580165 cells
+[2025-12-04 19:29:55] [INFO] Processing HTO sample 25/36: 15_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:29:55] [INFO]   Running HTODemux for sample 15_1
+[2025-12-04 19:30:00] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:30:00] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:30:00] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:30:00] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:30:07] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:30:07] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:31:11] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:31:13] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:31:13] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:31:25] [WARNING]   WARNING: HTODemux failed for 15_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:31:58] [INFO]   Completed 15_1: 580165 cells
+[2025-12-04 19:31:58] [INFO] Processing HTO sample 26/36: 17_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:31:58] [INFO]   Running HTODemux for sample 17_1
+[2025-12-04 19:32:03] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:32:03] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:32:03] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:32:03] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:32:10] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:32:10] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:33:12] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:33:14] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:33:14] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:33:25] [WARNING]   WARNING: HTODemux failed for 17_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:33:56] [INFO]   Completed 17_1: 580165 cells
+[2025-12-04 19:33:56] [INFO] Processing HTO sample 27/36: 18_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:33:56] [INFO]   Running HTODemux for sample 18_1
+[2025-12-04 19:34:01] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:34:01] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:34:01] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:34:01] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:34:09] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:34:09] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:35:11] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:35:13] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:35:13] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:35:26] [WARNING]   WARNING: HTODemux failed for 18_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:35:58] [INFO]   Completed 18_1: 580165 cells
+[2025-12-04 19:35:58] [INFO] Processing HTO sample 28/36: 19_1 (GEM: GEM11, Method: HTO)
+[2025-12-04 19:35:58] [INFO]   Running HTODemux for sample 19_1
+[2025-12-04 19:36:03] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:36:03] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:36:03] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 19:36:03] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:36:10] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:36:10] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:37:12] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:37:14] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x668397
+[2025-12-04 19:37:14] [INFO]   Removing 88232 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:37:25] [WARNING]   WARNING: HTODemux failed for 19_1: Cells with zero counts exist as a cluster.. Trying MULTIseqDemux as fallback.
+[2025-12-04 19:37:56] [INFO]   Completed 19_1: 580165 cells
+[2025-12-04 19:37:56] [INFO] Processing HTO sample 29/36: 20_1 (GEM: GEM12, Method: HTO)
+[2025-12-04 19:37:56] [INFO]   Running HTODemux for sample 20_1
+[2025-12-04 19:38:00] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:38:00] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:38:00] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAAAGTGG-1
+[2025-12-04 19:38:00] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:38:08] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:38:08] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:39:11] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:39:13] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x672118
+[2025-12-04 19:39:13] [INFO]   Removing 76888 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:40:08] [INFO]   Completed 20_1: 595230 cells
+[2025-12-04 19:40:08] [INFO] Processing HTO sample 30/36: 21_1 (GEM: GEM12, Method: HTO)
+[2025-12-04 19:40:08] [INFO]   Running HTODemux for sample 21_1
+[2025-12-04 19:40:13] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:40:13] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:40:13] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAAAGTGG-1
+[2025-12-04 19:40:13] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:40:20] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:40:20] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:41:24] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:41:25] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x672118
+[2025-12-04 19:41:25] [INFO]   Removing 76888 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:42:24] [INFO]   Completed 21_1: 595230 cells
+[2025-12-04 19:42:24] [INFO] Processing HTO sample 31/36: 22_1 (GEM: GEM12, Method: HTO)
+[2025-12-04 19:42:24] [INFO]   Running HTODemux for sample 22_1
+[2025-12-04 19:42:29] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:42:29] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:42:29] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAAAGTGG-1
+[2025-12-04 19:42:29] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:42:37] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:42:37] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:43:41] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:43:43] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x672118
+[2025-12-04 19:43:43] [INFO]   Removing 76888 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:44:47] [INFO]   Completed 22_1: 595230 cells
+[2025-12-04 19:44:47] [INFO] Processing HTO sample 32/36: 23_1 (GEM: GEM12, Method: HTO)
+[2025-12-04 19:44:47] [INFO]   Running HTODemux for sample 23_1
+[2025-12-04 19:44:51] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:44:51] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:44:51] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAAAGTGG-1
+[2025-12-04 19:44:51] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:44:58] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:44:58] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:46:01] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:46:03] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x672118
+[2025-12-04 19:46:03] [INFO]   Removing 76888 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:46:55] [INFO]   Completed 23_1: 595230 cells
+[2025-12-04 19:46:55] [INFO] Processing HTO sample 33/36: 24_1 (GEM: GEM12, Method: HTO)
+[2025-12-04 19:46:55] [INFO]   Running HTODemux for sample 24_1
+[2025-12-04 19:46:59] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:46:59] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:46:59] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAAAGTGG-1
+[2025-12-04 19:46:59] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:47:07] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:47:07] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:48:11] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:48:13] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x672118
+[2025-12-04 19:48:13] [INFO]   Removing 76888 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:49:17] [INFO]   Completed 24_1: 595230 cells
+[2025-12-04 19:49:17] [INFO] Processing HTO sample 34/36: 25_1 (GEM: GEM12, Method: HTO)
+[2025-12-04 19:49:17] [INFO]   Running HTODemux for sample 25_1
+[2025-12-04 19:49:22] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:49:22] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:49:22] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAAAGTGG-1
+[2025-12-04 19:49:22] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:49:31] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:49:31] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 19:50:34] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 19:50:36] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 8x672118
+[2025-12-04 19:50:36] [INFO]   Removing 76888 cells with zero HTO counts before demultiplexing
+[2025-12-04 19:51:25] [INFO]   Completed 25_1: 595230 cells
+[2025-12-04 19:51:25] [INFO] Processing HTO sample 35/36: 27_1 (GEM: GEM12, Method: HTO)
+[2025-12-04 19:51:25] [INFO]   Running HTODemux for sample 27_1
+[2025-12-04 19:51:30] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 19:51:30] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 19:51:30] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCGC-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAAAGTGG-1
+[2025-12-04 19:51:30] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 19:51:37] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 19:51:37] [INFO]   DEBUG: Adding HTO assay...

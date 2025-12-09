@@ -1,0 +1,8 @@
+{
+    "run_id": "SNP_only_1",
+    "output_dir": "/data/user3/sobj/pipe/SNP_only_1",
+    "integration_method": "scVI",
+    "scvi_batch_col": "GEM",
+    "demultiplex_doublet_removal": true,
+    "integration_workers": 16
+}

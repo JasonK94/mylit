@@ -1,0 +1,1294 @@
+[2025-12-03 12:08:10] Starting run: run_test1
+[2025-12-03 12:08:10] [INFO] Starting validation for config: config/config_complete2.csv
+
+========================================
+NEW RUN STARTED (same run_id: run_test1)
+========================================
+[2025-12-03 12:09:14] Starting run: run_test1
+[2025-12-03 12:09:14] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 12:09:14] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 12:09:14] [INFO] Processing SNP samples...
+[2025-12-03 12:09:14] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 12:09:14] [INFO]   Demultiplexing 97_1 using demuxalot
+[2025-12-03 12:09:19] [INFO]   Completed 97_1: 12622 barcodes mapped
+[2025-12-03 12:09:19] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 12:09:19] [INFO]   Demultiplexing 95_1 using demuxalot
+[2025-12-03 12:09:23] [INFO]   Completed 95_1: 12622 barcodes mapped
+[2025-12-03 12:09:23] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 12:09:23] [INFO]   Demultiplexing 92_1 using demuxalot
+[2025-12-03 12:09:26] [INFO]   Completed 92_1: 12622 barcodes mapped
+[2025-12-03 12:09:26] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 12:09:26] [INFO]   Demultiplexing 89_1 using demuxalot
+[2025-12-03 12:09:30] [INFO]   Completed 89_1: 12622 barcodes mapped
+[2025-12-03 12:09:30] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 12:09:30] [INFO]   Demultiplexing 107_1 using demuxalot
+[2025-12-03 12:09:33] [INFO]   Completed 107_1: 12622 barcodes mapped
+[2025-12-03 12:09:33] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 12:09:33] [INFO]   Demultiplexing 106_1 using demuxalot
+[2025-12-03 12:09:37] [INFO]   Completed 106_1: 12622 barcodes mapped
+[2025-12-03 12:09:37] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 12:09:37] [INFO]   Demultiplexing 91_1 using demuxalot
+[2025-12-03 12:09:40] [INFO]   Completed 91_1: 10101 barcodes mapped
+[2025-12-03 12:09:40] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 12:09:40] [INFO]   Demultiplexing 90_1 using demuxalot
+[2025-12-03 12:09:42] [INFO]   Completed 90_1: 10101 barcodes mapped
+[2025-12-03 12:09:42] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 12:09:42] [INFO]   Demultiplexing 88_1 using demuxalot
+[2025-12-03 12:09:45] [INFO]   Completed 88_1: 10101 barcodes mapped
+[2025-12-03 12:09:45] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 12:09:45] [INFO]   Demultiplexing 82_1 using demuxalot
+[2025-12-03 12:09:47] [INFO]   Completed 82_1: 10101 barcodes mapped
+[2025-12-03 12:09:47] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 12:09:47] [INFO]   Demultiplexing 70_1 using demuxalot
+[2025-12-03 12:09:50] [INFO]   Completed 70_1: 10101 barcodes mapped
+[2025-12-03 12:09:50] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 12:09:50] [INFO]   Demultiplexing 105_1 using demuxalot
+[2025-12-03 12:09:52] [INFO]   Completed 105_1: 10101 barcodes mapped
+[2025-12-03 12:09:52] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 12:09:52] [INFO]   Demultiplexing 84_1 using demuxalot
+[2025-12-03 12:09:55] [INFO]   Completed 84_1: 11325 barcodes mapped
+[2025-12-03 12:09:55] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 12:09:55] [INFO]   Demultiplexing 81_1 using demuxalot
+[2025-12-03 12:10:00] [INFO]   Completed 81_1: 11325 barcodes mapped
+[2025-12-03 12:10:00] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 12:10:00] [INFO]   Demultiplexing 65_1 using demuxalot
+[2025-12-03 12:10:02] [INFO]   Completed 65_1: 11325 barcodes mapped
+[2025-12-03 12:10:02] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 12:10:02] [INFO]   Demultiplexing 64_1 using demuxalot
+[2025-12-03 12:10:05] [INFO]   Completed 64_1: 11325 barcodes mapped
+[2025-12-03 12:10:05] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 12:10:05] [INFO]   Demultiplexing 55_1 using demuxalot
+[2025-12-03 12:10:09] [INFO]   Completed 55_1: 11325 barcodes mapped
+[2025-12-03 12:10:09] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 12:10:09] [INFO]   Demultiplexing 54_1 using demuxalot
+[2025-12-03 12:10:12] [INFO]   Completed 54_1: 11325 barcodes mapped
+[2025-12-03 12:10:12] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-03 12:10:12] [INFO]   Demultiplexing 83_1 using demuxalot
+[2025-12-03 12:10:14] [INFO]   Completed 83_1: 9303 barcodes mapped
+[2025-12-03 12:10:14] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 12:10:14] [INFO]   Demultiplexing 76_1 using demuxalot
+[2025-12-03 12:10:17] [INFO]   Completed 76_1: 9303 barcodes mapped
+[2025-12-03 12:10:17] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 12:10:17] [INFO]   Demultiplexing 53_1 using demuxalot
+[2025-12-03 12:10:19] [INFO]   Completed 53_1: 9303 barcodes mapped
+[2025-12-03 12:10:19] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 12:10:19] [INFO]   Demultiplexing 44_1 using demuxalot
+[2025-12-03 12:10:22] [INFO]   Completed 44_1: 9303 barcodes mapped
+[2025-12-03 12:10:22] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 12:10:22] [INFO]   Demultiplexing 41_1 using demuxalot
+[2025-12-03 12:10:24] [INFO]   Completed 41_1: 9303 barcodes mapped
+[2025-12-03 12:10:24] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 12:10:24] [INFO]   Demultiplexing 34_1 using demuxalot
+[2025-12-03 12:10:27] [INFO]   Completed 34_1: 9303 barcodes mapped
+[2025-12-03 12:10:27] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 12:10:27] [INFO]   Demultiplexing 46_1 using demuxalot
+[2025-12-03 12:10:30] [INFO]   Completed 46_1: 12101 barcodes mapped
+[2025-12-03 12:10:30] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 12:10:30] [INFO]   Demultiplexing 33_1 using demuxalot
+[2025-12-03 12:10:33] [INFO]   Completed 33_1: 12101 barcodes mapped
+[2025-12-03 12:10:33] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 12:10:33] [INFO]   Demultiplexing 43_1 using demuxalot
+[2025-12-03 12:10:36] [INFO]   Completed 43_1: 12101 barcodes mapped
+[2025-12-03 12:10:36] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 12:10:36] [INFO]   Demultiplexing 38_2 using demuxalot
+[2025-12-03 12:10:41] [INFO]   Completed 38_2: 12101 barcodes mapped
+[2025-12-03 12:10:41] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 12:10:41] [INFO]   Demultiplexing 32_1 using demuxalot
+[2025-12-03 12:10:44] [INFO]   Completed 32_1: 12101 barcodes mapped
+[2025-12-03 12:10:44] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 12:10:44] [INFO]   Demultiplexing 71_1 using demuxalot
+[2025-12-03 12:10:47] [INFO]   Completed 71_1: 12101 barcodes mapped
+[2025-12-03 12:10:47] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 12:10:47] [INFO]   Demultiplexing 75_1 using demuxalot
+[2025-12-03 12:10:51] [INFO]   Completed 75_1: 12101 barcodes mapped
+[2025-12-03 12:10:51] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 12:10:51] [INFO]   Demultiplexing 104_1 using demuxalot
+[2025-12-03 12:10:55] [INFO]   Completed 104_1: 12101 barcodes mapped
+[2025-12-03 12:10:55] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 12:10:55] [INFO]   Demultiplexing 42_1 using demuxalot
+[2025-12-03 12:10:59] [INFO]   Completed 42_1: 12906 barcodes mapped
+[2025-12-03 12:10:59] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 12:10:59] [INFO]   Demultiplexing 80_2 using demuxalot
+[2025-12-03 12:11:04] [INFO]   Completed 80_2: 12906 barcodes mapped
+[2025-12-03 12:11:04] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 12:11:04] [INFO]   Demultiplexing 29_1 using demuxalot
+[2025-12-03 12:11:08] [INFO]   Completed 29_1: 12906 barcodes mapped
+[2025-12-03 12:11:08] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 12:11:08] [INFO]   Demultiplexing 60_1 using demuxalot
+[2025-12-03 12:11:12] [INFO]   Completed 60_1: 12906 barcodes mapped
+[2025-12-03 12:11:12] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 12:11:12] [INFO]   Demultiplexing 36_1 using demuxalot
+[2025-12-03 12:11:17] [INFO]   Completed 36_1: 12906 barcodes mapped
+[2025-12-03 12:11:17] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 12:11:17] [INFO]   Demultiplexing 31_1 using demuxalot
+[2025-12-03 12:11:21] [INFO]   Completed 31_1: 12906 barcodes mapped
+[2025-12-03 12:11:21] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 12:11:21] [INFO]   Demultiplexing 59_1 using demuxalot
+[2025-12-03 12:11:26] [INFO]   Completed 59_1: 12906 barcodes mapped
+[2025-12-03 12:11:26] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 12:11:26] [INFO]   Demultiplexing 68_1 using demuxalot
+[2025-12-03 12:11:30] [INFO]   Completed 68_1: 12906 barcodes mapped
+[2025-12-03 12:11:30] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 12:11:30] [INFO]   Demultiplexing 35_1 using demuxalot
+[2025-12-03 12:11:36] [INFO]   Completed 35_1: 14460 barcodes mapped
+[2025-12-03 12:11:36] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 12:11:36] [INFO]   Demultiplexing 117_1 using demuxalot
+[2025-12-03 12:11:41] [INFO]   Completed 117_1: 14460 barcodes mapped
+[2025-12-03 12:11:41] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 12:11:41] [INFO]   Demultiplexing 100_1 using demuxalot
+[2025-12-03 12:11:46] [INFO]   Completed 100_1: 14460 barcodes mapped
+[2025-12-03 12:11:46] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 12:11:46] [INFO]   Demultiplexing 51_1 using demuxalot
+[2025-12-03 12:11:51] [INFO]   Completed 51_1: 14460 barcodes mapped
+[2025-12-03 12:11:51] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 12:11:51] [INFO]   Demultiplexing 115_1 using demuxalot
+[2025-12-03 12:11:57] [INFO]   Completed 115_1: 14460 barcodes mapped
+[2025-12-03 12:11:57] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 12:11:57] [INFO]   Demultiplexing 113_1 using demuxalot
+[2025-12-03 12:12:02] [INFO]   Completed 113_1: 14460 barcodes mapped
+[2025-12-03 12:12:02] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 12:12:02] [INFO]   Demultiplexing 45_1 using demuxalot
+[2025-12-03 12:12:07] [INFO]   Completed 45_1: 14460 barcodes mapped
+[2025-12-03 12:12:07] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 12:12:07] [INFO]   Demultiplexing 48_1 using demuxalot
+[2025-12-03 12:12:12] [INFO]   Completed 48_1: 14460 barcodes mapped
+[2025-12-03 12:12:12] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 12:12:12] [INFO]   Demultiplexing 112_1 using demuxalot
+[2025-12-03 12:12:16] [INFO]   Completed 112_1: 12997 barcodes mapped
+[2025-12-03 12:12:16] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 12:12:16] [INFO]   Demultiplexing 111_1 using demuxalot
+[2025-12-03 12:12:19] [INFO]   Completed 111_1: 12997 barcodes mapped
+[2025-12-03 12:12:19] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 12:12:19] [INFO]   Demultiplexing 74_3 using demuxalot
+[2025-12-03 12:12:24] [INFO]   Completed 74_3: 12997 barcodes mapped
+[2025-12-03 12:12:24] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 12:12:24] [INFO]   Demultiplexing 16_1 using demuxalot
+[2025-12-03 12:12:28] [INFO]   Completed 16_1: 12997 barcodes mapped
+[2025-12-03 12:12:28] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 12:12:28] [INFO]   Demultiplexing 103_1 using demuxalot
+[2025-12-03 12:12:32] [INFO]   Completed 103_1: 12997 barcodes mapped
+[2025-12-03 12:12:32] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 12:12:32] [INFO]   Demultiplexing 110_1 using demuxalot
+[2025-12-03 12:12:36] [INFO]   Completed 110_1: 12997 barcodes mapped
+[2025-12-03 12:12:36] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 12:12:36] [INFO]   Demultiplexing 85_1 using demuxalot
+[2025-12-03 12:12:40] [INFO]   Completed 85_1: 12997 barcodes mapped
+[2025-12-03 12:12:40] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 12:12:40] [INFO]   Demultiplexing 93_1 using demuxalot
+[2025-12-03 12:12:44] [INFO]   Completed 93_1: 12997 barcodes mapped
+[2025-12-03 12:12:44] [INFO] Combining SNP barcode mappings...
+[2025-12-03 12:12:44] [INFO] Total SNP barcodes: 679818
+[2025-12-03 12:12:45] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test1/step1/step1_snp_barcode_mappings.qs
+[2025-12-03 12:12:45] [INFO] Creating Seurat objects for SNP samples...
+[2025-12-03 12:12:45] [INFO]   Creating Seurat object for 97_1 (GEM: GEM1)
+[2025-12-03 12:12:54] [ERROR] !!! ERROR creating Seurat object for SNP sample 97_1: No common cells found between count matrix and demux results for 97_1 !!!
+[2025-12-03 12:12:54] [INFO]   Creating Seurat object for 95_1 (GEM: GEM1)
+[2025-12-03 12:13:01] [ERROR] !!! ERROR creating Seurat object for SNP sample 95_1: No common cells found between count matrix and demux results for 95_1 !!!
+[2025-12-03 12:13:01] [INFO]   Creating Seurat object for 92_1 (GEM: GEM1)
+[2025-12-03 12:13:07] [ERROR] !!! ERROR creating Seurat object for SNP sample 92_1: No common cells found between count matrix and demux results for 92_1 !!!
+[2025-12-03 12:13:07] [INFO]   Creating Seurat object for 89_1 (GEM: GEM1)
+[2025-12-03 12:13:12] [ERROR] !!! ERROR creating Seurat object for SNP sample 89_1: No common cells found between count matrix and demux results for 89_1 !!!
+[2025-12-03 12:13:12] [INFO]   Creating Seurat object for 107_1 (GEM: GEM1)
+[2025-12-03 12:13:18] [ERROR] !!! ERROR creating Seurat object for SNP sample 107_1: No common cells found between count matrix and demux results for 107_1 !!!
+[2025-12-03 12:13:18] [INFO]   Creating Seurat object for 106_1 (GEM: GEM1)
+[2025-12-03 12:13:23] [ERROR] !!! ERROR creating Seurat object for SNP sample 106_1: No common cells found between count matrix and demux results for 106_1 !!!
+[2025-12-03 12:13:23] [INFO]   Creating Seurat object for 91_1 (GEM: GEM2)
+[2025-12-03 12:13:30] [ERROR] !!! ERROR creating Seurat object for SNP sample 91_1: No common cells found between count matrix and demux results for 91_1 !!!
+[2025-12-03 12:13:30] [INFO]   Creating Seurat object for 90_1 (GEM: GEM2)
+[2025-12-03 12:13:35] [ERROR] !!! ERROR creating Seurat object for SNP sample 90_1: No common cells found between count matrix and demux results for 90_1 !!!
+[2025-12-03 12:13:35] [INFO]   Creating Seurat object for 88_1 (GEM: GEM2)
+[2025-12-03 12:13:41] [ERROR] !!! ERROR creating Seurat object for SNP sample 88_1: No common cells found between count matrix and demux results for 88_1 !!!
+[2025-12-03 12:13:41] [INFO]   Creating Seurat object for 82_1 (GEM: GEM2)
+[2025-12-03 12:13:46] [ERROR] !!! ERROR creating Seurat object for SNP sample 82_1: No common cells found between count matrix and demux results for 82_1 !!!
+[2025-12-03 12:13:46] [INFO]   Creating Seurat object for 70_1 (GEM: GEM2)
+[2025-12-03 12:13:53] [ERROR] !!! ERROR creating Seurat object for SNP sample 70_1: No common cells found between count matrix and demux results for 70_1 !!!
+[2025-12-03 12:13:53] [INFO]   Creating Seurat object for 105_1 (GEM: GEM2)
+[2025-12-03 12:13:59] [ERROR] !!! ERROR creating Seurat object for SNP sample 105_1: No common cells found between count matrix and demux results for 105_1 !!!
+[2025-12-03 12:13:59] [INFO]   Creating Seurat object for 84_1 (GEM: GEM3)
+[2025-12-03 12:14:05] [ERROR] !!! ERROR creating Seurat object for SNP sample 84_1: No common cells found between count matrix and demux results for 84_1 !!!
+[2025-12-03 12:14:05] [INFO]   Creating Seurat object for 81_1 (GEM: GEM3)
+[2025-12-03 12:14:11] [ERROR] !!! ERROR creating Seurat object for SNP sample 81_1: No common cells found between count matrix and demux results for 81_1 !!!
+[2025-12-03 12:14:11] [INFO]   Creating Seurat object for 65_1 (GEM: GEM3)
+[2025-12-03 12:14:16] [ERROR] !!! ERROR creating Seurat object for SNP sample 65_1: No common cells found between count matrix and demux results for 65_1 !!!
+[2025-12-03 12:14:16] [INFO]   Creating Seurat object for 64_1 (GEM: GEM3)
+[2025-12-03 12:14:23] [ERROR] !!! ERROR creating Seurat object for SNP sample 64_1: No common cells found between count matrix and demux results for 64_1 !!!
+[2025-12-03 12:14:23] [INFO]   Creating Seurat object for 55_1 (GEM: GEM3)
+[2025-12-03 12:14:28] [ERROR] !!! ERROR creating Seurat object for SNP sample 55_1: No common cells found between count matrix and demux results for 55_1 !!!
+[2025-12-03 12:14:28] [INFO]   Creating Seurat object for 54_1 (GEM: GEM3)
+[2025-12-03 12:14:34] [ERROR] !!! ERROR creating Seurat object for SNP sample 54_1: No common cells found between count matrix and demux results for 54_1 !!!
+[2025-12-03 12:14:34] [INFO]   Creating Seurat object for 83_1 (GEM: GEM4)
+[2025-12-03 12:14:39] [ERROR] !!! ERROR creating Seurat object for SNP sample 83_1: No common cells found between count matrix and demux results for 83_1 !!!
+[2025-12-03 12:14:39] [INFO]   Creating Seurat object for 76_1 (GEM: GEM4)
+[2025-12-03 12:14:43] [ERROR] !!! ERROR creating Seurat object for SNP sample 76_1: No common cells found between count matrix and demux results for 76_1 !!!
+[2025-12-03 12:14:43] [INFO]   Creating Seurat object for 53_1 (GEM: GEM4)
+[2025-12-03 12:14:48] [ERROR] !!! ERROR creating Seurat object for SNP sample 53_1: No common cells found between count matrix and demux results for 53_1 !!!
+[2025-12-03 12:14:48] [INFO]   Creating Seurat object for 44_1 (GEM: GEM4)
+[2025-12-03 12:14:51] [ERROR] !!! ERROR creating Seurat object for SNP sample 44_1: No common cells found between count matrix and demux results for 44_1 !!!
+[2025-12-03 12:14:51] [INFO]   Creating Seurat object for 41_1 (GEM: GEM4)
+[2025-12-03 12:14:55] [ERROR] !!! ERROR creating Seurat object for SNP sample 41_1: No common cells found between count matrix and demux results for 41_1 !!!
+[2025-12-03 12:14:55] [INFO]   Creating Seurat object for 34_1 (GEM: GEM4)
+[2025-12-03 12:15:00] [ERROR] !!! ERROR creating Seurat object for SNP sample 34_1: No common cells found between count matrix and demux results for 34_1 !!!
+[2025-12-03 12:15:00] [INFO]   Creating Seurat object for 46_1 (GEM: GEM5)
+[2025-12-03 12:15:06] [ERROR] !!! ERROR creating Seurat object for SNP sample 46_1: No common cells found between count matrix and demux results for 46_1 !!!
+[2025-12-03 12:15:06] [INFO]   Creating Seurat object for 33_1 (GEM: GEM5)
+[2025-12-03 12:15:13] [ERROR] !!! ERROR creating Seurat object for SNP sample 33_1: No common cells found between count matrix and demux results for 33_1 !!!
+[2025-12-03 12:15:13] [INFO]   Creating Seurat object for 43_1 (GEM: GEM5)
+[2025-12-03 12:15:19] [ERROR] !!! ERROR creating Seurat object for SNP sample 43_1: No common cells found between count matrix and demux results for 43_1 !!!
+[2025-12-03 12:15:19] [INFO]   Creating Seurat object for 38_2 (GEM: GEM5)
+[2025-12-03 12:15:25] [ERROR] !!! ERROR creating Seurat object for SNP sample 38_2: No common cells found between count matrix and demux results for 38_2 !!!
+[2025-12-03 12:15:25] [INFO]   Creating Seurat object for 32_1 (GEM: GEM5)
+[2025-12-03 12:15:32] [ERROR] !!! ERROR creating Seurat object for SNP sample 32_1: No common cells found between count matrix and demux results for 32_1 !!!
+[2025-12-03 12:15:32] [INFO]   Creating Seurat object for 71_1 (GEM: GEM5)
+[2025-12-03 12:15:38] [ERROR] !!! ERROR creating Seurat object for SNP sample 71_1: No common cells found between count matrix and demux results for 71_1 !!!
+[2025-12-03 12:15:38] [INFO]   Creating Seurat object for 75_1 (GEM: GEM5)
+[2025-12-03 12:15:44] [ERROR] !!! ERROR creating Seurat object for SNP sample 75_1: No common cells found between count matrix and demux results for 75_1 !!!
+[2025-12-03 12:15:44] [INFO]   Creating Seurat object for 104_1 (GEM: GEM5)
+[2025-12-03 12:15:51] [ERROR] !!! ERROR creating Seurat object for SNP sample 104_1: No common cells found between count matrix and demux results for 104_1 !!!
+[2025-12-03 12:15:51] [INFO]   Creating Seurat object for 42_1 (GEM: GEM6)
+[2025-12-03 12:15:59] [ERROR] !!! ERROR creating Seurat object for SNP sample 42_1: No common cells found between count matrix and demux results for 42_1 !!!
+[2025-12-03 12:15:59] [INFO]   Creating Seurat object for 80_2 (GEM: GEM6)
+[2025-12-03 12:16:06] [ERROR] !!! ERROR creating Seurat object for SNP sample 80_2: No common cells found between count matrix and demux results for 80_2 !!!
+[2025-12-03 12:16:06] [INFO]   Creating Seurat object for 29_1 (GEM: GEM6)
+[2025-12-03 12:16:13] [ERROR] !!! ERROR creating Seurat object for SNP sample 29_1: No common cells found between count matrix and demux results for 29_1 !!!
+[2025-12-03 12:16:13] [INFO]   Creating Seurat object for 60_1 (GEM: GEM6)
+[2025-12-03 12:16:20] [ERROR] !!! ERROR creating Seurat object for SNP sample 60_1: No common cells found between count matrix and demux results for 60_1 !!!
+[2025-12-03 12:16:20] [INFO]   Creating Seurat object for 36_1 (GEM: GEM6)
+[2025-12-03 12:16:27] [ERROR] !!! ERROR creating Seurat object for SNP sample 36_1: No common cells found between count matrix and demux results for 36_1 !!!
+[2025-12-03 12:16:27] [INFO]   Creating Seurat object for 31_1 (GEM: GEM6)
+[2025-12-03 12:16:34] [ERROR] !!! ERROR creating Seurat object for SNP sample 31_1: No common cells found between count matrix and demux results for 31_1 !!!
+[2025-12-03 12:16:34] [INFO]   Creating Seurat object for 59_1 (GEM: GEM6)
+[2025-12-03 12:16:41] [ERROR] !!! ERROR creating Seurat object for SNP sample 59_1: No common cells found between count matrix and demux results for 59_1 !!!
+[2025-12-03 12:16:41] [INFO]   Creating Seurat object for 68_1 (GEM: GEM6)
+[2025-12-03 12:16:49] [ERROR] !!! ERROR creating Seurat object for SNP sample 68_1: No common cells found between count matrix and demux results for 68_1 !!!
+[2025-12-03 12:16:49] [INFO]   Creating Seurat object for 35_1 (GEM: GEM7)
+[2025-12-03 12:16:57] [ERROR] !!! ERROR creating Seurat object for SNP sample 35_1: No common cells found between count matrix and demux results for 35_1 !!!
+[2025-12-03 12:16:57] [INFO]   Creating Seurat object for 117_1 (GEM: GEM7)
+[2025-12-03 12:17:04] [ERROR] !!! ERROR creating Seurat object for SNP sample 117_1: No common cells found between count matrix and demux results for 117_1 !!!
+[2025-12-03 12:17:04] [INFO]   Creating Seurat object for 100_1 (GEM: GEM7)
+[2025-12-03 12:17:11] [ERROR] !!! ERROR creating Seurat object for SNP sample 100_1: No common cells found between count matrix and demux results for 100_1 !!!
+[2025-12-03 12:17:11] [INFO]   Creating Seurat object for 51_1 (GEM: GEM7)
+[2025-12-03 12:17:18] [ERROR] !!! ERROR creating Seurat object for SNP sample 51_1: No common cells found between count matrix and demux results for 51_1 !!!
+[2025-12-03 12:17:18] [INFO]   Creating Seurat object for 115_1 (GEM: GEM7)
+[2025-12-03 12:17:26] [ERROR] !!! ERROR creating Seurat object for SNP sample 115_1: No common cells found between count matrix and demux results for 115_1 !!!
+[2025-12-03 12:17:26] [INFO]   Creating Seurat object for 113_1 (GEM: GEM7)
+[2025-12-03 12:17:33] [ERROR] !!! ERROR creating Seurat object for SNP sample 113_1: No common cells found between count matrix and demux results for 113_1 !!!
+[2025-12-03 12:17:33] [INFO]   Creating Seurat object for 45_1 (GEM: GEM7)
+[2025-12-03 12:17:40] [ERROR] !!! ERROR creating Seurat object for SNP sample 45_1: No common cells found between count matrix and demux results for 45_1 !!!
+[2025-12-03 12:17:40] [INFO]   Creating Seurat object for 48_1 (GEM: GEM7)
+[2025-12-03 12:17:47] [ERROR] !!! ERROR creating Seurat object for SNP sample 48_1: No common cells found between count matrix and demux results for 48_1 !!!
+[2025-12-03 12:17:47] [INFO]   Creating Seurat object for 112_1 (GEM: GEM8)
+[2025-12-03 12:17:56] [ERROR] !!! ERROR creating Seurat object for SNP sample 112_1: No common cells found between count matrix and demux results for 112_1 !!!
+[2025-12-03 12:17:56] [INFO]   Creating Seurat object for 111_1 (GEM: GEM8)
+[2025-12-03 12:18:04] [ERROR] !!! ERROR creating Seurat object for SNP sample 111_1: No common cells found between count matrix and demux results for 111_1 !!!
+[2025-12-03 12:18:04] [INFO]   Creating Seurat object for 74_3 (GEM: GEM8)
+[2025-12-03 12:18:11] [ERROR] !!! ERROR creating Seurat object for SNP sample 74_3: No common cells found between count matrix and demux results for 74_3 !!!
+[2025-12-03 12:18:11] [INFO]   Creating Seurat object for 16_1 (GEM: GEM8)
+[2025-12-03 12:18:20] [ERROR] !!! ERROR creating Seurat object for SNP sample 16_1: No common cells found between count matrix and demux results for 16_1 !!!
+[2025-12-03 12:18:20] [INFO]   Creating Seurat object for 103_1 (GEM: GEM8)
+[2025-12-03 12:18:28] [ERROR] !!! ERROR creating Seurat object for SNP sample 103_1: No common cells found between count matrix and demux results for 103_1 !!!
+[2025-12-03 12:18:28] [INFO]   Creating Seurat object for 110_1 (GEM: GEM8)
+[2025-12-03 12:18:36] [ERROR] !!! ERROR creating Seurat object for SNP sample 110_1: No common cells found between count matrix and demux results for 110_1 !!!
+[2025-12-03 12:18:36] [INFO]   Creating Seurat object for 85_1 (GEM: GEM8)
+[2025-12-03 12:18:43] [ERROR] !!! ERROR creating Seurat object for SNP sample 85_1: No common cells found between count matrix and demux results for 85_1 !!!
+[2025-12-03 12:18:43] [INFO]   Creating Seurat object for 93_1 (GEM: GEM8)
+[2025-12-03 12:18:51] [ERROR] !!! ERROR creating Seurat object for SNP sample 93_1: No common cells found between count matrix and demux results for 93_1 !!!
+[2025-12-03 12:18:51] [ERROR] No samples were successfully processed!
+
+========================================
+NEW RUN STARTED (same run_id: run_test1)
+========================================
+[2025-12-03 12:19:45] Starting run: run_test1
+[2025-12-03 12:19:45] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 12:19:45] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 12:19:45] [INFO] Processing SNP samples...
+[2025-12-03 12:19:46] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 12:19:46] [INFO]   Demultiplexing 97_1 using demuxalot
+[2025-12-03 12:19:50] [INFO]   Completed 97_1: 12622 barcodes mapped
+[2025-12-03 12:19:50] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 12:19:50] [INFO]   Demultiplexing 95_1 using demuxalot
+[2025-12-03 12:19:54] [INFO]   Completed 95_1: 12622 barcodes mapped
+[2025-12-03 12:19:54] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 12:19:54] [INFO]   Demultiplexing 92_1 using demuxalot
+[2025-12-03 12:19:57] [INFO]   Completed 92_1: 12622 barcodes mapped
+[2025-12-03 12:19:57] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 12:19:57] [INFO]   Demultiplexing 89_1 using demuxalot
+[2025-12-03 12:20:01] [INFO]   Completed 89_1: 12622 barcodes mapped
+[2025-12-03 12:20:01] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 12:20:01] [INFO]   Demultiplexing 107_1 using demuxalot
+[2025-12-03 12:20:04] [INFO]   Completed 107_1: 12622 barcodes mapped
+[2025-12-03 12:20:04] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 12:20:04] [INFO]   Demultiplexing 106_1 using demuxalot
+[2025-12-03 12:20:07] [INFO]   Completed 106_1: 12622 barcodes mapped
+[2025-12-03 12:20:07] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 12:20:07] [INFO]   Demultiplexing 91_1 using demuxalot
+[2025-12-03 12:20:11] [INFO]   Completed 91_1: 10101 barcodes mapped
+[2025-12-03 12:20:11] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 12:20:11] [INFO]   Demultiplexing 90_1 using demuxalot
+[2025-12-03 12:20:13] [INFO]   Completed 90_1: 10101 barcodes mapped
+[2025-12-03 12:20:13] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 12:20:13] [INFO]   Demultiplexing 88_1 using demuxalot
+[2025-12-03 12:20:15] [INFO]   Completed 88_1: 10101 barcodes mapped
+[2025-12-03 12:20:15] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 12:20:15] [INFO]   Demultiplexing 82_1 using demuxalot
+[2025-12-03 12:20:17] [INFO]   Completed 82_1: 10101 barcodes mapped
+[2025-12-03 12:20:17] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 12:20:17] [INFO]   Demultiplexing 70_1 using demuxalot
+[2025-12-03 12:20:21] [INFO]   Completed 70_1: 10101 barcodes mapped
+[2025-12-03 12:20:21] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 12:20:21] [INFO]   Demultiplexing 105_1 using demuxalot
+[2025-12-03 12:20:23] [INFO]   Completed 105_1: 10101 barcodes mapped
+[2025-12-03 12:20:23] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 12:20:23] [INFO]   Demultiplexing 84_1 using demuxalot
+[2025-12-03 12:20:26] [INFO]   Completed 84_1: 11325 barcodes mapped
+[2025-12-03 12:20:26] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 12:20:26] [INFO]   Demultiplexing 81_1 using demuxalot
+[2025-12-03 12:20:30] [INFO]   Completed 81_1: 11325 barcodes mapped
+[2025-12-03 12:20:30] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 12:20:30] [INFO]   Demultiplexing 65_1 using demuxalot
+[2025-12-03 12:20:33] [INFO]   Completed 65_1: 11325 barcodes mapped
+[2025-12-03 12:20:33] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 12:20:33] [INFO]   Demultiplexing 64_1 using demuxalot
+[2025-12-03 12:20:35] [INFO]   Completed 64_1: 11325 barcodes mapped
+[2025-12-03 12:20:35] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 12:20:35] [INFO]   Demultiplexing 55_1 using demuxalot
+[2025-12-03 12:20:39] [INFO]   Completed 55_1: 11325 barcodes mapped
+[2025-12-03 12:20:39] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 12:20:39] [INFO]   Demultiplexing 54_1 using demuxalot
+[2025-12-03 12:20:42] [INFO]   Completed 54_1: 11325 barcodes mapped
+[2025-12-03 12:20:42] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-03 12:20:42] [INFO]   Demultiplexing 83_1 using demuxalot
+[2025-12-03 12:20:44] [INFO]   Completed 83_1: 9303 barcodes mapped
+[2025-12-03 12:20:44] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 12:20:44] [INFO]   Demultiplexing 76_1 using demuxalot
+[2025-12-03 12:20:47] [INFO]   Completed 76_1: 9303 barcodes mapped
+[2025-12-03 12:20:47] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 12:20:47] [INFO]   Demultiplexing 53_1 using demuxalot
+[2025-12-03 12:20:49] [INFO]   Completed 53_1: 9303 barcodes mapped
+[2025-12-03 12:20:49] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 12:20:49] [INFO]   Demultiplexing 44_1 using demuxalot
+[2025-12-03 12:20:51] [INFO]   Completed 44_1: 9303 barcodes mapped
+[2025-12-03 12:20:51] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 12:20:51] [INFO]   Demultiplexing 41_1 using demuxalot
+[2025-12-03 12:20:54] [INFO]   Completed 41_1: 9303 barcodes mapped
+[2025-12-03 12:20:54] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 12:20:54] [INFO]   Demultiplexing 34_1 using demuxalot
+[2025-12-03 12:20:57] [INFO]   Completed 34_1: 9303 barcodes mapped
+[2025-12-03 12:20:57] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 12:20:57] [INFO]   Demultiplexing 46_1 using demuxalot
+[2025-12-03 12:21:00] [INFO]   Completed 46_1: 12101 barcodes mapped
+[2025-12-03 12:21:00] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 12:21:00] [INFO]   Demultiplexing 33_1 using demuxalot
+[2025-12-03 12:21:03] [INFO]   Completed 33_1: 12101 barcodes mapped
+[2025-12-03 12:21:03] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 12:21:03] [INFO]   Demultiplexing 43_1 using demuxalot
+[2025-12-03 12:21:06] [INFO]   Completed 43_1: 12101 barcodes mapped
+[2025-12-03 12:21:06] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 12:21:06] [INFO]   Demultiplexing 38_2 using demuxalot
+[2025-12-03 12:21:10] [INFO]   Completed 38_2: 12101 barcodes mapped
+[2025-12-03 12:21:10] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 12:21:10] [INFO]   Demultiplexing 32_1 using demuxalot
+[2025-12-03 12:21:13] [INFO]   Completed 32_1: 12101 barcodes mapped
+[2025-12-03 12:21:13] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 12:21:13] [INFO]   Demultiplexing 71_1 using demuxalot
+[2025-12-03 12:21:17] [INFO]   Completed 71_1: 12101 barcodes mapped
+[2025-12-03 12:21:17] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 12:21:17] [INFO]   Demultiplexing 75_1 using demuxalot
+[2025-12-03 12:21:21] [INFO]   Completed 75_1: 12101 barcodes mapped
+[2025-12-03 12:21:21] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 12:21:21] [INFO]   Demultiplexing 104_1 using demuxalot
+[2025-12-03 12:21:24] [INFO]   Completed 104_1: 12101 barcodes mapped
+[2025-12-03 12:21:24] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 12:21:24] [INFO]   Demultiplexing 42_1 using demuxalot
+[2025-12-03 12:21:29] [INFO]   Completed 42_1: 12906 barcodes mapped
+[2025-12-03 12:21:29] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 12:21:29] [INFO]   Demultiplexing 80_2 using demuxalot
+[2025-12-03 12:21:34] [INFO]   Completed 80_2: 12906 barcodes mapped
+[2025-12-03 12:21:34] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 12:21:34] [INFO]   Demultiplexing 29_1 using demuxalot
+[2025-12-03 12:21:38] [INFO]   Completed 29_1: 12906 barcodes mapped
+[2025-12-03 12:21:38] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 12:21:38] [INFO]   Demultiplexing 60_1 using demuxalot
+[2025-12-03 12:21:42] [INFO]   Completed 60_1: 12906 barcodes mapped
+[2025-12-03 12:21:42] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 12:21:42] [INFO]   Demultiplexing 36_1 using demuxalot
+[2025-12-03 12:21:46] [INFO]   Completed 36_1: 12906 barcodes mapped
+[2025-12-03 12:21:46] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 12:21:46] [INFO]   Demultiplexing 31_1 using demuxalot
+[2025-12-03 12:21:50] [INFO]   Completed 31_1: 12906 barcodes mapped
+[2025-12-03 12:21:50] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 12:21:50] [INFO]   Demultiplexing 59_1 using demuxalot
+[2025-12-03 12:21:55] [INFO]   Completed 59_1: 12906 barcodes mapped
+[2025-12-03 12:21:55] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 12:21:55] [INFO]   Demultiplexing 68_1 using demuxalot
+[2025-12-03 12:21:59] [INFO]   Completed 68_1: 12906 barcodes mapped
+[2025-12-03 12:21:59] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 12:21:59] [INFO]   Demultiplexing 35_1 using demuxalot
+[2025-12-03 12:22:06] [INFO]   Completed 35_1: 14460 barcodes mapped
+[2025-12-03 12:22:06] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 12:22:06] [INFO]   Demultiplexing 117_1 using demuxalot
+[2025-12-03 12:22:11] [INFO]   Completed 117_1: 14460 barcodes mapped
+[2025-12-03 12:22:11] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 12:22:11] [INFO]   Demultiplexing 100_1 using demuxalot
+[2025-12-03 12:22:17] [INFO]   Completed 100_1: 14460 barcodes mapped
+[2025-12-03 12:22:17] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 12:22:17] [INFO]   Demultiplexing 51_1 using demuxalot
+[2025-12-03 12:22:22] [INFO]   Completed 51_1: 14460 barcodes mapped
+[2025-12-03 12:22:22] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 12:22:22] [INFO]   Demultiplexing 115_1 using demuxalot
+[2025-12-03 12:22:28] [INFO]   Completed 115_1: 14460 barcodes mapped
+[2025-12-03 12:22:28] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 12:22:28] [INFO]   Demultiplexing 113_1 using demuxalot
+[2025-12-03 12:22:33] [INFO]   Completed 113_1: 14460 barcodes mapped
+[2025-12-03 12:22:33] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 12:22:33] [INFO]   Demultiplexing 45_1 using demuxalot
+[2025-12-03 12:22:39] [INFO]   Completed 45_1: 14460 barcodes mapped
+[2025-12-03 12:22:39] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 12:22:39] [INFO]   Demultiplexing 48_1 using demuxalot
+[2025-12-03 12:22:45] [INFO]   Completed 48_1: 14460 barcodes mapped
+[2025-12-03 12:22:45] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 12:22:45] [INFO]   Demultiplexing 112_1 using demuxalot
+[2025-12-03 12:22:50] [INFO]   Completed 112_1: 12997 barcodes mapped
+[2025-12-03 12:22:50] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 12:22:50] [INFO]   Demultiplexing 111_1 using demuxalot
+[2025-12-03 12:22:54] [INFO]   Completed 111_1: 12997 barcodes mapped
+[2025-12-03 12:22:54] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 12:22:54] [INFO]   Demultiplexing 74_3 using demuxalot
+[2025-12-03 12:22:57] [INFO]   Completed 74_3: 12997 barcodes mapped
+[2025-12-03 12:22:57] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 12:22:57] [INFO]   Demultiplexing 16_1 using demuxalot
+[2025-12-03 12:23:01] [INFO]   Completed 16_1: 12997 barcodes mapped
+[2025-12-03 12:23:01] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 12:23:01] [INFO]   Demultiplexing 103_1 using demuxalot
+[2025-12-03 12:23:06] [INFO]   Completed 103_1: 12997 barcodes mapped
+[2025-12-03 12:23:06] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 12:23:06] [INFO]   Demultiplexing 110_1 using demuxalot
+[2025-12-03 12:23:09] [INFO]   Completed 110_1: 12997 barcodes mapped
+[2025-12-03 12:23:09] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 12:23:09] [INFO]   Demultiplexing 85_1 using demuxalot
+[2025-12-03 12:23:13] [INFO]   Completed 85_1: 12997 barcodes mapped
+[2025-12-03 12:23:13] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 12:23:13] [INFO]   Demultiplexing 93_1 using demuxalot
+[2025-12-03 12:23:18] [INFO]   Completed 93_1: 12997 barcodes mapped
+[2025-12-03 12:23:18] [INFO] Combining SNP barcode mappings...
+[2025-12-03 12:23:19] [INFO] Total SNP barcodes: 679818
+[2025-12-03 12:23:19] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test1/step1/step1_snp_barcode_mappings_1.qs
+[2025-12-03 12:23:19] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test1/step1/step1_snp_barcode_mappings_1.qs
+[2025-12-03 12:23:19] [INFO] Creating Seurat objects for SNP samples...
+[2025-12-03 12:23:19] [INFO]   Creating Seurat object for 97_1 (GEM: GEM1)
+[2025-12-03 12:23:28] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGACACGAC-1_GEM1, AAACCTGAGATAGGAG-1_GEM1, AAACCTGAGATGGGTC-1_GEM1, AAACCTGAGCAATATG-1_GEM1, AAACCTGAGCAGACTG-1_GEM1
+[2025-12-03 12:23:28] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGACACGAC-1_GEM1...1, AAACCTGAGATAGGAG-1_GEM1...2, AAACCTGAGATGGGTC-1_GEM1...3, AAACCTGAGCAATATG-1_GEM1...4, AAACCTGAGCAGACTG-1_GEM1...5
+[2025-12-03 12:23:28] [INFO]   DEBUG: Common original barcodes: 12622
+[2025-12-03 12:23:28] [ERROR] !!! ERROR creating Seurat object for SNP sample 97_1: No common cells found between count matrix and demux results for 97_1 !!!
+[2025-12-03 12:23:28] [INFO]   Creating Seurat object for 95_1 (GEM: GEM1)
+[2025-12-03 12:23:34] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGACACGAC-1_GEM1, AAACCTGAGATAGGAG-1_GEM1, AAACCTGAGATGGGTC-1_GEM1, AAACCTGAGCAATATG-1_GEM1, AAACCTGAGCAGACTG-1_GEM1
+[2025-12-03 12:23:34] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGACACGAC-1_GEM1...12623, AAACCTGAGATAGGAG-1_GEM1...12624, AAACCTGAGATGGGTC-1_GEM1...12625, AAACCTGAGCAATATG-1_GEM1...12626, AAACCTGAGCAGACTG-1_GEM1...12627
+[2025-12-03 12:23:34] [INFO]   DEBUG: Common original barcodes: 12622
+[2025-12-03 12:23:34] [ERROR] !!! ERROR creating Seurat object for SNP sample 95_1: No common cells found between count matrix and demux results for 95_1 !!!
+[2025-12-03 12:23:34] [INFO]   Creating Seurat object for 92_1 (GEM: GEM1)
+[2025-12-03 12:23:40] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGACACGAC-1_GEM1, AAACCTGAGATAGGAG-1_GEM1, AAACCTGAGATGGGTC-1_GEM1, AAACCTGAGCAATATG-1_GEM1, AAACCTGAGCAGACTG-1_GEM1
+[2025-12-03 12:23:40] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGACACGAC-1_GEM1...25245, AAACCTGAGATAGGAG-1_GEM1...25246, AAACCTGAGATGGGTC-1_GEM1...25247, AAACCTGAGCAATATG-1_GEM1...25248, AAACCTGAGCAGACTG-1_GEM1...25249
+[2025-12-03 12:23:40] [INFO]   DEBUG: Common original barcodes: 12622
+[2025-12-03 12:23:40] [ERROR] !!! ERROR creating Seurat object for SNP sample 92_1: No common cells found between count matrix and demux results for 92_1 !!!
+[2025-12-03 12:23:40] [INFO]   Creating Seurat object for 89_1 (GEM: GEM1)
+[2025-12-03 12:23:45] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGACACGAC-1_GEM1, AAACCTGAGATAGGAG-1_GEM1, AAACCTGAGATGGGTC-1_GEM1, AAACCTGAGCAATATG-1_GEM1, AAACCTGAGCAGACTG-1_GEM1
+[2025-12-03 12:23:45] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGACACGAC-1_GEM1...37867, AAACCTGAGATAGGAG-1_GEM1...37868, AAACCTGAGATGGGTC-1_GEM1...37869, AAACCTGAGCAATATG-1_GEM1...37870, AAACCTGAGCAGACTG-1_GEM1...37871
+[2025-12-03 12:23:45] [INFO]   DEBUG: Common original barcodes: 12622
+[2025-12-03 12:23:45] [ERROR] !!! ERROR creating Seurat object for SNP sample 89_1: No common cells found between count matrix and demux results for 89_1 !!!
+[2025-12-03 12:23:45] [INFO]   Creating Seurat object for 107_1 (GEM: GEM1)
+[2025-12-03 12:23:51] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGACACGAC-1_GEM1, AAACCTGAGATAGGAG-1_GEM1, AAACCTGAGATGGGTC-1_GEM1, AAACCTGAGCAATATG-1_GEM1, AAACCTGAGCAGACTG-1_GEM1
+[2025-12-03 12:23:51] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGACACGAC-1_GEM1...50489, AAACCTGAGATAGGAG-1_GEM1...50490, AAACCTGAGATGGGTC-1_GEM1...50491, AAACCTGAGCAATATG-1_GEM1...50492, AAACCTGAGCAGACTG-1_GEM1...50493
+[2025-12-03 12:23:51] [INFO]   DEBUG: Common original barcodes: 12622
+[2025-12-03 12:23:51] [ERROR] !!! ERROR creating Seurat object for SNP sample 107_1: No common cells found between count matrix and demux results for 107_1 !!!
+[2025-12-03 12:23:51] [INFO]   Creating Seurat object for 106_1 (GEM: GEM1)
+[2025-12-03 12:23:56] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGACACGAC-1_GEM1, AAACCTGAGATAGGAG-1_GEM1, AAACCTGAGATGGGTC-1_GEM1, AAACCTGAGCAATATG-1_GEM1, AAACCTGAGCAGACTG-1_GEM1
+[2025-12-03 12:23:56] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGACACGAC-1_GEM1...63111, AAACCTGAGATAGGAG-1_GEM1...63112, AAACCTGAGATGGGTC-1_GEM1...63113, AAACCTGAGCAATATG-1_GEM1...63114, AAACCTGAGCAGACTG-1_GEM1...63115
+[2025-12-03 12:23:56] [INFO]   DEBUG: Common original barcodes: 12622
+[2025-12-03 12:23:56] [ERROR] !!! ERROR creating Seurat object for SNP sample 106_1: No common cells found between count matrix and demux results for 106_1 !!!
+[2025-12-03 12:23:56] [INFO]   Creating Seurat object for 91_1 (GEM: GEM2)
+[2025-12-03 12:24:02] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCGAAGGG-1_GEM2, AAACCTGAGGCCCTCA-1_GEM2, AAACCTGAGTCCATAC-1_GEM2, AAACCTGCAAGGACTG-1_GEM2, AAACCTGCACATCTTT-1_GEM2
+[2025-12-03 12:24:02] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCGAAGGG-1_GEM2...75733, AAACCTGAGGCCCTCA-1_GEM2...75734, AAACCTGAGTCCATAC-1_GEM2...75735, AAACCTGCAAGGACTG-1_GEM2...75736, AAACCTGCACATCTTT-1_GEM2...75737
+[2025-12-03 12:24:02] [INFO]   DEBUG: Common original barcodes: 10101
+[2025-12-03 12:24:02] [ERROR] !!! ERROR creating Seurat object for SNP sample 91_1: No common cells found between count matrix and demux results for 91_1 !!!
+[2025-12-03 12:24:02] [INFO]   Creating Seurat object for 90_1 (GEM: GEM2)
+[2025-12-03 12:24:06] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCGAAGGG-1_GEM2, AAACCTGAGGCCCTCA-1_GEM2, AAACCTGAGTCCATAC-1_GEM2, AAACCTGCAAGGACTG-1_GEM2, AAACCTGCACATCTTT-1_GEM2
+[2025-12-03 12:24:06] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCGAAGGG-1_GEM2...85834, AAACCTGAGGCCCTCA-1_GEM2...85835, AAACCTGAGTCCATAC-1_GEM2...85836, AAACCTGCAAGGACTG-1_GEM2...85837, AAACCTGCACATCTTT-1_GEM2...85838
+[2025-12-03 12:24:06] [INFO]   DEBUG: Common original barcodes: 10101
+[2025-12-03 12:24:06] [ERROR] !!! ERROR creating Seurat object for SNP sample 90_1: No common cells found between count matrix and demux results for 90_1 !!!
+[2025-12-03 12:24:06] [INFO]   Creating Seurat object for 88_1 (GEM: GEM2)
+[2025-12-03 12:24:12] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCGAAGGG-1_GEM2, AAACCTGAGGCCCTCA-1_GEM2, AAACCTGAGTCCATAC-1_GEM2, AAACCTGCAAGGACTG-1_GEM2, AAACCTGCACATCTTT-1_GEM2
+[2025-12-03 12:24:12] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCGAAGGG-1_GEM2...95935, AAACCTGAGGCCCTCA-1_GEM2...95936, AAACCTGAGTCCATAC-1_GEM2...95937, AAACCTGCAAGGACTG-1_GEM2...95938, AAACCTGCACATCTTT-1_GEM2...95939
+[2025-12-03 12:24:12] [INFO]   DEBUG: Common original barcodes: 10101
+[2025-12-03 12:24:12] [ERROR] !!! ERROR creating Seurat object for SNP sample 88_1: No common cells found between count matrix and demux results for 88_1 !!!
+[2025-12-03 12:24:12] [INFO]   Creating Seurat object for 82_1 (GEM: GEM2)
+[2025-12-03 12:24:17] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCGAAGGG-1_GEM2, AAACCTGAGGCCCTCA-1_GEM2, AAACCTGAGTCCATAC-1_GEM2, AAACCTGCAAGGACTG-1_GEM2, AAACCTGCACATCTTT-1_GEM2
+[2025-12-03 12:24:17] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCGAAGGG-1_GEM2...106036, AAACCTGAGGCCCTCA-1_GEM2...106037, AAACCTGAGTCCATAC-1_GEM2...106038, AAACCTGCAAGGACTG-1_GEM2...106039, AAACCTGCACATCTTT-1_GEM2...106040
+[2025-12-03 12:24:17] [INFO]   DEBUG: Common original barcodes: 10101
+[2025-12-03 12:24:17] [ERROR] !!! ERROR creating Seurat object for SNP sample 82_1: No common cells found between count matrix and demux results for 82_1 !!!
+[2025-12-03 12:24:17] [INFO]   Creating Seurat object for 70_1 (GEM: GEM2)
+[2025-12-03 12:24:23] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCGAAGGG-1_GEM2, AAACCTGAGGCCCTCA-1_GEM2, AAACCTGAGTCCATAC-1_GEM2, AAACCTGCAAGGACTG-1_GEM2, AAACCTGCACATCTTT-1_GEM2
+[2025-12-03 12:24:23] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCGAAGGG-1_GEM2...116137, AAACCTGAGGCCCTCA-1_GEM2...116138, AAACCTGAGTCCATAC-1_GEM2...116139, AAACCTGCAAGGACTG-1_GEM2...116140, AAACCTGCACATCTTT-1_GEM2...11614
+========================================
+NEW RUN STARTED (same run_id: run_test1)
+========================================
+1
+[2025-12-03 12:24:23] [INFO]   DEBUG: Common original barcodes: 10101
+[2025-12-03 12:24:23] [ERROR] !!! ERROR creating Seurat object for SNP sample 70_1: No common cells found between count matrix and demux results for 70_1 !!!
+[2025-12-03 12:24:23] [INFO]   Creating Seurat object for 105_1 (GEM: GEM2)
+[2025-12-03 12:24:29] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCGAAGGG-1_GEM2, AAACCTGAGGCCCTCA-1_GEM2, AAACCTGAGTCCATAC-1_GEM2, AAACCTGCAAGGACTG-1_GEM2, AAACCTGCACATCTTT-1_GEM2
+[2025-12-03 12:24:29] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCGAAGGG-1_GEM2...126238, AAACCTGAGGCCCTCA-1_GEM2...126239, AAACCTGAGTCCATAC-1_GEM2...126240, AAACCTGCAAGGACTG-1_GEM2...126241, AAACCTGCACATCTTT-1_GEM2...126242
+[2025-12-03 12:24:29] [INFO]   DEBUG: Common original barcodes: 10101
+[2025-12-03 12:24:29] [ERROR] !!! ERROR creating Seurat object for SNP sample 105_1: No common cells found between count matrix and demux results for 105_1 !!!
+[2025-12-03 12:24:29] [INFO]   Creating Seurat object for 84_1 (GEM: GEM3)
+[2025-12-03 12:24:34] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCTAGTGG-1_GEM3, AAACCTGAGGGCTTGA-1_GEM3, AAACCTGAGTTGTCGT-1_GEM3, AAACCTGCAATGGATA-1_GEM3, AAACCTGCACAAGCCC-1_GEM3
+[2025-12-03 12:24:34] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCTAGTGG-1_GEM3...136339, AAACCTGAGGGCTTGA-1_GEM3...136340, AAACCTGAGTTGTCGT-1_GEM3...136341, AAACCTGCAATGGATA-1_GEM3...136342, AAACCTGCACAAGCCC-1_GEM3...136343
+[2025-12-03 12:24:34] [INFO]   DEBUG: Common original barcodes: 11325
+[2025-12-03 12:24:34] [ERROR] !!! ERROR creating Seurat object for SNP sample 84_1: No common cells found between count matrix and demux results for 84_1 !!!
+[2025-12-03 12:24:34] [INFO]   Creating Seurat object for 81_1 (GEM: GEM3)
+[2025-12-03 12:24:40] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCTAGTGG-1_GEM3, AAACCTGAGGGCTTGA-1_GEM3, AAACCTGAGTTGTCGT-1_GEM3, AAACCTGCAATGGATA-1_GEM3, AAACCTGCACAAGCCC-1_GEM3
+[2025-12-03 12:24:40] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCTAGTGG-1_GEM3...147664, AAACCTGAGGGCTTGA-1_GEM3...147665, AAACCTGAGTTGTCGT-1_GEM3...147666, AAACCTGCAATGGATA-1_GEM3...147667, AAACCTGCACAAGCCC-1_GEM3...147668
+[2025-12-03 12:24:40] [INFO]   DEBUG: Common original barcodes: 11325
+[2025-12-03 12:24:40] [ERROR] !!! ERROR creating Seurat object for SNP sample 81_1: No common cells found between count matrix and demux results for 81_1 !!!
+[2025-12-03 12:24:40] [INFO]   Creating Seurat object for 65_1 (GEM: GEM3)
+[2025-12-03 12:24:45] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCTAGTGG-1_GEM3, AAACCTGAGGGCTTGA-1_GEM3, AAACCTGAGTTGTCGT-1_GEM3, AAACCTGCAATGGATA-1_GEM3, AAACCTGCACAAGCCC-1_GEM3
+[2025-12-03 12:24:45] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCTAGTGG-1_GEM3...158989, AAACCTGAGGGCTTGA-1_GEM3...158990, AAACCTGAGTTGTCGT-1_GEM3...158991, AAACCTGCAATGGATA-1_GEM3...158992, AAACCTGCACAAGCCC-1_GEM3...158993
+[2025-12-03 12:24:45] [INFO]   DEBUG: Common original barcodes: 11325
+[2025-12-03 12:24:45] [ERROR] !!! ERROR creating Seurat object for SNP sample 65_1: No common cells found between count matrix and demux results for 65_1 !!!
+[2025-12-03 12:24:45] [INFO]   Creating Seurat object for 64_1 (GEM: GEM3)
+[2025-12-03 12:24:51] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCTAGTGG-1_GEM3, AAACCTGAGGGCTTGA-1_GEM3, AAACCTGAGTTGTCGT-1_GEM3, AAACCTGCAATGGATA-1_GEM3, AAACCTGCACAAGCCC-1_GEM3
+[2025-12-03 12:24:51] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCTAGTGG-1_GEM3...170314, AAACCTGAGGGCTTGA-1_GEM3...170315, AAACCTGAGTTGTCGT-1_GEM3...170316, AAACCTGCAATGGATA-1_GEM3...170317, AAACCTGCACAAGCCC-1_GEM3...170318
+[2025-12-03 12:24:51] [INFO]   DEBUG: Common original barcodes: 11325
+[2025-12-03 12:24:51] [ERROR] !!! ERROR creating Seurat object for SNP sample 64_1: No common cells found between count matrix and demux results for 64_1 !!!
+[2025-12-03 12:24:51] [INFO]   Creating Seurat object for 55_1 (GEM: GEM3)
+[2025-12-03 12:24:56] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCTAGTGG-1_GEM3, AAACCTGAGGGCTTGA-1_GEM3, AAACCTGAGTTGTCGT-1_GEM3, AAACCTGCAATGGATA-1_GEM3, AAACCTGCACAAGCCC-1_GEM3
+[2025-12-03 12:24:56] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCTAGTGG-1_GEM3...181639, AAACCTGAGGGCTTGA-1_GEM3...181640, AAACCTGAGTTGTCGT-1_GEM3...181641, AAACCTGCAATGGATA-1_GEM3...181642, AAACCTGCACAAGCCC-1_GEM3...181643
+[2025-12-03 12:24:56] [INFO]   DEBUG: Common original barcodes: 11325
+[2025-12-03 12:24:56] [ERROR] !!! ERROR creating Seurat object for SNP sample 55_1: No common cells found between count matrix and demux results for 55_1 !!!
+[2025-12-03 12:24:56] [INFO]   Creating Seurat object for 54_1 (GEM: GEM3)
+[2025-12-03 12:25:02] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGCTAGTGG-1_GEM3, AAACCTGAGGGCTTGA-1_GEM3, AAACCTGAGTTGTCGT-1_GEM3, AAACCTGCAATGGATA-1_GEM3, AAACCTGCACAAGCCC-1_GEM3
+[2025-12-03 12:25:02] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGCTAGTGG-1_GEM3...192964, AAACCTGAGGGCTTGA-1_GEM3...192965, AAACCTGAGTTGTCGT-1_GEM3...192966, AAACCTGCAATGGATA-1_GEM3...192967, AAACCTGCACAAGCCC-1_GEM3...192968
+[2025-12-03 12:25:02] [INFO]   DEBUG: Common original barcodes: 11325
+[2025-12-03 12:25:02] [ERROR] !!! ERROR creating Seurat object for SNP sample 54_1: No common cells found between count matrix and demux results for 54_1 !!!
+[2025-12-03 12:25:02] [INFO]   Creating Seurat object for 83_1 (GEM: GEM4)
+[2025-12-03 12:25:07] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGACTAT-1_GEM4, AAACCTGAGAGCTATA-1_GEM4, AAACCTGAGCGGATCA-1_GEM4, AAACCTGAGCGTTCCG-1_GEM4, AAACCTGAGTTGCAGG-1_GEM4
+[2025-12-03 12:25:07] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGACTAT-1_GEM4...204289, AAACCTGAGAGCTATA-1_GEM4...204290, AAACCTGAGCGGATCA-1_GEM4...204291, AAACCTGAGCGTTCCG-1_GEM4...204292, AAACCTGAGTTGCAGG-1_GEM4...204293
+[2025-12-03 12:25:07] [INFO]   DEBUG: Common original barcodes: 9303
+[2025-12-03 12:25:07] [ERROR] !!! ERROR creating Seurat object for SNP sample 83_1: No common cells found between count matrix and demux results for 83_1 !!!
+[2025-12-03 12:25:07] [INFO]   Creating Seurat object for 76_1 (GEM: GEM4)
+[2025-12-03 12:25:11] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGACTAT-1_GEM4, AAACCTGAGAGCTATA-1_GEM4, AAACCTGAGCGGATCA-1_GEM4, AAACCTGAGCGTTCCG-1_GEM4, AAACCTGAGTTGCAGG-1_GEM4
+[2025-12-03 12:25:11] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGACTAT-1_GEM4...213592, AAACCTGAGAGCTATA-1_GEM4...213593, AAACCTGAGCGGATCA-1_GEM4...213594, AAACCTGAGCGTTCCG-1_GEM4...213595, AAACCTGAGTTGCAGG-1_GEM4...213596
+[2025-12-03 12:25:11] [INFO]   DEBUG: Common original barcodes: 9303
+[2025-12-03 12:25:11] [ERROR] !!! ERROR creating Seurat object for SNP sample 76_1: No common cells found between count matrix and demux results for 76_1 !!!
+[2025-12-03 12:25:11] [INFO]   Creating Seurat object for 53_1 (GEM: GEM4)
+[2025-12-03 12:25:16] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGACTAT-1_GEM4, AAACCTGAGAGCTATA-1_GEM4, AAACCTGAGCGGATCA-1_GEM4, AAACCTGAGCGTTCCG-1_GEM4, AAACCTGAGTTGCAGG-1_GEM4
+[2025-12-03 12:25:16] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGACTAT-1_GEM4...222895, AAACCTGAGAGCTATA-1_GEM4...222896, AAACCTGAGCGGATCA-1_GEM4...222897, AAACCTGAGCGTTCCG-1_GEM4...222898, AAACCTGAGTTGCAGG-1_GEM4...222899
+[2025-12-03 12:25:16] [INFO]   DEBUG: Common original barcodes: 9303
+[2025-12-03 12:25:16] [ERROR] !!! ERROR creating Seurat object for SNP sample 53_1: No common cells found between count matrix and demux results for 53_1 !!!
+[2025-12-03 12:25:16] [INFO]   Creating Seurat object for 44_1 (GEM: GEM4)
+[2025-12-03 12:25:19] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGACTAT-1_GEM4, AAACCTGAGAGCTATA-1_GEM4, AAACCTGAGCGGATCA-1_GEM4, AAACCTGAGCGTTCCG-1_GEM4, AAACCTGAGTTGCAGG-1_GEM4
+[2025-12-03 12:25:19] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGACTAT-1_GEM4...232198, AAACCTGAGAGCTATA-1_GEM4...232199, AAACCTGAGCGGATCA-1_GEM4...232200, AAACCTGAGCGTTCCG-1[2025-12-03 12:24:24] Starting run: run_test1
+[2025-12-03 12:24:24] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 12:24:24] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 12:24:24] [INFO] Processing SNP samples...
+[2025-12-03 12:24:24] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 12:24:24] [INFO]   Demultiplexing 97_1 using demuxalot
+[2025-12-03 12:24:28] [INFO]   Completed 97_1: 12622 barcodes mapped
+[2025-12-03 12:24:28] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 12:24:28] [INFO]   Demultiplexing 95_1 using demuxalot
+[2025-12-03 12:24:33] [INFO]   Completed 95_1: 12622 barcodes mapped
+[2025-12-03 12:24:33] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 12:24:33] [INFO]   Demultiplexing 92_1 using demuxalot
+[2025-12-03 12:24:36] [INFO]   Completed 92_1: 12622 barcodes mapped
+[2025-12-03 12:24:36] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 12:24:36] [INFO]   Demultiplexing 89_1 using demuxalot
+[2025-12-03 12:24:40] [INFO]   Completed 89_1: 12622 barcodes mapped
+[2025-12-03 12:24:40] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 12:24:40] [INFO]   Demultiplexing 107_1 using demuxalot
+[2025-12-03 12:24:43] [INFO]   Completed 107_1: 12622 barcodes mapped
+[2025-12-03 12:24:43] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 12:24:43] [INFO]   Demultiplexing 106_1 using demuxalot
+[2025-12-03 12:24:46] [INFO]   Completed 106_1: 12622 barcodes mapped
+[2025-12-03 12:24:46] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 12:24:46] [INFO]   Demultiplexing 91_1 using demuxalot
+[2025-12-03 12:24:50] [INFO]   Completed 91_1: 10101 barcodes mapped
+[2025-12-03 12:24:50] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 12:24:50] [INFO]   Demultiplexing 90_1 using demuxalot
+[2025-12-03 12:24:52] [INFO]   Completed 90_1: 10101 barcodes mapped
+[2025-12-03 12:24:52] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 12:24:52] [INFO]   Demultiplexing 88_1 using demuxalot
+[2025-12-03 12:24:54] [INFO]   Completed 88_1: 10101 barcodes mapped
+[2025-12-03 12:24:54] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 12:24:54] [INFO]   Demultiplexing 82_1 using demuxalot
+[2025-12-03 12:24:57] [INFO]   Completed 82_1: 10101 barcodes mapped
+[2025-12-03 12:24:57] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 12:24:57] [INFO]   Demultiplexing 70_1 using demuxalot
+[2025-12-03 12:25:00] [INFO]   Completed 70_1: 10101 barcodes mapped
+[2025-12-03 12:25:00] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 12:25:00] [INFO]   Demultiplexing 105_1 using demuxalot
+[2025-12-03 12:25:02] [INFO]   Completed 105_1: 10101 barcodes mapped
+[2025-12-03 12:25:02] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 12:25:02] [INFO]   Demultiplexing 84_1 using demuxalot
+[2025-12-03 12:25:05] [INFO]   Completed 84_1: 11325 barcodes mapped
+[2025-12-03 12:25:05] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 12:25:05] [INFO]   Demultiplexing 81_1 using demuxalot
+[2025-12-03 12:25:10] [INFO]   Completed 81_1: 11325 barcodes mapped
+[2025-12-03 12:25:10] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 12:25:10] [INFO]   Demultiplexing 65_1 using demuxalot
+[2025-12-03 12:25:12] [INFO]   Completed 65_1: 11325 barcodes mapped
+[2025-12-03 12:25:12] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 12:25:12] [INFO]   Demultiplexing 64_1 using demuxalot
+[2025-12-03 12:25:15] [INFO]   Completed 64_1: 11325 barcodes mapped
+[2025-12-03 12:25:15] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 12:25:15] [INFO]   Demultiplexing 55_1 using demuxalot
+[2025-12-03 12:25:19] [INFO]   Completed 55_1: 11325 barcodes mapped
+[2025-12-03 12:25:19] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 12:25:19] [INFO]   Demultiplexing 54_1 using demuxalot
+[2025-12-03 12:25:22] [INFO]   Completed 54_1: 11325 barcodes mapped
+[2025-12-03 12:25:22] [INFO] Processing SNP sample 19/56: 8
+========================================
+NEW RUN STARTED (same run_id: run_test1)
+========================================
+_GEM4...232201, AAACCTGAGTTGCAGG-1_GEM4...232202
+[2025-12-03 12:25:19] [INFO]   DEBUG: Common original barcodes: 9303
+[2025-12-03 12:25:19] [ERROR] !!! ERROR creating Seurat object for SNP sample 44_1: No common cells found between count matrix and demux results for 44_1 !!!
+[2025-12-03 12:25:19] [INFO]   Creating Seurat object for 41_1 (GEM: GEM4)
+[2025-12-03 12:25:24] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGACTAT-1_GEM4, AAACCTGAGAGCTATA-1_GEM4, AAACCTGAGCGGATCA-1_GEM4, AAACCTGAGCGTTCCG-1_GEM4, AAACCTGAGTTGCAGG-1_GEM4
+[2025-12-03 12:25:24] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGACTAT-1_GEM4...241501, AAACCTGAGAGCTATA-1_GEM4...241502, AAACCTGAGCGGATCA-1_GEM4...241503, AAACCTGAGCGTTCCG-1_GEM4...241504, AAACCTGAGTTGCAGG-1_GEM4...241505
+[2025-12-03 12:25:24] [INFO]   DEBUG: Common original barcodes: 9303
+[2025-12-03 12:25:24] [ERROR] !!! ERROR creating Seurat object for SNP sample 41_1: No common cells found between count matrix and demux results for 41_1 !!!
+[2025-12-03 12:25:24] [INFO]   Creating Seurat object for 34_1 (GEM: GEM4)
+[2025-12-03 12:25:29] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGACTAT-1_GEM4, AAACCTGAGAGCTATA-1_GEM4, AAACCTGAGCGGATCA-1_GEM4, AAACCTGAGCGTTCCG-1_GEM4, AAACCTGAGTTGCAGG-1_GEM4
+[2025-12-03 12:25:29] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGACTAT-1_GEM4...250804, AAACCTGAGAGCTATA-1_GEM4...250805, AAACCTGAGCGGATCA-1_GEM4...250806, AAACCTGAGCGTTCCG-1_GEM4...250807, AAACCTGAGTTGCAGG-1_GEM4...250808
+[2025-12-03 12:25:29] [INFO]   DEBUG: Common original barcodes: 9303
+[2025-12-03 12:25:29] [ERROR] !!! ERROR creating Seurat object for SNP sample 34_1: No common cells found between count matrix and demux results for 34_1 !!!
+[2025-12-03 12:25:29] [INFO]   Creating Seurat object for 46_1 (GEM: GEM5)
+[2025-12-03 12:25:36] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:25:36] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...260107, AAACCTGAGAGTTGGC-1_GEM5...260108, AAACCTGAGATGTAAC-1_GEM5...260109, AAACCTGAGCGTCTAT-1_GEM5...260110, AAACCTGAGGAGCGTT-1_GEM5...260111
+[2025-12-03 12:25:36] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:25:36] [ERROR] !!! ERROR creating Seurat object for SNP sample 46_1: No common cells found between count matrix and demux results for 46_1 !!!
+[2025-12-03 12:25:36] [INFO]   Creating Seurat object for 33_1 (GEM: GEM5)
+[2025-12-03 12:25:43] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:25:43] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...272208, AAACCTGAGAGTTGGC-1_GEM5...272209, AAACCTGAGATGTAAC-1_GEM5...272210, AAACCTGAGCGTCTAT-1_GEM5...272211, AAACCTGAGGAGCGTT-1_GEM5...272212
+[2025-12-03 12:25:43] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:25:43] [ERROR] !!! ERROR creating Seurat object for SNP sample 33_1: No common cells found between count matrix and demux results for 33_1 !!!
+[2025-12-03 12:25:43] [INFO]   Creating Seurat object for 43_1 (GEM: GEM5)
+[2025-12-03 12:25:50] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:25:50] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...284309, AAACCTGAGAGTTGGC-1_GEM5...284310, AAACCTGAGATGTAAC-1_GEM5...284311, AAACCTGAGCGTCTAT-1_GEM5...284312, AAACCTGAGGAGCGTT-1_GEM5...284313
+[2025-12-03 12:25:50] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:25:50] [ERROR] !!! ERROR creating Seurat object for SNP sample 43_1: No common cells found between count matrix and demux results for 43_1 !!!
+[2025-12-03 12:25:50] [INFO]   Creating Seurat object for 38_2 (GEM: GEM5)
+[2025-12-03 12:25:56] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:25:56] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...296410, AAACCTGAGAGTTGGC-1_GEM5...296411, AAACCTGAGATGTAAC-1_GEM5...296412, AAACCTGAGCGTCTAT-1_GEM5...296413, AAACCTGAGGAGCGTT-1_GEM5...296414
+[2025-12-03 12:25:56] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:25:56] [ERROR] !!! ERROR creating Seurat object for SNP sample 38_2: No common cells found between count matrix and demux results for 38_2 !!!
+[2025-12-03 12:25:56] [INFO]   Creating Seurat object for 32_1 (GEM: GEM5)
+[2025-12-03 12:26:03] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:26:03] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...308511, AAACCTGAGAGTTGGC-1_GEM5...308512, AAACCTGAGATGTAAC-1_GEM5...308513, AAACCTGAGCGTCTAT-1_GEM5...308514, AAACCTGAGGAGCGTT-1_GEM5...308515
+[2025-12-03 12:26:03] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:26:03] [ERROR] !!! ERROR creating Seurat object for SNP sample 32_1: No common cells found between count matrix and demux results for 32_1 !!!
+[2025-12-03 12:26:03] [INFO]   Creating Seurat object for 71_1 (GEM: GEM5)
+[2025-12-03 12:26:08] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:26:08] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...320612, AAACCTGAGAGTTGGC-1_GEM5...320613, AAACCTGAGATGTAAC-1_GEM5...320614, AAACCTGAGCGTCTAT-1_GEM5...320615, AAACCTGAGGAGCGTT-1_GEM5...320616
+[2025-12-03 12:26:08] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:26:08] [ERROR] !!! ERROR creating Seurat object for SNP sample 71_1: No common cells found between count matrix and demux results for 71_1 !!!
+[2025-12-03 12:26:08] [INFO]   Creating Seurat object for 75_1 (GEM: GEM5)
+[2025-12-03 12:26:14] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:26:14] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...332713, AAACCTGAGAGTTGGC-1_GEM5...332714, AAACCTGAGATGTAAC-1_GEM5...332715, AAACCTGAGCGTCTAT-1_GEM5...332716, AAACCTGAGGAGCGTT-1_GEM5...332717
+[2025-12-03 12:26:14] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:26:14] [ERROR] !!! ERROR creating Seurat object for SNP sample 75_1: No common cells found between count matrix and demux results for 75_1 !!!
+[2025-12-03 12:26:14] [INFO]   Creating Seurat object for 104_1 (GEM: GEM5)
+[2025-12-03 12:26:21] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGTGAGA-1_GEM5, AAACCTGAGAGTTGGC-1_GEM5, AAACCTGAGATGTAAC-1_GEM5, AAACCTGAGCGTCTAT-1_GEM5, AAACCTGAGGAGCGTT-1_GEM5
+[2025-12-03 12:26:21] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGTGAGA-1_GEM5...344814, AAACCTGAGAGTTGGC-1_GEM5...344815, AAACCTGAGATGTAAC-1_GEM5...344816, AAACCTGAGCGTCTAT-1_GEM5...344817, AAACCTGAGGAGCGTT-1_GEM5...344818
+[2025-12-03 12:26:21] [INFO]   DEBUG: Common original barcodes: 12101
+[2025-12-03 12:26:21] [ERROR] !!! ERROR creating Seurat object for SNP sample 104_1: No common cells found between count matrix and demux results for 104_1 !!!
+[2025-12-03 12:26:21] [INFO]   Creating Seurat object for 42_1 (GEM: GEM6)
+[2025-12-03 12:26:28] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:26:28] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...356915, AAACCTGAGCCACGCT-1_GEM6...356916, AAACC3_1 (GEM: GEM4)
+[2025-12-03 12:25:22] [INFO]   Demultiplexing 83_1 using demuxalot
+[2025-12-03 12:25:24] [INFO]   Completed 83_1: 9303 barcodes mapped
+[2025-12-03 12:25:24] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 12:25:24] [INFO]   Demultiplexing 76_1 using demuxalot
+[2025-12-03 12:25:27] [INFO]   Completed 76_1: 9303 barcodes mapped
+[2025-12-03 12:25:27] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 12:25:27] [INFO]   Demultiplexing 53_1 using demuxalot
+[2025-12-03 12:25:30] [INFO]   Completed 53_1: 9303 barcodes mapped
+[2025-12-03 12:25:30] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 12:25:30] [INFO]   Demultiplexing 44_1 using demuxalot
+[2025-12-03 12:25:32] [INFO]   Completed 44_1: 9303 barcodes mapped
+[2025-12-03 12:25:32] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 12:25:32] [INFO]   Demultiplexing 41_1 using demuxalot
+[2025-12-03 12:25:34] [INFO]   Completed 41_1: 9303 barcodes mapped
+[2025-12-03 12:25:34] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 12:25:34] [INFO]   Demultiplexing 34_1 using demuxalot
+[2025-12-03 12:25:37] [INFO]   Completed 34_1: 9303 barcodes mapped
+[2025-12-03 12:25:37] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 12:25:37] [INFO]   Demultiplexing 46_1 using demuxalot
+[2025-12-03 12:25:40] [INFO]   Completed 46_1: 12101 barcodes mapped
+[2025-12-03 12:25:40] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 12:25:40] [INFO]   Demultiplexing 33_1 using demuxalot
+[2025-12-03 12:25:44] [INFO]   Completed 33_1: 12101 barcodes mapped
+[2025-12-03 12:25:44] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 12:25:44] [INFO]   Demultiplexing 43_1 using demuxalot
+[2025-12-03 12:25:47] [INFO]   Completed 43_1: 12101 barcodes mapped
+[2025-12-03 12:25:47] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 12:25:47] [INFO]   Demultiplexing 38_2 using demuxalot
+[2025-12-03 12:25:51] [INFO]   Completed 38_2: 12101 barcodes mapped
+[2025-12-03 12:25:51] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 12:25:51] [INFO]   Demultiplexing 32_1 using demuxalot
+[2025-12-03 12:25:54] [INFO]   Completed 32_1: 12101 barcodes mapped
+[2025-12-03 12:25:54] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 12:25:54] [INFO]   Demultiplexing 71_1 using demuxalot
+[2025-12-03 12:25:58] [INFO]   Completed 71_1: 12101 barcodes mapped
+[2025-12-03 12:25:58] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 12:25:58] [INFO]   Demultiplexing 75_1 using demuxalot
+[2025-12-03 12:26:02] [INFO]   Completed 75_1: 12101 barcodes mapped
+[2025-12-03 12:26:02] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 12:26:02] [INFO]   Demultiplexing 104_1 using demuxalot
+[2025-12-03 12:26:06] [INFO]   Completed 104_1: 12101 barcodes mapped
+[2025-12-03 12:26:06] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 12:26:06] [INFO]   Demultiplexing 42_1 using demuxalot
+[2025-12-03 12:26:10] [INFO]   Completed 42_1: 12906 barcodes mapped
+[2025-12-03 12:26:10] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 12:26:10] [INFO]   Demultiplexing 80_2 using demuxalot
+[2025-12-03 12:26:16] [INFO]   Completed 80_2: 12906 barcodes mapped
+[2025-12-03 12:26:16] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 12:26:16] [INFO]   Demultiplexing 29_1 using demuxalot
+[2025-12-03 12:26:20] [INFO]   Completed 29_1: 12906 barcodes mapped
+[2025-12-03 12:26:20] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 12:26:20] [INFO]   Demultiplexing 60_1 using demuxalot
+[2025-12-03 12:26:24] [INFO]   Completed 60_1: 12906 barcodes mapped
+[2025-12-03 12:26:24] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 12:26:24] [INFO]   Demultiplexing 36_1 using demuxalot
+[2025-12-03 12:26:29] [INFO]   Completed 36_1: 12906 barcodes mapped
+[2025-12-03 12:26:29] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 12:26:29] [INFO]   Demultiplexing 31_1 using demuxalot
+[2025-1TGAGCTACCTA-1_GEM6...356917, AAACCTGAGGCATTGG-1_GEM6...356918, AAACCTGAGGTCATCT-1_GEM6...356919
+[2025-12-03 12:26:28] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:26:28] [ERROR] !!! ERROR creating Seurat object for SNP sample 42_1: No common cells found between count matrix and demux results for 42_1 !!!
+[2025-12-03 12:26:28] [INFO]   Creating Seurat object for 80_2 (GEM: GEM6)
+[2025-12-03 12:26:35] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:26:35] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...369821, AAACCTGAGCCACGCT-1_GEM6...369822, AAACCTGAGCTACCTA-1_GEM6...369823, AAACCTGAGGCATTGG-1_GEM6...369824, AAACCTGAGGTCATCT-1_GEM6...369825
+[2025-12-03 12:26:35] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:26:35] [ERROR] !!! ERROR creating Seurat object for SNP sample 80_2: No common cells found between count matrix and demux results for 80_2 !!!
+[2025-12-03 12:26:35] [INFO]   Creating Seurat object for 29_1 (GEM: GEM6)
+[2025-12-03 12:26:42] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:26:42] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...382727, AAACCTGAGCCACGCT-1_GEM6...382728, AAACCTGAGCTACCTA-1_GEM6...382729, AAACCTGAGGCATTGG-1_GEM6...382730, AAACCTGAGGTCATCT-1_GEM6...382731
+[2025-12-03 12:26:42] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:26:42] [ERROR] !!! ERROR creating Seurat object for SNP sample 29_1: No common cells found between count matrix and demux results for 29_1 !!!
+[2025-12-03 12:26:42] [INFO]   Creating Seurat object for 60_1 (GEM: GEM6)
+[2025-12-03 12:26:50] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:26:50] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...395633, AAACCTGAGCCACGCT-1_GEM6...395634, AAACCTGAGCTACCTA-1_GEM6...395635, AAACCTGAGGCATTGG-1_GEM6...395636, AAACCTGAGGTCATCT-1_GEM6...395637
+[2025-12-03 12:26:50] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:26:50] [ERROR] !!! ERROR creating Seurat object for SNP sample 60_1: No common cells found between count matrix and demux results for 60_1 !!!
+[2025-12-03 12:26:50] [INFO]   Creating Seurat object for 36_1 (GEM: GEM6)
+[2025-12-03 12:26:57] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:26:57] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...408539, AAACCTGAGCCACGCT-1_GEM6...408540, AAACCTGAGCTACCTA-1_GEM6...408541, AAACCTGAGGCATTGG-1_GEM6...408542, AAACCTGAGGTCATCT-1_GEM6...408543
+[2025-12-03 12:26:57] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:26:57] [ERROR] !!! ERROR creating Seurat object for SNP sample 36_1: No common cells found between count matrix and demux results for 36_1 !!!
+[2025-12-03 12:26:57] [INFO]   Creating Seurat object for 31_1 (GEM: GEM6)
+[2025-12-03 12:27:04] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:27:04] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...421445, AAACCTGAGCCACGCT-1_GEM6...421446, AAACCTGAGCTACCTA-1_GEM6...421447, AAACCTGAGGCATTGG-1_GEM6...421448, AAACCTGAGGTCATCT-1_GEM6...421449
+[2025-12-03 12:27:04] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:27:04] [ERROR] !!! ERROR creating Seurat object for SNP sample 31_1: No common cells found between count matrix and demux results for 31_1 !!!
+[2025-12-03 12:27:04] [INFO]   Creating Seurat object for 59_1 (GEM: GEM6)
+[2025-12-03 12:27:11] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:27:11] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...434351, AAACCTGAGCCACGCT-1_GEM6...434352, AAACCTGAGCTACCTA-1_GEM6...434353, AAACCTGAGGCATTGG-1_GEM6...434354, AAACCTGAGGTCATCT-1_GEM6...434355
+[2025-12-03 12:27:11] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:27:11] [ERROR] !!! ERROR creating Seurat object for SNP sample 59_1: No common cells found between count matrix and demux results for 59_1 !!!
+[2025-12-03 12:27:11] [INFO]   Creating Seurat object for 68_1 (GEM: GEM6)
+[2025-12-03 12:27:18] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGAACAG-1_GEM6, AAACCTGAGCCACGCT-1_GEM6, AAACCTGAGCTACCTA-1_GEM6, AAACCTGAGGCATTGG-1_GEM6, AAACCTGAGGTCATCT-1_GEM6
+[2025-12-03 12:27:18] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGAACAG-1_GEM6...447257, AAACCTGAGCCACGCT-1_GEM6...447258, AAACCTGAGCTACCTA-1_GEM6...447259, AAACCTGAGGCATTGG-1_GEM6...447260, AAACCTGAGGTCATCT-1_GEM6...447261
+[2025-12-03 12:27:18] [INFO]   DEBUG: Common original barcodes: 12906
+[2025-12-03 12:27:18] [ERROR] !!! ERROR creating Seurat object for SNP sample 68_1: No common cells found between count matrix and demux results for 68_1 !!!
+[2025-12-03 12:27:18] [INFO]   Creating Seurat object for 35_1 (GEM: GEM7)
+[2025-12-03 12:27:25] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:27:25] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_GEM7...460163, AAACCTGAGAGGTACC-1_GEM7...460164, AAACCTGAGCAACGGT-1_GEM7...460165, AAACCTGAGCGTTCCG-1_GEM7...460166, AAACCTGAGCTAACAA-1_GEM7...460167
+[2025-12-03 12:27:25] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:27:25] [ERROR] !!! ERROR creating Seurat object for SNP sample 35_1: No common cells found between count matrix and demux results for 35_1 !!!
+[2025-12-03 12:27:25] [INFO]   Creating Seurat object for 117_1 (GEM: GEM7)
+[2025-12-03 12:27:33] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:27:33] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_GEM7...474623, AAACCTGAGAGGTACC-1_GEM7...474624, AAACCTGAGCAACGGT-1_GEM7...474625, AAACCTGAGCGTTCCG-1_GEM7...474626, AAACCTGAGCTAACAA-1_GEM7...474627
+[2025-12-03 12:27:33] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:27:33] [ERROR] !!! ERROR creating Seurat object for SNP sample 117_1: No common cells found between count matrix and demux results for 117_1 !!!
+[2025-12-03 12:27:33] [INFO]   Creating Seurat object for 100_1 (GEM: GEM7)
+[2025-12-03 12:27:40] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:27:40] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_GEM7...489083, AAACCTGAGAGGTACC-1_GEM7...489084, AAACCTGAGCAACGGT-1_GEM7...489085, AAACCTGAGCGTTCCG-1_GEM7...489086, AAACCTGAGCTAACAA-1_GEM7...489087
+[2025-12-03 12:27:40] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:27:40] [ERROR] !!! ERROR creating Seurat object for SNP sample 100_1: No common cells found between count matrix and demux results for 100_1 !!!
+[2025-12-03 12:27:40] [INFO]   Creating Seurat object for 51_1 (GEM: GEM7)
+[2025-12-03 12:27:47] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:27:47] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_G2-03 12:26:33] [INFO]   Completed 31_1: 12906 barcodes mapped
+[2025-12-03 12:26:33] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 12:26:33] [INFO]   Demultiplexing 59_1 using demuxalot
+[2025-12-03 12:26:38] [INFO]   Completed 59_1: 12906 barcodes mapped
+[2025-12-03 12:26:38] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 12:26:38] [INFO]   Demultiplexing 68_1 using demuxalot
+[2025-12-03 12:26:42] [INFO]   Completed 68_1: 12906 barcodes mapped
+[2025-12-03 12:26:42] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 12:26:42] [INFO]   Demultiplexing 35_1 using demuxalot
+[2025-12-03 12:26:48] [INFO]   Completed 35_1: 14460 barcodes mapped
+[2025-12-03 12:26:48] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 12:26:48] [INFO]   Demultiplexing 117_1 using demuxalot
+[2025-12-03 12:26:55] [INFO]   Completed 117_1: 14460 barcodes mapped
+[2025-12-03 12:26:55] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 12:26:55] [INFO]   Demultiplexing 100_1 using demuxalot
+[2025-12-03 12:27:01] [INFO]   Completed 100_1: 14460 barcodes mapped
+[2025-12-03 12:27:01] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 12:27:01] [INFO]   Demultiplexing 51_1 using demuxalot
+[2025-12-03 12:27:06] [INFO]   Completed 51_1: 14460 barcodes mapped
+[2025-12-03 12:27:06] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 12:27:06] [INFO]   Demultiplexing 115_1 using demuxalot
+[2025-12-03 12:27:13] [INFO]   Completed 115_1: 14460 barcodes mapped
+[2025-12-03 12:27:13] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 12:27:13] [INFO]   Demultiplexing 113_1 using demuxalot
+[2025-12-03 12:27:18] [INFO]   Completed 113_1: 14460 barcodes mapped
+[2025-12-03 12:27:18] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 12:27:18] [INFO]   Demultiplexing 45_1 using demuxalot
+[2025-12-03 12:27:24] [INFO]   Completed 45_1: 14460 barcodes mapped
+[2025-12-03 12:27:24] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 12:27:24] [INFO]   Demultiplexing 48_1 using demuxalot
+[2025-12-03 12:27:29] [INFO]   Completed 48_1: 14460 barcodes mapped
+[2025-12-03 12:27:29] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 12:27:29] [INFO]   Demultiplexing 112_1 using demuxalot
+[2025-12-03 12:27:35] [INFO]   Completed 112_1: 12997 barcodes mapped
+[2025-12-03 12:27:35] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 12:27:35] [INFO]   Demultiplexing 111_1 using demuxalot
+[2025-12-03 12:27:39] [INFO]   Completed 111_1: 12997 barcodes mapped
+[2025-12-03 12:27:39] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 12:27:39] [INFO]   Demultiplexing 74_3 using demuxalot
+[2025-12-03 12:27:43] [INFO]   Completed 74_3: 12997 barcodes mapped
+[2025-12-03 12:27:43] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 12:27:43] [INFO]   Demultiplexing 16_1 using demuxalot
+[2025-12-03 12:27:46] [INFO]   Completed 16_1: 12997 barcodes mapped
+[2025-12-03 12:27:46] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 12:27:46] [INFO]   Demultiplexing 103_1 using demuxalot
+[2025-12-03 12:27:51] [INFO]   Completed 103_1: 12997 barcodes mapped
+[2025-12-03 12:27:51] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 12:27:51] [INFO]   Demultiplexing 110_1 using demuxalot
+[2025-12-03 12:27:55] [INFO]   Completed 110_1: 12997 barcodes mapped
+[2025-12-03 12:27:55] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 12:27:55] [INFO]   Demultiplexing 85_1 using demuxalot
+[2025-12-03 12:27:59] [INFO]   Completed 85_1: 12997 barcodes mapped
+[2025-12-03 12:27:59] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 12:27:59] [INFO]   Demultiplexing 93_1 using demuxalot
+[2025-12-03 12:28:04] [INFO]   Completed 93_1: 12997 barcodes mapped
+[2025-12-03 12:28:04] [INFO] Combining SNP barcode mappings...
+[2025-12-03 12:28:04] [INFO] Total SNP barcodes: 679818
+[2025-12-03 12:28:04] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test1/step1/step1_snp_barcode_mappings_2.qs
+[2025-12-03 12:28:04] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test1/step1/step1_snp_barcode_mappings_2.qs
+EM7...503543, AAACCTGAGAGGTACC-1_GEM7...503544, AAACCTGAGCAACGGT-1_GEM7...503545, AAACCTGAGCGTTCCG-1_GEM7...503546, AAACCTGAGCTAACAA-1_GEM7...503547
+[2025-12-03 12:27:47] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:27:47] [ERROR] !!! ERROR creating Seurat object for SNP sample 51_1: No common cells found between count matrix and demux results for 51_1 !!!
+[2025-12-03 12:27:47] [INFO]   Creating Seurat object for 115_1 (GEM: GEM7)
+[2025-12-03 12:27:54] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:27:54] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_GEM7...518003, AAACCTGAGAGGTACC-1_GEM7...518004, AAACCTGAGCAACGGT-1_GEM7...518005, AAACCTGAGCGTTCCG-1_GEM7...518006, AAACCTGAGCTAACAA-1_GEM7...518007
+[2025-12-03 12:27:54] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:27:54] [ERROR] !!! ERROR creating Seurat object for SNP sample 115_1: No common cells found between count matrix and demux results for 115_1 !!!
+[2025-12-03 12:27:54] [INFO]   Creating Seurat object for 113_1 (GEM: GEM7)
+[2025-12-03 12:28:02] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:28:02] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_GEM7...532463, AAACCTGAGAGGTACC-1_GEM7...532464, AAACCTGAGCAACGGT-1_GEM7...532465, AAACCTGAGCGTTCCG-1_GEM7...532466, AAACCTGAGCTAACAA-1_GEM7...532467
+[2025-12-03 12:28:02] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:28:02] [ERROR] !!! ERROR creating Seurat object for SNP sample 113_1: No common cells found between count matrix and demux results for 113_1 !!!
+[2025-12-03 12:28:02] [INFO]   Creating Seurat object for 45_1 (GEM: GEM7)
+[2025-12-03 12:28:09] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:28:09] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_GEM7...546923, AAACCTGAGAGGTACC-1_GEM7...546924, AAACCTGAGCAACGGT-1_GEM7...546925, AAACCTGAGCGTTCCG-1_GEM7...546926, AAACCTGAGCTAACAA-1_GEM7...546927
+[2025-12-03 12:28:09] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:28:09] [ERROR] !!! ERROR creating Seurat object for SNP sample 45_1: No common cells found between count matrix and demux results for 45_1 !!!
+[2025-12-03 12:28:09] [INFO]   Creating Seurat object for 48_1 (GEM: GEM7)
+[2025-12-03 12:28:16] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAATGTGT-1_GEM7, AAACCTGAGAGGTACC-1_GEM7, AAACCTGAGCAACGGT-1_GEM7, AAACCTGAGCGTTCCG-1_GEM7, AAACCTGAGCTAACAA-1_GEM7
+[2025-12-03 12:28:16] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAATGTGT-1_GEM7...561383, AAACCTGAGAGGTACC-1_GEM7...561384, AAACCTGAGCAACGGT-1_GEM7...561385, AAACCTGAGCGTTCCG-1_GEM7...561386, AAACCTGAGCTAACAA-1_GEM7...561387
+[2025-12-03 12:28:16] [INFO]   DEBUG: Common original barcodes: 14460
+[2025-12-03 12:28:16] [ERROR] !!! ERROR creating Seurat object for SNP sample 48_1: No common cells found between count matrix and demux results for 48_1 !!!
+[2025-12-03 12:28:16] [INFO]   Creating Seurat object for 112_1 (GEM: GEM8)
+[2025-12-03 12:28:24] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:28:24] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...575843, AAACCTGAGATCTGCT-1_GEM8...575844, AAACCTGAGATTACCC-1_GEM8...575845, AAACCTGAGCCCTAAT-1_GEM8...575846, AAACCTGAGCGGATCA-1_GEM8...575847
+[2025-12-03 12:28:24] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:28:24] [ERROR] !!! ERROR creating Seurat object for SNP sample 112_1: No common cells found between count matr
+========================================
+NEW RUN STARTED (same run_id: run_test1)
+========================================
+ix and demux results for 112_1 !!!
+[2025-12-03 12:28:24] [INFO]   Creating Seurat object for 111_1 (GEM: GEM8)
+[2025-12-03 12:28:32] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:28:32] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...588840, AAACCTGAGATCTGCT-1_GEM8...588841, AAACCTGAGATTACCC-1_GEM8...588842, AAACCTGAGCCCTAAT-1_GEM8...588843, AAACCTGAGCGGATCA-1_GEM8...588844
+[2025-12-03 12:28:32] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:28:32] [ERROR] !!! ERROR creating Seurat object for SNP sample 111_1: No common cells found between count matrix and demux results for 111_1 !!!
+[2025-12-03 12:28:32] [INFO]   Creating Seurat object for 74_3 (GEM: GEM8)
+[2025-12-03 12:28:40] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:28:40] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...601837, AAACCTGAGATCTGCT-1_GEM8...601838, AAACCTGAGATTACCC-1_GEM8...601839, AAACCTGAGCCCTAAT-1_GEM8...601840, AAACCTGAGCGGATCA-1_GEM8...601841
+[2025-12-03 12:28:40] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:28:40] [ERROR] !!! ERROR creating Seurat object for SNP sample 74_3: No common cells found between count matrix and demux results for 74_3 !!!
+[2025-12-03 12:28:40] [INFO]   Creating Seurat object for 16_1 (GEM: GEM8)
+[2025-12-03 12:28:48] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:28:48] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...614834, AAACCTGAGATCTGCT-1_GEM8...614835, AAACCTGAGATTACCC-1_GEM8...614836, AAACCTGAGCCCTAAT-1_GEM8...614837, AAACCTGAGCGGATCA-1_GEM8...614838
+[2025-12-03 12:28:48] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:28:48] [ERROR] !!! ERROR creating Seurat object for SNP sample 16_1: No common cells found between count matrix and demux results for 16_1 !!!
+[2025-12-03 12:28:48] [INFO]   Creating Seurat object for 103_1 (GEM: GEM8)
+[2025-12-03 12:28:57] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:28:57] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...627831, AAACCTGAGATCTGCT-1_GEM8...627832, AAACCTGAGATTACCC-1_GEM8...627833, AAACCTGAGCCCTAAT-1_GEM8...627834, AAACCTGAGCGGATCA-1_GEM8...627835
+[2025-12-03 12:28:57] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:28:57] [ERROR] !!! ERROR creating Seurat object for SNP sample 103_1: No common cells found between count matrix and demux results for 103_1 !!!
+[2025-12-03 12:28:57] [INFO]   Creating Seurat object for 110_1 (GEM: GEM8)
+[2025-12-03 12:29:03] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:29:03] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...640828, AAACCTGAGATCTGCT-1_GEM8...640829, AAACCTGAGATTACCC-1_GEM8...640830, AAACCTGAGCCCTAAT-1_GEM8...640831, AAACCTGAGCGGATCA-1_GEM8...640832
+[2025-12-03 12:29:03] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:29:03] [ERROR] !!! ERROR creating Seurat object for SNP sample 110_1: No common cells found between count matrix and demux results for 110_1 !!!
+[2025-12-03 12:29:03] [INFO]   Creating Seurat object for 85_1 (GEM: GEM8)
+[2025-12-03 12:29:11] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:29:11] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...653825, AAACCTGAGATCTGCT-1_GEM8...653826, AAACCTGAGATTACCC-1_GEM8...653827, AAACCTGAGCCCTAAT-1_GEM8...653828, AAACCTGAGCGGATCA-1_GEM8...653829
+[2025-12-03 12:29:11] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:29:11] [ERROR] !!! ERROR creating Seurat object for SNP sample 85_1: No common cells found between count matrix and demux results for 85_1 !!!
+[2025-12-03 12:29:11] [INFO]   Creating Seurat object for 93_1 (GEM: GEM8)
+[2025-12-03 12:29:18] [INFO]   DEBUG: After suffix addition, count barcodes (first 5): AAACCTGAGAGGACGG-1_GEM8, AAACCTGAGATCTGCT-1_GEM8, AAACCTGAGATTACCC-1_GEM8, AAACCTGAGCCCTAAT-1_GEM8, AAACCTGAGCGGATCA-1_GEM8
+[2025-12-03 12:29:18] [INFO]   DEBUG: Mapping rownames (first 5): AAACCTGAGAGGACGG-1_GEM8...666822, AAACCTGAGATCTGCT-1_GEM8...666823, AAACCTGAGATTACCC-1_GEM8...666824, AAACCTGAGCCCTAAT-1_GEM8...666825, AAACCTGAGCGGATCA-1_GEM8...666826
+[2025-12-03 12:29:18] [INFO]   DEBUG: Common original barcodes: 12997
+[2025-12-03 12:29:18] [ERROR] !!! ERROR creating Seurat object for SNP sample 93_1: No common cells found between count matrix and demux results for 93_1 !!!
+[2025-12-03 12:29:18] [ERROR] No samples were successfully processed!
+[2025-12-03 12:28:55] Starting run: run_test1
+[2025-12-03 12:28:55] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-03 12:28:56] [INFO] Found 56 SNP samples and 0 HTO samples
+[2025-12-03 12:28:56] [INFO] Processing SNP samples...
+[2025-12-03 12:28:56] [INFO] Processing SNP sample 1/56: 97_1 (GEM: GEM1)
+[2025-12-03 12:28:56] [INFO]   Demultiplexing 97_1 using demuxalot
+[2025-12-03 12:29:00] [INFO]   Completed 97_1: 12622 barcodes mapped
+[2025-12-03 12:29:00] [INFO] Processing SNP sample 2/56: 95_1 (GEM: GEM1)
+[2025-12-03 12:29:00] [INFO]   Demultiplexing 95_1 using demuxalot
+[2025-12-03 12:29:04] [INFO]   Completed 95_1: 12622 barcodes mapped
+[2025-12-03 12:29:04] [INFO] Processing SNP sample 3/56: 92_1 (GEM: GEM1)
+[2025-12-03 12:29:04] [INFO]   Demultiplexing 92_1 using demuxalot
+[2025-12-03 12:29:08] [INFO]   Completed 92_1: 12622 barcodes mapped
+[2025-12-03 12:29:08] [INFO] Processing SNP sample 4/56: 89_1 (GEM: GEM1)
+[2025-12-03 12:29:08] [INFO]   Demultiplexing 89_1 using demuxalot
+[2025-12-03 12:29:12] [INFO]   Completed 89_1: 12622 barcodes mapped
+[2025-12-03 12:29:12] [INFO] Processing SNP sample 5/56: 107_1 (GEM: GEM1)
+[2025-12-03 12:29:12] [INFO]   Demultiplexing 107_1 using demuxalot
+[2025-12-03 12:29:15] [INFO]   Completed 107_1: 12622 barcodes mapped
+[2025-12-03 12:29:15] [INFO] Processing SNP sample 6/56: 106_1 (GEM: GEM1)
+[2025-12-03 12:29:15] [INFO]   Demultiplexing 106_1 using demuxalot
+[2025-12-03 12:29:19] [INFO]   Completed 106_1: 12622 barcodes mapped
+[2025-12-03 12:29:19] [INFO] Processing SNP sample 7/56: 91_1 (GEM: GEM2)
+[2025-12-03 12:29:19] [INFO]   Demultiplexing 91_1 using demuxalot
+[2025-12-03 12:29:22] [INFO]   Completed 91_1: 10101 barcodes mapped
+[2025-12-03 12:29:22] [INFO] Processing SNP sample 8/56: 90_1 (GEM: GEM2)
+[2025-12-03 12:29:22] [INFO]   Demultiplexing 90_1 using demuxalot
+[2025-12-03 12:29:25] [INFO]   Completed 90_1: 10101 barcodes mapped
+[2025-12-03 12:29:25] [INFO] Processing SNP sample 9/56: 88_1 (GEM: GEM2)
+[2025-12-03 12:29:25] [INFO]   Demultiplexing 88_1 using demuxalot
+[2025-12-03 12:29:27] [INFO]   Completed 88_1: 10101 barcodes mapped
+[2025-12-03 12:29:27] [ERROR] !!! ERROR processing SNP sample 88_1: ignoring SIGPIPE signal !!!
+[2025-12-03 12:29:27] [INFO] Processing SNP sample 10/56: 82_1 (GEM: GEM2)
+[2025-12-03 12:29:27] [INFO]   Demultiplexing 82_1 using demuxalot
+[2025-12-03 12:29:29] [INFO]   Completed 82_1: 10101 barcodes mapped
+[2025-12-03 12:29:29] [INFO] Processing SNP sample 11/56: 70_1 (GEM: GEM2)
+[2025-12-03 12:29:29] [INFO]   Demultiplexing 70_1 using demuxalot
+[2025-12-03 12:29:33] [INFO]   Completed 70_1: 10101 barcodes mapped
+[2025-12-03 12:29:33] [INFO] Processing SNP sample 12/56: 105_1 (GEM: GEM2)
+[2025-12-03 12:29:33] [INFO]   Demultiplexing 105_1 using demuxalot
+[2025-12-03 12:29:35] [INFO]   Completed 105_1: 10101 barcodes mapped
+[2025-12-03 12:29:35] [INFO] Processing SNP sample 13/56: 84_1 (GEM: GEM3)
+[2025-12-03 12:29:35] [INFO]   Demultiplexing 84_1 using demuxalot
+[2025-12-03 12:29:38] [INFO]   Completed 84_1: 11325 barcodes mapped
+[2025-12-03 12:29:38] [INFO] Processing SNP sample 14/56: 81_1 (GEM: GEM3)
+[2025-12-03 12:29:38] [INFO]   Demultiplexing 81_1 using demuxalot
+[2025-12-03 12:29:42] [INFO]   Completed 81_1: 11325 barcodes mapped
+[2025-12-03 12:29:42] [INFO] Processing SNP sample 15/56: 65_1 (GEM: GEM3)
+[2025-12-03 12:29:42] [INFO]   Demultiplexing 65_1 using demuxalot
+[2025-12-03 12:29:45] [INFO]   Completed 65_1: 11325 barcodes mapped
+[2025-12-03 12:29:45] [INFO] Processing SNP sample 16/56: 64_1 (GEM: GEM3)
+[2025-12-03 12:29:45] [INFO]   Demultiplexing 64_1 using demuxalot
+[2025-12-03 12:29:48] [INFO]   Completed 64_1: 11325 barcodes mapped
+[2025-12-03 12:29:48] [INFO] Processing SNP sample 17/56: 55_1 (GEM: GEM3)
+[2025-12-03 12:29:48] [INFO]   Demultiplexing 55_1 using demuxalot
+[2025-12-03 12:29:52] [INFO]   Completed 55_1: 11325 barcodes mapped
+[2025-12-03 12:29:52] [INFO] Processing SNP sample 18/56: 54_1 (GEM: GEM3)
+[2025-12-03 12:29:52] [INFO]   Demultiplexing 54_1 using demuxalot
+[2025-12-03 12:29:55] [INFO]   Completed 54_1: 11325 barcodes mapped
+[2025-12-03 12:29:55] [INFO] Processing SNP sample 19/56: 83_1 (GEM: GEM4)
+[2025-12-03 12:29:55] [INFO]   Demultiplexing 83_1 using demuxalot
+[2025-12-03 12:29:58] [INFO]   Completed 83_1: 9303 barcodes mapped
+[2025-12-03 12:29:58] [INFO] Processing SNP sample 20/56: 76_1 (GEM: GEM4)
+[2025-12-03 12:29:58] [INFO]   Demultiplexing 76_1 using demuxalot
+[2025-12-03 12:30:01] [INFO]   Completed 76_1: 9303 barcodes mapped
+[2025-12-03 12:30:01] [INFO] Processing SNP sample 21/56: 53_1 (GEM: GEM4)
+[2025-12-03 12:30:01] [INFO]   Demultiplexing 53_1 using demuxalot
+[2025-12-03 12:30:03] [INFO]   Completed 53_1: 9303 barcodes mapped
+[2025-12-03 12:30:03] [INFO] Processing SNP sample 22/56: 44_1 (GEM: GEM4)
+[2025-12-03 12:30:03] [INFO]   Demultiplexing 44_1 using demuxalot
+[2025-12-03 12:30:05] [INFO]   Completed 44_1: 9303 barcodes mapped
+[2025-12-03 12:30:05] [INFO] Processing SNP sample 23/56: 41_1 (GEM: GEM4)
+[2025-12-03 12:30:05] [INFO]   Demultiplexing 41_1 using demuxalot
+[2025-12-03 12:30:07] [INFO]   Completed 41_1: 9303 barcodes mapped
+[2025-12-03 12:30:07] [INFO] Processing SNP sample 24/56: 34_1 (GEM: GEM4)
+[2025-12-03 12:30:07] [INFO]   Demultiplexing 34_1 using demuxalot
+[2025-12-03 12:30:11] [INFO]   Completed 34_1: 9303 barcodes mapped
+[2025-12-03 12:30:11] [INFO] Processing SNP sample 25/56: 46_1 (GEM: GEM5)
+[2025-12-03 12:30:11] [INFO]   Demultiplexing 46_1 using demuxalot
+[2025-12-03 12:30:14] [INFO]   Completed 46_1: 12101 barcodes mapped
+[2025-12-03 12:30:14] [INFO] Processing SNP sample 26/56: 33_1 (GEM: GEM5)
+[2025-12-03 12:30:14] [INFO]   Demultiplexing 33_1 using demuxalot
+[2025-12-03 12:30:17] [INFO]   Completed 33_1: 12101 barcodes mapped
+[2025-12-03 12:30:17] [INFO] Processing SNP sample 27/56: 43_1 (GEM: GEM5)
+[2025-12-03 12:30:17] [INFO]   Demultiplexing 43_1 using demuxalot
+[2025-12-03 12:30:20] [INFO]   Completed 43_1: 12101 barcodes mapped
+[2025-12-03 12:30:20] [INFO] Processing SNP sample 28/56: 38_2 (GEM: GEM5)
+[2025-12-03 12:30:20] [INFO]   Demultiplexing 38_2 using demuxalot
+[2025-12-03 12:30:25] [INFO]   Completed 38_2: 12101 barcodes mapped
+[2025-12-03 12:30:25] [INFO] Processing SNP sample 29/56: 32_1 (GEM: GEM5)
+[2025-12-03 12:30:25] [INFO]   Demultiplexing 32_1 using demuxalot
+[2025-12-03 12:30:28] [INFO]   Completed 32_1: 12101 barcodes mapped
+[2025-12-03 12:30:28] [INFO] Processing SNP sample 30/56: 71_1 (GEM: GEM5)
+[2025-12-03 12:30:28] [INFO]   Demultiplexing 71_1 using demuxalot
+[2025-12-03 12:30:31] [INFO]   Completed 71_1: 12101 barcodes mapped
+[2025-12-03 12:30:31] [INFO] Processing SNP sample 31/56: 75_1 (GEM: GEM5)
+[2025-12-03 12:30:31] [INFO]   Demultiplexing 75_1 using demuxalot
+[2025-12-03 12:30:36] [INFO]   Completed 75_1: 12101 barcodes mapped
+[2025-12-03 12:30:36] [INFO] Processing SNP sample 32/56: 104_1 (GEM: GEM5)
+[2025-12-03 12:30:36] [INFO]   Demultiplexing 104_1 using demuxalot
+[2025-12-03 12:30:39] [INFO]   Completed 104_1: 12101 barcodes mapped
+[2025-12-03 12:30:39] [INFO] Processing SNP sample 33/56: 42_1 (GEM: GEM6)
+[2025-12-03 12:30:39] [INFO]   Demultiplexing 42_1 using demuxalot
+[2025-12-03 12:30:44] [INFO]   Completed 42_1: 12906 barcodes mapped
+[2025-12-03 12:30:44] [INFO] Processing SNP sample 34/56: 80_2 (GEM: GEM6)
+[2025-12-03 12:30:44] [INFO]   Demultiplexing 80_2 using demuxalot
+[2025-12-03 12:30:49] [INFO]   Completed 80_2: 12906 barcodes mapped
+[2025-12-03 12:30:49] [INFO] Processing SNP sample 35/56: 29_1 (GEM: GEM6)
+[2025-12-03 12:30:49] [INFO]   Demultiplexing 29_1 using demuxalot
+[2025-12-03 12:30:53] [INFO]   Completed 29_1: 12906 barcodes mapped
+[2025-12-03 12:30:53] [INFO] Processing SNP sample 36/56: 60_1 (GEM: GEM6)
+[2025-12-03 12:30:53] [INFO]   Demultiplexing 60_1 using demuxalot
+[2025-12-03 12:30:57] [INFO]   Completed 60_1: 12906 barcodes mapped
+[2025-12-03 12:30:57] [INFO] Processing SNP sample 37/56: 36_1 (GEM: GEM6)
+[2025-12-03 12:30:57] [INFO]   Demultiplexing 36_1 using demuxalot
+[2025-12-03 12:31:02] [INFO]   Completed 36_1: 12906 barcodes mapped
+[2025-12-03 12:31:02] [INFO] Processing SNP sample 38/56: 31_1 (GEM: GEM6)
+[2025-12-03 12:31:02] [INFO]   Demultiplexing 31_1 using demuxalot
+[2025-12-03 12:31:06] [INFO]   Completed 31_1: 12906 barcodes mapped
+[2025-12-03 12:31:06] [INFO] Processing SNP sample 39/56: 59_1 (GEM: GEM6)
+[2025-12-03 12:31:06] [INFO]   Demultiplexing 59_1 using demuxalot
+[2025-12-03 12:31:11] [INFO]   Completed 59_1: 12906 barcodes mapped
+[2025-12-03 12:31:11] [INFO] Processing SNP sample 40/56: 68_1 (GEM: GEM6)
+[2025-12-03 12:31:11] [INFO]   Demultiplexing 68_1 using demuxalot
+[2025-12-03 12:31:15] [INFO]   Completed 68_1: 12906 barcodes mapped
+[2025-12-03 12:31:15] [INFO] Processing SNP sample 41/56: 35_1 (GEM: GEM7)
+[2025-12-03 12:31:15] [INFO]   Demultiplexing 35_1 using demuxalot
+[2025-12-03 12:31:21] [INFO]   Completed 35_1: 14460 barcodes mapped
+[2025-12-03 12:31:21] [INFO] Processing SNP sample 42/56: 117_1 (GEM: GEM7)
+[2025-12-03 12:31:21] [INFO]   Demultiplexing 117_1 using demuxalot
+[2025-12-03 12:31:27] [INFO]   Completed 117_1: 14460 barcodes mapped
+[2025-12-03 12:31:27] [INFO] Processing SNP sample 43/56: 100_1 (GEM: GEM7)
+[2025-12-03 12:31:27] [INFO]   Demultiplexing 100_1 using demuxalot
+[2025-12-03 12:31:34] [INFO]   Completed 100_1: 14460 barcodes mapped
+[2025-12-03 12:31:34] [INFO] Processing SNP sample 44/56: 51_1 (GEM: GEM7)
+[2025-12-03 12:31:34] [INFO]   Demultiplexing 51_1 using demuxalot
+[2025-12-03 12:31:39] [INFO]   Completed 51_1: 14460 barcodes mapped
+[2025-12-03 12:31:39] [INFO] Processing SNP sample 45/56: 115_1 (GEM: GEM7)
+[2025-12-03 12:31:39] [INFO]   Demultiplexing 115_1 using demuxalot
+[2025-12-03 12:31:46] [INFO]   Completed 115_1: 14460 barcodes mapped
+[2025-12-03 12:31:46] [INFO] Processing SNP sample 46/56: 113_1 (GEM: GEM7)
+[2025-12-03 12:31:46] [INFO]   Demultiplexing 113_1 using demuxalot
+[2025-12-03 12:31:51] [INFO]   Completed 113_1: 14460 barcodes mapped
+[2025-12-03 12:31:51] [INFO] Processing SNP sample 47/56: 45_1 (GEM: GEM7)
+[2025-12-03 12:31:51] [INFO]   Demultiplexing 45_1 using demuxalot
+[2025-12-03 12:31:57] [INFO]   Completed 45_1: 14460 barcodes mapped
+[2025-12-03 12:31:57] [INFO] Processing SNP sample 48/56: 48_1 (GEM: GEM7)
+[2025-12-03 12:31:57] [INFO]   Demultiplexing 48_1 using demuxalot
+[2025-12-03 12:32:02] [INFO]   Completed 48_1: 14460 barcodes mapped
+[2025-12-03 12:32:02] [INFO] Processing SNP sample 49/56: 112_1 (GEM: GEM8)
+[2025-12-03 12:32:02] [INFO]   Demultiplexing 112_1 using demuxalot
+[2025-12-03 12:32:08] [INFO]   Completed 112_1: 12997 barcodes mapped
+[2025-12-03 12:32:08] [INFO] Processing SNP sample 50/56: 111_1 (GEM: GEM8)
+[2025-12-03 12:32:08] [INFO]   Demultiplexing 111_1 using demuxalot
+[2025-12-03 12:32:12] [INFO]   Completed 111_1: 12997 barcodes mapped
+[2025-12-03 12:32:12] [INFO] Processing SNP sample 51/56: 74_3 (GEM: GEM8)
+[2025-12-03 12:32:12] [INFO]   Demultiplexing 74_3 using demuxalot
+[2025-12-03 12:32:16] [INFO]   Completed 74_3: 12997 barcodes mapped
+[2025-12-03 12:32:16] [INFO] Processing SNP sample 52/56: 16_1 (GEM: GEM8)
+[2025-12-03 12:32:16] [INFO]   Demultiplexing 16_1 using demuxalot
+[2025-12-03 12:32:19] [INFO]   Completed 16_1: 12997 barcodes mapped
+[2025-12-03 12:32:19] [INFO] Processing SNP sample 53/56: 103_1 (GEM: GEM8)
+[2025-12-03 12:32:19] [INFO]   Demultiplexing 103_1 using demuxalot
+[2025-12-03 12:32:24] [INFO]   Completed 103_1: 12997 barcodes mapped
+[2025-12-03 12:32:24] [INFO] Processing SNP sample 54/56: 110_1 (GEM: GEM8)
+[2025-12-03 12:32:24] [INFO]   Demultiplexing 110_1 using demuxalot
+[2025-12-03 12:32:28] [INFO]   Completed 110_1: 12997 barcodes mapped
+[2025-12-03 12:32:28] [INFO] Processing SNP sample 55/56: 85_1 (GEM: GEM8)
+[2025-12-03 12:32:28] [INFO]   Demultiplexing 85_1 using demuxalot
+[2025-12-03 12:32:32] [INFO]   Completed 85_1: 12997 barcodes mapped
+[2025-12-03 12:32:32] [INFO] Processing SNP sample 56/56: 93_1 (GEM: GEM8)
+[2025-12-03 12:32:32] [INFO]   Demultiplexing 93_1 using demuxalot
+[2025-12-03 12:32:37] [INFO]   Completed 93_1: 12997 barcodes mapped
+[2025-12-03 12:32:37] [INFO] Combining SNP barcode mappings...
+[2025-12-03 12:32:37] [INFO] Total SNP barcodes: 679818
+[2025-12-03 12:32:37] [WARNING] File already exists, saving as: /data/user3/sobj/pipe/run_test1/step1/step1_snp_barcode_mappings_3.qs
+[2025-12-03 12:32:37] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test1/step1/step1_snp_barcode_mappings_3.qs
+[2025-12-03 12:32:37] [INFO] Creating Seurat objects for SNP samples...
+[2025-12-03 12:32:37] [INFO]   Creating Seurat object for 97_1 (GEM: GEM1)
+[2025-12-03 12:32:49] [INFO]   Downsampled 97_1: 12622 -> 126 cells (1.0%)
+[2025-12-03 12:32:49] [INFO]   Completed 97_1: 126 cells
+[2025-12-03 12:32:49] [INFO]   Creating Seurat object for 95_1 (GEM: GEM1)
+[2025-12-03 12:32:57] [INFO]   Downsampled 95_1: 12622 -> 126 cells (1.0%)
+[2025-12-03 12:32:57] [INFO]   Completed 95_1: 126 cells
+[2025-12-03 12:32:57] [INFO]   Creating Seurat object for 92_1 (GEM: GEM1)
+[2025-12-03 12:33:04] [INFO]   Downsampled 92_1: 12622 -> 126 cells (1.0%)
+[2025-12-03 12:33:04] [INFO]   Completed 92_1: 126 cells
+[2025-12-03 12:33:04] [INFO]   Creating Seurat object for 89_1 (GEM: GEM1)
+[2025-12-03 12:33:10] [INFO]   Downsampled 89_1: 12622 -> 126 cells (1.0%)
+[2025-12-03 12:33:10] [INFO]   Completed 89_1: 126 cells
+[2025-12-03 12:33:10] [INFO]   Creating Seurat object for 107_1 (GEM: GEM1)
+[2025-12-03 12:33:18] [INFO]   Downsampled 107_1: 12622 -> 126 cells (1.0%)
+[2025-12-03 12:33:18] [INFO]   Completed 107_1: 126 cells
+[2025-12-03 12:33:18] [INFO]   Creating Seurat object for 106_1 (GEM: GEM1)
+[2025-12-03 12:33:26] [INFO]   Downsampled 106_1: 12622 -> 126 cells (1.0%)
+[2025-12-03 12:33:26] [INFO]   Completed 106_1: 126 cells
+[2025-12-03 12:33:26] [INFO]   Creating Seurat object for 91_1 (GEM: GEM2)
+[2025-12-03 12:33:33] [INFO]   Downsampled 91_1: 10101 -> 101 cells (1.0%)
+[2025-12-03 12:33:33] [INFO]   Completed 91_1: 101 cells
+[2025-12-03 12:33:33] [INFO]   Creating Seurat object for 90_1 (GEM: GEM2)
+[2025-12-03 12:33:41] [INFO]   Downsampled 90_1: 10101 -> 101 cells (1.0%)
+[2025-12-03 12:33:41] [INFO]   Completed 90_1: 101 cells
+[2025-12-03 12:33:41] [INFO]   Creating Seurat object for 88_1 (GEM: GEM2)
+[2025-12-03 12:33:48] [INFO]   Downsampled 88_1: 10101 -> 101 cells (1.0%)
+[2025-12-03 12:33:48] [INFO]   Completed 88_1: 101 cells
+[2025-12-03 12:33:48] [INFO]   Creating Seurat object for 82_1 (GEM: GEM2)
+[2025-12-03 12:33:56] [INFO]   Downsampled 82_1: 10101 -> 101 cells (1.0%)
+[2025-12-03 12:33:56] [INFO]   Completed 82_1: 101 cells
+[2025-12-03 12:33:56] [INFO]   Creating Seurat object for 70_1 (GEM: GEM2)
+[2025-12-03 12:34:03] [INFO]   Downsampled 70_1: 10101 -> 101 cells (1.0%)
+[2025-12-03 12:34:03] [INFO]   Completed 70_1: 101 cells
+[2025-12-03 12:34:03] [INFO]   Creating Seurat object for 105_1 (GEM: GEM2)
+[2025-12-03 12:34:11] [INFO]   Downsampled 105_1: 10101 -> 101 cells (1.0%)
+[2025-12-03 12:34:11] [INFO]   Completed 105_1: 101 cells
+[2025-12-03 12:34:11] [INFO]   Creating Seurat object for 84_1 (GEM: GEM3)
+[2025-12-03 12:34:18] [INFO]   Downsampled 84_1: 11325 -> 113 cells (1.0%)
+[2025-12-03 12:34:18] [INFO]   Completed 84_1: 113 cells
+[2025-12-03 12:34:18] [INFO]   Creating Seurat object for 81_1 (GEM: GEM3)
+[2025-12-03 12:34:25] [INFO]   Downsampled 81_1: 11325 -> 113 cells (1.0%)
+[2025-12-03 12:34:25] [INFO]   Completed 81_1: 113 cells
+[2025-12-03 12:34:25] [INFO]   Creating Seurat object for 65_1 (GEM: GEM3)
+[2025-12-03 12:34:33] [INFO]   Downsampled 65_1: 11325 -> 113 cells (1.0%)
+[2025-12-03 12:34:33] [INFO]   Completed 65_1: 113 cells
+[2025-12-03 12:34:33] [INFO]   Creating Seurat object for 64_1 (GEM: GEM3)
+[2025-12-03 12:34:41] [INFO]   Downsampled 64_1: 11325 -> 113 cells (1.0%)
+[2025-12-03 12:34:41] [INFO]   Completed 64_1: 113 cells
+[2025-12-03 12:34:41] [INFO]   Creating Seurat object for 55_1 (GEM: GEM3)
+[2025-12-03 12:34:48] [INFO]   Downsampled 55_1: 11325 -> 113 cells (1.0%)
+[2025-12-03 12:34:48] [INFO]   Completed 55_1: 113 cells
+[2025-12-03 12:34:48] [INFO]   Creating Seurat object for 54_1 (GEM: GEM3)
+[2025-12-03 12:34:56] [INFO]   Downsampled 54_1: 11325 -> 113 cells (1.0%)
+[2025-12-03 12:34:56] [INFO]   Completed 54_1: 113 cells
+[2025-12-03 12:34:56] [INFO]   Creating Seurat object for 83_1 (GEM: GEM4)
+[2025-12-03 12:35:02] [INFO]   Downsampled 83_1: 9303 -> 93 cells (1.0%)
+[2025-12-03 12:35:02] [INFO]   Completed 83_1: 93 cells
+[2025-12-03 12:35:02] [INFO]   Creating Seurat object for 76_1 (GEM: GEM4)
+[2025-12-03 12:35:07] [INFO]   Downsampled 76_1: 9303 -> 93 cells (1.0%)
+[2025-12-03 12:35:07] [INFO]   Completed 76_1: 93 cells
+[2025-12-03 12:35:07] [INFO]   Creating Seurat object for 53_1 (GEM: GEM4)
+[2025-12-03 12:35:13] [INFO]   Downsampled 53_1: 9303 -> 93 cells (1.0%)
+[2025-12-03 12:35:13] [INFO]   Completed 53_1: 93 cells
+[2025-12-03 12:35:13] [INFO]   Creating Seurat object for 44_1 (GEM: GEM4)
+[2025-12-03 12:35:18] [INFO]   Downsampled 44_1: 9303 -> 93 cells (1.0%)
+[2025-12-03 12:35:18] [INFO]   Completed 44_1: 93 cells
+[2025-12-03 12:35:18] [INFO]   Creating Seurat object for 41_1 (GEM: GEM4)
+[2025-12-03 12:35:24] [INFO]   Downsampled 41_1: 9303 -> 93 cells (1.0%)
+[2025-12-03 12:35:24] [INFO]   Completed 41_1: 93 cells
+[2025-12-03 12:35:24] [INFO]   Creating Seurat object for 34_1 (GEM: GEM4)
+[2025-12-03 12:35:29] [INFO]   Downsampled 34_1: 9303 -> 93 cells (1.0%)
+[2025-12-03 12:35:29] [INFO]   Completed 34_1: 93 cells
+[2025-12-03 12:35:29] [INFO]   Creating Seurat object for 46_1 (GEM: GEM5)
+[2025-12-03 12:35:37] [INFO]   Downsampled 46_1: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:35:37] [INFO]   Completed 46_1: 121 cells
+[2025-12-03 12:35:37] [INFO]   Creating Seurat object for 33_1 (GEM: GEM5)
+[2025-12-03 12:35:46] [INFO]   Downsampled 33_1: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:35:46] [INFO]   Completed 33_1: 121 cells
+[2025-12-03 12:35:46] [INFO]   Creating Seurat object for 43_1 (GEM: GEM5)
+[2025-12-03 12:35:54] [INFO]   Downsampled 43_1: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:35:54] [INFO]   Completed 43_1: 121 cells
+[2025-12-03 12:35:54] [INFO]   Creating Seurat object for 38_2 (GEM: GEM5)
+[2025-12-03 12:36:03] [INFO]   Downsampled 38_2: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:36:03] [INFO]   Completed 38_2: 121 cells
+[2025-12-03 12:36:03] [INFO]   Creating Seurat object for 32_1 (GEM: GEM5)
+[2025-12-03 12:36:11] [INFO]   Downsampled 32_1: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:36:11] [INFO]   Completed 32_1: 121 cells
+[2025-12-03 12:36:11] [INFO]   Creating Seurat object for 71_1 (GEM: GEM5)
+[2025-12-03 12:36:17] [INFO]   Downsampled 71_1: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:36:17] [INFO]   Completed 71_1: 121 cells
+[2025-12-03 12:36:17] [INFO]   Creating Seurat object for 75_1 (GEM: GEM5)
+[2025-12-03 12:36:25] [INFO]   Downsampled 75_1: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:36:25] [INFO]   Completed 75_1: 121 cells
+[2025-12-03 12:36:25] [INFO]   Creating Seurat object for 104_1 (GEM: GEM5)
+[2025-12-03 12:36:33] [INFO]   Downsampled 104_1: 12101 -> 121 cells (1.0%)
+[2025-12-03 12:36:33] [INFO]   Completed 104_1: 121 cells
+[2025-12-03 12:36:33] [INFO]   Creating Seurat object for 42_1 (GEM: GEM6)
+[2025-12-03 12:36:42] [INFO]   Downsampled 42_1: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:36:42] [INFO]   Completed 42_1: 129 cells
+[2025-12-03 12:36:42] [INFO]   Creating Seurat object for 80_2 (GEM: GEM6)
+[2025-12-03 12:36:51] [INFO]   Downsampled 80_2: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:36:51] [INFO]   Completed 80_2: 129 cells
+[2025-12-03 12:36:51] [INFO]   Creating Seurat object for 29_1 (GEM: GEM6)
+[2025-12-03 12:36:59] [INFO]   Downsampled 29_1: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:36:59] [INFO]   Completed 29_1: 129 cells
+[2025-12-03 12:36:59] [INFO]   Creating Seurat object for 60_1 (GEM: GEM6)
+[2025-12-03 12:37:08] [INFO]   Downsampled 60_1: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:37:08] [INFO]   Completed 60_1: 129 cells
+[2025-12-03 12:37:08] [INFO]   Creating Seurat object for 36_1 (GEM: GEM6)
+[2025-12-03 12:37:17] [INFO]   Downsampled 36_1: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:37:17] [INFO]   Completed 36_1: 129 cells
+[2025-12-03 12:37:17] [INFO]   Creating Seurat object for 31_1 (GEM: GEM6)
+[2025-12-03 12:37:25] [INFO]   Downsampled 31_1: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:37:25] [INFO]   Completed 31_1: 129 cells
+[2025-12-03 12:37:25] [INFO]   Creating Seurat object for 59_1 (GEM: GEM6)
+[2025-12-03 12:37:33] [INFO]   Downsampled 59_1: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:37:33] [INFO]   Completed 59_1: 129 cells
+[2025-12-03 12:37:33] [INFO]   Creating Seurat object for 68_1 (GEM: GEM6)
+[2025-12-03 12:37:41] [INFO]   Downsampled 68_1: 12906 -> 129 cells (1.0%)
+[2025-12-03 12:37:41] [INFO]   Completed 68_1: 129 cells
+[2025-12-03 12:37:41] [INFO]   Creating Seurat object for 35_1 (GEM: GEM7)
+[2025-12-03 12:37:50] [INFO]   Downsampled 35_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:37:50] [INFO]   Completed 35_1: 145 cells
+[2025-12-03 12:37:50] [INFO]   Creating Seurat object for 117_1 (GEM: GEM7)
+[2025-12-03 12:37:59] [INFO]   Downsampled 117_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:37:59] [INFO]   Completed 117_1: 145 cells
+[2025-12-03 12:37:59] [INFO]   Creating Seurat object for 100_1 (GEM: GEM7)
+[2025-12-03 12:38:08] [INFO]   Downsampled 100_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:38:08] [INFO]   Completed 100_1: 145 cells
+[2025-12-03 12:38:08] [INFO]   Creating Seurat object for 51_1 (GEM: GEM7)
+[2025-12-03 12:38:18] [INFO]   Downsampled 51_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:38:18] [INFO]   Completed 51_1: 145 cells
+[2025-12-03 12:38:18] [INFO]   Creating Seurat object for 115_1 (GEM: GEM7)
+[2025-12-03 12:38:26] [INFO]   Downsampled 115_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:38:26] [INFO]   Completed 115_1: 145 cells
+[2025-12-03 12:38:26] [INFO]   Creating Seurat object for 113_1 (GEM: GEM7)
+[2025-12-03 12:38:34] [INFO]   Downsampled 113_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:38:34] [INFO]   Completed 113_1: 145 cells
+[2025-12-03 12:38:34] [INFO]   Creating Seurat object for 45_1 (GEM: GEM7)
+[2025-12-03 12:38:42] [INFO]   Downsampled 45_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:38:42] [INFO]   Completed 45_1: 145 cells
+[2025-12-03 12:38:42] [INFO]   Creating Seurat object for 48_1 (GEM: GEM7)
+[2025-12-03 12:38:52] [INFO]   Downsampled 48_1: 14460 -> 145 cells (1.0%)
+[2025-12-03 12:38:52] [INFO]   Completed 48_1: 145 cells
+[2025-12-03 12:38:52] [INFO]   Creating Seurat object for 112_1 (GEM: GEM8)
+[2025-12-03 12:39:02] [INFO]   Downsampled 112_1: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:39:02] [INFO]   Completed 112_1: 130 cells
+[2025-12-03 12:39:02] [INFO]   Creating Seurat object for 111_1 (GEM: GEM8)
+[2025-12-03 12:39:10] [INFO]   Downsampled 111_1: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:39:10] [INFO]   Completed 111_1: 130 cells
+[2025-12-03 12:39:10] [INFO]   Creating Seurat object for 74_3 (GEM: GEM8)
+[2025-12-03 12:39:20] [INFO]   Downsampled 74_3: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:39:20] [INFO]   Completed 74_3: 130 cells
+[2025-12-03 12:39:20] [INFO]   Creating Seurat object for 16_1 (GEM: GEM8)
+[2025-12-03 12:39:30] [INFO]   Downsampled 16_1: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:39:30] [INFO]   Completed 16_1: 130 cells
+[2025-12-03 12:39:30] [INFO]   Creating Seurat object for 103_1 (GEM: GEM8)
+[2025-12-03 12:39:39] [INFO]   Downsampled 103_1: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:39:39] [INFO]   Completed 103_1: 130 cells
+[2025-12-03 12:39:39] [INFO]   Creating Seurat object for 110_1 (GEM: GEM8)
+[2025-12-03 12:39:48] [INFO]   Downsampled 110_1: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:39:48] [INFO]   Completed 110_1: 130 cells
+[2025-12-03 12:39:48] [INFO]   Creating Seurat object for 85_1 (GEM: GEM8)
+[2025-12-03 12:39:57] [INFO]   Downsampled 85_1: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:39:57] [INFO]   Completed 85_1: 130 cells
+[2025-12-03 12:39:57] [INFO]   Creating Seurat object for 93_1 (GEM: GEM8)
+[2025-12-03 12:40:07] [INFO]   Downsampled 93_1: 12997 -> 130 cells (1.0%)
+[2025-12-03 12:40:07] [INFO]   Completed 93_1: 130 cells
+[2025-12-03 12:40:07] [INFO] Saving results to: /data/user3/sobj/pipe/run_test1/step1/step1_demulti_list.qs
+[2025-12-03 12:40:07] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_test1/step1/step1_demulti_list.qs
+[2025-12-03 12:40:07] [INFO] Step 1 completed: 56 samples processed (56 SNP, 0 HTO)

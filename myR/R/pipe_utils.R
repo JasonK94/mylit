@@ -80,6 +80,22 @@ load_config <- function(config_path, config_dir = NULL, execution_config_path = 
     # Assuming JSON for execution config
     if (requireNamespace("jsonlite", quietly = TRUE)) {
       execution <- jsonlite::read_json(execution_config_path)
+
+      # Flatten 'steps' if present to allow grouping in JSON
+      if ("steps" %in% names(execution)) {
+        steps <- execution$steps
+        execution$steps <- NULL # Remove the nested structure after flattening
+        for (step_name in names(steps)) {
+          step_params <- steps[[step_name]]
+          for (param in names(step_params)) {
+            # Check for collision
+            if (param %in% names(execution)) {
+              warning(sprintf("Parameter '%s' in step '%s' overrides global parameter", param, step_name))
+            }
+            execution[[param]] <- step_params[[param]]
+          }
+        }
+      }
     } else {
       warning("jsonlite not installed. Skipping execution config.")
     }

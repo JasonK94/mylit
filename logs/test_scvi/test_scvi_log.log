@@ -1,0 +1,1671 @@
+[2025-12-01 19:20:55] Starting run: test_scvi
+[2025-12-01 19:20:55] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-01 19:20:55] [INFO] Processing sample 1/56: 97_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 97_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 97_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 97_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 2/56: 95_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 95_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 95_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 95_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 3/56: 92_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 92_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 92_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 92_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 4/56: 89_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 89_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 89_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 89_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 5/56: 107_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 107_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 107_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 107_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 6/56: 106_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 106_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 106_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 106_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 7/56: 91_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 91_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 91_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 91_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 8/56: 90_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 90_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 90_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 90_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 9/56: 88_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 88_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 88_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 88_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 10/56: 82_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 82_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 82_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 82_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 11/56: 70_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 70_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 70_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 70_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 12/56: 105_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 105_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 105_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 105_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 13/56: 84_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 84_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 84_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 84_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 14/56: 81_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 81_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 81_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 81_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 15/56: 65_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 65_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 65_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 65_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 16/56: 64_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 64_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 64_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 64_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 17/56: 55_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 55_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 55_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 55_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 18/56: 54_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 54_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 54_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 54_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 19/56: 83_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 83_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 83_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 83_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 20/56: 76_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 76_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 76_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 76_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 21/56: 53_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 53_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 53_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 53_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 22/56: 44_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 44_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 44_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 44_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 23/56: 41_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 41_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 41_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 41_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 24/56: 34_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 34_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 34_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 34_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 25/56: 46_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 46_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 46_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 46_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 26/56: 33_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 33_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 33_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 33_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 27/56: 43_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 43_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 43_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 43_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 28/56: 38_2 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 38_2
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 38_2: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 38_2 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 29/56: 32_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 32_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 32_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 32_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 30/56: 71_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 71_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 71_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 71_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 31/56: 75_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 75_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 75_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 75_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 32/56: 104_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 104_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 104_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 104_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 33/56: 42_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 42_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 42_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 42_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 34/56: 80_2 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 80_2
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 80_2: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 80_2 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 35/56: 29_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 29_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 29_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 29_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 36/56: 60_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 60_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 60_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 60_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 37/56: 36_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 36_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 36_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 36_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 38/56: 31_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 31_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 31_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 31_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 39/56: 59_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 59_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 59_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 59_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 40/56: 68_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 68_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 68_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 68_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 41/56: 35_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 35_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 35_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 35_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 42/56: 117_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 117_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 117_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 117_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 43/56: 100_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 100_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 100_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 100_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 44/56: 51_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 51_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 51_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 51_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 45/56: 115_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 115_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 115_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 115_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 46/56: 113_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 113_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 113_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 113_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 47/56: 45_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 45_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 45_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 45_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 48/56: 48_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 48_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 48_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 48_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 49/56: 112_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 112_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 112_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 112_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 50/56: 111_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 111_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 111_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 111_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 51/56: 74_3 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 74_3
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 74_3: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 74_3 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 52/56: 16_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 16_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 16_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 16_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 53/56: 103_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 103_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 103_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 103_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 54/56: 110_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 110_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 110_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 110_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 55/56: 85_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 85_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 85_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 85_1 !!!
+[2025-12-01 19:20:55] [INFO] Processing sample 56/56: 93_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:20:55] [INFO]   Step 1.1: Loading demuxalot output for 93_1
+[2025-12-01 19:20:55] [ERROR] !!! ERROR in step 1 processing 93_1: cannot open the connection !!!
+[2025-12-01 19:20:55] [ERROR] !!! Skipping sample 93_1 !!!
+[2025-12-01 19:20:55] [ERROR] No samples were successfully processed!
+[2025-12-01 19:21:27] Starting run: test_scvi
+[2025-12-01 19:21:27] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-01 19:21:27] [INFO] Processing sample 1/3: GEM1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:21:27] [INFO]   Step 1.1: Loading demuxalot output for GEM1
+[2025-12-01 19:21:27] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14264_PBD_SRA_1, CD_24_14265_PBD_SRA_1, CD_24_14266_PBD_SRA_1, CD_24_14267_PBD_SRA_1, CD_24_14268_PBD_SRA_1, CD_24_14269_PBD_SRA_1
+[2025-12-01 19:21:30] [INFO]   Step 1.2: Loading count matrices for GEM1
+[2025-12-01 19:21:44] [INFO]   Downsampled GEM1: 12622 -> 1262 cells (10.0%)
+[2025-12-01 19:21:44] [INFO]   Completed GEM1: 1262 cells
+[2025-12-01 19:21:44] [INFO] Processing sample 2/3: GEM2 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:21:44] [INFO]   Step 1.1: Loading demuxalot output for GEM2
+[2025-12-01 19:21:44] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14270_PBD_SRA_1, CD_24_14271_PBD_SRA_1, CD_24_14272_PBD_SRA_1, CD_24_14273_PBD_SRA_1, CD_24_14274_PBD_SRA_1, CD_24_14275_PBD_SRA_1
+[2025-12-01 19:21:46] [INFO]   Step 1.2: Loading count matrices for GEM2
+[2025-12-01 19:21:52] [INFO]   Downsampled GEM2: 10101 -> 1010 cells (10.0%)
+[2025-12-01 19:21:52] [INFO]   Completed GEM2: 1010 cells
+[2025-12-01 19:21:52] [INFO] Processing sample 3/3: 1_IS_72 (GEM: GEM9, Method: HTO)
+[2025-12-01 19:21:52] [INFO]   Step 1.1: Loading HTO data for 1_IS_72
+[2025-12-01 19:21:56] [INFO]   Added HTO assay 'Multiplexing Capture' (stored as 'Multiplexing.Capture') with 10 features
+[2025-12-01 19:21:56] [INFO]   Step 1.2: Performing HTODemux demultiplexing for 1_IS_72
+[2025-12-01 19:21:56] [INFO]   Completed 1_IS_72: 4285 cells
+[2025-12-01 19:21:56] [INFO] Saving results to: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:21:56] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:21:56] [INFO] Step 1 completed: 3 samples processed
+[2025-12-01 19:22:17] Starting run: test_scvi
+[2025-12-01 19:22:17] [INFO] Step 2: Starting normalization (LogNormalize) and clustering
+[2025-12-01 19:22:17] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:22:19] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:22:19] [INFO] Processing GEM1
+[2025-12-01 19:22:19] [INFO]   Calculating QC metrics for GEM1
+[2025-12-01 19:22:21] [INFO]   QC filtering: 1262 -> 1070 cells
+[2025-12-01 19:22:21] [INFO]   Performing LogNormalize for GEM1
+[2025-12-01 19:22:22] [INFO]   Running PCA for GEM1
+[2025-12-01 19:22:23] [INFO]   Clustering for GEM1
+[2025-12-01 19:22:38] [INFO]   Completed GEM1: 1070 cells
+[2025-12-01 19:22:38] [INFO] Processing GEM2
+[2025-12-01 19:22:38] [INFO]   Calculating QC metrics for GEM2
+[2025-12-01 19:22:38] [INFO]   QC filtering: 1010 -> 1002 cells
+[2025-12-01 19:22:38] [INFO]   Performing LogNormalize for GEM2
+[2025-12-01 19:22:40] [INFO]   Running PCA for GEM2
+[2025-12-01 19:22:40] [INFO]   Clustering for GEM2
+[2025-12-01 19:22:55] [INFO]   Completed GEM2: 1002 cells
+[2025-12-01 19:22:55] [INFO] Processing 1_IS_72
+[2025-12-01 19:22:55] [INFO]   Calculating QC metrics for 1_IS_72
+[2025-12-01 19:22:57] [INFO]   QC filtering: 4285 -> 4282 cells
+[2025-12-01 19:22:57] [INFO]   Performing LogNormalize for 1_IS_72
+[2025-12-01 19:23:00] [INFO]   Running PCA for 1_IS_72
+[2025-12-01 19:23:02] [INFO]   Clustering for 1_IS_72
+[2025-12-01 19:23:18] [INFO]   Completed 1_IS_72: 4282 cells
+[2025-12-01 19:23:18] [INFO] Saving results to: /data/user3/sobj/pipe/test_scvi/step2/step2_nmz_list.qs
+[2025-12-01 19:23:19] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/test_scvi/step2/step2_nmz_list.qs
+[2025-12-01 19:23:19] [INFO] Step 2 completed: 3 samples processed
+[2025-12-01 19:29:50] Starting run: test_scvi
+[2025-12-01 19:29:50] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-01 19:29:50] [INFO] Processing sample 1/56: 97_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:29:50] [INFO]   Step 1.1: Loading demuxalot output for 97_1
+[2025-12-01 19:29:50] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14264_PBD_SRA_1, CD_24_14265_PBD_SRA_1, CD_24_14266_PBD_SRA_1, CD_24_14267_PBD_SRA_1, CD_24_14268_PBD_SRA_1, CD_24_14269_PBD_SRA_1
+[2025-12-01 19:29:54] [INFO]   Step 1.2: Loading count matrices for 97_1
+[2025-12-01 19:30:07] [INFO]   Downsampled 97_1: 12622 -> 1262 cells (10.0%)
+[2025-12-01 19:30:07] [INFO]   Completed 97_1: 1262 cells
+[2025-12-01 19:30:07] [INFO] Processing sample 2/56: 95_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:30:07] [INFO]   Step 1.1: Loading demuxalot output for 95_1
+[2025-12-01 19:30:07] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14264_PBD_SRA_1, CD_24_14265_PBD_SRA_1, CD_24_14266_PBD_SRA_1, CD_24_14267_PBD_SRA_1, CD_24_14268_PBD_SRA_1, CD_24_14269_PBD_SRA_1
+[2025-12-01 19:30:10] [INFO]   Step 1.2: Loading count matrices for 95_1
+[2025-12-01 19:30:16] [INFO]   Downsampled 95_1: 12622 -> 1262 cells (10.0%)
+[2025-12-01 19:30:16] [INFO]   Completed 95_1: 1262 cells
+[2025-12-01 19:30:16] [INFO] Processing sample 3/56: 92_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:30:16] [INFO]   Step 1.1: Loading demuxalot output for 92_1
+[2025-12-01 19:30:16] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14264_PBD_SRA_1, CD_24_14265_PBD_SRA_1, CD_24_14266_PBD_SRA_1, CD_24_14267_PBD_SRA_1, CD_24_14268_PBD_SRA_1, CD_24_14269_PBD_SRA_1
+[2025-12-01 19:30:17] [INFO]   Step 1.2: Loading count matrices for 92_1
+[2025-12-01 19:30:23] [INFO]   Downsampled 92_1: 12622 -> 1262 cells (10.0%)
+[2025-12-01 19:30:23] [INFO]   Completed 92_1: 1262 cells
+[2025-12-01 19:30:23] [INFO] Processing sample 4/56: 89_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:30:23] [INFO]   Step 1.1: Loading demuxalot output for 89_1
+[2025-12-01 19:30:23] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14264_PBD_SRA_1, CD_24_14265_PBD_SRA_1, CD_24_14266_PBD_SRA_1, CD_24_14267_PBD_SRA_1, CD_24_14268_PBD_SRA_1, CD_24_14269_PBD_SRA_1
+[2025-12-01 19:30:25] [INFO]   Step 1.2: Loading count matrices for 89_1
+[2025-12-01 19:30:31] [INFO]   Downsampled 89_1: 12622 -> 1262 cells (10.0%)
+[2025-12-01 19:30:31] [INFO]   Completed 89_1: 1262 cells
+[2025-12-01 19:30:31] [INFO] Processing sample 5/56: 107_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:30:31] [INFO]   Step 1.1: Loading demuxalot output for 107_1
+[2025-12-01 19:30:31] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14264_PBD_SRA_1, CD_24_14265_PBD_SRA_1, CD_24_14266_PBD_SRA_1, CD_24_14267_PBD_SRA_1, CD_24_14268_PBD_SRA_1, CD_24_14269_PBD_SRA_1
+[2025-12-01 19:30:32] [INFO]   Step 1.2: Loading count matrices for 107_1
+[2025-12-01 19:30:40] [INFO]   Downsampled 107_1: 12622 -> 1262 cells (10.0%)
+[2025-12-01 19:30:40] [INFO]   Completed 107_1: 1262 cells
+[2025-12-01 19:30:40] [INFO] Processing sample 6/56: 106_1 (GEM: GEM1, Method: SNP)
+[2025-12-01 19:30:40] [INFO]   Step 1.1: Loading demuxalot output for 106_1
+[2025-12-01 19:30:40] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14264_PBD_SRA_1, CD_24_14265_PBD_SRA_1, CD_24_14266_PBD_SRA_1, CD_24_14267_PBD_SRA_1, CD_24_14268_PBD_SRA_1, CD_24_14269_PBD_SRA_1
+[2025-12-01 19:30:41] [INFO]   Step 1.2: Loading count matrices for 106_1
+[2025-12-01 19:30:47] [INFO]   Downsampled 106_1: 12622 -> 1262 cells (10.0%)
+[2025-12-01 19:30:47] [INFO]   Completed 106_1: 1262 cells
+[2025-12-01 19:30:47] [INFO] Processing sample 7/56: 91_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:30:47] [INFO]   Step 1.1: Loading demuxalot output for 91_1
+[2025-12-01 19:30:47] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14270_PBD_SRA_1, CD_24_14271_PBD_SRA_1, CD_24_14272_PBD_SRA_1, CD_24_14273_PBD_SRA_1, CD_24_14274_PBD_SRA_1, CD_24_14275_PBD_SRA_1
+[2025-12-01 19:30:48] [INFO]   Step 1.2: Loading count matrices for 91_1
+[2025-12-01 19:30:56] [INFO]   Downsampled 91_1: 10101 -> 1010 cells (10.0%)
+[2025-12-01 19:30:56] [INFO]   Completed 91_1: 1010 cells
+[2025-12-01 19:30:56] [INFO] Processing sample 8/56: 90_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:30:56] [INFO]   Step 1.1: Loading demuxalot output for 90_1
+[2025-12-01 19:30:56] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14270_PBD_SRA_1, CD_24_14271_PBD_SRA_1, CD_24_14272_PBD_SRA_1, CD_24_14273_PBD_SRA_1, CD_24_14274_PBD_SRA_1, CD_24_14275_PBD_SRA_1
+[2025-12-01 19:30:57] [INFO]   Step 1.2: Loading count matrices for 90_1
+[2025-12-01 19:31:02] [INFO]   Downsampled 90_1: 10101 -> 1010 cells (10.0%)
+[2025-12-01 19:31:02] [INFO]   Completed 90_1: 1010 cells
+[2025-12-01 19:31:02] [INFO] Processing sample 9/56: 88_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:31:02] [INFO]   Step 1.1: Loading demuxalot output for 88_1
+[2025-12-01 19:31:02] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14270_PBD_SRA_1, CD_24_14271_PBD_SRA_1, CD_24_14272_PBD_SRA_1, CD_24_14273_PBD_SRA_1, CD_24_14274_PBD_SRA_1, CD_24_14275_PBD_SRA_1
+[2025-12-01 19:31:03] [INFO]   Step 1.2: Loading count matrices for 88_1
+[2025-12-01 19:31:10] [INFO]   Downsampled 88_1: 10101 -> 1010 cells (10.0%)
+[2025-12-01 19:31:10] [INFO]   Completed 88_1: 1010 cells
+[2025-12-01 19:31:10] [INFO] Processing sample 10/56: 82_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:31:10] [INFO]   Step 1.1: Loading demuxalot output for 82_1
+[2025-12-01 19:31:10] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14270_PBD_SRA_1, CD_24_14271_PBD_SRA_1, CD_24_14272_PBD_SRA_1, CD_24_14273_PBD_SRA_1, CD_24_14274_PBD_SRA_1, CD_24_14275_PBD_SRA_1
+[2025-12-01 19:31:11] [INFO]   Step 1.2: Loading count matrices for 82_1
+[2025-12-01 19:31:17] [INFO]   Downsampled 82_1: 10101 -> 1010 cells (10.0%)
+[2025-12-01 19:31:17] [INFO]   Completed 82_1: 1010 cells
+[2025-12-01 19:31:17] [INFO] Processing sample 11/56: 70_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:31:17] [INFO]   Step 1.1: Loading demuxalot output for 70_1
+[2025-12-01 19:31:17] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14270_PBD_SRA_1, CD_24_14271_PBD_SRA_1, CD_24_14272_PBD_SRA_1, CD_24_14273_PBD_SRA_1, CD_24_14274_PBD_SRA_1, CD_24_14275_PBD_SRA_1
+[2025-12-01 19:31:18] [INFO]   Step 1.2: Loading count matrices for 70_1
+[2025-12-01 19:31:25] [INFO]   Downsampled 70_1: 10101 -> 1010 cells (10.0%)
+[2025-12-01 19:31:25] [INFO]   Completed 70_1: 1010 cells
+[2025-12-01 19:31:25] [INFO] Processing sample 12/56: 105_1 (GEM: GEM2, Method: SNP)
+[2025-12-01 19:31:25] [INFO]   Step 1.1: Loading demuxalot output for 105_1
+[2025-12-01 19:31:25] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14270_PBD_SRA_1, CD_24_14271_PBD_SRA_1, CD_24_14272_PBD_SRA_1, CD_24_14273_PBD_SRA_1, CD_24_14274_PBD_SRA_1, CD_24_14275_PBD_SRA_1
+[2025-12-01 19:31:26] [INFO]   Step 1.2: Loading count matrices for 105_1
+[2025-12-01 19:31:33] [INFO]   Downsampled 105_1: 10101 -> 1010 cells (10.0%)
+[2025-12-01 19:31:33] [INFO]   Completed 105_1: 1010 cells
+[2025-12-01 19:31:33] [INFO] Processing sample 13/56: 84_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:31:33] [INFO]   Step 1.1: Loading demuxalot output for 84_1
+[2025-12-01 19:31:33] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14276_PBD_SRA_1, CD_24_14277_PBD_SRA_1, CD_24_14278_PBD_SRA_1, CD_24_14279_PBD_SRA_1, CD_24_14280_PBD_SRA_1, CD_24_14281_PBD_SRA_1
+[2025-12-01 19:31:34] [INFO]   Step 1.2: Loading count matrices for 84_1
+[2025-12-01 19:31:41] [INFO]   Downsampled 84_1: 11325 -> 1132 cells (10.0%)
+[2025-12-01 19:31:41] [INFO]   Completed 84_1: 1132 cells
+[2025-12-01 19:31:41] [INFO] Processing sample 14/56: 81_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:31:41] [INFO]   Step 1.1: Loading demuxalot output for 81_1
+[2025-12-01 19:31:41] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14276_PBD_SRA_1, CD_24_14277_PBD_SRA_1, CD_24_14278_PBD_SRA_1, CD_24_14279_PBD_SRA_1, CD_24_14280_PBD_SRA_1, CD_24_14281_PBD_SRA_1
+[2025-12-01 19:31:42] [INFO]   Step 1.2: Loading count matrices for 81_1
+[2025-12-01 19:31:47] [INFO]   Downsampled 81_1: 11325 -> 1132 cells (10.0%)
+[2025-12-01 19:31:47] [INFO]   Completed 81_1: 1132 cells
+[2025-12-01 19:31:47] [INFO] Processing sample 15/56: 65_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:31:47] [INFO]   Step 1.1: Loading demuxalot output for 65_1
+[2025-12-01 19:31:47] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14276_PBD_SRA_1, CD_24_14277_PBD_SRA_1, CD_24_14278_PBD_SRA_1, CD_24_14279_PBD_SRA_1, CD_24_14280_PBD_SRA_1, CD_24_14281_PBD_SRA_1
+[2025-12-01 19:31:48] [INFO]   Step 1.2: Loading count matrices for 65_1
+[2025-12-01 19:31:55] [INFO]   Downsampled 65_1: 11325 -> 1132 cells (10.0%)
+[2025-12-01 19:31:55] [INFO]   Completed 65_1: 1132 cells
+[2025-12-01 19:31:55] [INFO] Processing sample 16/56: 64_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:31:55] [INFO]   Step 1.1: Loading demuxalot output for 64_1
+[2025-12-01 19:31:55] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14276_PBD_SRA_1, CD_24_14277_PBD_SRA_1, CD_24_14278_PBD_SRA_1, CD_24_14279_PBD_SRA_1, CD_24_14280_PBD_SRA_1, CD_24_14281_PBD_SRA_1
+[2025-12-01 19:31:56] [INFO]   Step 1.2: Loading count matrices for 64_1
+[2025-12-01 19:32:03] [INFO]   Downsampled 64_1: 11325 -> 1132 cells (10.0%)
+[2025-12-01 19:32:03] [INFO]   Completed 64_1: 1132 cells
+[2025-12-01 19:32:03] [INFO] Processing sample 17/56: 55_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:32:03] [INFO]   Step 1.1: Loading demuxalot output for 55_1
+[2025-12-01 19:32:03] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14276_PBD_SRA_1, CD_24_14277_PBD_SRA_1, CD_24_14278_PBD_SRA_1, CD_24_14279_PBD_SRA_1, CD_24_14280_PBD_SRA_1, CD_24_14281_PBD_SRA_1
+[2025-12-01 19:32:04] [INFO]   Step 1.2: Loading count matrices for 55_1
+[2025-12-01 19:32:10] [INFO]   Downsampled 55_1: 11325 -> 1132 cells (10.0%)
+[2025-12-01 19:32:10] [INFO]   Completed 55_1: 1132 cells
+[2025-12-01 19:32:10] [INFO] Processing sample 18/56: 54_1 (GEM: GEM3, Method: SNP)
+[2025-12-01 19:32:10] [INFO]   Step 1.1: Loading demuxalot output for 54_1
+[2025-12-01 19:32:10] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14276_PBD_SRA_1, CD_24_14277_PBD_SRA_1, CD_24_14278_PBD_SRA_1, CD_24_14279_PBD_SRA_1, CD_24_14280_PBD_SRA_1, CD_24_14281_PBD_SRA_1
+[2025-12-01 19:32:12] [INFO]   Step 1.2: Loading count matrices for 54_1
+[2025-12-01 19:32:17] [INFO]   Downsampled 54_1: 11325 -> 1132 cells (10.0%)
+[2025-12-01 19:32:17] [INFO]   Completed 54_1: 1132 cells
+[2025-12-01 19:32:17] [INFO] Processing sample 19/56: 83_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:32:17] [INFO]   Step 1.1: Loading demuxalot output for 83_1
+[2025-12-01 19:32:17] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14282_PBD_SRA_1, CD_24_14283_PBD_SRA_1, CD_24_14284_PBD_SRA_1, CD_24_14285_PBD_SRA_1, CD_24_14286_PBD_SRA_1, CD_24_14287_PBD_SRA_1
+[2025-12-01 19:32:19] [INFO]   Step 1.2: Loading count matrices for 83_1
+[2025-12-01 19:32:23] [INFO]   Downsampled 83_1: 9303 -> 930 cells (10.0%)
+[2025-12-01 19:32:23] [INFO]   Completed 83_1: 930 cells
+[2025-12-01 19:32:23] [INFO] Processing sample 20/56: 76_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:32:23] [INFO]   Step 1.1: Loading demuxalot output for 76_1
+[2025-12-01 19:32:23] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14282_PBD_SRA_1, CD_24_14283_PBD_SRA_1, CD_24_14284_PBD_SRA_1, CD_24_14285_PBD_SRA_1, CD_24_14286_PBD_SRA_1, CD_24_14287_PBD_SRA_1
+[2025-12-01 19:32:24] [INFO]   Step 1.2: Loading count matrices for 76_1
+[2025-12-01 19:32:29] [INFO]   Downsampled 76_1: 9303 -> 930 cells (10.0%)
+[2025-12-01 19:32:29] [INFO]   Completed 76_1: 930 cells
+[2025-12-01 19:32:29] [INFO] Processing sample 21/56: 53_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:32:29] [INFO]   Step 1.1: Loading demuxalot output for 53_1
+[2025-12-01 19:32:29] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14282_PBD_SRA_1, CD_24_14283_PBD_SRA_1, CD_24_14284_PBD_SRA_1, CD_24_14285_PBD_SRA_1, CD_24_14286_PBD_SRA_1, CD_24_14287_PBD_SRA_1
+[2025-12-01 19:32:30] [INFO]   Step 1.2: Loading count matrices for 53_1
+[2025-12-01 19:32:34] [INFO]   Downsampled 53_1: 9303 -> 930 cells (10.0%)
+[2025-12-01 19:32:34] [INFO]   Completed 53_1: 930 cells
+[2025-12-01 19:32:34] [INFO] Processing sample 22/56: 44_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:32:34] [INFO]   Step 1.1: Loading demuxalot output for 44_1
+[2025-12-01 19:32:34] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14282_PBD_SRA_1, CD_24_14283_PBD_SRA_1, CD_24_14284_PBD_SRA_1, CD_24_14285_PBD_SRA_1, CD_24_14286_PBD_SRA_1, CD_24_14287_PBD_SRA_1
+[2025-12-01 19:32:35] [INFO]   Step 1.2: Loading count matrices for 44_1
+[2025-12-01 19:32:39] [INFO]   Downsampled 44_1: 9303 -> 930 cells (10.0%)
+[2025-12-01 19:32:39] [INFO]   Completed 44_1: 930 cells
+[2025-12-01 19:32:39] [INFO] Processing sample 23/56: 41_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:32:39] [INFO]   Step 1.1: Loading demuxalot output for 41_1
+[2025-12-01 19:32:39] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14282_PBD_SRA_1, CD_24_14283_PBD_SRA_1, CD_24_14284_PBD_SRA_1, CD_24_14285_PBD_SRA_1, CD_24_14286_PBD_SRA_1, CD_24_14287_PBD_SRA_1
+[2025-12-01 19:32:40] [INFO]   Step 1.2: Loading count matrices for 41_1
+[2025-12-01 19:32:45] [INFO]   Downsampled 41_1: 9303 -> 930 cells (10.0%)
+[2025-12-01 19:32:45] [INFO]   Completed 41_1: 930 cells
+[2025-12-01 19:32:45] [INFO] Processing sample 24/56: 34_1 (GEM: GEM4, Method: SNP)
+[2025-12-01 19:32:45] [INFO]   Step 1.1: Loading demuxalot output for 34_1
+[2025-12-01 19:32:45] [INFO]   Found 6 singlet sample(s) in demux file: CD_24_14282_PBD_SRA_1, CD_24_14283_PBD_SRA_1, CD_24_14284_PBD_SRA_1, CD_24_14285_PBD_SRA_1, CD_24_14286_PBD_SRA_1, CD_24_14287_PBD_SRA_1
+[2025-12-01 19:32:46] [INFO]   Step 1.2: Loading count matrices for 34_1
+[2025-12-01 19:32:50] [INFO]   Downsampled 34_1: 9303 -> 930 cells (10.0%)
+[2025-12-01 19:32:50] [INFO]   Completed 34_1: 930 cells
+[2025-12-01 19:32:50] [INFO] Processing sample 25/56: 46_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:32:50] [INFO]   Step 1.1: Loading demuxalot output for 46_1
+[2025-12-01 19:32:50] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:32:53] [INFO]   Step 1.2: Loading count matrices for 46_1
+[2025-12-01 19:33:00] [INFO]   Downsampled 46_1: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:33:00] [INFO]   Completed 46_1: 1210 cells
+[2025-12-01 19:33:00] [INFO] Processing sample 26/56: 33_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:33:00] [INFO]   Step 1.1: Loading demuxalot output for 33_1
+[2025-12-01 19:33:00] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:33:03] [INFO]   Step 1.2: Loading count matrices for 33_1
+[2025-12-01 19:33:08] [INFO]   Downsampled 33_1: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:33:08] [INFO]   Completed 33_1: 1210 cells
+[2025-12-01 19:33:08] [INFO] Processing sample 27/56: 43_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:33:08] [INFO]   Step 1.1: Loading demuxalot output for 43_1
+[2025-12-01 19:33:08] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:33:10] [INFO]   Step 1.2: Loading count matrices for 43_1
+[2025-12-01 19:33:18] [INFO]   Downsampled 43_1: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:33:18] [INFO]   Completed 43_1: 1210 cells
+[2025-12-01 19:33:18] [INFO] Processing sample 28/56: 38_2 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:33:18] [INFO]   Step 1.1: Loading demuxalot output for 38_2
+[2025-12-01 19:33:18] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:33:19] [INFO]   Step 1.2: Loading count matrices for 38_2
+[2025-12-01 19:33:28] [INFO]   Downsampled 38_2: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:33:28] [INFO]   Completed 38_2: 1210 cells
+[2025-12-01 19:33:28] [INFO] Processing sample 29/56: 32_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:33:28] [INFO]   Step 1.1: Loading demuxalot output for 32_1
+[2025-12-01 19:33:28] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:33:29] [INFO]   Step 1.2: Loading count matrices for 32_1
+[2025-12-01 19:33:36] [INFO]   Downsampled 32_1: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:33:36] [INFO]   Completed 32_1: 1210 cells
+[2025-12-01 19:33:36] [INFO] Processing sample 30/56: 71_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:33:36] [INFO]   Step 1.1: Loading demuxalot output for 71_1
+[2025-12-01 19:33:36] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:33:38] [INFO]   Step 1.2: Loading count matrices for 71_1
+[2025-12-01 19:33:43] [INFO]   Downsampled 71_1: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:33:43] [INFO]   Completed 71_1: 1210 cells
+[2025-12-01 19:33:43] [INFO] Processing sample 31/56: 75_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:33:43] [INFO]   Step 1.1: Loading demuxalot output for 75_1
+[2025-12-01 19:33:43] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:33:46] [INFO]   Step 1.2: Loading count matrices for 75_1
+[2025-12-01 19:33:52] [INFO]   Downsampled 75_1: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:33:52] [INFO]   Completed 75_1: 1210 cells
+[2025-12-01 19:33:52] [INFO] Processing sample 32/56: 104_1 (GEM: GEM5, Method: SNP)
+[2025-12-01 19:33:52] [INFO]   Step 1.1: Loading demuxalot output for 104_1
+[2025-12-01 19:33:52] [INFO]   Found 8 singlet sample(s) in demux file: 1-1, 1-3, 1-5, 1-6, 1-7, 1-8, 5-1, 5-5
+[2025-12-01 19:33:54] [INFO]   Step 1.2: Loading count matrices for 104_1
+[2025-12-01 19:34:00] [INFO]   Downsampled 104_1: 12101 -> 1210 cells (10.0%)
+[2025-12-01 19:34:00] [INFO]   Completed 104_1: 1210 cells
+[2025-12-01 19:34:00] [INFO] Processing sample 33/56: 42_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:34:00] [INFO]   Step 1.1: Loading demuxalot output for 42_1
+[2025-12-01 19:34:00] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:34:01] [INFO]   Step 1.2: Loading count matrices for 42_1
+[2025-12-01 19:34:09] [INFO]   Downsampled 42_1: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:34:09] [INFO]   Completed 42_1: 1291 cells
+[2025-12-01 19:34:09] [INFO] Processing sample 34/56: 80_2 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:34:09] [INFO]   Step 1.1: Loading demuxalot output for 80_2
+[2025-12-01 19:34:09] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:34:10] [INFO]   Step 1.2: Loading count matrices for 80_2
+[2025-12-01 19:34:20] [INFO]   Downsampled 80_2: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:34:20] [INFO]   Completed 80_2: 1291 cells
+[2025-12-01 19:34:20] [INFO] Processing sample 35/56: 29_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:34:20] [INFO]   Step 1.1: Loading demuxalot output for 29_1
+[2025-12-01 19:34:20] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:34:21] [INFO]   Step 1.2: Loading count matrices for 29_1
+[2025-12-01 19:34:27] [INFO]   Downsampled 29_1: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:34:27] [INFO]   Completed 29_1: 1291 cells
+[2025-12-01 19:34:27] [INFO] Processing sample 36/56: 60_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:34:27] [INFO]   Step 1.1: Loading demuxalot output for 60_1
+[2025-12-01 19:34:27] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:34:30] [INFO]   Step 1.2: Loading count matrices for 60_1
+[2025-12-01 19:34:37] [INFO]   Downsampled 60_1: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:34:37] [INFO]   Completed 60_1: 1291 cells
+[2025-12-01 19:34:37] [INFO] Processing sample 37/56: 36_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:34:37] [INFO]   Step 1.1: Loading demuxalot output for 36_1
+[2025-12-01 19:34:37] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:34:38] [INFO]   Step 1.2: Loading count matrices for 36_1
+[2025-12-01 19:34:45] [INFO]   Downsampled 36_1: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:34:45] [INFO]   Completed 36_1: 1291 cells
+[2025-12-01 19:34:45] [INFO] Processing sample 38/56: 31_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:34:45] [INFO]   Step 1.1: Loading demuxalot output for 31_1
+[2025-12-01 19:34:45] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:34:48] [INFO]   Step 1.2: Loading count matrices for 31_1
+[2025-12-01 19:34:54] [INFO]   Downsampled 31_1: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:34:54] [INFO]   Completed 31_1: 1291 cells
+[2025-12-01 19:34:54] [INFO] Processing sample 39/56: 59_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:34:54] [INFO]   Step 1.1: Loading demuxalot output for 59_1
+[2025-12-01 19:34:54] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:34:56] [INFO]   Step 1.2: Loading count matrices for 59_1
+[2025-12-01 19:35:02] [INFO]   Downsampled 59_1: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:35:02] [INFO]   Completed 59_1: 1291 cells
+[2025-12-01 19:35:02] [INFO] Processing sample 40/56: 68_1 (GEM: GEM6, Method: SNP)
+[2025-12-01 19:35:02] [INFO]   Step 1.1: Loading demuxalot output for 68_1
+[2025-12-01 19:35:02] [INFO]   Found 8 singlet sample(s) in demux file: 2-1, 2-2, 2-3, 2-4, 2-5, 2-6, 2-8, 5-7
+[2025-12-01 19:35:05] [INFO]   Step 1.2: Loading count matrices for 68_1
+[2025-12-01 19:35:12] [INFO]   Downsampled 68_1: 12906 -> 1291 cells (10.0%)
+[2025-12-01 19:35:12] [INFO]   Completed 68_1: 1291 cells
+[2025-12-01 19:35:12] [INFO] Processing sample 41/56: 35_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:35:12] [INFO]   Step 1.1: Loading demuxalot output for 35_1
+[2025-12-01 19:35:12] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:35:13] [INFO]   Step 1.2: Loading count matrices for 35_1
+[2025-12-01 19:35:22] [INFO]   Downsampled 35_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:35:22] [INFO]   Completed 35_1: 1446 cells
+[2025-12-01 19:35:22] [INFO] Processing sample 42/56: 117_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:35:22] [INFO]   Step 1.1: Loading demuxalot output for 117_1
+[2025-12-01 19:35:22] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:35:24] [INFO]   Step 1.2: Loading count matrices for 117_1
+[2025-12-01 19:35:32] [INFO]   Downsampled 117_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:35:32] [INFO]   Completed 117_1: 1446 cells
+[2025-12-01 19:35:32] [INFO] Processing sample 43/56: 100_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:35:32] [INFO]   Step 1.1: Loading demuxalot output for 100_1
+[2025-12-01 19:35:32] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:35:34] [INFO]   Step 1.2: Loading count matrices for 100_1
+[2025-12-01 19:35:44] [INFO]   Downsampled 100_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:35:44] [INFO]   Completed 100_1: 1446 cells
+[2025-12-01 19:35:44] [INFO] Processing sample 44/56: 51_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:35:44] [INFO]   Step 1.1: Loading demuxalot output for 51_1
+[2025-12-01 19:35:44] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:35:45] [INFO]   Step 1.2: Loading count matrices for 51_1
+[2025-12-01 19:35:52] [INFO]   Downsampled 51_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:35:52] [INFO]   Completed 51_1: 1446 cells
+[2025-12-01 19:35:52] [INFO] Processing sample 45/56: 115_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:35:52] [INFO]   Step 1.1: Loading demuxalot output for 115_1
+[2025-12-01 19:35:52] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:35:55] [INFO]   Step 1.2: Loading count matrices for 115_1
+[2025-12-01 19:36:03] [INFO]   Downsampled 115_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:36:03] [INFO]   Completed 115_1: 1446 cells
+[2025-12-01 19:36:03] [INFO] Processing sample 46/56: 113_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:36:03] [INFO]   Step 1.1: Loading demuxalot output for 113_1
+[2025-12-01 19:36:03] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:36:05] [INFO]   Step 1.2: Loading count matrices for 113_1
+[2025-12-01 19:36:12] [INFO]   Downsampled 113_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:36:12] [INFO]   Completed 113_1: 1446 cells
+[2025-12-01 19:36:12] [INFO] Processing sample 47/56: 45_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:36:12] [INFO]   Step 1.1: Loading demuxalot output for 45_1
+[2025-12-01 19:36:12] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:36:14] [INFO]   Step 1.2: Loading count matrices for 45_1
+[2025-12-01 19:36:22] [INFO]   Downsampled 45_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:36:22] [INFO]   Completed 45_1: 1446 cells
+[2025-12-01 19:36:22] [INFO] Processing sample 48/56: 48_1 (GEM: GEM7, Method: SNP)
+[2025-12-01 19:36:22] [INFO]   Step 1.1: Loading demuxalot output for 48_1
+[2025-12-01 19:36:22] [INFO]   Found 8 singlet sample(s) in demux file: 3-1, 3-2, 3-3, 3-4, 3-5, 3-6, 3-8, 5-3
+[2025-12-01 19:36:24] [INFO]   Step 1.2: Loading count matrices for 48_1
+[2025-12-01 19:36:30] [INFO]   Downsampled 48_1: 14460 -> 1446 cells (10.0%)
+[2025-12-01 19:36:30] [INFO]   Completed 48_1: 1446 cells
+[2025-12-01 19:36:30] [INFO] Processing sample 49/56: 112_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:36:30] [INFO]   Step 1.1: Loading demuxalot output for 112_1
+[2025-12-01 19:36:30] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:36:33] [INFO]   Step 1.2: Loading count matrices for 112_1
+[2025-12-01 19:36:41] [INFO]   Downsampled 112_1: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:36:41] [INFO]   Completed 112_1: 1300 cells
+[2025-12-01 19:36:41] [INFO] Processing sample 50/56: 111_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:36:41] [INFO]   Step 1.1: Loading demuxalot output for 111_1
+[2025-12-01 19:36:41] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:36:42] [INFO]   Step 1.2: Loading count matrices for 111_1
+[2025-12-01 19:36:49] [INFO]   Downsampled 111_1: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:36:49] [INFO]   Completed 111_1: 1300 cells
+[2025-12-01 19:36:49] [INFO] Processing sample 51/56: 74_3 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:36:49] [INFO]   Step 1.1: Loading demuxalot output for 74_3
+[2025-12-01 19:36:49] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:36:51] [INFO]   Step 1.2: Loading count matrices for 74_3
+[2025-12-01 19:36:59] [INFO]   Downsampled 74_3: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:36:59] [INFO]   Completed 74_3: 1300 cells
+[2025-12-01 19:36:59] [INFO] Processing sample 52/56: 16_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:36:59] [INFO]   Step 1.1: Loading demuxalot output for 16_1
+[2025-12-01 19:37:00] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:37:01] [INFO]   Step 1.2: Loading count matrices for 16_1
+[2025-12-01 19:37:10] [INFO]   Downsampled 16_1: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:37:10] [INFO]   Completed 16_1: 1300 cells
+[2025-12-01 19:37:10] [INFO] Processing sample 53/56: 103_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:37:10] [INFO]   Step 1.1: Loading demuxalot output for 103_1
+[2025-12-01 19:37:10] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:37:11] [INFO]   Step 1.2: Loading count matrices for 103_1
+[2025-12-01 19:37:20] [INFO]   Downsampled 103_1: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:37:20] [INFO]   Completed 103_1: 1300 cells
+[2025-12-01 19:37:20] [INFO] Processing sample 54/56: 110_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:37:20] [INFO]   Step 1.1: Loading demuxalot output for 110_1
+[2025-12-01 19:37:20] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:37:22] [INFO]   Step 1.2: Loading count matrices for 110_1
+[2025-12-01 19:37:29] [INFO]   Downsampled 110_1: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:37:29] [INFO]   Completed 110_1: 1300 cells
+[2025-12-01 19:37:29] [INFO] Processing sample 55/56: 85_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:37:29] [INFO]   Step 1.1: Loading demuxalot output for 85_1
+[2025-12-01 19:37:29] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:37:30] [INFO]   Step 1.2: Loading count matrices for 85_1
+[2025-12-01 19:37:38] [INFO]   Downsampled 85_1: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:37:38] [INFO]   Completed 85_1: 1300 cells
+[2025-12-01 19:37:38] [INFO] Processing sample 56/56: 93_1 (GEM: GEM8, Method: SNP)
+[2025-12-01 19:37:38] [INFO]   Step 1.1: Loading demuxalot output for 93_1
+[2025-12-01 19:37:38] [INFO]   Found 8 singlet sample(s) in demux file: 4-1, 4-2, 4-3, 4-4, 4-5, 4-6, 4-7, 4-8
+[2025-12-01 19:37:40] [INFO]   Step 1.2: Loading count matrices for 93_1
+[2025-12-01 19:37:49] [INFO]   Downsampled 93_1: 12997 -> 1300 cells (10.0%)
+[2025-12-01 19:37:49] [INFO]   Completed 93_1: 1300 cells
+[2025-12-01 19:37:49] [INFO] Saving results to: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:37:52] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:37:52] [INFO] Step 1 completed: 56 samples processed
+[2025-12-01 19:38:20] Starting run: test_scvi
+[2025-12-01 19:38:20] [INFO] Step 2: Starting normalization (LogNormalize) and clustering
+[2025-12-01 19:38:20] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:38:32] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step1/step1_demulti_list.qs
+[2025-12-01 19:38:32] [INFO] Processing 97_1
+[2025-12-01 19:38:32] [INFO]   Calculating QC metrics for 97_1
+[2025-12-01 19:38:33] [INFO]   QC filtering: 1262 -> 1070 cells
+[2025-12-01 19:38:33] [INFO]   Performing LogNormalize for 97_1
+[2025-12-01 19:38:35] [INFO]   Running PCA for 97_1
+[2025-12-01 19:38:35] [INFO]   Clustering for 97_1
+[2025-12-01 19:38:51] [INFO]   Completed 97_1: 1070 cells
+[2025-12-01 19:38:51] [INFO] Processing 95_1
+[2025-12-01 19:38:51] [INFO]   Calculating QC metrics for 95_1
+[2025-12-01 19:38:51] [INFO]   QC filtering: 1262 -> 1081 cells
+[2025-12-01 19:38:51] [INFO]   Performing LogNormalize for 95_1
+[2025-12-01 19:38:53] [INFO]   Running PCA for 95_1
+[2025-12-01 19:38:54] [INFO]   Clustering for 95_1
+[2025-12-01 19:39:08] [INFO]   Completed 95_1: 1081 cells
+[2025-12-01 19:39:08] [INFO] Processing 92_1
+[2025-12-01 19:39:08] [INFO]   Calculating QC metrics for 92_1
+[2025-12-01 19:39:09] [INFO]   QC filtering: 1262 -> 1085 cells
+[2025-12-01 19:39:09] [INFO]   Performing LogNormalize for 92_1
+[2025-12-01 19:39:10] [INFO]   Running PCA for 92_1
+[2025-12-01 19:39:11] [INFO]   Clustering for 92_1
+[2025-12-01 19:39:25] [INFO]   Completed 92_1: 1085 cells
+[2025-12-01 19:39:25] [INFO] Processing 89_1
+[2025-12-01 19:39:25] [INFO]   Calculating QC metrics for 89_1
+[2025-12-01 19:39:26] [INFO]   QC filtering: 1262 -> 1072 cells
+[2025-12-01 19:39:26] [INFO]   Performing LogNormalize for 89_1
+[2025-12-01 19:39:27] [INFO]   Running PCA for 89_1
+[2025-12-01 19:39:28] [INFO]   Clustering for 89_1
+[2025-12-01 19:39:43] [INFO]   Completed 89_1: 1072 cells
+[2025-12-01 19:39:43] [INFO] Processing 107_1
+[2025-12-01 19:39:43] [INFO]   Calculating QC metrics for 107_1
+[2025-12-01 19:39:43] [INFO]   QC filtering: 1262 -> 1077 cells
+[2025-12-01 19:39:43] [INFO]   Performing LogNormalize for 107_1
+[2025-12-01 19:39:45] [INFO]   Running PCA for 107_1
+[2025-12-01 19:39:45] [INFO]   Clustering for 107_1
+[2025-12-01 19:40:00] [INFO]   Completed 107_1: 1077 cells
+[2025-12-01 19:40:00] [INFO] Processing 106_1
+[2025-12-01 19:40:00] [INFO]   Calculating QC metrics for 106_1
+[2025-12-01 19:40:00] [INFO]   QC filtering: 1262 -> 1092 cells
+[2025-12-01 19:40:00] [INFO]   Performing LogNormalize for 106_1
+[2025-12-01 19:40:02] [INFO]   Running PCA for 106_1
+[2025-12-01 19:40:03] [INFO]   Clustering for 106_1
+[2025-12-01 19:40:18] [INFO]   Completed 106_1: 1092 cells
+[2025-12-01 19:40:18] [INFO] Processing 91_1
+[2025-12-01 19:40:18] [INFO]   Calculating QC metrics for 91_1
+[2025-12-01 19:40:18] [INFO]   QC filtering: 1010 -> 1005 cells
+[2025-12-01 19:40:18] [INFO]   Performing LogNormalize for 91_1
+[2025-12-01 19:40:20] [INFO]   Running PCA for 91_1
+[2025-12-01 19:40:20] [INFO]   Clustering for 91_1
+[2025-12-01 19:40:35] [INFO]   Completed 91_1: 1005 cells
+[2025-12-01 19:40:35] [INFO] Processing 90_1
+[2025-12-01 19:40:35] [INFO]   Calculating QC metrics for 90_1
+[2025-12-01 19:40:35] [INFO]   QC filtering: 1010 -> 1005 cells
+[2025-12-01 19:40:35] [INFO]   Performing LogNormalize for 90_1
+[2025-12-01 19:40:37] [INFO]   Running PCA for 90_1
+[2025-12-01 19:40:37] [INFO]   Clustering for 90_1
+[2025-12-01 19:40:52] [INFO]   Completed 90_1: 1005 cells
+[2025-12-01 19:40:52] [INFO] Processing 88_1
+[2025-12-01 19:40:52] [INFO]   Calculating QC metrics for 88_1
+[2025-12-01 19:40:53] [INFO]   QC filtering: 1010 -> 1004 cells
+[2025-12-01 19:40:53] [INFO]   Performing LogNormalize for 88_1
+[2025-12-01 19:40:55] [INFO]   Running PCA for 88_1
+[2025-12-01 19:40:55] [INFO]   Clustering for 88_1
+[2025-12-01 19:41:10] [INFO]   Completed 88_1: 1004 cells
+[2025-12-01 19:41:10] [INFO] Processing 82_1
+[2025-12-01 19:41:10] [INFO]   Calculating QC metrics for 82_1
+[2025-12-01 19:41:10] [INFO]   QC filtering: 1010 -> 1003 cells
+[2025-12-01 19:41:10] [INFO]   Performing LogNormalize for 82_1
+[2025-12-01 19:41:12] [INFO]   Running PCA for 82_1
+[2025-12-01 19:41:12] [INFO]   Clustering for 82_1
+[2025-12-01 19:41:27] [INFO]   Completed 82_1: 1003 cells
+[2025-12-01 19:41:27] [INFO] Processing 70_1
+[2025-12-01 19:41:27] [INFO]   Calculating QC metrics for 70_1
+[2025-12-01 19:41:27] [INFO]   QC filtering: 1010 -> 1002 cells
+[2025-12-01 19:41:27] [INFO]   Performing LogNormalize for 70_1
+[2025-12-01 19:41:29] [INFO]   Running PCA for 70_1
+[2025-12-01 19:41:29] [INFO]   Clustering for 70_1
+[2025-12-01 19:41:44] [INFO]   Completed 70_1: 1002 cells
+[2025-12-01 19:41:44] [INFO] Processing 105_1
+[2025-12-01 19:41:44] [INFO]   Calculating QC metrics for 105_1
+[2025-12-01 19:41:45] [INFO]   QC filtering: 1010 -> 1000 cells
+[2025-12-01 19:41:45] [INFO]   Performing LogNormalize for 105_1
+[2025-12-01 19:41:46] [INFO]   Running PCA for 105_1
+[2025-12-01 19:41:47] [INFO]   Clustering for 105_1
+[2025-12-01 19:42:02] [INFO]   Completed 105_1: 1000 cells
+[2025-12-01 19:42:02] [INFO] Processing 84_1
+[2025-12-01 19:42:02] [INFO]   Calculating QC metrics for 84_1
+[2025-12-01 19:42:02] [INFO]   QC filtering: 1132 -> 1129 cells
+[2025-12-01 19:42:02] [INFO]   Performing LogNormalize for 84_1
+[2025-12-01 19:42:04] [INFO]   Running PCA for 84_1
+[2025-12-01 19:42:04] [INFO]   Clustering for 84_1
+[2025-12-01 19:42:19] [INFO]   Completed 84_1: 1129 cells
+[2025-12-01 19:42:19] [INFO] Processing 81_1
+[2025-12-01 19:42:19] [INFO]   Calculating QC metrics for 81_1
+[2025-12-01 19:42:20] [INFO]   QC filtering: 1132 -> 1131 cells
+[2025-12-01 19:42:20] [INFO]   Performing LogNormalize for 81_1
+[2025-12-01 19:42:22] [INFO]   Running PCA for 81_1
+[2025-12-01 19:42:22] [INFO]   Clustering for 81_1
+[2025-12-01 19:42:37] [INFO]   Completed 81_1: 1131 cells
+[2025-12-01 19:42:37] [INFO] Processing 65_1
+[2025-12-01 19:42:37] [INFO]   Calculating QC metrics for 65_1
+[2025-12-01 19:42:37] [INFO]   QC filtering: 1132 -> 1130 cells
+[2025-12-01 19:42:37] [INFO]   Performing LogNormalize for 65_1
+[2025-12-01 19:42:39] [INFO]   Running PCA for 65_1
+[2025-12-01 19:42:39] [INFO]   Clustering for 65_1
+[2025-12-01 19:42:54] [INFO]   Completed 65_1: 1130 cells
+[2025-12-01 19:42:54] [INFO] Processing 64_1
+[2025-12-01 19:42:54] [INFO]   Calculating QC metrics for 64_1
+[2025-12-01 19:42:55] [INFO]   QC filtering: 1132 -> 1127 cells
+[2025-12-01 19:42:55] [INFO]   Performing LogNormalize for 64_1
+[2025-12-01 19:42:56] [INFO]   Running PCA for 64_1
+[2025-12-01 19:42:57] [INFO]   Clustering for 64_1
+[2025-12-01 19:43:12] [INFO]   Completed 64_1: 1127 cells
+[2025-12-01 19:43:12] [INFO] Processing 55_1
+[2025-12-01 19:43:12] [INFO]   Calculating QC metrics for 55_1
+[2025-12-01 19:43:12] [INFO]   QC filtering: 1132 -> 1127 cells
+[2025-12-01 19:43:12] [INFO]   Performing LogNormalize for 55_1
+[2025-12-01 19:43:14] [INFO]   Running PCA for 55_1
+[2025-12-01 19:43:14] [INFO]   Clustering for 55_1
+[2025-12-01 19:43:29] [INFO]   Completed 55_1: 1127 cells
+[2025-12-01 19:43:29] [INFO] Processing 54_1
+[2025-12-01 19:43:29] [INFO]   Calculating QC metrics for 54_1
+[2025-12-01 19:43:30] [INFO]   QC filtering: 1132 -> 1130 cells
+[2025-12-01 19:43:30] [INFO]   Performing LogNormalize for 54_1
+[2025-12-01 19:43:31] [INFO]   Running PCA for 54_1
+[2025-12-01 19:43:32] [INFO]   Clustering for 54_1
+[2025-12-01 19:43:47] [INFO]   Completed 54_1: 1130 cells
+[2025-12-01 19:43:47] [INFO] Processing 83_1
+[2025-12-01 19:43:47] [INFO]   Calculating QC metrics for 83_1
+[2025-12-01 19:43:47] [INFO]   QC filtering: 930 -> 928 cells
+[2025-12-01 19:43:47] [INFO]   Performing LogNormalize for 83_1
+[2025-12-01 19:43:49] [INFO]   Running PCA for 83_1
+[2025-12-01 19:43:49] [INFO]   Clustering for 83_1
+[2025-12-01 19:44:04] [INFO]   Completed 83_1: 928 cells
+[2025-12-01 19:44:04] [INFO] Processing 76_1
+[2025-12-01 19:44:04] [INFO]   Calculating QC metrics for 76_1
+[2025-12-01 19:44:04] [INFO]   QC filtering: 930 -> 924 cells
+[2025-12-01 19:44:04] [INFO]   Performing LogNormalize for 76_1
+[2025-12-01 19:44:06] [INFO]   Running PCA for 76_1
+[2025-12-01 19:44:06] [INFO]   Clustering for 76_1
+[2025-12-01 19:44:22] [INFO]   Completed 76_1: 924 cells
+[2025-12-01 19:44:22] [INFO] Processing 53_1
+[2025-12-01 19:44:22] [INFO]   Calculating QC metrics for 53_1
+[2025-12-01 19:44:22] [INFO]   QC filtering: 930 -> 925 cells
+[2025-12-01 19:44:22] [INFO]   Performing LogNormalize for 53_1
+[2025-12-01 19:44:24] [INFO]   Running PCA for 53_1
+[2025-12-01 19:44:24] [INFO]   Clustering for 53_1
+[2025-12-01 19:44:39] [INFO]   Completed 53_1: 925 cells
+[2025-12-01 19:44:39] [INFO] Processing 44_1
+[2025-12-01 19:44:39] [INFO]   Calculating QC metrics for 44_1
+[2025-12-01 19:44:39] [INFO]   QC filtering: 930 -> 925 cells
+[2025-12-01 19:44:39] [INFO]   Performing LogNormalize for 44_1
+[2025-12-01 19:44:41] [INFO]   Running PCA for 44_1
+[2025-12-01 19:44:41] [INFO]   Clustering for 44_1
+[2025-12-01 19:44:56] [INFO]   Completed 44_1: 925 cells
+[2025-12-01 19:44:56] [INFO] Processing 41_1
+[2025-12-01 19:44:56] [INFO]   Calculating QC metrics for 41_1
+[2025-12-01 19:44:57] [INFO]   QC filtering: 930 -> 922 cells
+[2025-12-01 19:44:57] [INFO]   Performing LogNormalize for 41_1
+[2025-12-01 19:44:58] [INFO]   Running PCA for 41_1
+[2025-12-01 19:44:59] [INFO]   Clustering for 41_1
+[2025-12-01 19:45:14] [INFO]   Completed 41_1: 922 cells
+[2025-12-01 19:45:14] [INFO] Processing 34_1
+[2025-12-01 19:45:14] [INFO]   Calculating QC metrics for 34_1
+[2025-12-01 19:45:14] [INFO]   QC filtering: 930 -> 925 cells
+[2025-12-01 19:45:14] [INFO]   Performing LogNormalize for 34_1
+[2025-12-01 19:45:16] [INFO]   Running PCA for 34_1
+[2025-12-01 19:45:16] [INFO]   Clustering for 34_1
+[2025-12-01 19:45:31] [INFO]   Completed 34_1: 925 cells
+[2025-12-01 19:45:31] [INFO] Processing 46_1
+[2025-12-01 19:45:31] [INFO]   Calculating QC metrics for 46_1
+[2025-12-01 19:45:31] [INFO]   QC filtering: 1210 -> 1200 cells
+[2025-12-01 19:45:31] [INFO]   Performing LogNormalize for 46_1
+[2025-12-01 19:45:33] [INFO]   Running PCA for 46_1
+[2025-12-01 19:45:34] [INFO]   Clustering for 46_1
+[2025-12-01 19:45:49] [INFO]   Completed 46_1: 1200 cells
+[2025-12-01 19:45:49] [INFO] Processing 33_1
+[2025-12-01 19:45:49] [INFO]   Calculating QC metrics for 33_1
+[2025-12-01 19:45:49] [INFO]   QC filtering: 1210 -> 1206 cells
+[2025-12-01 19:45:49] [INFO]   Performing LogNormalize for 33_1
+[2025-12-01 19:45:51] [INFO]   Running PCA for 33_1
+[2025-12-01 19:45:51] [INFO]   Clustering for 33_1
+[2025-12-01 19:46:06] [INFO]   Completed 33_1: 1206 cells
+[2025-12-01 19:46:06] [INFO] Processing 43_1
+[2025-12-01 19:46:06] [INFO]   Calculating QC metrics for 43_1
+[2025-12-01 19:46:06] [INFO]   QC filtering: 1210 -> 1198 cells
+[2025-12-01 19:46:06] [INFO]   Performing LogNormalize for 43_1
+[2025-12-01 19:46:08] [INFO]   Running PCA for 43_1
+[2025-12-01 19:46:09] [INFO]   Clustering for 43_1
+[2025-12-01 19:46:24] [INFO]   Completed 43_1: 1198 cells
+[2025-12-01 19:46:24] [INFO] Processing 38_2
+[2025-12-01 19:46:24] [INFO]   Calculating QC metrics for 38_2
+[2025-12-01 19:46:24] [INFO]   QC filtering: 1210 -> 1203 cells
+[2025-12-01 19:46:24] [INFO]   Performing LogNormalize for 38_2
+[2025-12-01 19:46:26] [INFO]   Running PCA for 38_2
+[2025-12-01 19:46:26] [INFO]   Clustering for 38_2
+[2025-12-01 19:46:41] [INFO]   Completed 38_2: 1203 cells
+[2025-12-01 19:46:41] [INFO] Processing 32_1
+[2025-12-01 19:46:41] [INFO]   Calculating QC metrics for 32_1
+[2025-12-01 19:46:42] [INFO]   QC filtering: 1210 -> 1195 cells
+[2025-12-01 19:46:42] [INFO]   Performing LogNormalize for 32_1
+[2025-12-01 19:46:44] [INFO]   Running PCA for 32_1
+[2025-12-01 19:46:44] [INFO]   Clustering for 32_1
+[2025-12-01 19:46:59] [INFO]   Completed 32_1: 1195 cells
+[2025-12-01 19:46:59] [INFO] Processing 71_1
+[2025-12-01 19:46:59] [INFO]   Calculating QC metrics for 71_1
+[2025-12-01 19:46:59] [INFO]   QC filtering: 1210 -> 1205 cells
+[2025-12-01 19:46:59] [INFO]   Performing LogNormalize for 71_1
+[2025-12-01 19:47:01] [INFO]   Running PCA for 71_1
+[2025-12-01 19:47:01] [INFO]   Clustering for 71_1
+[2025-12-01 19:47:16] [INFO]   Completed 71_1: 1205 cells
+[2025-12-01 19:47:16] [INFO] Processing 75_1
+[2025-12-01 19:47:16] [INFO]   Calculating QC metrics for 75_1
+[2025-12-01 19:47:17] [INFO]   QC filtering: 1210 -> 1202 cells
+[2025-12-01 19:47:17] [INFO]   Performing LogNormalize for 75_1
+[2025-12-01 19:47:19] [INFO]   Running PCA for 75_1
+[2025-12-01 19:47:19] [INFO]   Clustering for 75_1
+[2025-12-01 19:47:34] [INFO]   Completed 75_1: 1202 cells
+[2025-12-01 19:47:34] [INFO] Processing 104_1
+[2025-12-01 19:47:34] [INFO]   Calculating QC metrics for 104_1
+[2025-12-01 19:47:34] [INFO]   QC filtering: 1210 -> 1196 cells
+[2025-12-01 19:47:34] [INFO]   Performing LogNormalize for 104_1
+[2025-12-01 19:47:36] [INFO]   Running PCA for 104_1
+[2025-12-01 19:47:37] [INFO]   Clustering for 104_1
+[2025-12-01 19:47:52] [INFO]   Completed 104_1: 1196 cells
+[2025-12-01 19:47:52] [INFO] Processing 42_1
+[2025-12-01 19:47:52] [INFO]   Calculating QC metrics for 42_1
+[2025-12-01 19:47:52] [INFO]   QC filtering: 1291 -> 1284 cells
+[2025-12-01 19:47:52] [INFO]   Performing LogNormalize for 42_1
+[2025-12-01 19:47:54] [INFO]   Running PCA for 42_1
+[2025-12-01 19:47:54] [INFO]   Clustering for 42_1
+[2025-12-01 19:48:09] [INFO]   Completed 42_1: 1284 cells
+[2025-12-01 19:48:09] [INFO] Processing 80_2
+[2025-12-01 19:48:09] [INFO]   Calculating QC metrics for 80_2
+[2025-12-01 19:48:10] [INFO]   QC filtering: 1291 -> 1287 cells
+[2025-12-01 19:48:10] [INFO]   Performing LogNormalize for 80_2
+[2025-12-01 19:48:11] [INFO]   Running PCA for 80_2
+[2025-12-01 19:48:12] [INFO]   Clustering for 80_2
+[2025-12-01 19:48:27] [INFO]   Completed 80_2: 1287 cells
+[2025-12-01 19:48:27] [INFO] Processing 29_1
+[2025-12-01 19:48:27] [INFO]   Calculating QC metrics for 29_1
+[2025-12-01 19:48:27] [INFO]   QC filtering: 1291 -> 1288 cells
+[2025-12-01 19:48:27] [INFO]   Performing LogNormalize for 29_1
+[2025-12-01 19:48:29] [INFO]   Running PCA for 29_1
+[2025-12-01 19:48:30] [INFO]   Clustering for 29_1
+[2025-12-01 19:48:45] [INFO]   Completed 29_1: 1288 cells
+[2025-12-01 19:48:45] [INFO] Processing 60_1
+[2025-12-01 19:48:45] [INFO]   Calculating QC metrics for 60_1
+[2025-12-01 19:48:45] [INFO]   QC filtering: 1291 -> 1285 cells
+[2025-12-01 19:48:45] [INFO]   Performing LogNormalize for 60_1
+[2025-12-01 19:48:47] [INFO]   Running PCA for 60_1
+[2025-12-01 19:48:47] [INFO]   Clustering for 60_1
+[2025-12-01 19:49:03] [INFO]   Completed 60_1: 1285 cells
+[2025-12-01 19:49:03] [INFO] Processing 36_1
+[2025-12-01 19:49:03] [INFO]   Calculating QC metrics for 36_1
+[2025-12-01 19:49:03] [INFO]   QC filtering: 1291 -> 1285 cells
+[2025-12-01 19:49:03] [INFO]   Performing LogNormalize for 36_1
+[2025-12-01 19:49:05] [INFO]   Running PCA for 36_1
+[2025-12-01 19:49:05] [INFO]   Clustering for 36_1
+[2025-12-01 19:49:20] [INFO]   Completed 36_1: 1285 cells
+[2025-12-01 19:49:20] [INFO] Processing 31_1
+[2025-12-01 19:49:20] [INFO]   Calculating QC metrics for 31_1
+[2025-12-01 19:49:20] [INFO]   QC filtering: 1291 -> 1282 cells
+[2025-12-01 19:49:20] [INFO]   Performing LogNormalize for 31_1
+[2025-12-01 19:49:22] [INFO]   Running PCA for 31_1
+[2025-12-01 19:49:23] [INFO]   Clustering for 31_1
+[2025-12-01 19:49:38] [INFO]   Completed 31_1: 1282 cells
+[2025-12-01 19:49:38] [INFO] Processing 59_1
+[2025-12-01 19:49:38] [INFO]   Calculating QC metrics for 59_1
+[2025-12-01 19:49:38] [INFO]   QC filtering: 1291 -> 1286 cells
+[2025-12-01 19:49:38] [INFO]   Performing LogNormalize for 59_1
+[2025-12-01 19:49:40] [INFO]   Running PCA for 59_1
+[2025-12-01 19:49:40] [INFO]   Clustering for 59_1
+[2025-12-01 19:49:56] [INFO]   Completed 59_1: 1286 cells
+[2025-12-01 19:49:56] [INFO] Processing 68_1
+[2025-12-01 19:49:56] [INFO]   Calculating QC metrics for 68_1
+[2025-12-01 19:49:56] [INFO]   QC filtering: 1291 -> 1287 cells
+[2025-12-01 19:49:56] [INFO]   Performing LogNormalize for 68_1
+[2025-12-01 19:49:58] [INFO]   Running PCA for 68_1
+[2025-12-01 19:49:58] [INFO]   Clustering for 68_1
+[2025-12-01 19:50:13] [INFO]   Completed 68_1: 1287 cells
+[2025-12-01 19:50:13] [INFO] Processing 35_1
+[2025-12-01 19:50:13] [INFO]   Calculating QC metrics for 35_1
+[2025-12-01 19:50:15] [INFO]   QC filtering: 1446 -> 1431 cells
+[2025-12-01 19:50:15] [INFO]   Performing LogNormalize for 35_1
+[2025-12-01 19:50:17] [INFO]   Running PCA for 35_1
+[2025-12-01 19:50:17] [INFO]   Clustering for 35_1
+[2025-12-01 19:50:33] [INFO]   Completed 35_1: 1431 cells
+[2025-12-01 19:50:33] [INFO] Processing 117_1
+[2025-12-01 19:50:33] [INFO]   Calculating QC metrics for 117_1
+[2025-12-01 19:50:33] [INFO]   QC filtering: 1446 -> 1431 cells
+[2025-12-01 19:50:33] [INFO]   Performing LogNormalize for 117_1
+[2025-12-01 19:50:35] [INFO]   Running PCA for 117_1
+[2025-12-01 19:50:35] [INFO]   Clustering for 117_1
+[2025-12-01 19:50:50] [INFO]   Completed 117_1: 1431 cells
+[2025-12-01 19:50:50] [INFO] Processing 100_1
+[2025-12-01 19:50:50] [INFO]   Calculating QC metrics for 100_1
+[2025-12-01 19:50:51] [INFO]   QC filtering: 1446 -> 1431 cells
+[2025-12-01 19:50:51] [INFO]   Performing LogNormalize for 100_1
+[2025-12-01 19:50:53] [INFO]   Running PCA for 100_1
+[2025-12-01 19:50:53] [INFO]   Clustering for 100_1
+[2025-12-01 19:51:08] [INFO]   Completed 100_1: 1431 cells
+[2025-12-01 19:51:08] [INFO] Processing 51_1
+[2025-12-01 19:51:08] [INFO]   Calculating QC metrics for 51_1
+[2025-12-01 19:51:09] [INFO]   QC filtering: 1446 -> 1432 cells
+[2025-12-01 19:51:09] [INFO]   Performing LogNormalize for 51_1
+[2025-12-01 19:51:10] [INFO]   Running PCA for 51_1
+[2025-12-01 19:51:11] [INFO]   Clustering for 51_1
+[2025-12-01 19:51:26] [INFO]   Completed 51_1: 1432 cells
+[2025-12-01 19:51:26] [INFO] Processing 115_1
+[2025-12-01 19:51:26] [INFO]   Calculating QC metrics for 115_1
+[2025-12-01 19:51:26] [INFO]   QC filtering: 1446 -> 1425 cells
+[2025-12-01 19:51:26] [INFO]   Performing LogNormalize for 115_1
+[2025-12-01 19:51:28] [INFO]   Running PCA for 115_1
+[2025-12-01 19:51:28] [INFO]   Clustering for 115_1
+[2025-12-01 19:51:44] [INFO]   Completed 115_1: 1425 cells
+[2025-12-01 19:51:44] [INFO] Processing 113_1
+[2025-12-01 19:51:44] [INFO]   Calculating QC metrics for 113_1
+[2025-12-01 19:51:44] [INFO]   QC filtering: 1446 -> 1433 cells
+[2025-12-01 19:51:44] [INFO]   Performing LogNormalize for 113_1
+[2025-12-01 19:51:46] [INFO]   Running PCA for 113_1
+[2025-12-01 19:51:46] [INFO]   Clustering for 113_1
+[2025-12-01 19:52:02] [INFO]   Completed 113_1: 1433 cells
+[2025-12-01 19:52:02] [INFO] Processing 45_1
+[2025-12-01 19:52:02] [INFO]   Calculating QC metrics for 45_1
+[2025-12-01 19:52:02] [INFO]   QC filtering: 1446 -> 1425 cells
+[2025-12-01 19:52:02] [INFO]   Performing LogNormalize for 45_1
+[2025-12-01 19:52:04] [INFO]   Running PCA for 45_1
+[2025-12-01 19:52:04] [INFO]   Clustering for 45_1
+[2025-12-01 19:52:19] [INFO]   Completed 45_1: 1425 cells
+[2025-12-01 19:52:19] [INFO] Processing 48_1
+[2025-12-01 19:52:19] [INFO]   Calculating QC metrics for 48_1
+[2025-12-01 19:52:20] [INFO]   QC filtering: 1446 -> 1430 cells
+[2025-12-01 19:52:20] [INFO]   Performing LogNormalize for 48_1
+[2025-12-01 19:52:22] [INFO]   Running PCA for 48_1
+[2025-12-01 19:52:22] [INFO]   Clustering for 48_1
+[2025-12-01 19:52:37] [INFO]   Completed 48_1: 1430 cells
+[2025-12-01 19:52:37] [INFO] Processing 112_1
+[2025-12-01 19:52:37] [INFO]   Calculating QC metrics for 112_1
+[2025-12-01 19:52:37] [INFO]   QC filtering: 1300 -> 1261 cells
+[2025-12-01 19:52:37] [INFO]   Performing LogNormalize for 112_1
+[2025-12-01 19:52:39] [INFO]   Running PCA for 112_1
+[2025-12-01 19:52:40] [INFO]   Clustering for 112_1
+[2025-12-01 19:52:55] [INFO]   Completed 112_1: 1261 cells
+[2025-12-01 19:52:55] [INFO] Processing 111_1
+[2025-12-01 19:52:55] [INFO]   Calculating QC metrics for 111_1
+[2025-12-01 19:52:55] [INFO]   QC filtering: 1300 -> 1263 cells
+[2025-12-01 19:52:55] [INFO]   Performing LogNormalize for 111_1
+[2025-12-01 19:52:57] [INFO]   Running PCA for 111_1
+[2025-12-01 19:52:58] [INFO]   Clustering for 111_1
+[2025-12-01 19:53:13] [INFO]   Completed 111_1: 1263 cells
+[2025-12-01 19:53:13] [INFO] Processing 74_3
+[2025-12-01 19:53:13] [INFO]   Calculating QC metrics for 74_3
+[2025-12-01 19:53:13] [INFO]   QC filtering: 1300 -> 1261 cells
+[2025-12-01 19:53:13] [INFO]   Performing LogNormalize for 74_3
+[2025-12-01 19:53:15] [INFO]   Running PCA for 74_3
+[2025-12-01 19:53:15] [INFO]   Clustering for 74_3
+[2025-12-01 19:53:30] [INFO]   Completed 74_3: 1261 cells
+[2025-12-01 19:53:30] [INFO] Processing 16_1
+[2025-12-01 19:53:30] [INFO]   Calculating QC metrics for 16_1
+[2025-12-01 19:53:31] [INFO]   QC filtering: 1300 -> 1265 cells
+[2025-12-01 19:53:31] [INFO]   Performing LogNormalize for 16_1
+[2025-12-01 19:53:33] [INFO]   Running PCA for 16_1
+[2025-12-01 19:53:33] [INFO]   Clustering for 16_1
+[2025-12-01 19:53:48] [INFO]   Completed 16_1: 1265 cells
+[2025-12-01 19:53:48] [INFO] Processing 103_1
+[2025-12-01 19:53:48] [INFO]   Calculating QC metrics for 103_1
+[2025-12-01 19:53:48] [INFO]   QC filtering: 1300 -> 1258 cells
+[2025-12-01 19:53:48] [INFO]   Performing LogNormalize for 103_1
+[2025-12-01 19:53:50] [INFO]   Running PCA for 103_1
+[2025-12-01 19:53:51] [INFO]   Clustering for 103_1
+[2025-12-01 19:54:06] [INFO]   Completed 103_1: 1258 cells
+[2025-12-01 19:54:06] [INFO] Processing 110_1
+[2025-12-01 19:54:06] [INFO]   Calculating QC metrics for 110_1
+[2025-12-01 19:54:06] [INFO]   QC filtering: 1300 -> 1269 cells
+[2025-12-01 19:54:06] [INFO]   Performing LogNormalize for 110_1
+[2025-12-01 19:54:08] [INFO]   Running PCA for 110_1
+[2025-12-01 19:54:08] [INFO]   Clustering for 110_1
+[2025-12-01 19:54:24] [INFO]   Completed 110_1: 1269 cells
+[2025-12-01 19:54:24] [INFO] Processing 85_1
+[2025-12-01 19:54:24] [INFO]   Calculating QC metrics for 85_1
+[2025-12-01 19:54:24] [INFO]   QC filtering: 1300 -> 1268 cells
+[2025-12-01 19:54:24] [INFO]   Performing LogNormalize for 85_1
+[2025-12-01 19:54:26] [INFO]   Running PCA for 85_1
+[2025-12-01 19:54:26] [INFO]   Clustering for 85_1
+[2025-12-01 19:54:41] [INFO]   Completed 85_1: 1268 cells
+[2025-12-01 19:54:41] [INFO] Processing 93_1
+[2025-12-01 19:54:41] [INFO]   Calculating QC metrics for 93_1
+[2025-12-01 19:54:42] [INFO]   QC filtering: 1300 -> 1263 cells
+[2025-12-01 19:54:42] [INFO]   Performing LogNormalize for 93_1
+[2025-12-01 19:54:44] [INFO]   Running PCA for 93_1
+[2025-12-01 19:54:44] [INFO]   Clustering for 93_1
+[2025-12-01 19:54:59] [INFO]   Completed 93_1: 1263 cells
+[2025-12-01 19:54:59] [INFO] Saving results to: /data/user3/sobj/pipe/test_scvi/step2/step2_nmz_list.qs
+[2025-12-01 19:55:12] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/test_scvi/step2/step2_nmz_list.qs
+[2025-12-01 19:55:12] [INFO] Step 2 completed: 56 samples processed
+[2025-12-02 00:07:57] Starting run: test_scvi
+[2025-12-02 00:07:57] [INFO] Step 3: Starting SoupX ambient RNA removal
+[2025-12-02 00:07:57] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step2/step2_nmz_list.qs
+[2025-12-02 00:08:19] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step2/step2_nmz_list.qs
+[2025-12-02 00:08:20] [INFO] Processing 97_1
+[2025-12-02 00:08:20] [INFO]   Loading raw counts for 97_1
+[2025-12-02 00:08:26] [INFO]   Running SoupX for 97_1
+[2025-12-02 00:08:30] [ERROR] !!! ERROR in step 3 processing 97_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:08:30] [WARNING]   Keeping original counts for 97_1
+[2025-12-02 00:08:30] [INFO] Processing 95_1
+[2025-12-02 00:08:30] [INFO]   Loading raw counts for 95_1
+[2025-12-02 00:08:36] [INFO]   Running SoupX for 95_1
+[2025-12-02 00:08:38] [ERROR] !!! ERROR in step 3 processing 95_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:08:38] [WARNING]   Keeping original counts for 95_1
+[2025-12-02 00:08:38] [INFO] Processing 92_1
+[2025-12-02 00:08:38] [INFO]   Loading raw counts for 92_1
+[2025-12-02 00:08:44] [INFO]   Running SoupX for 92_1
+[2025-12-02 00:08:50] [INFO]   Adjusting counts for 92_1
+[2025-12-02 00:08:52] [INFO]   Completed 92_1: 1085 cells
+[2025-12-02 00:08:52] [INFO] Processing 89_1
+[2025-12-02 00:08:52] [INFO]   Loading raw counts for 89_1
+[2025-12-02 00:08:57] [INFO]   Running SoupX for 89_1
+[2025-12-02 00:09:00] [ERROR] !!! ERROR in step 3 processing 89_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:09:00] [WARNING]   Keeping original counts for 89_1
+[2025-12-02 00:09:00] [INFO] Processing 107_1
+[2025-12-02 00:09:00] [INFO]   Loading raw counts for 107_1
+[2025-12-02 00:09:05] [INFO]   Running SoupX for 107_1
+[2025-12-02 00:09:07] [ERROR] !!! ERROR in step 3 processing 107_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:09:07] [WARNING]   Keeping original counts for 107_1
+[2025-12-02 00:09:07] [INFO] Processing 106_1
+[2025-12-02 00:09:07] [INFO]   Loading raw counts for 106_1
+[2025-12-02 00:09:13] [INFO]   Running SoupX for 106_1
+[2025-12-02 00:09:20] [INFO]   Adjusting counts for 106_1
+[2025-12-02 00:09:22] [INFO]   Completed 106_1: 1092 cells
+[2025-12-02 00:09:22] [INFO] Processing 91_1
+[2025-12-02 00:09:22] [INFO]   Loading raw counts for 91_1
+[2025-12-02 00:09:27] [INFO]   Running SoupX for 91_1
+[2025-12-02 00:09:29] [ERROR] !!! ERROR in step 3 processing 91_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:09:29] [WARNING]   Keeping original counts for 91_1
+[2025-12-02 00:09:29] [INFO] Processing 90_1
+[2025-12-02 00:09:29] [INFO]   Loading raw counts for 90_1
+[2025-12-02 00:09:35] [INFO]   Running SoupX for 90_1
+[2025-12-02 00:09:37] [ERROR] !!! ERROR in step 3 processing 90_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:09:37] [WARNING]   Keeping original counts for 90_1
+[2025-12-02 00:09:37] [INFO] Processing 88_1
+[2025-12-02 00:09:37] [INFO]   Loading raw counts for 88_1
+[2025-12-02 00:09:43] [INFO]   Running SoupX for 88_1
+[2025-12-02 00:09:45] [ERROR] !!! ERROR in step 3 processing 88_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:09:45] [WARNING]   Keeping original counts for 88_1
+[2025-12-02 00:09:45] [INFO] Processing 82_1
+[2025-12-02 00:09:45] [INFO]   Loading raw counts for 82_1
+[2025-12-02 00:09:50] [INFO]   Running SoupX for 82_1
+[2025-12-02 00:09:53] [ERROR] !!! ERROR in step 3 processing 82_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:09:53] [WARNING]   Keeping original counts for 82_1
+[2025-12-02 00:09:53] [INFO] Processing 70_1
+[2025-12-02 00:09:53] [INFO]   Loading raw counts for 70_1
+[2025-12-02 00:09:58] [INFO]   Running SoupX for 70_1
+[2025-12-02 00:10:02] [ERROR] !!! ERROR in step 3 processing 70_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:10:02] [WARNING]   Keeping original counts for 70_1
+[2025-12-02 00:10:02] [INFO] Processing 105_1
+[2025-12-02 00:10:02] [INFO]   Loading raw counts for 105_1
+[2025-12-02 00:10:07] [INFO]   Running SoupX for 105_1
+[2025-12-02 00:10:12] [ERROR] !!! ERROR in step 3 processing 105_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:10:12] [WARNING]   Keeping original counts for 105_1
+[2025-12-02 00:10:12] [INFO] Processing 84_1
+[2025-12-02 00:10:12] [INFO]   Loading raw counts for 84_1
+[2025-12-02 00:10:17] [INFO]   Running SoupX for 84_1
+[2025-12-02 00:10:20] [ERROR] !!! ERROR in step 3 processing 84_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:10:20] [WARNING]   Keeping original counts for 84_1
+[2025-12-02 00:10:20] [INFO] Processing 81_1
+[2025-12-02 00:10:20] [INFO]   Loading raw counts for 81_1
+[2025-12-02 00:10:25] [INFO]   Running SoupX for 81_1
+[2025-12-02 00:10:28] [ERROR] !!! ERROR in step 3 processing 81_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:10:28] [WARNING]   Keeping original counts for 81_1
+[2025-12-02 00:10:28] [INFO] Processing 65_1
+[2025-12-02 00:10:28] [INFO]   Loading raw counts for 65_1
+[2025-12-02 00:10:33] [INFO]   Running SoupX for 65_1
+[2025-12-02 00:10:36] [ERROR] !!! ERROR in step 3 processing 65_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:10:36] [WARNING]   Keeping original counts for 65_1
+[2025-12-02 00:10:36] [INFO] Processing 64_1
+[2025-12-02 00:10:36] [INFO]   Loading raw counts for 64_1
+[2025-12-02 00:10:41] [INFO]   Running SoupX for 64_1
+[2025-12-02 00:10:44] [ERROR] !!! ERROR in step 3 processing 64_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:10:44] [WARNING]   Keeping original counts for 64_1
+[2025-12-02 00:10:44] [INFO] Processing 55_1
+[2025-12-02 00:10:44] [INFO]   Loading raw counts for 55_1
+[2025-12-02 00:10:50] [INFO]   Running SoupX for 55_1
+[2025-12-02 00:10:53] [ERROR] !!! ERROR in step 3 processing 55_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:10:53] [WARNING]   Keeping original counts for 55_1
+[2025-12-02 00:10:53] [INFO] Processing 54_1
+[2025-12-02 00:10:53] [INFO]   Loading raw counts for 54_1
+[2025-12-02 00:10:59] [INFO]   Running SoupX for 54_1
+[2025-12-02 00:11:02] [ERROR] !!! ERROR in step 3 processing 54_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:11:02] [WARNING]   Keeping original counts for 54_1
+[2025-12-02 00:11:02] [INFO] Processing 83_1
+[2025-12-02 00:11:02] [INFO]   Loading raw counts for 83_1
+[2025-12-02 00:11:07] [INFO]   Running SoupX for 83_1
+[2025-12-02 00:11:10] [ERROR] !!! ERROR in step 3 processing 83_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:11:10] [WARNING]   Keeping original counts for 83_1
+[2025-12-02 00:11:10] [INFO] Processing 76_1
+[2025-12-02 00:11:10] [INFO]   Loading raw counts for 76_1
+[2025-12-02 00:11:15] [INFO]   Running SoupX for 76_1
+[2025-12-02 00:11:18] [ERROR] !!! ERROR in step 3 processing 76_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:11:18] [WARNING]   Keeping original counts for 76_1
+[2025-12-02 00:11:18] [INFO] Processing 53_1
+[2025-12-02 00:11:18] [INFO]   Loading raw counts for 53_1
+[2025-12-02 00:11:22] [INFO]   Running SoupX for 53_1
+[2025-12-02 00:11:27] [ERROR] !!! ERROR in step 3 processing 53_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:11:27] [WARNING]   Keeping original counts for 53_1
+[2025-12-02 00:11:27] [INFO] Processing 44_1
+[2025-12-02 00:11:27] [INFO]   Loading raw counts for 44_1
+[2025-12-02 00:11:31] [INFO]   Running SoupX for 44_1
+[2025-12-02 00:11:33] [ERROR] !!! ERROR in step 3 processing 44_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:11:33] [WARNING]   Keeping original counts for 44_1
+[2025-12-02 00:11:33] [INFO] Processing 41_1
+[2025-12-02 00:11:33] [INFO]   Loading raw counts for 41_1
+[2025-12-02 00:11:38] [INFO]   Running SoupX for 41_1
+[2025-12-02 00:11:41] [ERROR] !!! ERROR in step 3 processing 41_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:11:41] [WARNING]   Keeping original counts for 41_1
+[2025-12-02 00:11:41] [INFO] Processing 34_1
+[2025-12-02 00:11:41] [INFO]   Loading raw counts for 34_1
+[2025-12-02 00:11:46] [INFO]   Running SoupX for 34_1
+[2025-12-02 00:11:48] [ERROR] !!! ERROR in step 3 processing 34_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:11:48] [WARNING]   Keeping original counts for 34_1
+[2025-12-02 00:11:48] [INFO] Processing 46_1
+[2025-12-02 00:11:48] [INFO]   Loading raw counts for 46_1
+[2025-12-02 00:11:54] [INFO]   Running SoupX for 46_1
+[2025-12-02 00:12:00] [INFO]   Adjusting counts for 46_1
+[2025-12-02 00:12:02] [INFO]   Completed 46_1: 1200 cells
+[2025-12-02 00:12:02] [INFO] Processing 33_1
+[2025-12-02 00:12:02] [INFO]   Loading raw counts for 33_1
+[2025-12-02 00:12:09] [INFO]   Running SoupX for 33_1
+[2025-12-02 00:12:13] [ERROR] !!! ERROR in step 3 processing 33_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:12:13] [WARNING]   Keeping original counts for 33_1
+[2025-12-02 00:12:13] [INFO] Processing 43_1
+[2025-12-02 00:12:13] [INFO]   Loading raw counts for 43_1
+[2025-12-02 00:12:19] [INFO]   Running SoupX for 43_1
+[2025-12-02 00:12:22] [ERROR] !!! ERROR in step 3 processing 43_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:12:22] [WARNING]   Keeping original counts for 43_1
+[2025-12-02 00:12:22] [INFO] Processing 38_2
+[2025-12-02 00:12:22] [INFO]   Loading raw counts for 38_2
+[2025-12-02 00:12:28] [INFO]   Running SoupX for 38_2
+[2025-12-02 00:12:32] [ERROR] !!! ERROR in step 3 processing 38_2: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:12:32] [WARNING]   Keeping original counts for 38_2
+[2025-12-02 00:12:32] [INFO] Processing 32_1
+[2025-12-02 00:12:32] [INFO]   Loading raw counts for 32_1
+[2025-12-02 00:12:39] [INFO]   Running SoupX for 32_1
+[2025-12-02 00:12:43] [ERROR] !!! ERROR in step 3 processing 32_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:12:43] [WARNING]   Keeping original counts for 32_1
+[2025-12-02 00:12:43] [INFO] Processing 71_1
+[2025-12-02 00:12:43] [INFO]   Loading raw counts for 71_1
+[2025-12-02 00:12:49] [INFO]   Running SoupX for 71_1
+[2025-12-02 00:12:56] [ERROR] !!! ERROR in step 3 processing 71_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:12:56] [WARNING]   Keeping original counts for 71_1
+[2025-12-02 00:12:56] [INFO] Processing 75_1
+[2025-12-02 00:12:56] [INFO]   Loading raw counts for 75_1
+[2025-12-02 00:13:02] [INFO]   Running SoupX for 75_1
+[2025-12-02 00:13:07] [INFO]   Adjusting counts for 75_1
+[2025-12-02 00:13:10] [INFO]   Completed 75_1: 1202 cells
+[2025-12-02 00:13:10] [INFO] Processing 104_1
+[2025-12-02 00:13:10] [INFO]   Loading raw counts for 104_1
+[2025-12-02 00:13:16] [INFO]   Running SoupX for 104_1
+[2025-12-02 00:13:19] [ERROR] !!! ERROR in step 3 processing 104_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:13:19] [WARNING]   Keeping original counts for 104_1
+[2025-12-02 00:13:19] [INFO] Processing 42_1
+[2025-12-02 00:13:19] [INFO]   Loading raw counts for 42_1
+[2025-12-02 00:13:27] [INFO]   Running SoupX for 42_1
+[2025-12-02 00:13:31] [ERROR] !!! ERROR in step 3 processing 42_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:13:31] [WARNING]   Keeping original counts for 42_1
+[2025-12-02 00:13:31] [INFO] Processing 80_2
+[2025-12-02 00:13:31] [INFO]   Loading raw counts for 80_2
+[2025-12-02 00:13:38] [INFO]   Running SoupX for 80_2
+[2025-12-02 00:13:41] [ERROR] !!! ERROR in step 3 processing 80_2: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:13:41] [WARNING]   Keeping original counts for 80_2
+[2025-12-02 00:13:41] [INFO] Processing 29_1
+[2025-12-02 00:13:41] [INFO]   Loading raw counts for 29_1
+[2025-12-02 00:13:48] [INFO]   Running SoupX for 29_1
+[2025-12-02 00:13:56] [INFO]   Adjusting counts for 29_1
+[2025-12-02 00:14:03] [INFO]   Completed 29_1: 1288 cells
+[2025-12-02 00:14:03] [INFO] Processing 60_1
+[2025-12-02 00:14:03] [INFO]   Loading raw counts for 60_1
+[2025-12-02 00:14:10] [INFO]   Running SoupX for 60_1
+[2025-12-02 00:14:15] [ERROR] !!! ERROR in step 3 processing 60_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:14:15] [WARNING]   Keeping original counts for 60_1
+[2025-12-02 00:14:15] [INFO] Processing 36_1
+[2025-12-02 00:14:15] [INFO]   Loading raw counts for 36_1
+[2025-12-02 00:14:22] [INFO]   Running SoupX for 36_1
+[2025-12-02 00:14:25] [ERROR] !!! ERROR in step 3 processing 36_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:14:25] [WARNING]   Keeping original counts for 36_1
+[2025-12-02 00:14:25] [INFO] Processing 31_1
+[2025-12-02 00:14:25] [INFO]   Loading raw counts for 31_1
+[2025-12-02 00:14:32] [INFO]   Running SoupX for 31_1
+[2025-12-02 00:14:35] [ERROR] !!! ERROR in step 3 processing 31_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:14:35] [WARNING]   Keeping original counts for 31_1
+[2025-12-02 00:14:35] [INFO] Processing 59_1
+[2025-12-02 00:14:35] [INFO]   Loading raw counts for 59_1
+[2025-12-02 00:14:42] [INFO]   Running SoupX for 59_1
+[2025-12-02 00:14:45] [ERROR] !!! ERROR in step 3 processing 59_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:14:45] [WARNING]   Keeping original counts for 59_1
+[2025-12-02 00:14:45] [INFO] Processing 68_1
+[2025-12-02 00:14:45] [INFO]   Loading raw counts for 68_1
+[2025-12-02 00:14:52] [INFO]   Running SoupX for 68_1
+[2025-12-02 00:14:56] [ERROR] !!! ERROR in step 3 processing 68_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:14:56] [WARNING]   Keeping original counts for 68_1
+[2025-12-02 00:14:56] [INFO] Processing 35_1
+[2025-12-02 00:14:56] [INFO]   Loading raw counts for 35_1
+[2025-12-02 00:15:04] [INFO]   Running SoupX for 35_1
+[2025-12-02 00:15:12] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 35_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.
+[2025-12-02 00:15:12] [INFO]   Adjusting counts for 35_1
+[2025-12-02 00:15:18] [INFO]   Completed 35_1: 1431 cells
+[2025-12-02 00:15:18] [INFO] Processing 117_1
+[2025-12-02 00:15:18] [INFO]   Loading raw counts for 117_1
+[2025-12-02 00:15:25] [INFO]   Running SoupX for 117_1
+[2025-12-02 00:15:29] [ERROR] !!! ERROR in step 3 processing 117_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:15:29] [WARNING]   Keeping original counts for 117_1
+[2025-12-02 00:15:29] [INFO] Processing 100_1
+[2025-12-02 00:15:29] [INFO]   Loading raw counts for 100_1
+[2025-12-02 00:15:37] [INFO]   Running SoupX for 100_1
+[2025-12-02 00:15:45] [INFO]   Adjusting counts for 100_1
+[2025-12-02 00:15:50] [INFO]   Completed 100_1: 1431 cells
+[2025-12-02 00:15:50] [INFO] Processing 51_1
+[2025-12-02 00:15:50] [INFO]   Loading raw counts for 51_1
+[2025-12-02 00:15:57] [INFO]   Running SoupX for 51_1
+[2025-12-02 00:16:04] [INFO]   Adjusting counts for 51_1
+[2025-12-02 00:16:09] [INFO]   Completed 51_1: 1432 cells
+[2025-12-02 00:16:09] [INFO] Processing 115_1
+[2025-12-02 00:16:09] [INFO]   Loading raw counts for 115_1
+[2025-12-02 00:16:17] [INFO]   Running SoupX for 115_1
+[2025-12-02 00:16:24] [INFO]   Adjusting counts for 115_1
+[2025-12-02 00:16:27] [INFO]   Completed 115_1: 1425 cells
+[2025-12-02 00:16:27] [INFO] Processing 113_1
+[2025-12-02 00:16:27] [INFO]   Loading raw counts for 113_1
+[2025-12-02 00:16:34] [INFO]   Running SoupX for 113_1
+[2025-12-02 00:16:39] [ERROR] !!! ERROR in step 3 processing 113_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:16:39] [WARNING]   Keeping original counts for 113_1
+[2025-12-02 00:16:39] [INFO] Processing 45_1
+[2025-12-02 00:16:39] [INFO]   Loading raw counts for 45_1
+[2025-12-02 00:16:46] [INFO]   Running SoupX for 45_1
+[2025-12-02 00:16:51] [ERROR] !!! ERROR in step 3 processing 45_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:16:51] [WARNING]   Keeping original counts for 45_1
+[2025-12-02 00:16:51] [INFO] Processing 48_1
+[2025-12-02 00:16:51] [INFO]   Loading raw counts for 48_1
+[2025-12-02 00:16:58] [INFO]   Running SoupX for 48_1
+[2025-12-02 00:17:01] [ERROR] !!! ERROR in step 3 processing 48_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:17:01] [WARNING]   Keeping original counts for 48_1
+[2025-12-02 00:17:01] [INFO] Processing 112_1
+[2025-12-02 00:17:01] [INFO]   Loading raw counts for 112_1
+[2025-12-02 00:17:10] [INFO]   Running SoupX for 112_1
+[2025-12-02 00:17:14] [ERROR] !!! ERROR in step 3 processing 112_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:17:14] [WARNING]   Keeping original counts for 112_1
+[2025-12-02 00:17:14] [INFO] Processing 111_1
+[2025-12-02 00:17:14] [INFO]   Loading raw counts for 111_1
+[2025-12-02 00:17:21] [INFO]   Running SoupX for 111_1
+[2025-12-02 00:17:25] [ERROR] !!! ERROR in step 3 processing 111_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:17:25] [WARNING]   Keeping original counts for 111_1
+[2025-12-02 00:17:25] [INFO] Processing 74_3
+[2025-12-02 00:17:25] [INFO]   Loading raw counts for 74_3
+[2025-12-02 00:17:33] [INFO]   Running SoupX for 74_3
+[2025-12-02 00:17:36] [ERROR] !!! ERROR in step 3 processing 74_3: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:17:36] [WARNING]   Keeping original counts for 74_3
+[2025-12-02 00:17:36] [INFO] Processing 16_1
+[2025-12-02 00:17:36] [INFO]   Loading raw counts for 16_1
+[2025-12-02 00:17:44] [INFO]   Running SoupX for 16_1
+[2025-12-02 00:17:53] [INFO]   Adjusting counts for 16_1
+[2025-12-02 00:17:57] [INFO]   Completed 16_1: 1265 cells
+[2025-12-02 00:17:57] [INFO] Processing 103_1
+[2025-12-02 00:17:57] [INFO]   Loading raw counts for 103_1
+[2025-12-02 00:18:05] [INFO]   Running SoupX for 103_1
+[2025-12-02 00:18:10] [ERROR] !!! ERROR in step 3 processing 103_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:18:10] [WARNING]   Keeping original counts for 103_1
+[2025-12-02 00:18:10] [INFO] Processing 110_1
+[2025-12-02 00:18:10] [INFO]   Loading raw counts for 110_1
+[2025-12-02 00:18:18] [INFO]   Running SoupX for 110_1
+[2025-12-02 00:18:26] [WARNING]   WARNING: Failed to generate Marker Distribution plot for 110_1: Contamination fraction greater than 1 detected.  This is impossible and likely represents a failure in the estimation procedure used.
+[2025-12-02 00:18:26] [INFO]   Adjusting counts for 110_1
+[2025-12-02 00:18:31] [INFO]   Completed 110_1: 1269 cells
+[2025-12-02 00:18:31] [INFO] Processing 85_1
+[2025-12-02 00:18:31] [INFO]   Loading raw counts for 85_1
+[2025-12-02 00:18:39] [INFO]   Running SoupX for 85_1
+[2025-12-02 00:18:42] [ERROR] !!! ERROR in step 3 processing 85_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:18:42] [WARNING]   Keeping original counts for 85_1
+[2025-12-02 00:18:42] [INFO] Processing 93_1
+[2025-12-02 00:18:42] [INFO]   Loading raw counts for 93_1
+[2025-12-02 00:18:50] [INFO]   Running SoupX for 93_1
+[2025-12-02 00:18:53] [ERROR] !!! ERROR in step 3 processing 93_1: No plausible marker genes found.  Is the channel low complexity (see help)?  If not, reduce tfidfMin or soupQuantile !!!
+[2025-12-02 00:18:53] [WARNING]   Keeping original counts for 93_1
+[2025-12-02 00:18:53] [INFO] Saving results to: /data/user3/sobj/pipe/test_scvi/step3/step3_soupx_list.qs
+[2025-12-02 00:19:05] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/test_scvi/step3/step3_soupx_list.qs
+[2025-12-02 00:19:05] [INFO] Step 3 completed: 56 samples processed
+[2025-12-02 00:19:26] Starting run: test_scvi
+[2025-12-02 00:19:26] [INFO] Step 4: Starting doublet detection (scDblFinder)
+[2025-12-02 00:19:27] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step3/step3_soupx_list.qs
+[2025-12-02 00:19:47] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step3/step3_soupx_list.qs
+[2025-12-02 00:19:47] [INFO] Processing 97_1
+[2025-12-02 00:19:47] [INFO]   Running SCTransform for 97_1 (required for scDblFinder)
+[2025-12-02 00:19:56] [INFO]   Running scDblFinder for 97_1
+[2025-12-02 00:20:03] [INFO]   Keeping all cells (including doublets) for 97_1
+[2025-12-02 00:20:03] [INFO]   Completed 97_1: 1070 cells
+[2025-12-02 00:20:03] [INFO] Processing 95_1
+[2025-12-02 00:20:03] [INFO]   Running SCTransform for 95_1 (required for scDblFinder)
+[2025-12-02 00:20:10] [INFO]   Running scDblFinder for 95_1
+[2025-12-02 00:20:18] [INFO]   Keeping all cells (including doublets) for 95_1
+[2025-12-02 00:20:18] [INFO]   Completed 95_1: 1081 cells
+[2025-12-02 00:20:18] [INFO] Processing 92_1
+[2025-12-02 00:20:18] [INFO]   Running SCTransform for 92_1 (required for scDblFinder)
+[2025-12-02 00:20:25] [INFO]   Running scDblFinder for 92_1
+[2025-12-02 00:20:31] [INFO]   Keeping all cells (including doublets) for 92_1
+[2025-12-02 00:20:31] [INFO]   Completed 92_1: 1085 cells
+[2025-12-02 00:20:31] [INFO] Processing 89_1
+[2025-12-02 00:20:31] [INFO]   Running SCTransform for 89_1 (required for scDblFinder)
+[2025-12-02 00:20:38] [INFO]   Running scDblFinder for 89_1
+[2025-12-02 00:20:45] [INFO]   Keeping all cells (including doublets) for 89_1
+[2025-12-02 00:20:45] [INFO]   Completed 89_1: 1072 cells
+[2025-12-02 00:20:45] [INFO] Processing 107_1
+[2025-12-02 00:20:45] [INFO]   Running SCTransform for 107_1 (required for scDblFinder)
+[2025-12-02 00:20:52] [INFO]   Running scDblFinder for 107_1
+[2025-12-02 00:20:59] [INFO]   Keeping all cells (including doublets) for 107_1
+[2025-12-02 00:20:59] [INFO]   Completed 107_1: 1077 cells
+[2025-12-02 00:20:59] [INFO] Processing 106_1
+[2025-12-02 00:20:59] [INFO]   Running SCTransform for 106_1 (required for scDblFinder)
+[2025-12-02 00:21:06] [INFO]   Running scDblFinder for 106_1
+[2025-12-02 00:21:12] [INFO]   Keeping all cells (including doublets) for 106_1
+[2025-12-02 00:21:12] [INFO]   Completed 106_1: 1092 cells
+[2025-12-02 00:21:12] [INFO] Processing 91_1
+[2025-12-02 00:21:12] [INFO]   Running SCTransform for 91_1 (required for scDblFinder)
+[2025-12-02 00:21:19] [INFO]   Running scDblFinder for 91_1
+[2025-12-02 00:21:25] [INFO]   Keeping all cells (including doublets) for 91_1
+[2025-12-02 00:21:25] [INFO]   Completed 91_1: 1005 cells
+[2025-12-02 00:21:25] [INFO] Processing 90_1
+[2025-12-02 00:21:25] [INFO]   Running SCTransform for 90_1 (required for scDblFinder)
+[2025-12-02 00:21:32] [INFO]   Running scDblFinder for 90_1
+[2025-12-02 00:21:38] [INFO]   Keeping all cells (including doublets) for 90_1
+[2025-12-02 00:21:38] [INFO]   Completed 90_1: 1005 cells
+[2025-12-02 00:21:38] [INFO] Processing 88_1
+[2025-12-02 00:21:38] [INFO]   Running SCTransform for 88_1 (required for scDblFinder)
+[2025-12-02 00:21:44] [INFO]   Running scDblFinder for 88_1
+[2025-12-02 00:21:51] [INFO]   Keeping all cells (including doublets) for 88_1
+[2025-12-02 00:21:51] [INFO]   Completed 88_1: 1004 cells
+[2025-12-02 00:21:51] [INFO] Processing 82_1
+[2025-12-02 00:21:51] [INFO]   Running SCTransform for 82_1 (required for scDblFinder)
+[2025-12-02 00:21:58] [INFO]   Running scDblFinder for 82_1
+[2025-12-02 00:22:04] [INFO]   Keeping all cells (including doublets) for 82_1
+[2025-12-02 00:22:04] [INFO]   Completed 82_1: 1003 cells
+[2025-12-02 00:22:04] [INFO] Processing 70_1
+[2025-12-02 00:22:04] [INFO]   Running SCTransform for 70_1 (required for scDblFinder)
+[2025-12-02 00:22:10] [INFO]   Running scDblFinder for 70_1
+[2025-12-02 00:22:16] [INFO]   Keeping all cells (including doublets) for 70_1
+[2025-12-02 00:22:16] [INFO]   Completed 70_1: 1002 cells
+[2025-12-02 00:22:16] [INFO] Processing 105_1
+[2025-12-02 00:22:16] [INFO]   Running SCTransform for 105_1 (required for scDblFinder)
+[2025-12-02 00:22:23] [INFO]   Running scDblFinder for 105_1
+[2025-12-02 00:22:30] [INFO]   Keeping all cells (including doublets) for 105_1
+[2025-12-02 00:22:30] [INFO]   Completed 105_1: 1000 cells
+[2025-12-02 00:22:30] [INFO] Processing 84_1
+[2025-12-02 00:22:30] [INFO]   Running SCTransform for 84_1 (required for scDblFinder)
+[2025-12-02 00:22:38] [INFO]   Running scDblFinder for 84_1
+[2025-12-02 00:22:44] [INFO]   Keeping all cells (including doublets) for 84_1
+[2025-12-02 00:22:44] [INFO]   Completed 84_1: 1129 cells
+[2025-12-02 00:22:44] [INFO] Processing 81_1
+[2025-12-02 00:22:44] [INFO]   Running SCTransform for 81_1 (required for scDblFinder)
+[2025-12-02 00:22:51] [INFO]   Running scDblFinder for 81_1
+[2025-12-02 00:22:58] [INFO]   Keeping all cells (including doublets) for 81_1
+[2025-12-02 00:22:58] [INFO]   Completed 81_1: 1131 cells
+[2025-12-02 00:22:58] [INFO] Processing 65_1
+[2025-12-02 00:22:58] [INFO]   Running SCTransform for 65_1 (required for scDblFinder)
+[2025-12-02 00:23:05] [INFO]   Running scDblFinder for 65_1
+[2025-12-02 00:23:12] [INFO]   Keeping all cells (including doublets) for 65_1
+[2025-12-02 00:23:12] [INFO]   Completed 65_1: 1130 cells
+[2025-12-02 00:23:12] [INFO] Processing 64_1
+[2025-12-02 00:23:12] [INFO]   Running SCTransform for 64_1 (required for scDblFinder)
+[2025-12-02 00:23:19] [INFO]   Running scDblFinder for 64_1
+[2025-12-02 00:23:26] [INFO]   Keeping all cells (including doublets) for 64_1
+[2025-12-02 00:23:26] [INFO]   Completed 64_1: 1127 cells
+[2025-12-02 00:23:26] [INFO] Processing 55_1
+[2025-12-02 00:23:26] [INFO]   Running SCTransform for 55_1 (required for scDblFinder)
+[2025-12-02 00:23:33] [INFO]   Running scDblFinder for 55_1
+[2025-12-02 00:23:40] [INFO]   Keeping all cells (including doublets) for 55_1
+[2025-12-02 00:23:40] [INFO]   Completed 55_1: 1127 cells
+[2025-12-02 00:23:40] [INFO] Processing 54_1
+[2025-12-02 00:23:40] [INFO]   Running SCTransform for 54_1 (required for scDblFinder)
+[2025-12-02 00:23:47] [INFO]   Running scDblFinder for 54_1
+[2025-12-02 00:23:54] [INFO]   Keeping all cells (including doublets) for 54_1
+[2025-12-02 00:23:54] [INFO]   Completed 54_1: 1130 cells
+[2025-12-02 00:23:54] [INFO] Processing 83_1
+[2025-12-02 00:23:54] [INFO]   Running SCTransform for 83_1 (required for scDblFinder)
+[2025-12-02 00:24:00] [INFO]   Running scDblFinder for 83_1
+[2025-12-02 00:24:08] [INFO]   Keeping all cells (including doublets) for 83_1
+[2025-12-02 00:24:08] [INFO]   Completed 83_1: 928 cells
+[2025-12-02 00:24:08] [INFO] Processing 76_1
+[2025-12-02 00:24:08] [INFO]   Running SCTransform for 76_1 (required for scDblFinder)
+[2025-12-02 00:24:13] [INFO]   Running scDblFinder for 76_1
+[2025-12-02 00:24:20] [INFO]   Keeping all cells (including doublets) for 76_1
+[2025-12-02 00:24:20] [INFO]   Completed 76_1: 924 cells
+[2025-12-02 00:24:20] [INFO] Processing 53_1
+[2025-12-02 00:24:20] [INFO]   Running SCTransform for 53_1 (required for scDblFinder)
+[2025-12-02 00:24:27] [INFO]   Running scDblFinder for 53_1
+[2025-12-02 00:24:33] [INFO]   Keeping all cells (including doublets) for 53_1
+[2025-12-02 00:24:33] [INFO]   Completed 53_1: 925 cells
+[2025-12-02 00:24:33] [INFO] Processing 44_1
+[2025-12-02 00:24:33] [INFO]   Running SCTransform for 44_1 (required for scDblFinder)
+[2025-12-02 00:24:39] [INFO]   Running scDblFinder for 44_1
+[2025-12-02 00:24:47] [INFO]   Keeping all cells (including doublets) for 44_1
+[2025-12-02 00:24:47] [INFO]   Completed 44_1: 925 cells
+[2025-12-02 00:24:47] [INFO] Processing 41_1
+[2025-12-02 00:24:47] [INFO]   Running SCTransform for 41_1 (required for scDblFinder)
+[2025-12-02 00:24:52] [INFO]   Running scDblFinder for 41_1
+[2025-12-02 00:24:59] [INFO]   Keeping all cells (including doublets) for 41_1
+[2025-12-02 00:24:59] [INFO]   Completed 41_1: 922 cells
+[2025-12-02 00:24:59] [INFO] Processing 34_1
+[2025-12-02 00:24:59] [INFO]   Running SCTransform for 34_1 (required for scDblFinder)
+[2025-12-02 00:25:06] [INFO]   Running scDblFinder for 34_1
+[2025-12-02 00:25:12] [INFO]   Keeping all cells (including doublets) for 34_1
+[2025-12-02 00:25:12] [INFO]   Completed 34_1: 925 cells
+[2025-12-02 00:25:12] [INFO] Processing 46_1
+[2025-12-02 00:25:12] [INFO]   Running SCTransform for 46_1 (required for scDblFinder)
+[2025-12-02 00:25:19] [INFO]   Running scDblFinder for 46_1
+[2025-12-02 00:25:26] [INFO]   Keeping all cells (including doublets) for 46_1
+[2025-12-02 00:25:26] [INFO]   Completed 46_1: 1200 cells
+[2025-12-02 00:25:26] [INFO] Processing 33_1
+[2025-12-02 00:25:26] [INFO]   Running SCTransform for 33_1 (required for scDblFinder)
+[2025-12-02 00:25:33] [INFO]   Running scDblFinder for 33_1
+[2025-12-02 00:25:40] [INFO]   Keeping all cells (including doublets) for 33_1
+[2025-12-02 00:25:40] [INFO]   Completed 33_1: 1206 cells
+[2025-12-02 00:25:40] [INFO] Processing 43_1
+[2025-12-02 00:25:40] [INFO]   Running SCTransform for 43_1 (required for scDblFinder)
+[2025-12-02 00:25:48] [INFO]   Running scDblFinder for 43_1
+[2025-12-02 00:25:54] [INFO]   Keeping all cells (including doublets) for 43_1
+[2025-12-02 00:25:54] [INFO]   Completed 43_1: 1198 cells
+[2025-12-02 00:25:54] [INFO] Processing 38_2
+[2025-12-02 00:25:54] [INFO]   Running SCTransform for 38_2 (required for scDblFinder)
+[2025-12-02 00:26:01] [INFO]   Running scDblFinder for 38_2
+[2025-12-02 00:26:09] [INFO]   Keeping all cells (including doublets) for 38_2
+[2025-12-02 00:26:09] [INFO]   Completed 38_2: 1203 cells
+[2025-12-02 00:26:09] [INFO] Processing 32_1
+[2025-12-02 00:26:09] [INFO]   Running SCTransform for 32_1 (required for scDblFinder)
+[2025-12-02 00:26:16] [INFO]   Running scDblFinder for 32_1
+[2025-12-02 00:26:23] [INFO]   Keeping all cells (including doublets) for 32_1
+[2025-12-02 00:26:23] [INFO]   Completed 32_1: 1195 cells
+[2025-12-02 00:26:23] [INFO] Processing 71_1
+[2025-12-02 00:26:23] [INFO]   Running SCTransform for 71_1 (required for scDblFinder)
+[2025-12-02 00:26:30] [INFO]   Running scDblFinder for 71_1
+[2025-12-02 00:26:38] [INFO]   Keeping all cells (including doublets) for 71_1
+[2025-12-02 00:26:38] [INFO]   Completed 71_1: 1205 cells
+[2025-12-02 00:26:38] [INFO] Processing 75_1
+[2025-12-02 00:26:38] [INFO]   Running SCTransform for 75_1 (required for scDblFinder)
+[2025-12-02 00:26:45] [INFO]   Running scDblFinder for 75_1
+[2025-12-02 00:26:52] [INFO]   Keeping all cells (including doublets) for 75_1
+[2025-12-02 00:26:52] [INFO]   Completed 75_1: 1202 cells
+[2025-12-02 00:26:52] [INFO] Processing 104_1
+[2025-12-02 00:26:52] [INFO]   Running SCTransform for 104_1 (required for scDblFinder)
+[2025-12-02 00:26:59] [INFO]   Running scDblFinder for 104_1
+[2025-12-02 00:27:07] [INFO]   Keeping all cells (including doublets) for 104_1
+[2025-12-02 00:27:07] [INFO]   Completed 104_1: 1196 cells
+[2025-12-02 00:27:07] [INFO] Processing 42_1
+[2025-12-02 00:27:07] [INFO]   Running SCTransform for 42_1 (required for scDblFinder)
+[2025-12-02 00:27:14] [INFO]   Running scDblFinder for 42_1
+[2025-12-02 00:27:22] [INFO]   Keeping all cells (including doublets) for 42_1
+[2025-12-02 00:27:22] [INFO]   Completed 42_1: 1284 cells
+[2025-12-02 00:27:22] [INFO] Processing 80_2
+[2025-12-02 00:27:22] [INFO]   Running SCTransform for 80_2 (required for scDblFinder)
+[2025-12-02 00:27:29] [INFO]   Running scDblFinder for 80_2
+[2025-12-02 00:27:36] [INFO]   Keeping all cells (including doublets) for 80_2
+[2025-12-02 00:27:36] [INFO]   Completed 80_2: 1287 cells
+[2025-12-02 00:27:36] [INFO] Processing 29_1
+[2025-12-02 00:27:36] [INFO]   Running SCTransform for 29_1 (required for scDblFinder)
+[2025-12-02 00:27:43] [INFO]   Running scDblFinder for 29_1
+[2025-12-02 00:27:51] [INFO]   Keeping all cells (including doublets) for 29_1
+[2025-12-02 00:27:51] [INFO]   Completed 29_1: 1288 cells
+[2025-12-02 00:27:51] [INFO] Processing 60_1
+[2025-12-02 00:27:51] [INFO]   Running SCTransform for 60_1 (required for scDblFinder)
+[2025-12-02 00:27:59] [INFO]   Running scDblFinder for 60_1
+[2025-12-02 00:28:06] [INFO]   Keeping all cells (including doublets) for 60_1
+[2025-12-02 00:28:06] [INFO]   Completed 60_1: 1285 cells
+[2025-12-02 00:28:06] [INFO] Processing 36_1
+[2025-12-02 00:28:06] [INFO]   Running SCTransform for 36_1 (required for scDblFinder)
+[2025-12-02 00:28:14] [INFO]   Running scDblFinder for 36_1
+[2025-12-02 00:28:21] [INFO]   Keeping all cells (including doublets) for 36_1
+[2025-12-02 00:28:21] [INFO]   Completed 36_1: 1285 cells
+[2025-12-02 00:28:21] [INFO] Processing 31_1
+[2025-12-02 00:28:21] [INFO]   Running SCTransform for 31_1 (required for scDblFinder)
+[2025-12-02 00:28:29] [INFO]   Running scDblFinder for 31_1
+[2025-12-02 00:28:36] [INFO]   Keeping all cells (including doublets) for 31_1
+[2025-12-02 00:28:36] [INFO]   Completed 31_1: 1282 cells
+[2025-12-02 00:28:36] [INFO] Processing 59_1
+[2025-12-02 00:28:36] [INFO]   Running SCTransform for 59_1 (required for scDblFinder)
+[2025-12-02 00:28:44] [INFO]   Running scDblFinder for 59_1
+[2025-12-02 00:28:51] [INFO]   Keeping all cells (including doublets) for 59_1
+[2025-12-02 00:28:51] [INFO]   Completed 59_1: 1286 cells
+[2025-12-02 00:28:51] [INFO] Processing 68_1
+[2025-12-02 00:28:51] [INFO]   Running SCTransform for 68_1 (required for scDblFinder)
+[2025-12-02 00:29:00] [INFO]   Running scDblFinder for 68_1
+[2025-12-02 00:29:06] [INFO]   Keeping all cells (including doublets) for 68_1
+[2025-12-02 00:29:06] [INFO]   Completed 68_1: 1287 cells
+[2025-12-02 00:29:06] [INFO] Processing 35_1
+[2025-12-02 00:29:06] [INFO]   Running SCTransform for 35_1 (required for scDblFinder)
+[2025-12-02 00:29:14] [INFO]   Running scDblFinder for 35_1
+[2025-12-02 00:29:21] [INFO]   Keeping all cells (including doublets) for 35_1
+[2025-12-02 00:29:21] [INFO]   Completed 35_1: 1431 cells
+[2025-12-02 00:29:21] [INFO] Processing 117_1
+[2025-12-02 00:29:21] [INFO]   Running SCTransform for 117_1 (required for scDblFinder)
+[2025-12-02 00:29:30] [INFO]   Running scDblFinder for 117_1
+[2025-12-02 00:29:37] [INFO]   Keeping all cells (including doublets) for 117_1
+[2025-12-02 00:29:37] [INFO]   Completed 117_1: 1431 cells
+[2025-12-02 00:29:37] [INFO] Processing 100_1
+[2025-12-02 00:29:37] [INFO]   Running SCTransform for 100_1 (required for scDblFinder)
+[2025-12-02 00:29:45] [INFO]   Running scDblFinder for 100_1
+[2025-12-02 00:29:52] [INFO]   Keeping all cells (including doublets) for 100_1
+[2025-12-02 00:29:52] [INFO]   Completed 100_1: 1431 cells
+[2025-12-02 00:29:52] [INFO] Processing 51_1
+[2025-12-02 00:29:52] [INFO]   Running SCTransform for 51_1 (required for scDblFinder)
+[2025-12-02 00:30:01] [INFO]   Running scDblFinder for 51_1
+[2025-12-02 00:30:08] [INFO]   Keeping all cells (including doublets) for 51_1
+[2025-12-02 00:30:08] [INFO]   Completed 51_1: 1432 cells
+[2025-12-02 00:30:08] [INFO] Processing 115_1
+[2025-12-02 00:30:08] [INFO]   Running SCTransform for 115_1 (required for scDblFinder)
+[2025-12-02 00:30:16] [INFO]   Running scDblFinder for 115_1
+[2025-12-02 00:30:23] [INFO]   Keeping all cells (including doublets) for 115_1
+[2025-12-02 00:30:23] [INFO]   Completed 115_1: 1425 cells
+[2025-12-02 00:30:23] [INFO] Processing 113_1
+[2025-12-02 00:30:23] [INFO]   Running SCTransform for 113_1 (required for scDblFinder)
+[2025-12-02 00:30:32] [INFO]   Running scDblFinder for 113_1
+[2025-12-02 00:30:39] [INFO]   Keeping all cells (including doublets) for 113_1
+[2025-12-02 00:30:39] [INFO]   Completed 113_1: 1433 cells
+[2025-12-02 00:30:39] [INFO] Processing 45_1
+[2025-12-02 00:30:39] [INFO]   Running SCTransform for 45_1 (required for scDblFinder)
+[2025-12-02 00:30:47] [INFO]   Running scDblFinder for 45_1
+[2025-12-02 00:30:55] [INFO]   Keeping all cells (including doublets) for 45_1
+[2025-12-02 00:30:55] [INFO]   Completed 45_1: 1425 cells
+[2025-12-02 00:30:55] [INFO] Processing 48_1
+[2025-12-02 00:30:55] [INFO]   Running SCTransform for 48_1 (required for scDblFinder)
+[2025-12-02 00:31:03] [INFO]   Running scDblFinder for 48_1
+[2025-12-02 00:31:10] [INFO]   Keeping all cells (including doublets) for 48_1
+[2025-12-02 00:31:10] [INFO]   Completed 48_1: 1430 cells
+[2025-12-02 00:31:10] [INFO] Processing 112_1
+[2025-12-02 00:31:10] [INFO]   Running SCTransform for 112_1 (required for scDblFinder)
+[2025-12-02 00:31:18] [INFO]   Running scDblFinder for 112_1
+[2025-12-02 00:31:24] [INFO]   Keeping all cells (including doublets) for 112_1
+[2025-12-02 00:31:24] [INFO]   Completed 112_1: 1261 cells
+[2025-12-02 00:31:24] [INFO] Processing 111_1
+[2025-12-02 00:31:24] [INFO]   Running SCTransform for 111_1 (required for scDblFinder)
+[2025-12-02 00:31:32] [INFO]   Running scDblFinder for 111_1
+[2025-12-02 00:31:40] [INFO]   Keeping all cells (including doublets) for 111_1
+[2025-12-02 00:31:40] [INFO]   Completed 111_1: 1263 cells
+[2025-12-02 00:31:40] [INFO] Processing 74_3
+[2025-12-02 00:31:40] [INFO]   Running SCTransform for 74_3 (required for scDblFinder)
+[2025-12-02 00:31:47] [INFO]   Running scDblFinder for 74_3
+[2025-12-02 00:31:55] [INFO]   Keeping all cells (including doublets) for 74_3
+[2025-12-02 00:31:55] [INFO]   Completed 74_3: 1261 cells
+[2025-12-02 00:31:55] [INFO] Processing 16_1
+[2025-12-02 00:31:55] [INFO]   Running SCTransform for 16_1 (required for scDblFinder)
+[2025-12-02 00:32:03] [INFO]   Running scDblFinder for 16_1
+[2025-12-02 00:32:10] [INFO]   Keeping all cells (including doublets) for 16_1
+[2025-12-02 00:32:10] [INFO]   Completed 16_1: 1265 cells
+[2025-12-02 00:32:10] [INFO] Processing 103_1
+[2025-12-02 00:32:10] [INFO]   Running SCTransform for 103_1 (required for scDblFinder)
+[2025-12-02 00:32:17] [INFO]   Running scDblFinder for 103_1
+[2025-12-02 00:32:25] [INFO]   Keeping all cells (including doublets) for 103_1
+[2025-12-02 00:32:25] [INFO]   Completed 103_1: 1258 cells
+[2025-12-02 00:32:25] [INFO] Processing 110_1
+[2025-12-02 00:32:25] [INFO]   Running SCTransform for 110_1 (required for scDblFinder)
+[2025-12-02 00:32:32] [INFO]   Running scDblFinder for 110_1
+[2025-12-02 00:32:39] [INFO]   Keeping all cells (including doublets) for 110_1
+[2025-12-02 00:32:39] [INFO]   Completed 110_1: 1269 cells
+[2025-12-02 00:32:39] [INFO] Processing 85_1
+[2025-12-02 00:32:39] [INFO]   Running SCTransform for 85_1 (required for scDblFinder)
+[2025-12-02 00:32:49] [INFO]   Running scDblFinder for 85_1
+[2025-12-02 00:32:56] [INFO]   Keeping all cells (including doublets) for 85_1
+[2025-12-02 00:32:56] [INFO]   Completed 85_1: 1268 cells
+[2025-12-02 00:32:56] [INFO] Processing 93_1
+[2025-12-02 00:32:56] [INFO]   Running SCTransform for 93_1 (required for scDblFinder)
+[2025-12-02 00:33:04] [INFO]   Running scDblFinder for 93_1
+[2025-12-02 00:33:10] [INFO]   Keeping all cells (including doublets) for 93_1
+[2025-12-02 00:33:10] [INFO]   Completed 93_1: 1263 cells
+[2025-12-02 00:33:10] [INFO] Saving results to: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:33:31] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:33:31] [INFO] Step 4 completed: 56 samples processed
+[2025-12-02 00:33:52] Starting run: test_scvi
+[2025-12-02 00:33:52] [INFO] Step 5: Starting integration (scVI)
+[2025-12-02 00:33:52] [INFO] Setting up parallel processing...
+[2025-12-02 00:33:54] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:34:23] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:34:23] [INFO] Merging all samples...
+[2025-12-02 00:37:36] [INFO] Performing scVI integration...
+[2025-12-02 00:37:41] [INFO] Python: /home/user3/miniconda3/envs/scvi-env/bin/python
+[2025-12-02 00:38:40] [INFO] Running PCA (required for scVI)...
+[2025-12-02 00:40:41] [INFO] Running scVIIntegration...
+[2025-12-02 00:41:33] Starting run: test_scvi
+[2025-12-02 00:41:33] [INFO] Step 5: Starting integration (scVI)
+[2025-12-02 00:41:33] [INFO] Setting up parallel processing...
+[2025-12-02 00:41:35] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:42:05] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:42:05] [INFO] Merging all samples...
+[2025-12-02 00:45:11] [INFO] Performing scVI integration...
+[2025-12-02 00:45:16] [INFO] Python: /home/user3/miniconda3/envs/scvi-env/bin/python
+[2025-12-02 00:46:14] [INFO] Running PCA (required for scVI)...
+[2025-12-02 00:48:11] [INFO] Running scVIIntegration...
+[2025-12-02 00:49:41] Starting run: test_scvi
+[2025-12-02 00:49:41] [INFO] Step 5: Starting integration (scVI)
+[2025-12-02 00:49:41] [INFO] Setting up parallel processing...
+[2025-12-02 00:49:43] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:50:12] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 00:50:12] [INFO] Merging all samples...
+[2025-12-02 00:53:26] [INFO] Performing scVI integration...
+[2025-12-02 00:53:31] [INFO] Python: /home/user3/miniconda3/envs/scvi-env/bin/python
+[2025-12-02 00:54:30] [INFO] Running PCA (required for scVI)...
+[2025-12-02 00:56:27] [INFO] Running scVIIntegration...
+[2025-12-02 02:32:54] [INFO] Running downstream analysis...
+[2025-12-02 12:17:43] Starting run: test_scvi
+[2025-12-02 12:17:43] [INFO] Step 5: Starting integration (scVI)
+[2025-12-02 12:17:43] [INFO] Setting up parallel processing...
+[2025-12-02 12:17:46] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 12:18:16] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 12:18:16] [INFO] Merging all samples...
+[2025-12-02 12:21:36] [INFO] Performing scVI integration...
+[2025-12-02 12:21:41] [INFO] Python: /home/user3/miniconda3/envs/scvi-env/bin/python
+[2025-12-02 12:22:38] [INFO] Running PCA (required for scVI)...
+[2025-12-02 12:24:36] [INFO] Running scVIIntegration...
+[2025-12-02 14:01:12] [INFO] Running downstream analysis...
+[2025-12-02 12:24:12] Starting run: test_scvi
+[2025-12-02 12:24:12] [INFO] Step 5: Starting integration (scVI)
+[2025-12-02 12:24:12] [INFO] Setting up parallel processing...
+[2025-12-02 12:24:14] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 12:24:43] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/test_scvi/step4/step4_doublet_list.qs
+[2025-12-02 12:24:43] [INFO] Merging all samples...
+[2025-12-02 12:27:52] [INFO] Performing scVI integration...
+[2025-12-02 12:27:57] [INFO] Python: /home/user3/miniconda3/envs/scvi-env/bin/python
+[2025-12-02 12:28:54] [INFO] Running PCA (required for scVI)...
+[2025-12-02 12:30:50] [INFO] Running scVIIntegration...
+[2025-12-02 14:07:06] [INFO] scVIIntegration completed. data saved to: /data/user3/sobj/pipe/step5_integration_scvi.qs
+[2025-12-02 14:07:33] [INFO] Running downstream analysis...
+
+========================================
+NEW RUN STARTED (same run_id: test_scvi)
+========================================
+[2025-12-02 17:44:10] Starting run: test_scvi
+[2025-12-02 17:44:10] [INFO] Step 6: Starting integration (scVI)
+[2025-12-02 17:44:10] [INFO] Setting up parallel processing...
+[2025-12-02 17:44:10] [INFO] Using 6 workers for parallel processing
+[2025-12-02 17:44:12] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step4/step5_doublet_list.qs
+
+========================================
+NEW RUN STARTED (same run_id: test_scvi)
+========================================
+[2025-12-02 17:44:50] Starting run: test_scvi
+[2025-12-02 17:44:50] [INFO] Step 6: Starting integration (scVI)
+[2025-12-02 17:44:50] [INFO] Setting up parallel processing...
+[2025-12-02 17:44:50] [INFO] Using 6 workers for parallel processing
+[2025-12-02 17:44:53] [INFO] Loading input from: /data/user3/sobj/pipe/test_scvi/step4/step5_doublet_list.qs
+
+========================================
+NEW RUN STARTED (same run_id: test_scvi)
+========================================
+[2025-12-02 17:45:07] Starting run: test_scvi
+[2025-12-02 17:45:07] [INFO] Step 6: Starting integration (scVI)

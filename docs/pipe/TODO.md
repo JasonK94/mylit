@@ -22,3 +22,8 @@
 
 ## General
 - [ ] **Python Interoperability**: Improve `qs` <-> `h5ad` conversion to seamlessly leverage Python-based tools.
+
+## Documentation & Directory structure updates.
+- [ ] **Update Documentation**: Update documentation to reflect new configuration structure and workflow. 
+.....
+

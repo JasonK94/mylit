@@ -1,0 +1,68 @@
+[2025-12-03 17:51:44] Starting run: run_ag6
+[2025-12-03 17:51:44] [INFO] Step 6: Starting integration (scVI)
+[2025-12-03 17:51:45] [INFO] Setting up parallel processing...
+[2025-12-03 17:51:45] [INFO] Using 4 workers for parallel processing
+[2025-12-03 17:51:46] [INFO] Using custom input directory: /data/user3/sobj/pipe/run_ag1
+[2025-12-03 17:51:46] [INFO] Loading input from: /data/user3/sobj/pipe/run_ag1/step5/step5_doublet_list.qs
+[2025-12-03 17:52:16] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_ag1/step5/step5_doublet_list.qs
+[2025-12-03 17:52:16] [INFO] Merging all samples...
+[2025-12-03 17:52:16] [INFO] Merging 56 samples: 97_1, 95_1, 92_1, 89_1, 107_1, 106_1, 91_1, 90_1, 88_1, 82_1, 70_1, 105_1, 84_1, 81_1, 65_1, 64_1, 55_1, 54_1, 83_1, 76_1, 53_1, 44_1, 41_1, 34_1, 46_1, 33_1, 43_1, 38_2, 32_1, 71_1, 75_1, 104_1, 42_1, 80_2, 29_1, 60_1, 36_1, 31_1, 59_1, 68_1, 35_1, 117_1, 100_1, 51_1, 115_1, 113_1, 45_1, 48_1, 112_1, 111_1, 74_3, 16_1, 103_1, 110_1, 85_1, 93_1
+[2025-12-03 17:52:16] [INFO]   Sample 1: 97_1 has 2576 cells
+[2025-12-03 17:52:16] [INFO]   Sample 2: 95_1 has 2463 cells
+[2025-12-03 17:52:16] [INFO]   Sample 3: 92_1 has 1814 cells
+[2025-12-03 17:52:16] [INFO]   Sample 4: 89_1 has 2119 cells
+[2025-12-03 17:52:16] [INFO]   Sample 5: 107_1 has 1824 cells
+[2025-12-03 17:52:16] [INFO]   Sample 6: 106_1 has 1716 cells
+[2025-12-03 17:52:16] [INFO]   Sample 7: 91_1 has 2541 cells
+[2025-12-03 17:52:16] [INFO]   Sample 8: 90_1 has 1460 cells
+[2025-12-03 17:52:16] [INFO]   Sample 9: 88_1 has 2347 cells
+[2025-12-03 17:52:16] [INFO]   Sample 10: 82_1 has 2124 cells
+[2025-12-03 17:52:16] [INFO]   Sample 11: 70_1 has 2069 cells
+[2025-12-03 17:52:16] [INFO]   Sample 12: 105_1 has 1285 cells
+[2025-12-03 17:52:16] [INFO]   Sample 13: 84_1 has 1887 cells
+[2025-12-03 17:52:16] [INFO]   Sample 14: 81_1 has 1695 cells
+[2025-12-03 17:52:16] [INFO]   Sample 15: 65_1 has 2329 cells
+[2025-12-03 17:52:16] [INFO]   Sample 16: 64_1 has 2394 cells
+[2025-12-03 17:52:16] [INFO]   Sample 17: 55_1 has 3930 cells
+[2025-12-03 17:52:16] [INFO]   Sample 18: 54_1 has 781 cells
+[2025-12-03 17:52:16] [INFO]   Sample 19: 83_1 has 1696 cells
+[2025-12-03 17:52:16] [INFO]   Sample 20: 76_1 has 1650 cells
+[2025-12-03 17:52:16] [INFO]   Sample 21: 53_1 has 1677 cells
+[2025-12-03 17:52:16] [INFO]   Sample 22: 44_1 has 1736 cells
+[2025-12-03 17:52:16] [INFO]   Sample 23: 41_1 has 2117 cells
+[2025-12-03 17:52:16] [INFO]   Sample 24: 34_1 has 1668 cells
+[2025-12-03 17:52:16] [INFO]   Sample 25: 46_1 has 1932 cells
+[2025-12-03 17:52:16] [INFO]   Sample 26: 33_1 has 1827 cells
+[2025-12-03 17:52:16] [INFO]   Sample 27: 43_1 has 1459 cells
+[2025-12-03 17:52:16] [INFO]   Sample 28: 38_2 has 1622 cells
+[2025-12-03 17:52:16] [INFO]   Sample 29: 32_1 has 2006 cells
+[2025-12-03 17:52:16] [INFO]   Sample 30: 71_1 has 855 cells
+[2025-12-03 17:52:16] [INFO]   Sample 31: 75_1 has 2385 cells
+[2025-12-03 17:52:16] [INFO]   Sample 32: 104_1 has 1501 cells
+[2025-12-03 17:52:16] [INFO]   Sample 33: 42_1 has 544 cells
+[2025-12-03 17:52:16] [INFO]   Sample 34: 80_2 has 1739 cells
+[2025-12-03 17:52:16] [INFO]   Sample 35: 29_1 has 2338 cells
+[2025-12-03 17:52:16] [INFO]   Sample 36: 60_1 has 1939 cells
+[2025-12-03 17:52:16] [INFO]   Sample 37: 36_1 has 2563 cells
+[2025-12-03 17:52:16] [INFO]   Sample 38: 31_1 has 1828 cells
+[2025-12-03 17:52:16] [INFO]   Sample 39: 59_1 has 1957 cells
+[2025-12-03 17:52:16] [INFO]   Sample 40: 68_1 has 1645 cells
+[2025-12-03 17:52:16] [INFO]   Sample 41: 35_1 has 2010 cells
+[2025-12-03 17:52:16] [INFO]   Sample 42: 117_1 has 1816 cells
+[2025-12-03 17:52:16] [INFO]   Sample 43: 100_1 has 3126 cells
+[2025-12-03 17:52:16] [INFO]   Sample 44: 51_1 has 936 cells
+[2025-12-03 17:52:16] [INFO]   Sample 45: 115_1 has 2517 cells
+[2025-12-03 17:52:16] [INFO]   Sample 46: 113_1 has 2126 cells
+[2025-12-03 17:52:16] [INFO]   Sample 47: 45_1 has 1904 cells
+[2025-12-03 17:52:16] [INFO]   Sample 48: 48_1 has 2133 cells
+[2025-12-03 17:52:16] [INFO]   Sample 49: 112_1 has 1824 cells
+[2025-12-03 17:52:16] [INFO]   Sample 50: 111_1 has 1649 cells
+[2025-12-03 17:52:16] [INFO]   Sample 51: 74_3 has 631 cells
+[2025-12-03 17:52:16] [INFO]   Sample 52: 16_1 has 3448 cells
+[2025-12-03 17:52:16] [INFO]   Sample 53: 103_1 has 1343 cells
+[2025-12-03 17:52:16] [INFO]   Sample 54: 110_1 has 2295 cells
+[2025-12-03 17:52:16] [INFO]   Sample 55: 85_1 has 1692 cells
+[2025-12-03 17:52:16] [INFO]   Sample 56: 93_1 has 1982 cells
+[2025-12-03 17:55:41] [INFO] Merged object has 107470 cells
+[2025-12-03 17:55:41] [INFO] Enhancing metadata...
+[2025-12-03 17:55:41] [INFO] Joining with clinical metadata from: /home/user3/Clinical information/meta_data_prep_251113.csv

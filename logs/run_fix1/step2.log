@@ -1,0 +1,194 @@
+✨ Initialising pipeline session (start_pipe.R)
+  Step 2 detected
+
+--- Project Session Started: 2025-12-03 14:44:58.23878 ---
+• Loading 5 packages for step 2 …
+✅ start_pipe.R initialisation complete.
+[2025-12-03 14:45:03] [INFO] Step 2: Starting LogNormalize normalization and clustering 
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for details,
+e.g.:
+  dat <- vroom(...)
+  problems(dat) 
+[2025-12-03 14:45:03] [INFO] Loading input from: /data/user3/sobj/pipe/run_fix1/step1/step1_demulti_list.qs 
+[2025-12-03 14:45:03] [INFO] Loaded intermediate object from: /data/user3/sobj/pipe/run_fix1/step1/step1_demulti_list.qs 
+[2025-12-03 14:45:03] [INFO] Processing 97_1 
+[2025-12-03 14:45:03] [INFO]   Calculating QC metrics for 97_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 97_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 95_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 95_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 95_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 92_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 92_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 92_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 89_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 89_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 89_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 107_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 107_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 107_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 106_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 106_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 106_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 91_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 91_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 91_1: Fewer than 20 cells after QC (13 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 90_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 90_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 90_1: Fewer than 20 cells after QC (7 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 88_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 88_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 88_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 82_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 82_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 82_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 70_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 70_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 70_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 105_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 105_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 105_1: Fewer than 20 cells after QC (6 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 84_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 84_1 
+[2025-12-03 14:45:04] [ERROR] !!! ERROR in step 2 processing 84_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:04] [INFO] Processing 81_1 
+[2025-12-03 14:45:04] [INFO]   Calculating QC metrics for 81_1 
+[2025-12-03 14:45:05] [ERROR] !!! ERROR in step 2 processing 81_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:05] [INFO] Processing 65_1 
+[2025-12-03 14:45:05] [INFO]   Calculating QC metrics for 65_1 
+[2025-12-03 14:45:05] [ERROR] !!! ERROR in step 2 processing 65_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-03 14:45:05] [INFO] Processing 64_1 
+[2025-12-03 14:45:05] [INFO]   Calculating QC metrics for 64_1 
+[2025-12-03 14:45:05] [ERROR] !!! ERROR in step 2 processing 64_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-03 14:45:05] [INFO] Processing 55_1 
+[2025-12-03 14:45:05] [INFO]   Calculating QC metrics for 55_1 
+[2025-12-03 14:45:05] [INFO]   QC filtering: 20 -> 20 cells 
+[2025-12-03 14:45:05] [INFO]   Performing LogNormalize for 55_1 
+[2025-12-03 14:45:05] [INFO]   Running PCA for 55_1 
+Warning in svd.function(A = t(x = object), nv = npcs, ...) :
+  You're computing too large a percentage of total singular values, use a standard svd instead.
+[2025-12-03 14:45:05] [INFO]   Clustering for 55_1 
+[2025-12-03 14:45:06] [INFO]   Completed 55_1: 20 cells 
+[2025-12-03 14:45:06] [INFO] Processing 54_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 54_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 54_1: Fewer than 20 cells after QC (4 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 83_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 83_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 83_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 76_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 76_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 76_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 53_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 53_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 53_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 44_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 44_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 44_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 41_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 41_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 41_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 34_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 34_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 34_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 46_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 46_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 46_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 33_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 33_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 33_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 43_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 43_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 43_1: Fewer than 20 cells after QC (7 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 38_2 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 38_2 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 38_2: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 32_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 32_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 32_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 71_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 71_1 
+[2025-12-03 14:45:06] [ERROR] !!! ERROR in step 2 processing 71_1: Fewer than 20 cells after QC (4 cells), skipping sample !!! 
+[2025-12-03 14:45:06] [INFO] Processing 75_1 
+[2025-12-03 14:45:06] [INFO]   Calculating QC metrics for 75_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 75_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 104_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 104_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 104_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 42_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 42_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 42_1: Fewer than 20 cells after QC (3 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 80_2 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 80_2 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 80_2: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 29_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 29_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 29_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 60_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 60_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 60_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 36_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 36_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 36_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 31_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 31_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 31_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 59_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 59_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 59_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 68_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 68_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 68_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 35_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 35_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 35_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 117_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 117_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 117_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 100_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 100_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 100_1: Fewer than 20 cells after QC (16 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 51_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 51_1 
+[2025-12-03 14:45:07] [ERROR] !!! ERROR in step 2 processing 51_1: Fewer than 20 cells after QC (5 cells), skipping sample !!! 
+[2025-12-03 14:45:07] [INFO] Processing 115_1 
+[2025-12-03 14:45:07] [INFO]   Calculating QC metrics for 115_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 115_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 113_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 113_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 113_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 45_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 45_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 45_1: Fewer than 20 cells after QC (10 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 48_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 48_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 48_1: Fewer than 20 cells after QC (11 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 112_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 112_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 112_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 111_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 111_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 111_1: Fewer than 20 cells after QC (8 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 74_3 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 74_3 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 74_3: Fewer than 20 cells after QC (3 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 16_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 16_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 16_1: Fewer than 20 cells after QC (18 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 103_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 103_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 103_1: Fewer than 20 cells after QC (7 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 110_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 110_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 110_1: Fewer than 20 cells after QC (12 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 85_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 85_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 85_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+[2025-12-03 14:45:08] [INFO] Processing 93_1 
+[2025-12-03 14:45:08] [INFO]   Calculating QC metrics for 93_1 
+[2025-12-03 14:45:08] [ERROR] !!! ERROR in step 2 processing 93_1: Fewer than 20 cells after QC (9 cells), skipping sample !!! 
+Warning message:
+Object should have two dimensions, attempting to coerce to matrix 
+[2025-12-03 14:45:08] [INFO] Saving results to: /data/user3/sobj/pipe/run_fix1/step2/step2_nmz_list.qs 
+[2025-12-03 14:45:08] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_fix1/step2/step2_nmz_list.qs 
+[2025-12-03 14:45:08] [INFO] Step 2 completed: 1 samples processed 
+Step 2 completed successfully. Processed 1 samples.

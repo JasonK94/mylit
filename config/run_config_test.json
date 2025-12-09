@@ -1,7 +1,33 @@
 {
-    "run_id": "run_ag_ds_scvi_config_test",
-    "output_dir": "/data/user3/sobj/pipe/run_ag_ds_scvi_config_test",
-    "integration_method": "scVI",
-    "scvi_batch_col": "SET",
-    "demultiplex_doublet_removal": true
+    "run_id": "run_test_v1",
+    "output_base_dir": "/data/user3/sobj/pipe",
+    "steps": {
+        "step1_demultiplex": {
+            "output_step1_demulti": "step1_demulti_list.qs",
+            "demultiplex_doublet_removal": true,
+            "plots": true
+        },
+        "step2_qc": {
+            "output_step2_nmz": "step2_nmz_list.qs",
+            "plots": true
+        },
+        "step3_ambient": {
+            "output_step3_soupx": "step3_soupx_list.qs"
+        },
+        "step4_sct": {
+            "output_step4_sct": "step4_sct_list.qs"
+        },
+        "step5_doublet": {
+            "output_step5_doublet": "step5_doublet_list.qs",
+            "remove_doublets": false
+        },
+        "step6_integration": {
+            "output_step6_integration_rpca": "step6_integration_rpca.qs",
+            "output_step6_integration_scvi": "step6_integration_scvi.qs",
+            "integration_method": "scVI",
+            "scvi_batch_col": "GEM",
+            "dims": "1:30",
+            "resolution": 0.6
+        }
+    }
 }

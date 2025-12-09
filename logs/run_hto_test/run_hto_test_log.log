@@ -1,0 +1,49 @@
+[2025-12-04 18:06:22] Starting run: run_hto_test
+[2025-12-04 18:06:22] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 18:06:22] [INFO] Found 0 SNP samples and 1 HTO samples
+[2025-12-04 18:06:22] [INFO] Processing HTO samples...
+[2025-12-04 18:06:22] [INFO] Processing HTO sample 1/1: 1_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:06:22] [INFO]   Running HTODemux for sample 1_3
+[2025-12-04 18:06:48] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:06:48] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:06:48] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 18:06:48] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:06:57] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:06:57] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:08:03] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:08:04] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 18:08:04] [INFO]   Removing 277547 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:08:17] [ERROR] !!! ERROR in step 1 processing HTO sample 1_3: the function mle failed to estimate the parameters, 
+                with the error code 100
+ !!!
+[2025-12-04 18:08:17] [ERROR] !!! Skipping HTO sample 1_3 !!!
+[2025-12-04 18:08:17] [ERROR] No samples were successfully processed!
+
+========================================
+NEW RUN STARTED (same run_id: run_hto_test)
+========================================
+[2025-12-04 18:09:32] Starting run: run_hto_test
+[2025-12-04 18:09:32] [INFO] Step 1: Starting read and demultiplexing
+[2025-12-04 18:09:33] [INFO] Found 0 SNP samples and 1 HTO samples
+[2025-12-04 18:09:33] [INFO] Processing HTO samples...
+[2025-12-04 18:09:33] [INFO] Processing HTO sample 1/1: 1_3 (GEM: GEM9, Method: HTO)
+[2025-12-04 18:09:33] [INFO]   Running HTODemux for sample 1_3
+[2025-12-04 18:09:59] [INFO]   DEBUG: raw_data names: Gene Expression, Multiplexing Capture
+[2025-12-04 18:09:59] [INFO]   DEBUG: Using 'Multiplexing Capture' as HTO counts
+[2025-12-04 18:09:59] [INFO]   DEBUG: rna_counts has colnames. First 5: AAACCTGAGAAACCAT-1, AAACCTGAGAAACCTA-1, AAACCTGAGAAACGAG-1, AAACCTGAGAAACGCC-1, AAACCTGAGAACAACT-1
+[2025-12-04 18:09:59] [INFO]   DEBUG: Creating Seurat Object...
+[2025-12-04 18:10:09] [INFO]   DEBUG: Seurat Object created.
+[2025-12-04 18:10:09] [INFO]   DEBUG: Adding HTO assay...
+[2025-12-04 18:11:13] [INFO]   DEBUG: HTO assay added.
+[2025-12-04 18:11:14] [INFO]   DEBUG: HTO counts class: dgCMatrix, dim: 10x677380
+[2025-12-04 18:11:15] [INFO]   Removing 277547 cells with zero HTO counts before demultiplexing
+[2025-12-04 18:11:27] [WARNING]   WARNING: HTODemux failed for 1_3: the function mle failed to estimate the parameters, 
+                with the error code 100
+. Trying MULTIseqDemux as fallback.
+[2025-12-04 18:11:49] [WARNING]   No HTO assay found for 1_3 (tried 'Multiplexing Capture'), skipping demultiplexing
+[2025-12-04 18:11:50] [INFO]   Completed 1_3: 399833 cells
+[2025-12-04 18:11:50] [INFO] Saving HTO objects...
+[2025-12-04 18:11:51] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_hto_test/step1/step1_hto_list.qs
+[2025-12-04 18:11:52] [INFO] Saving results to: /data/user3/sobj/pipe/run_hto_test/step1/step1_demulti_list.qs
+[2025-12-04 18:11:53] [INFO] Saved intermediate object to: /data/user3/sobj/pipe/run_hto_test/step1/step1_demulti_list.qs
+[2025-12-04 18:11:53] [INFO] Step 1 completed: 1 samples processed (0 SNP, 1 HTO)
