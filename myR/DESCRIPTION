@@ -68,7 +68,6 @@ Suggests:
     anndata,
     broom.mixed,
     ComplexUpset,
-    DESeq2,
     DiagrammeR,
     emmeans,
     escape,

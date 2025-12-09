@@ -38,8 +38,12 @@ rmd/
 # data, logs, outputs...
 *deprecated*
 
-*.rds
-*.csv
+# *.rds
+# *.log
+# *.pdf
+# *.png
+# *.csv
+# */data/*
 *.tar.gz
 *.gz
 *.qs

@@ -10,6 +10,7 @@ demuxalot_doublet_threshold,0.3,Minimum probability for doublet assignment
 demuxalot_doublet_separator,+,Separator used in doublet names (e.g., Sample1+Sample2)
 demuxalot_barcode_col,BARCODE,Column name for barcodes in demuxalot output
 demuxalot_annotation_col,Best_Sample,Column name for sample assignment in demuxalot output
+demultiplex_doublet_removal,TRUE,Whether to remove doublets identified during demultiplexing (inter-sample)
 
 # Demultiplexing - HTO
 hto_demux_method,HTODemux,Method for HTO demultiplexing (HTODemux or MULTIseqDemux)
@@ -69,9 +70,10 @@ rpca_nfeatures,3000,Number of features for integration
 # Integration - scVI
 scvi_conda_env,/home/user3/miniconda3/envs/scvi-env/,Path to conda environment
 scvi_python_path,/home/user3/miniconda3/envs/scvi-env/bin/python,Path to Python executable
-scvi_batch_col,GEM,Column name for batch in metadata
+scvi_batch_col,SET,Column name for batch in metadata
 scvi_dims,1:30,Dimensions to use for scVI integration
 scvi_resolution,0.6,Resolution for clustering after scVI integration
+integration_remove_doublets,FALSE,Whether to remove doublets before integration
 
 # Metadata extraction
 metadata_timepoint_regex,\\d+$,Regex pattern to extract timepoint from sample name

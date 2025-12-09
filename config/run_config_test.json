@@ -1,0 +1,7 @@
+{
+    "run_id": "run_ag_ds_scvi_config_test",
+    "output_dir": "/data/user3/sobj/pipe/run_ag_ds_scvi_config_test",
+    "integration_method": "scVI",
+    "scvi_batch_col": "SET",
+    "demultiplex_doublet_removal": true
+}

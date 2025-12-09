@@ -1,0 +1,5 @@
+no,name,sample_name,patient_name,gem_name,set_name,batch_name,project_name,demultiplex_id,sample_col,gem_col,set_col,batch_col,project_col,dir_meta_data,dir_input_filtered_barcode_matrix,dir_input_raw_barcode_matrix,dir_input_bam,dir_demultiplex_output,multiplex_method,demultiplex_method,demultiplex_annotation_col,contamination_risk
+1,S1,blood1,emrid1,GEM1,SET1_1,SET1,Stroke,CD_24_14264_PBD_SRA_1,SAMPLE,GEM,SET,BATCH,PROJECT,/path/to/meta.csv,/path/to/filtered,/path/to/raw,,/path/to/demux.csv,SNP,demuxalot,Best_Sample,FALSE
+2,S2,blood2,emrid2,GEM1,SET1_1,SET1,Stroke,CD_24_14267_PBD_SRA_1,SAMPLE,GEM,SET,BATCH,PROJECT,/path/to/meta.csv,/path/to/filtered,/path/to/raw,,/path/to/demux.csv,SNP,demuxalot,Best_Sample,FALSE
+3,S3,csf1,emrid1,GEM2,SET1_1,SET1,Stroke,CD_24_14268_PBD_SRA_1,SAMPLE,GEM,SET,BATCH,PROJECT,/path/to/meta.csv,/path/to/filtered,/path/to/raw,,/path/to/demux.csv,SNP,demuxalot,Best_Sample,FALSE
+4,S4,csf2,emrid2,GEM2,SET1_1,SET1,Stroke,CD_24_14269_PBD_SRA_1,SAMPLE,GEM,SET,BATCH,PROJECT,/path/to/meta.csv,/path/to/filtered,/path/to/raw,,/path/to/demux.csv,SNP,demuxalot,Best_Sample,FALSE
