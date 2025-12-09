@@ -1,14 +1,11 @@
 #!/usr/bin/env Rscript
 
-# scripts/cellchat/run_cellchat_cli.R
-# Command line interface for CellChat analysis
+# CellChat CLI with Proper Aggregation Method
 
-# Set library path to shared renv
+# Set library path
 renv_lib <- "/home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu"
 if (dir.exists(renv_lib)) {
     .libPaths(c(renv_lib, .libPaths()))
-} else {
-    warning("Shared renv library not found at: ", renv_lib)
 }
 
 suppressPackageStartupMessages({
@@ -16,58 +13,65 @@ suppressPackageStartupMessages({
     library(Seurat)
     library(CellChat)
     library(future)
-    if (requireNamespace("qs", quietly = TRUE)) {
-        library(qs)
-    }
+    library(dplyr)
+    if (requireNamespace("qs", quietly = TRUE)) library(qs)
 })
 
 options(future.globals.maxSize = 200 * 1024^3)
 
-# Define options
+# Options
 option_list <- list(
     make_option(c("-i", "--input"),
         type = "character", default = NULL,
-        help = "Path to Seurat object (.qs or .rds) [Required]", metavar = "file"
+        help = "Input Seurat object (.qs/.rds) [Required]"
     ),
     make_option(c("-g", "--group_by"),
         type = "character", default = NULL,
-        help = "Metadata column for cell grouping [Required]", metavar = "column"
+        help = "Cell type grouping column [Required]"
     ),
-    make_option(c("-b", "--split_by"),
+    make_option(c("-s", "--split_by"),
         type = "character", default = NULL,
-        help = "Metadata column to split analysis by (e.g. patient, condition) [Optional]", metavar = "column"
+        help = "Sample-level split (e.g., hos_no for patients). Each gets independent analysis. [Recommended]"
     ),
-    make_option(c("--subset_split"),
+    make_option(c("-a", "--aggregate_by"),
         type = "character", default = NULL,
-        help = "Comma-separated list of split groups to analyze (e.g. '2,1') [Optional, analyzes all if not specified]", metavar = "groups"
+        help = "Condition for aggregation (e.g., g3). Merges split samples by this. [Optional]"
+    ),
+    make_option(c("--subset_aggregate"),
+        type = "character", default = NULL,
+        help = "Comma-separated conditions to analyze (e.g., '2,1') [Optional]"
     ),
     make_option(c("-d", "--db_use"),
         type = "character", default = NULL,
-        help = "Interaction DB subset: 'Secreted Signaling', 'ECM-Receptor', or 'Cell-Cell Contact'. Can specify multiple comma-separated. Uses all if not specified. [Optional]", metavar = "db_type"
+        help = "DB types (comma-separated): 'Secreted Signaling', 'ECM-Receptor', 'Cell-Cell Contact'. Runs each separately. [Optional, uses all if not specified]"
+    ),
+    make_option(c("-p", "--prob_threshold"),
+        type = "numeric", default = 0.05,
+        help = "Probability threshold [default: %default]"
     ),
     make_option(c("-m", "--min_cells"),
         type = "integer", default = 10,
-        help = "Minimum cells per group [default: %default]", metavar = "int"
+        help = "Minimum cells per cell type [default: %default]"
     ),
-    make_option(c("-o", "--output_dir"),
-        type = "character", default = NULL,
-        help = "Output directory [Optional, defaults to docs/cellchat/runX]", metavar = "dir"
-    ),
-    make_option(c("-s", "--species"),
+    make_option(c("--species"),
         type = "character", default = "human",
-        help = "Species (human or mouse) [default: %default]", metavar = "species"
+        help = "Species [default: %default]"
     ),
-    make_option(c("-a", "--assay"),
+    make_option(c("--assay"),
         type = "character", default = "RNA",
-        help = "Assay name [default: %default]", metavar = "assay"
+        help = "Assay [default: %default]"
     ),
     make_option(c("-c", "--cores"),
         type = "integer", default = 16,
-        help = "Number of cores [default: %default]", metavar = "int"
+        help = "Cores [default: %default]"
+    ),
+    make_option(c("-o", "--output_dir"),
+        type = "character", default = NULL,
+        help = "Output directory [Optional]"
     ),
     make_option(c("-n", "--name"),
         type = "character", default = NULL,
-        help = "Run name (e.g. run1) [Optional, auto-generated]", metavar = "name"
+        help = "Run name [Optional, auto-generated]"
     )
 )
 
@@ -76,64 +80,65 @@ opt <- parse_args(opt_parser)
 
 if (is.null(opt$input) || is.null(opt$group_by)) {
     print_help(opt_parser)
-    stop("Input file and group_by column are required.", call. = FALSE)
+    stop("--input and --group_by are required")
 }
 
-# Parse subset_split if provided
-subset_split_val <- NULL
-if (!is.null(opt$subset_split)) {
-    subset_split_val <- strsplit(opt$subset_split, ",")[[1]]
-    # Trim whitespace
-    subset_split_val <- trimws(subset_split_val)
-    # Try to convert to numeric if possible
-    subset_split_numeric <- suppressWarnings(as.numeric(subset_split_val))
-    if (!any(is.na(subset_split_numeric))) {
-        subset_split_val <- subset_split_numeric
-    }
+# Parse subset_aggregate
+subset_agg <- NULL
+if (!is.null(opt$subset_aggregate)) {
+    subset_agg <- strsplit(opt$subset_aggregate, ",")[[1]]
+    subset_agg <- trimws(subset_agg)
+    subset_agg_num <- suppressWarnings(as.numeric(subset_agg))
+    if (!any(is.na(subset_agg_num))) subset_agg <- subset_agg_num
 }
 
-# Parse db_use if provided
+# Parse db_use
 db_use_val <- NULL
 if (!is.null(opt$db_use)) {
     db_use_val <- strsplit(opt$db_use, ",")[[1]]
     db_use_val <- trimws(db_use_val)
 }
 
-# Source the wrapper function
+# Source wrapper
 wrapper_path <- "myR/R/cci_cellchat_wrapper.R"
 if (!file.exists(wrapper_path)) {
     wrapper_path <- "/home/user3/data_user3/git_repo/_wt/cellchat/myR/R/cci_cellchat_wrapper.R"
 }
-
 if (file.exists(wrapper_path)) {
     source(wrapper_path)
 } else {
-    stop("Could not find cci_cellchat_wrapper.R")
+    stop("Cannot find wrapper")
 }
 
-# Run analysis
-message("Starting CellChat CLI...")
+# Run
+message("=== CellChat CLI (Proper Aggregation Method) ===")
 message("Input: ", opt$input)
-message("Group By: ", opt$group_by)
+message("Group by: ", opt$group_by)
 if (!is.null(opt$split_by)) {
-    message("Split By: ", opt$split_by)
-    if (!is.null(subset_split_val)) {
-        message("Subset Split: ", paste(subset_split_val, collapse = ", "))
+    message("Split by (sample-level): ", opt$split_by)
+}
+if (!is.null(opt$aggregate_by)) {
+    message("Aggregate by (condition): ", opt$aggregate_by)
+    if (!is.null(subset_agg)) {
+        message("  Subset: ", paste(subset_agg, collapse = ", "))
     }
 }
 if (!is.null(db_use_val)) {
-    message("DB Use: ", paste(db_use_val, collapse = ", "))
+    message("DB types (separate analyses): ", paste(db_use_val, collapse = ", "))
 }
+message("Probability threshold: ", opt$prob_threshold)
 
 run_cellchat_analysis(
     input_data = opt$input,
     group.by = opt$group_by,
     split.by = opt$split_by,
-    subset.split = subset_split_val,
+    aggregate.by = opt$aggregate_by,
+    subset.aggregate = subset_agg,
     db.use = db_use_val,
-    min.cells.group = opt$min_cells,
     species = opt$species,
     assay_name = opt$assay,
+    min.cells.group = opt$min_cells,
+    prob.threshold = opt$prob_threshold,
     output_dir = opt$output_dir,
     n_cores = opt$cores,
     run_name = opt$name,
