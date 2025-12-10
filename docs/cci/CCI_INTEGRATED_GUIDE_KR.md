@@ -47,6 +47,14 @@ flowchart TD
     
     PrepData --> Sender
     
+    subgraph Signal[Signaling Analysis]
+        MNN[MultiNicheNet]
+        CC[CellChat]
+    end
+
+    Prep --> MNN
+    Prep --> CC
+    
     subgraph Sender["3. Sender 식별"]
         direction TB
         CheckSender{sender_clusters<br/>지정됨?}
@@ -111,7 +119,102 @@ flowchart TD
     style Save fill:#fff3cd,stroke:#ffc107,stroke-width:2px
 ```
 
-## 3. 개발 로그 및 개선사항 (Development Log & Improvements)
+## 3. CellChat 분석 워크플로우 (CellChat Workflow)
+
+CellChat 분석은 다음 두 가지 전략 중 하나를 선택하여 수행할 수 있습니다. 각 단계별 상세 로직은 아래와 같습니다.
+
+```mermaid
+graph TD
+    %% 노드 스타일 정의
+    classDef step fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef logic fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef cluster fill:#d7ccc8,stroke:#5d4037,stroke-width:2px;
+    classDef error fill:#ffcdd2,stroke:#c62828,stroke-width:2px;
+
+    %% 시작
+    Start([Seurat Object Input]) --> ChooseStrat{Strategy Selection}
+    
+    %% 전략 선택
+    ChooseStrat --"Method 1: Pooled (Recommended)<br/>Power 우선"--> Pool[Split by Condition]
+    ChooseStrat --"Method 2: Sample-wise (Strict)<br/>Rigor 우선"--> Split[Split by Sample]
+    
+    %% Pooled Analysis
+    subgraph Pooled["Method 1: Pooled Analysis (High Power)"]
+        direction TB
+        Pool --> |"g3='2' (Stroke)"| Rep1[Rep1: All Stroke Cells]
+        Pool --> |"g3='1' (Control)"| Rep2[Rep2: All Control Cells]
+        
+        Rep1 --> Step1P["Step 1: Preprocessing"]
+        Step1P --> DEG_P["Identify DEG & Interactions"]
+        class DEG_P logic
+        DEG_P --"Wilcoxon Rank Sum Test<br/>(P < 0.05)"--> FilterP["Filter Interactions"]
+        
+        FilterP --> Step2P["Step 2: Probability"]
+        Step2P --> Prob_P["computeCommunProb"]
+        class Prob_P logic
+        Prob_P --"Type: triMean<br/>Permutation Test (P < 0.05)"--> MatP[Comm Probability Matrix]
+    end
+
+    %% Sample-wise Analysis
+    subgraph SampleWise["Method 2: Sample-wise Analysis (Rigorous)"]
+        direction TB
+        Split --> |Sample 1...N| Indiv[Individual Analysis]
+        Indiv --> Step1S["Step 1: Preprocessing"]
+        Step1S --> DEG_S["Identify DEG"]
+        
+        DEG_S --> Step2S["Step 2: Probability"]
+        Step2S --> Prob_S["computeCommunProb"]
+        
+        Prob_S --> Merge[Merge by Condition]
+        class Merge logic
+        Merge --"mergeCellChat()"--> MergedObj[Merged Object]
+    end
+
+    %% 비교 분석
+    MatP --> Compare["Step 3: Comparison Analysis"]
+    MergedObj --> Compare
+    
+    subgraph Comparison["Step 3: Differential Analysis"]
+        direction TB
+        Compare --> DiffNet["Differential Network"]
+        DiffNet --"Circle Plot (Red/Blue)<br/>netVisual_diffInteraction"--> Vis1[Changed Interactions]
+        
+        Compare --> InfoFlow["Information Flow"]
+        InfoFlow --"Stacked Bar<br/>rankNet"--> Vis2[Signaling Pathway Changes]
+        
+        Compare --> DiffStrength["Interaction Strength"]
+    end
+    
+    class Start,ChooseStrat step
+    class DiffNet,InfoFlow,DiffStrength logic
+```
+
+### 상세 방법론 (Methodology Details)
+
+1.  **전략 선택 (Strategy Selection)**
+    *   **Pooled Analysis**: 조건별로 모든 샘플의 세포를 합쳐서 분석. Power가 높으나 False Positive 위험이 있어 `min.cells`를 높여(50+) 제어. **권장**.
+    *   **Sample-wise Analysis**: 각 환자별로 독립 분석 후 병합. 엄밀하지만 세포 수가 적을 경우 Interaction이 검출되지 않을 수 있음(Zero Interaction).
+
+2.  **DEG & Interaction 식별 (`identifyOverExpressedGenes`)**
+    *   **Method**: Wilcoxon Rank Sum Test
+    *   각 Cell Group 내에서 유의하게 발현이 높은 리간드/수용체를 식별.
+    *   **P-value 이슈**: 대규모 데이터셋에서 Adjusted P-value (Bonferroni 등) 계산 시, $P_{adj} = P_{raw} \times N$ 공식에 의해 1.0을 초과하는 값이 나올 수 있습니다. 이는 수학적으로 가능한 값이며, 보통 1.0으로 간주하면 됩니다.
+
+3.  **확률 계산 (`computeCommunProb`)**
+    *   **Expression Value**: Trimean 사용 ($Avg = (Q1 + 2Q2 + Q3) / 4$)하여 이상치 영향 최소화.
+    *   **Hill Function**: 리간드-수용체 결합 확률을 모델링.
+        $$ P_{ij} = \frac{L_i \cdot R_j}{K_h + L_i \cdot R_j} $$
+        ($L_i$: Sender의 리간드 발현량, $R_j$: Receiver의 수용체 발현량, $K_h$: 해리 상수)
+    *   **Permutation Test**: 통계적 유의성 검증.
+        *   **과정**: Sender와 Receiver의 세포 라벨(Identity)을 무작위로 섞음(Shuffle).
+        *   **검정**: 무작위 상태에서의 확률 분포(Null Distribution) 생성 후, 관측된 확률이 상위 5% 안에 드는지 확인 ($P < 0.05$).
+
+4.  **비교 분석 (`netVisual_diffInteraction`)**
+    *   **Difference Calculation**: 두 조건 간의 Interaction 수(Count) 또는 강도(Weight) 차이를 계산.
+        $$ \Delta_{weight} = Weight_{Condition2} - Weight_{Condition1} $$
+    *   **Red Edge**: $\Delta > 0$ (증가) / **Blue Edge**: $\Delta < 0$ (감소).
+
+## 4. 개발 로그 및 개선사항 (Development Log & Improvements)
 
 ### 주요 변경 사항
 *   **v1.0 (2025-11-14)**: 초기 구현. DEG 리스트 직접 입력 지원, 모듈화된 구조(준비, 분석, 저장) 구축.

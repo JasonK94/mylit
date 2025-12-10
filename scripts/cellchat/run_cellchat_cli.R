@@ -2,22 +2,31 @@
 
 # CellChat CLI with Proper Aggregation Method
 
+message("[CLI] Script started...")
+
 # Set library path
 renv_lib <- "/home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu"
+message(paste0("[CLI] Setting lib path: ", renv_lib))
 if (dir.exists(renv_lib)) {
     .libPaths(c(renv_lib, .libPaths()))
+} else {
+    warning("Shared renv library not found at: ", renv_lib)
 }
 
+message("[CLI] Loading packages...")
 suppressPackageStartupMessages({
     library(optparse)
     library(Seurat)
     library(CellChat)
     library(future)
-    library(dplyr)
-    if (requireNamespace("qs", quietly = TRUE)) library(qs)
+    if (requireNamespace("qs", quietly = TRUE)) {
+        library(qs)
+    }
 })
+message("[CLI] Packages loaded.")
 
 options(future.globals.maxSize = 200 * 1024^3)
+message("[CLI] Options set.")
 
 # Options
 option_list <- list(
@@ -39,11 +48,15 @@ option_list <- list(
     ),
     make_option(c("--subset_aggregate"),
         type = "character", default = NULL,
-        help = "Comma-separated conditions to analyze (e.g., '2,1') [Optional]"
+        help = "Subset groups for aggregation (comma-separated, e.g. '2,1')"
+    ),
+    make_option(c("--subset_split"),
+        type = "character", default = NULL,
+        help = "Subset groups for splitting (comma-separated, e.g. '2,1') [Optional]"
     ),
     make_option(c("-d", "--db_use"),
         type = "character", default = NULL,
-        help = "DB types (comma-separated): 'Secreted Signaling', 'ECM-Receptor', 'Cell-Cell Contact'. Runs each separately. [Optional, uses all if not specified]"
+        help = "DB to use (comma-separated: 'Secreted Signaling', 'ECM-Receptor', 'Cell-Cell Contact')"
     ),
     make_option(c("-p", "--prob_threshold"),
         type = "numeric", default = 0.05,
@@ -51,7 +64,7 @@ option_list <- list(
     ),
     make_option(c("-m", "--min_cells"),
         type = "integer", default = 10,
-        help = "Minimum cells per cell type [default: %default]"
+        help = "Minimum cells per group [default: %default]"
     ),
     make_option(c("--species"),
         type = "character", default = "human",
@@ -81,6 +94,45 @@ opt <- parse_args(opt_parser)
 if (is.null(opt$input) || is.null(opt$group_by)) {
     print_help(opt_parser)
     stop("--input and --group_by are required")
+}
+
+# --- 2. Load Data ---
+message(paste0("Loading Seurat object from: ", opt$input))
+sobj <- NULL
+if (grepl("\\.qs$", opt$input)) {
+    sobj <- qs::qread(opt$input)
+} else {
+    sobj <- readRDS(opt$input)
+}
+
+# --- Subset Data if requested (NEW) ---
+if (!is.null(opt$subset_split)) {
+    # Check if split_by is set
+    if (is.null(opt$split_by) && is.null(opt$aggregate_by)) {
+        # If neither split nor aggregate is set, we don't know which column to filter?
+        # Assuming filtering based on split_by if set, or just skip?
+        # But user usually provides -s with --subset_split.
+        warning("--subset_split provided but no split column. Applying to split_by if present.")
+    }
+
+    target_col <- opt$split_by
+    if (is.null(target_col)) target_col <- opt$aggregate_by # Fallback
+
+    if (!is.null(target_col)) {
+        subset_vals <- trimws(strsplit(opt$subset_split, ",")[[1]])
+        message(paste0("Subsetting data: ", target_col, " in [", paste(subset_vals, collapse = ", "), "]"))
+
+        # Ensure column exists
+        if (!target_col %in% colnames(sobj@meta.data)) {
+            stop("Column ", target_col, " not found in metadata for subsetting.")
+        }
+
+        # Subset Seurat object
+        cells_to_keep <- which(sobj@meta.data[[target_col]] %in% subset_vals)
+        if (length(cells_to_keep) == 0) stop("No cells remaining after subsetting!")
+        sobj <- sobj[, cells_to_keep]
+        message(paste0("  Remaining cells: ", ncol(sobj)))
+    }
 }
 
 # Parse subset_aggregate
