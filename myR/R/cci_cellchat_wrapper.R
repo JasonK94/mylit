@@ -344,7 +344,8 @@ run_single_cellchat <- function(sobj, group.by, species, db.use, assay_name,
 
   load_ckpt <- function(name) {
     file <- file.path(checkpoint_dir, paste0("cc_", name, ".qs"))
-    if (file.exists(file)) {
+    if (file.exists(file) && file.size(file) > 0) {
+      log_msg(paste0("    Found checkpoint: ", name))
       return(qs::qread(file))
     }
     return(NULL)
@@ -374,8 +375,35 @@ run_single_cellchat <- function(sobj, group.by, species, db.use, assay_name,
     # Preprocess
     cc <- CellChat::subsetData(cc)
 
-    if (do_parallel) {
-      future::plan("multisession", workers = n_cores)
+    # Dynamic Parallel Configuration
+    n_cells <- ncol(cc@data.signaling)
+    optimal_workers <- 1
+
+    if (do_parallel && n_cells >= 1000) {
+      if (n_cells < 5000) {
+        optimal_workers <- min(4, n_cores)
+      } else if (n_cells < 10000) {
+        optimal_workers <- min(8, n_cores)
+      } else {
+        optimal_workers <- n_cores # Use user limit for large data
+      }
+    }
+
+    if (optimal_workers > 1) {
+      # Choose backend: multicore (Linux/Mac CLI) vs multisession (RStudio/Windows)
+      is_rstudio <- Sys.getenv("RSTUDIO") == "1"
+      is_windows <- .Platform$OS.type == "windows"
+
+      backend <- "multisession"
+      if (!is_rstudio && !is_windows) {
+        backend <- "multicore"
+      }
+
+      log_msg(paste0("    Parallel: ", backend, " with ", optimal_workers, " workers (Cells: ", n_cells, ")"))
+      future::plan(backend, workers = optimal_workers)
+    } else {
+      log_msg(paste0("    Parallel: OFF (Too few cells: ", n_cells, ")"))
+      future::plan("sequential")
     }
 
     cc <- CellChat::identifyOverExpressedGenes(cc)
@@ -384,14 +412,16 @@ run_single_cellchat <- function(sobj, group.by, species, db.use, assay_name,
     save_ckpt(cc, "step1")
   } else {
     log_msg("  Loaded checkpoint: step1")
+    # Restore parallel plan for subsequent steps if needed
+    # Note: re-evaluating optimal workers as above would be better but simple restore is ok
     if (do_parallel) future::plan("multisession", workers = n_cores)
   }
 
   # Step 2: Communication probability
   cc_step2 <- load_ckpt("step2")
   if (is.null(cc_step2)) {
-    log_msg(paste0("  Computing probabilities (thresh=", prob.threshold, ")..."))
-    cc <- CellChat::computeCommunProb(cc, type = "triMean", thresh = prob.threshold)
+    log_msg(paste0("  Computing probabilities..."))
+    cc <- CellChat::computeCommunProb(cc, type = "triMean")
     cc <- CellChat::filterCommunication(cc, min.cells = min.cells.group)
     save_ckpt(cc, "step2")
   } else {

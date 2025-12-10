@@ -62,7 +62,7 @@ option_list <- list(
         help = "Assay [default: %default]"
     ),
     make_option(c("-c", "--cores"),
-        type = "integer", default = 16,
+        type = "integer", default = 8,
         help = "Cores [default: %default]"
     ),
     make_option(c("-o", "--output_dir"),
