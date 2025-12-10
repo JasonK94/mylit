@@ -177,6 +177,7 @@ run_milo_pipeline <- function(
     }
 
     plots <- NULL
+    plot_inputs <- NULL
     if (plotting) {
         if (verbose) cli::cli_inform(c("step" = "Preparing Milo plots."))
         if (!"UMAP" %in% SingleCellExperiment::reducedDimNames(milo)) {
@@ -184,20 +185,34 @@ run_milo_pipeline <- function(
         }
         beeswarm_alpha <- .milo_normalize_alpha(beeswarm_alpha, name = "beeswarm_alpha")
 
-        plots <- .milo_plot_bundle(
+        plot_inputs <- .milo_prepare_plot_data(
             milo = milo,
             da_results = da_results,
             seurat_obj = seurat_obj,
             layout_reduction = layout_reduction,
             cluster_var = cluster_var,
-            alpha = alpha,
             cell_metric = match.arg(cell_metric),
             beeswarm_metric = match.arg(beeswarm_metric),
-            beeswarm_alpha = beeswarm_alpha,
+            fdr_breaks = fdr_breaks,
+            fdr_labels = fdr_labels,
+            verbose = verbose,
+            beeswarm_alpha = beeswarm_alpha
+        )
+
+        if (save && !is.null(paths$files$plot_data)) {
+            qs::qsave(plot_inputs, paths$files$plot_data)
+            if (verbose) {
+                cli::cli_inform(c("cache" = "Saved plot inputs to {.path {paths$files$plot_data}}"))
+            }
+        }
+
+        plots <- .milo_render_plots(
+            plot_data = plot_inputs,
+            alpha = alpha,
             fdr_breaks = fdr_breaks,
             fdr_labels = fdr_labels,
             save = save,
-            save_path = paths$files$plots,
+            save_path = paths$files$plot_bundle,
             verbose = verbose
         )
     }
@@ -205,6 +220,7 @@ run_milo_pipeline <- function(
     list(
         milo = milo,
         da_results = da_results,
+        plot_inputs = plot_inputs,
         plots = plots
     )
 }
@@ -341,15 +357,59 @@ run_milo_pipeline <- function(
     fdr_labels,
     save,
     save_path,
-    verbose
+    verbose,
+    save_data_path = NULL
 ) {
-    milo <- .milo_ensure_nhood_graph(milo, verbose = verbose)
-    milo <- .milo_attach_umap(milo, seurat_obj, layout_reduction, verbose = verbose)
-
-    da_results <- .milo_prepare_metric_column(da_results, metric = beeswarm_metric)
-    milo <- .milo_attach_cell_metric(
+    plot_data <- .milo_prepare_plot_data(
         milo = milo,
         da_results = da_results,
+        seurat_obj = seurat_obj,
+        layout_reduction = layout_reduction,
+        cluster_var = cluster_var,
+        cell_metric = cell_metric,
+        beeswarm_metric = beeswarm_metric,
+        fdr_breaks = fdr_breaks,
+        fdr_labels = fdr_labels,
+        verbose = verbose,
+        beeswarm_alpha = beeswarm_alpha
+    )
+
+    if (save && !is.null(save_data_path)) {
+        qs::qsave(plot_data, file = save_data_path)
+        if (verbose) cli::cli_inform(c("cache" = "Saved plot inputs to {.path {save_data_path}}"))
+    }
+
+    .milo_render_plots(
+        plot_data = plot_data,
+        alpha = alpha,
+        fdr_breaks = fdr_breaks,
+        fdr_labels = fdr_labels,
+        save = save,
+        save_path = save_path,
+        verbose = verbose
+    )
+}
+
+.milo_prepare_plot_data <- function(
+    milo,
+    da_results,
+    seurat_obj,
+    layout_reduction,
+    cluster_var,
+    cell_metric,
+    beeswarm_metric,
+    fdr_breaks,
+    fdr_labels,
+    verbose,
+    beeswarm_alpha = NULL
+) {
+    milo_ready <- .milo_ensure_nhood_graph(milo, verbose = verbose)
+    milo_ready <- .milo_attach_umap(milo_ready, seurat_obj, layout_reduction, verbose = verbose)
+
+    da_ready <- .milo_prepare_metric_column(da_results, metric = beeswarm_metric)
+    milo_ready <- .milo_attach_cell_metric(
+        milo = milo_ready,
+        da_results = da_ready,
         metric = cell_metric,
         breaks = fdr_breaks,
         labels = fdr_labels,
@@ -357,21 +417,47 @@ run_milo_pipeline <- function(
     )
 
     beeswarm_payload <- .milo_prepare_beeswarm_inputs(
-        da_results = da_results,
+        da_results = da_ready,
         preferred_metric = beeswarm_metric,
         fallback_metric = "PValue",
-        alpha = beeswarm_alpha,
+        alpha = if (is.null(beeswarm_alpha)) 0.1 else beeswarm_alpha,
         verbose = verbose
     )
+
+    list(
+        milo = milo_ready,
+        da_results = da_ready,
+        beeswarm_payload = beeswarm_payload,
+        cluster_var = cluster_var,
+        cell_metric = cell_metric
+    )
+}
+
+.milo_render_plots <- function(
+    plot_data,
+    alpha,
+    fdr_breaks,
+    fdr_labels,
+    save,
+    save_path,
+    verbose
+) {
+    milo <- plot_data$milo
+    da_results <- plot_data$da_results
+    beeswarm_payload <- plot_data$beeswarm_payload
 
     graph_plot <- miloR::plotNhoodGraphDA(milo, da_results, alpha = alpha) +
         ggplot2::ggtitle("DA Results (logFC)")
 
-    beeswarm_plot <- miloR::plotDAbeeswarm(
+    beeswarm_args <- list(
         beeswarm_payload$results,
-        group.by = "major_cluster",
-        alpha = beeswarm_payload$alpha
-    ) + ggplot2::ggtitle(beeswarm_payload$title)
+        group.by = "major_cluster"
+    )
+    if (!is.null(beeswarm_payload$alpha)) {
+        beeswarm_args$alpha <- beeswarm_payload$alpha
+    }
+    beeswarm_plot <- do.call(miloR::plotDAbeeswarm, beeswarm_args) +
+        ggplot2::ggtitle(beeswarm_payload$title)
 
     umap_plot <- scater::plotReducedDim(
         milo,
@@ -379,7 +465,7 @@ run_milo_pipeline <- function(
         colour_by = "milo_metric_bin"
     ) +
         ggplot2::scale_colour_manual(values = .milo_metric_palette(fdr_labels), name = "Cell metric") +
-        ggplot2::ggtitle(sprintf("Cells by %s", cell_metric))
+        ggplot2::ggtitle(sprintf("Cells by %s", plot_data$cell_metric))
 
     combined <- patchwork::wrap_plots(umap_plot, graph_plot)
 
@@ -390,12 +476,76 @@ run_milo_pipeline <- function(
         combined = combined
     )
 
-    if (save) {
-        qs::qsave(plots, file = save_path)
-        if (verbose) cli::cli_inform(c("cache" = "Saved plot bundle to {.path {save_path}}"))
+    plots <- .milo_clean_plot_environments(plots)
+
+    if (save && !is.null(save_path)) {
+        .milo_export_plots(plots, save_path, verbose = verbose)
     }
 
     plots
+}
+
+.milo_export_plots <- function(plots, save_path, verbose) {
+    base <- tools::file_path_sans_ext(save_path)
+    out_dir <- dirname(save_path)
+    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+    for (name in names(plots)) {
+        plot_obj <- plots[[name]]
+        if (!inherits(plot_obj, "gg")) next
+        base_name <- paste0(basename(base), "_", name)
+        png_path <- file.path(out_dir, paste0(base_name, ".png"))
+        pdf_path <- file.path(out_dir, paste0(base_name, ".pdf"))
+
+        tryCatch({
+            ggplot2::ggsave(
+                filename = png_path,
+                plot = plot_obj,
+                width = 8,
+                height = 6,
+                dpi = 300,
+                limitsize = FALSE
+            )
+            ggplot2::ggsave(
+                filename = pdf_path,
+                plot = plot_obj,
+                width = 8,
+                height = 6,
+                dpi = 300,
+                limitsize = FALSE
+            )
+            if (verbose) {
+                cli::cli_inform(c(
+                    "cache" = paste0(
+                        "Saved plot '", name,
+                        "' to {.path ", png_path, "} / {.path ", pdf_path, "}"
+                    )
+                ))
+            }
+        }, error = function(e) {
+            cli::cli_warn(paste0("Failed to save plot '", name, "': ", conditionMessage(e)))
+        })
+    }
+}
+
+.milo_clean_plot_environments <- function(plots) {
+    detach_plot <- function(p) {
+        if (inherits(p, "patchwork")) {
+            if (!is.null(p$patches) && !is.null(p$patches$plots)) {
+                p$patches$plots <- lapply(p$patches$plots, detach_plot)
+            }
+            if (!is.null(p$patch_env)) {
+                p$patch_env <- new.env(parent = emptyenv())
+            }
+            return(p)
+        }
+        if (inherits(p, "gg")) {
+            p$plot_env <- new.env(parent = emptyenv())
+            return(p)
+        }
+        p
+    }
+    lapply(plots, detach_plot)
 }
 
 .milo_prepare_metric_column <- function(da_results, metric) {
@@ -447,8 +597,11 @@ run_milo_pipeline <- function(
         include.lowest = TRUE
     )
 
-    colData(milo)$milo_metric_value <- cell_metric
-    colData(milo)$milo_metric_bin <- metric_bins
+    # Use SummarizedExperiment::colData to avoid namespace issues
+    cd <- SummarizedExperiment::colData(milo)
+    cd$milo_metric_value <- cell_metric
+    cd$milo_metric_bin <- metric_bins
+    SummarizedExperiment::colData(milo) <- cd
 
     if (verbose) {
         bin_table <- table(metric_bins, useNA = "ifany")
@@ -483,10 +636,20 @@ run_milo_pipeline <- function(
         metric_vals <- da_results[[fallback_metric]]
     }
 
+    # Ensure SpatialFDR exists for plotDAbeeswarm (it requires this column internally)
+    # If using logFC_percentile, we still need SpatialFDR for filtering, so use a dummy value
+    if (!"SpatialFDR" %in% names(da_results)) {
+        if (verbose) {
+            cli::cli_warn("SpatialFDR column not found in da_results. Creating dummy values for plotDAbeeswarm compatibility.")
+        }
+        # Create dummy SpatialFDR values (all 1.0 so nothing is filtered when using logFC_percentile)
+        da_results$SpatialFDR <- rep(1.0, nrow(da_results))
+    }
+
     list(
         results = da_results,
         colour_by = colour_by,
-        alpha = if (colour_by %in% c("SpatialFDR", "PValue")) alpha else 1,
+        alpha = if (colour_by %in% c("SpatialFDR", "PValue")) alpha else NULL,  # NULL when using logFC_percentile
         title = if (colour_by == preferred_metric) "DA Results by Cell Type"
         else sprintf("DA Results by Cell Type (%s fallback)", colour_by)
     )
@@ -600,7 +763,8 @@ run_milo_pipeline <- function(
         distances = "02_distances_calculated.qs",
         da_milo = "03_tested.qs",
         da_results = "03_da_results.qs",
-        plots = "04_plots.qs"
+        plot_data = "04_plot_inputs.qs",
+        plot_bundle = "05_plot_bundle.qs"
     )
 
     suffix_info <- .milo_pick_suffix(output_dir, prefix, suffix, base_names)
