@@ -45,19 +45,19 @@ rmd/
 # *bin
 *deprecated*
 
-# *.rds
-# *.log
-# *.pdf
-# *.png
+*.rds
+*.log
+*.pdf
+*.png
 # *.csv
 # */data/*
-# *.tar.gz
-# *.gz
-# *.qs
+*.tar.gz
+*.gz
+*.qs
 # *sobj*
-# *h5ad
-# *h5seurat
-# *loom
-# *mtx
-# *mtx.gz
+*h5ad
+*h5seurat
+*loom
+*mtx
+*mtx.gz
 
