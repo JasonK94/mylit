@@ -131,7 +131,11 @@ plot_milo_density <- function(
         num <- as.vector(w_sum$z)
         
         # Mask low density regions
-        mask <- den < (max(den) * 0.01)
+        # Threshold: e.g., 1% of max density is too aggressive if peaks are sharp.
+        # Use a lower threshold or quantile.
+        # Let's use 0.1% (0.001) or even lower to avoid excessive masking.
+        mask_threshold <- max(den) * 0.001
+        mask <- den < mask_threshold
         z_vals <- num / den
         z_vals[mask] <- NA
         
