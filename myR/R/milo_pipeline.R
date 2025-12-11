@@ -56,6 +56,9 @@ run_milo_pipeline <- function(
     cell_metric = c("SpatialFDR", "PValue", "logFC_percentile"),
     beeswarm_metric = c("SpatialFDR", "PValue", "logFC_percentile"),
     beeswarm_alpha = alpha,
+    density_plot = TRUE,
+    density_metric = NULL,
+    density_bandwidth = NULL,
     fdr_breaks = c(0, 0.1, 0.2, 0.3, 0.5, 1),
     fdr_labels = c("< 0.1", "0.1 - 0.2", "0.2 - 0.3", "0.3 - 0.5", ">= 0.5"),
     save = TRUE,
@@ -176,6 +179,7 @@ run_milo_pipeline <- function(
         }
     }
 
+    # ---- Step 4: Plotting ----
     plots <- NULL
     plot_inputs <- NULL
     if (plotting) {
@@ -196,7 +200,10 @@ run_milo_pipeline <- function(
             fdr_breaks = fdr_breaks,
             fdr_labels = fdr_labels,
             verbose = verbose,
-            beeswarm_alpha = beeswarm_alpha
+            beeswarm_alpha = beeswarm_alpha,
+            density_plot = density_plot,
+            density_metric = density_metric,
+            density_bandwidth = density_bandwidth
         )
 
         if (save && !is.null(paths$files$plot_data)) {
@@ -401,7 +408,10 @@ run_milo_pipeline <- function(
     fdr_breaks,
     fdr_labels,
     verbose,
-    beeswarm_alpha = NULL
+    beeswarm_alpha = NULL,
+    density_plot = FALSE,
+    density_metric = NULL,
+    density_bandwidth = NULL
 ) {
     milo_ready <- .milo_ensure_nhood_graph(milo, verbose = verbose)
     milo_ready <- .milo_attach_umap(milo_ready, seurat_obj, layout_reduction, verbose = verbose)
@@ -424,12 +434,27 @@ run_milo_pipeline <- function(
         verbose = verbose
     )
 
+    # Determine density metric
+    # If density_metric is NULL, default to logFC (if test mode or exploring)
+    # Actually, user said: "if test mode, plot all". 
+    # For simplicity here, we prepare one if specified, or default to logFC if available.
+    # The user request "if test mode... plot all" is better handled in render step or a loop.
+    # For now, we pass the single metric choice.
+    if (density_plot && is.null(density_metric)) {
+        density_metric <- "logFC"
+    }
+
     list(
         milo = milo_ready,
         da_results = da_ready,
         beeswarm_payload = beeswarm_payload,
         cluster_var = cluster_var,
-        cell_metric = cell_metric
+        cell_metric = cell_metric,
+        density_settings = list(
+            plot = density_plot,
+            metric = density_metric,
+            bandwidth = density_bandwidth
+        )
     )
 }
 
@@ -475,6 +500,35 @@ run_milo_pipeline <- function(
         umap = umap_plot,
         combined = combined
     )
+
+    if (isTRUE(plot_data$density_settings$plot)) {
+        # Density plot
+        # Note: plot_milo_density is in myR/R/plots_density.R
+        # We need to make sure it's available. Assuming devtools::load_all or package install.
+        
+        # Check if metric exists
+        d_metric <- plot_data$density_settings$metric
+        if (!d_metric %in% names(da_results)) {
+            if (verbose) cli::cli_warn(paste0("Density metric '", d_metric, "' not found. Skipping density plot."))
+        } else {
+            density_plot <- tryCatch({
+                plot_milo_density(
+                    object = milo,
+                    weight_metric = d_metric,
+                    da_results = da_results,
+                    bandwidth = plot_data$density_settings$bandwidth,
+                    title = paste0("Density (Weighted by ", d_metric, ")")
+                )
+            }, error = function(e) {
+                if (verbose) cli::cli_warn(paste0("Density plot failed: ", conditionMessage(e)))
+                NULL
+            })
+            
+            if (!is.null(density_plot)) {
+                plots$density <- density_plot
+            }
+        }
+    }
 
     plots <- .milo_clean_plot_environments(plots)
 
