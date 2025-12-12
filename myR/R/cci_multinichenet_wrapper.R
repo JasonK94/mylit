@@ -39,7 +39,12 @@ run_multinichenet_analysis <- function(sobj,
                                        nichenet_data_dir = NULL,
                                        output_dir = NULL,
                                        verbose = TRUE,
-                                       cores = 1) {
+                                       cores = 1,
+                                       # Threshold parameters
+                                       min_pct = 0.05,
+                                       logfc_thresh = 0.10,
+                                       p_val_thresh = 0.05,
+                                       p_val_adj = FALSE) {
     if (verbose) message("Starting MultiNicheNet analysis...")
 
     # Ensure required packages are loaded
@@ -51,9 +56,10 @@ run_multinichenet_analysis <- function(sobj,
     if (verbose) message("Converting Seurat object to SingleCellExperiment...")
     sce <- Seurat::as.SingleCellExperiment(sobj, assay = "RNA") # Use RNA assay for DE
 
-    # Clean up metadata columns (make names safe)
+    # Ensure metadata columns are characters or factors
     SummarizedExperiment::colData(sce)[[sample_id]] <- make.names(SummarizedExperiment::colData(sce)[[sample_id]])
-    SummarizedExperiment::colData(sce)[[group_id]] <- make.names(SummarizedExperiment::colData(sce)[[group_id]])
+    # Group ID must be a factor for contrasts to work properly
+    SummarizedExperiment::colData(sce)[[group_id]] <- as.factor(make.names(SummarizedExperiment::colData(sce)[[group_id]]))
     SummarizedExperiment::colData(sce)[[celltype_id]] <- make.names(SummarizedExperiment::colData(sce)[[celltype_id]])
 
     # Define cell types if not provided
@@ -97,7 +103,7 @@ run_multinichenet_analysis <- function(sobj,
         } else {
             # Download if neither exists
             if (verbose) message("Downloading ", file_name, "...")
-            download.file(paste0(url_base, file_name, "?download=1"), rds_path, mode = "wb", quiet = !verbose)
+            download.file(paste0(url_base, file_name), rds_path, mode = "wb", quiet = !verbose)
             return(readRDS(rds_path))
         }
     }
@@ -120,125 +126,84 @@ run_multinichenet_analysis <- function(sobj,
 
     lr_network <- lr_network %>% dplyr::distinct(from, to)
 
-    # Step 1: Abundance and Expression
-    if (verbose) message("Step 1: Extracting abundance and expression info...")
-    abundance_expression_info <- multinichenetr::get_abundance_expression_info(
-        sce = sce,
-        sample_id = sample_id,
-        group_id = group_id,
-        celltype_id = celltype_id,
-        min_cells = min_cells,
-        senders_oi = senders_oi,
-        receivers_oi = receivers_oi,
-        lr_network = lr_network,
-        batches = batches
+    # Prepare contrast table
+    # Assuming contrasts_oi is a vector of strings like "GroupA-GroupB"
+    # We need to extract the group name (GroupA) for the contrast table
+    if (verbose) message("Preparing contrast table...")
+
+    # Simple parsing: take the part before the first "-" as the group
+    # This assumes standard contrast naming "GroupA-GroupB"
+    groups <- sapply(contrasts_oi, function(x) {
+        parts <- strsplit(x, "-")[[1]]
+        if (length(parts) >= 1) {
+            return(parts[1])
+        } else {
+            return(NA)
+        }
+    })
+
+    contrast_tbl <- tibble::tibble(
+        contrast = contrasts_oi,
+        group = groups
     )
 
-    # Step 2: DE Analysis
-    if (verbose) message("Step 2: Performing DE analysis...")
-    DE_info <- multinichenetr::get_DE_info(
-        sce = sce,
-        sample_id = sample_id,
-        group_id = group_id,
-        celltype_id = celltype_id,
-        batches = batches,
-        covariates = covariates,
-        contrasts_oi = contrasts_oi,
-        min_cells = min_cells
-    )
-
-    celltype_de <- DE_info$celltype_de$de_output_tidy
-
-    # Step 3: Combine DE Info
-    if (verbose) message("Step 3: Combining DE info...")
-    sender_receiver_de <- multinichenetr::combine_sender_receiver_de(
-        sender_de = celltype_de,
-        receiver_de = celltype_de,
-        senders_oi = senders_oi,
-        receivers_oi = receivers_oi,
-        lr_network = lr_network
-    )
-
-    # Step 4: Ligand Activity
-    if (verbose) message("Step 4: Predicting ligand activities...")
-    # Define parameters
-    logFC_threshold <- 0.50
-    p_val_threshold <- 0.05
-    p_val_adj <- TRUE
-    top_n_target <- 250
-
-    ligand_activities_targets_DEgenes <- suppressMessages(suppressWarnings(
-        multinichenetr::get_ligand_activities_targets_DEgenes(
-            receiver_de = celltype_de,
-            receivers_oi = receivers_oi,
-            ligand_target_matrix = ligand_target_matrix,
-            logFC_threshold = logFC_threshold,
-            p_val_threshold = p_val_threshold,
-            p_val_adj = p_val_adj,
-            top_n_target = top_n_target,
-            verbose = verbose,
-            n.cores = cores
-        )
-    ))
-
-    # Step 5: Prioritization
-    if (verbose) message("Step 5: Prioritizing interactions...")
-    prioritizing_weights <- c(
-        "de_ligand" = 1,
-        "de_receptor" = 1,
-        "activity_scaled" = 2,
-        "exprs_ligand" = 2,
-        "exprs_receptor" = 2,
-        "frac_exprs_ligand_receptor" = 1,
-        "abund_sender" = 0,
-        "abund_receiver" = 0
-    )
-
-    sender_receiver_tbl <- sender_receiver_de %>% dplyr::distinct(sender, receiver)
-
-    # Create grouping table
-    metadata_combined <- SummarizedExperiment::colData(sce) %>% tibble::as_tibble()
-    if (!is.na(batches)) {
-        grouping_tbl <- metadata_combined %>%
-            dplyr::select(all_of(c(sample_id, group_id, batches))) %>%
-            dplyr::distinct() %>%
-            dplyr::rename(sample = !!sample_id, group = !!group_id)
-    } else {
-        grouping_tbl <- metadata_combined %>%
-            dplyr::select(all_of(c(sample_id, group_id))) %>%
-            dplyr::distinct() %>%
-            dplyr::rename(sample = !!sample_id, group = !!group_id)
+    if (verbose) {
+        message("Contrast table:")
+        print(contrast_tbl)
     }
 
-    prioritization_tables <- suppressMessages(multinichenetr::generate_prioritization_tables(
-        sender_receiver_info = abundance_expression_info$sender_receiver_info,
-        sender_receiver_de = sender_receiver_de,
-        ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-        contrast_tbl = tibble::tibble(contrast = contrasts_oi, group = unique(grouping_tbl$group)[1]), # Simplified
-        sender_receiver_tbl = sender_receiver_tbl,
-        grouping_tbl = grouping_tbl,
-        prioritizing_weights = prioritizing_weights,
-        fraction_cutoff = 0.05,
-        abundance_data_receiver = abundance_expression_info$abundance_data_receiver,
-        abundance_data_sender = abundance_expression_info$abundance_data_sender
-    ))
+    # Run MultiNicheNet Analysis
+    if (verbose) message("Running multi_nichenet_analysis wrapper...")
+    if (verbose) {
+        message(sprintf(
+            "  Params: min_pct=%.2f, logFC=%.2f, p_val=%.2f, adj=%s",
+            min_pct, logfc_thresh, p_val_thresh, p_val_adj
+        ))
+    }
+
+    results <- multinichenetr::multi_nichenet_analysis(
+        sce = sce,
+        celltype_id = celltype_id,
+        sample_id = sample_id,
+        group_id = group_id,
+        batches = batches,
+        covariates = covariates,
+        lr_network = lr_network,
+        ligand_target_matrix = ligand_target_matrix,
+        contrasts_oi = contrasts_oi,
+        contrast_tbl = contrast_tbl,
+        senders_oi = senders_oi,
+        receivers_oi = receivers_oi,
+        min_cells = min_cells,
+        verbose = verbose,
+        n.cores = cores,
+        # Pass dynamic parameters
+        fraction_cutoff = min_pct,
+        logFC_threshold = logfc_thresh,
+        p_val_threshold = p_val_thresh,
+        p_val_adj = p_val_adj
+    )
 
     if (verbose) message("MultiNicheNet analysis completed.")
 
-    results <- list(
-        abundance_expression_info = abundance_expression_info,
-        DE_info = DE_info,
-        sender_receiver_de = sender_receiver_de,
-        ligand_activities_targets_DEgenes = ligand_activities_targets_DEgenes,
-        prioritization_tables = prioritization_tables,
-        grouping_tbl = grouping_tbl,
-        lr_network = lr_network,
-        ligand_target_matrix = ligand_target_matrix
-    )
-
     if (!is.null(output_dir)) {
         if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
-        saveRDS(results, file.path(output_dir, "multinichenet_results.rds"))
+
+        # Save with qs (preferred) and RDS (fallback)
+        qs_path <- file.path(output_dir, "multinichenet_results.qs")
+        rds_path <- file.path(output_dir, "multinichenet_results.rds")
+
+        tryCatch(
+            {
+                qs::qsave(results, qs_path)
+                if (verbose) message("Results saved to: ", qs_path)
+            },
+            error = function(e) {
+                if (verbose) message("Warning: qs::qsave failed, falling back to saveRDS")
+                saveRDS(results, rds_path)
+                if (verbose) message("Results saved to: ", rds_path)
+            }
+        )
     }
 
     return(results)
