@@ -97,7 +97,10 @@ results <- run_multinichenet_analysis(
     min_cells = 5,
     species = "human",
     output_dir = "test_multinichenet_output",
-    verbose = TRUE
+    verbose = TRUE,
+    # Restrict to specific cell types for faster testing
+    receivers_oi = unique(sobj@meta.data[[celltype_col]])[1],
+    senders_oi = unique(sobj@meta.data[[celltype_col]])[1:3]
 )
 
 cat("Analysis complete.\n")

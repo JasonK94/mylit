@@ -25,6 +25,12 @@
 #' @importFrom multinichenetr get_abundance_expression_info get_DE_info combine_sender_receiver_de get_ligand_activities_targets_DEgenes generate_prioritization_tables
 #' @importFrom dplyr %>% filter select distinct rename mutate arrange top_n
 #' @importFrom tibble tibble as_tibble
+#' @importFrom tibble tibble as_tibble
+# Source utilities
+if (file.exists("/home/user3/data_user3/git_repo/_wt/cci/myR/R/utils_cci.R")) {
+    source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/utils_cci.R")
+}
+
 run_multinichenet_analysis <- function(sobj,
                                        sample_id,
                                        group_id,
@@ -70,65 +76,39 @@ run_multinichenet_analysis <- function(sobj,
         receivers_oi <- unique(SummarizedExperiment::colData(sce)[[celltype_id]])
     }
 
+    # Log parameters if output_dir is provided
+    if (!is.null(output_dir)) {
+        params <- list(
+            sample_id = sample_id,
+            group_id = group_id,
+            celltype_id = celltype_id,
+            covariates = covariates,
+            batches = batches,
+            contrasts_oi = contrasts_oi,
+            senders_oi = senders_oi,
+            receivers_oi = receivers_oi,
+            min_cells = min_cells,
+            species = species,
+            nichenet_data_dir = nichenet_data_dir,
+            min_pct = min_pct,
+            logfc_thresh = logfc_thresh,
+            p_val_thresh = p_val_thresh,
+            p_val_adj = p_val_adj,
+            cores = cores
+        )
+        save_parameters_log(params, output_dir, prefix = "multinichenet_params")
+    }
+
     # Load NicheNet data
     if (verbose) message("Loading NicheNet data...")
 
-    base_url <- "https://zenodo.org/records/7074291/files/"
-    files_to_load_spec <- list(
-        human = list(
-            lr_network = "lr_network_human_21122021.rds",
-            ligand_target_matrix = "ligand_target_matrix_nsga2r_final.rds"
-        ),
-        mouse = list(
-            lr_network = "lr_network_mouse_21122021.rds",
-            ligand_target_matrix = "ligand_target_matrix_nsga2r_final_mouse.rds"
-        )
-    )
-
-    required_files <- files_to_load_spec[[species]]
-
-    # Helper to load data
-    load_nn_data <- function(file_name, url_base, dir_path) {
-        # Check for .qs version first
-        qs_file_name <- sub("\\.rds$", ".qs", file_name)
-        qs_path <- file.path(dir_path, qs_file_name)
-        rds_path <- file.path(dir_path, file_name)
-
-        if (file.exists(qs_path)) {
-            if (verbose) message("Loading ", qs_file_name, " (qs)...")
-            return(qs::qread(qs_path))
-        } else if (file.exists(rds_path)) {
-            if (verbose) message("Loading ", file_name, " (rds)...")
-            return(readRDS(rds_path))
-        } else {
-            # Download if neither exists
-            if (verbose) message("Downloading ", file_name, "...")
-            download.file(paste0(url_base, file_name), rds_path, mode = "wb", quiet = !verbose)
-            return(readRDS(rds_path))
-        }
-    }
-
-    if (is.null(nichenet_data_dir)) {
-        # Check shared directory first
-        shared_dir <- file.path("/data/user3/git_repo", species)
-        if (dir.exists(shared_dir)) {
-            nichenet_data_dir <- shared_dir
-            if (verbose) message("Using shared NicheNet data directory: ", nichenet_data_dir)
-        } else {
-            nichenet_data_dir <- file.path(getwd(), paste0("nichenet_data_", species))
-            if (!dir.exists(nichenet_data_dir)) dir.create(nichenet_data_dir, recursive = TRUE)
-            if (verbose) message("Using local NicheNet data directory: ", nichenet_data_dir)
-        }
-    }
-
-    lr_network <- load_nn_data(required_files$lr_network, base_url, nichenet_data_dir)
-    ligand_target_matrix <- load_nn_data(required_files$ligand_target_matrix, base_url, nichenet_data_dir)
-
-    lr_network <- lr_network %>% dplyr::distinct(from, to)
+    # Use utility function
+    nn_data <- load_nichenet_reference(species = species, data_dir = nichenet_data_dir, verbose = verbose)
+    lr_network <- nn_data$lr_network
+    ligand_target_matrix <- nn_data$ligand_target_matrix
 
     # Prepare contrast table
-    # Assuming contrasts_oi is a vector of strings like "GroupA-GroupB"
-    # We need to extract the group name (GroupA) for the contrast table
+    # ... (rest of contrast logic) ...
     if (verbose) message("Preparing contrast table...")
 
     # Simple parsing: take the part before the first "-" as the group
@@ -190,8 +170,9 @@ run_multinichenet_analysis <- function(sobj,
         if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
         # Save with qs (preferred) and RDS (fallback)
-        qs_path <- file.path(output_dir, "multinichenet_results.qs")
-        rds_path <- file.path(output_dir, "multinichenet_results.rds")
+        # Use safe filename to avoid overriding
+        qs_path <- get_safe_filename(file.path(output_dir, "multinichenet_results.qs"))
+        rds_path <- get_safe_filename(file.path(output_dir, "multinichenet_results.rds"))
 
         tryCatch(
             {

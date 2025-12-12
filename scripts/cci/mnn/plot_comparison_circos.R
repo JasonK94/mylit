@@ -42,6 +42,14 @@ option_list <- list(
     make_option(c("--max_per_receiver"),
         type = "integer", default = 0,
         help = "Maximum interactions per receiver cell type. 0 to disable. Use this to balance dominant cell types. [default= %default]", metavar = "integer"
+    ),
+    make_option(c("--logfc_threshold"),
+        type = "numeric", default = 0.05,
+        help = "LogFC threshold for filtering significant senders [default= %default]", metavar = "numeric"
+    ),
+    make_option(c("--p_val_threshold"),
+        type = "numeric", default = 0.10,
+        help = "P-value threshold for filtering significant senders [default= %default]", metavar = "numeric"
     )
 )
 
@@ -58,6 +66,8 @@ cat("  Sort By:      ", opt$sort_by, "\n")
 cat("  P-adj Cutoff: ", opt$p_adj_cutoff, "\n")
 cat("  Max/Sender:   ", opt$max_per_sender, "\n")
 cat("  Max/Receiver: ", opt$max_per_receiver, "\n")
+cat("  LogFC Thresh: ", opt$logfc_threshold, "\n")
+cat("  P-val Thresh: ", opt$p_val_threshold, "\n")
 cat("════════════════════════════════════════════════════════════\n\n")
 
 # 0. Reproducibility
@@ -87,7 +97,7 @@ lr_network <- readRDS("/data/user3/git_repo/human/lr_network_human_21122021.rds"
 celltype_de <- results$celltype_de
 
 sig_senders <- celltype_de %>%
-    filter(abs(logFC) > 0.05, p_val < 0.1) %>%
+    filter(abs(logFC) > opt$logfc_threshold, p_val < opt$p_val_threshold) %>%
     select(gene, cluster_id, logFC) %>%
     rename(ligand = gene, sender = cluster_id, sender_logFC = logFC)
 
@@ -399,7 +409,8 @@ mtext(
     side = 1, line = 4, cex = 0.8, adj = 0,
     text = paste0(
         "Contrast: X2 vs X1\n",
-        "Significance: p < 0.1, |logFC| > 0.05\n",
+        "Significance: p < ", opt$p_val_threshold, ", |logFC| > ", opt$logfc_threshold, "\n",
+        "P-adj Cutoff: < ", opt$p_adj_cutoff, "\n",
         "N_interactions: ", nrow(links_X2)
     )
 )
