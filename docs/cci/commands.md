@@ -2,31 +2,60 @@
 
 실행 가능한 MultiNicheNet 분석 커맨드 모음입니다.
 
-## 기본 실행
+## NicheNet Analysis (Classic / Single Condition)
 
-### IS2/IS3 Circos Plot (Visualization)
-This script generates comparative Circos plots with customizable filtering and balancing options.
+### 1. Run Analysis
+To run a standard NicheNet analysis (Sender -> Receiver) for a specific condition or dataset:
 
-**Key Options**:
-- `-n, --top_n <int>`: Total number of interactions to show (default: 50).
-- `-s, --sort_by <str>`: Ranking criteria logic.
-    - `p_val_adj`: Best statistical significance (Recommended).
-    - `logFC`: Largest fold-change magnitude.
-    - `activity`: Highest ligand activity prediction.
-    - `score`: Default MNN score (activity * |logFC|).
-- `--max_per_sender <int>`: Cap interactions per Sender cell type (e.g. 10). Prevents one cell type (e.g. pDC) from dominating.
-- `--max_per_receiver <int>`: Cap interactions per Receiver cell type.
-- `--p_adj_cutoff <float>`: Filter out non-significant interactions (default: 0.05).
-
-**Example Command**:
 ```bash
-cd /home/user3/data_user3/git_repo/_wt/cci
-# Top 100 interactions, sorted by significance, balanced (max 10 per sender/receiver)
-Rscript scripts/cci/mnn/plot_comparison_circos.R \
-  --top_n 100 \
+Rscript scripts/cci/NicheNet/run_nichenet.R \
+  -i /path/to/seurat_obj.qs \
+  --senders "Macrophage,DC" \
+  --receiver "CD8_T" \
+  --output results/nichenet_run1 \
+  --condition_col "group" \
+  --condition_oi "Tumor" \
+  --condition_ref "Normal" \
+  --species human
+```
+
+### 2. Visualization
+To regenerate plots (Heatmaps, Circos) from saved results (.qs):
+
+```bash
+Rscript scripts/cci/NicheNet/plot_nichenet.R \
+  -f results/nichenet_run1/nichenet_results.qs \
+  -o results/nichenet_run1/plots
+```
+**Note**: Plots are saved as both PDF and PNG.
+
+---
+
+## MultiNicheNet Analysis
+
+### 1. Visualization (Circos & Diagnostics)
+
+### Circos Plot (Comparison)
+Generates comparative Circos plots with customizable filtering.
+
+```bash
+# Top 50 interactions, filtered by p-value < 0.05
+Rscript scripts/cci/mnn/plot_mnn_circos.R \
+  -f results/mnn/multinichenet_results.qs \
+  -o results/mnn/plots \
+  --top_n 50 \
   --sort_by p_val_adj \
-  --max_per_sender 10 \
-  --max_per_receiver 10
+  --p_val_threshold 0.05 \
+  --logfc_threshold 0.10
+```
+
+### Diagnostic Plots (Bubble & Heatmaps)
+Generates bubble plots of top interactions and ligand activity heatmaps.
+
+```bash
+Rscript scripts/cci/mnn/plot_mnn_diagnostics.R \
+  -f results/mnn/multinichenet_results.qs \
+  -o results/mnn/plots_diag
 ```
 
 ### Analysis Scripts (Run MultiNicheNet)

@@ -76,7 +76,7 @@ if (is.null(opt$input) || is.null(opt$senders) || is.null(opt$receiver)) {
 
 # Source Functions
 source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/utils_cci.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/core_nichenet.R")
 
 cat("╔════════════════════════════════════════════════════════════╗\n")
 cat("║            NicheNet Analysis - Run Script                  ║\n")

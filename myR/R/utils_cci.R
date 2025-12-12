@@ -613,9 +613,13 @@ load_nichenet_reference <- function(species = "human", data_dir = NULL, verbose 
   # Default shared directory
   shared_base <- "/data/user3/git_repo"
   shared_dir <- file.path(shared_base, species)
+  user_data_path <- "/home/user3/GJC_KDW_250721/nichenet_data_human"
 
   if (is.null(data_dir)) {
-    if (dir.exists(shared_dir)) {
+    if (species == "human" && dir.exists(user_data_path)) {
+      data_dir <- user_data_path
+      if (verbose) message("Using user-specific NicheNet data directory: ", data_dir)
+    } else if (dir.exists(shared_dir)) {
       data_dir <- shared_dir
       if (verbose) message("Using shared NicheNet data directory: ", data_dir)
     } else {
@@ -732,4 +736,48 @@ get_safe_filename <- function(filepath) {
     new_filepath <- file.path(dir, paste0(name, "_", i, ".", ext))
   }
   return(new_filepath)
+}
+
+#' Save Plot in Multiple Formats
+#'
+#' Saves the current plot or a plot object to PDF and PNG.
+#'
+#' @param plot_obj Detailed plot object (for ggplot usually) or NULL (for base plot recorded with recordPlot) or "base" (to execute code)
+#' @param filename Base filename without extension
+#' @param outdir Output directory
+#' @param width Width in inches
+#' @param height Height in inches
+#' @param plot_code Expression or function to draw the base plot (optional, for base graphics)
+#' @export
+save_plot_formats <- function(filename, outdir, width = 10, height = 8, plot_obj = NULL, plot_code = NULL) {
+  if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
+
+  # Safe filenames
+  pdf_path <- get_safe_filename(file.path(outdir, paste0(filename, ".pdf")))
+  png_path <- get_safe_filename(file.path(outdir, paste0(filename, ".png")))
+
+  # PDF
+  pdf(pdf_path, width = width, height = height)
+  if (!is.null(plot_obj) && (inherits(plot_obj, "ggplot") || inherits(plot_obj, "grob"))) {
+    print(plot_obj)
+  } else if (!is.null(plot_code)) {
+    if (is.function(plot_code)) plot_code() else eval(plot_code)
+  } else if (!is.null(plot_obj) && inherits(plot_obj, "recordedplot")) {
+    replayPlot(plot_obj)
+  }
+  dev.off()
+
+  # PNG
+  png(png_path, width = width * 100, height = height * 100, res = 100)
+  if (!is.null(plot_obj) && (inherits(plot_obj, "ggplot") || inherits(plot_obj, "grob"))) {
+    print(plot_obj)
+  } else if (!is.null(plot_code)) {
+    if (is.function(plot_code)) plot_code() else eval(plot_code)
+  } else if (!is.null(plot_obj) && inherits(plot_obj, "recordedplot")) {
+    replayPlot(plot_obj)
+  }
+  dev.off()
+
+  message("Saved plots: ", pdf_path, " / ", png_path)
+  return(c(pdf = pdf_path, png = png_path))
 }
