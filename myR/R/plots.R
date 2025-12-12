@@ -1010,6 +1010,10 @@ vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
 #'              Default is NULL
 #' @param vline_color Character string specifying the color for vertical lines.
 #'                   Default is "red"
+#' @param cluster_order Character vector specifying the order of clusters in the stacked bars.
+#'                     Clusters will be stacked in this order (bottom to top).
+#'                     If NULL, clusters are ordered by their natural order.
+#'                     Default is NULL.
 #'
 #' @return A ggplot object showing the proportional distribution of clusters, or a data frame
 #'         if df = TRUE
@@ -1043,13 +1047,16 @@ vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
 #' # Sort by multiple criteria
 #' p <- cmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
 #' 
+#' # Control cluster stacking order
+#' p <- cmb(sobj, cluster_order = c("Monocytes", "T_cells", "B_cells", "NK_cells"))
+#' 
 #' # Get the underlying data frame
 #' df <- cmb(sobj, df = TRUE)
 #' }
 #' @export
 cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents = NULL, 
                 group.by.filter = NULL, split.by = NULL, sort.by = NULL,
-                df=F, vlines=NULL, vline_color = "red") {
+                df=F, vlines=NULL, vline_color = "red", cluster_order = NULL) {
   Idents(sobj) <- identity
   cluster_ids <- Idents(sobj)
   sample_ids <- sobj@meta.data[[group.by]]
@@ -1197,6 +1204,27 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
     }
   }
   
+  # Handle cluster_order: set factor levels to control stacking order
+  if(!is.null(cluster_order)) {
+    # Validate cluster_order
+    available_clusters <- unique(summary_data$cluster)
+    if(!all(cluster_order %in% available_clusters)) {
+      missing <- setdiff(cluster_order, available_clusters)
+      warning("Some clusters in cluster_order not found in data: ", paste(missing, collapse=", "))
+      cluster_order <- intersect(cluster_order, available_clusters)
+    }
+    # Add any missing clusters to the end
+    missing_clusters <- setdiff(available_clusters, cluster_order)
+    if(length(missing_clusters) > 0) {
+      cluster_order <- c(cluster_order, sort(missing_clusters))
+    }
+    # Set factor levels (order determines stacking: first = bottom, last = top)
+    summary_data$cluster <- factor(summary_data$cluster, levels = cluster_order)
+  } else {
+    # Default: use natural order
+    summary_data$cluster <- factor(summary_data$cluster)
+  }
+  
   output=ggplot(summary_data, aes(x = sample, y = proportion, fill = cluster)) +
     geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
     labs(title = paste0("Proportional Bar Graph of Clusters for Each ", group.by),
@@ -1253,6 +1281,10 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
 #'              Default is NULL
 #' @param vline_color Character string specifying the color for vertical lines.
 #'                   Default is "red"
+#' @param cluster_order Character vector specifying the order of clusters in the stacked bars.
+#'                     Clusters will be stacked in this order (bottom to top).
+#'                     If NULL, clusters are ordered by their natural order.
+#'                     Default is NULL.
 #'
 #' @return A ggplot object showing the absolute count distribution of clusters, or a data frame
 #'         if df = TRUE
@@ -1283,13 +1315,16 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
 #' # Sort by multiple criteria
 #' p <- acmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
 #' 
+#' # Control cluster stacking order
+#' p <- acmb(sobj, cluster_order = c("Monocytes", "T_cells", "B_cells", "NK_cells"))
+#' 
 #' # Get the underlying data frame
 #' df <- acmb(sobj, df = TRUE)
 #' }
 #' @export
 acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = NULL,
                 group.by.filter = NULL, split.by = NULL, sort.by = NULL,
-                df=F, vlines=NULL, vline_color = "red") {
+                df=F, vlines=NULL, vline_color = "red", cluster_order = NULL) {
   Idents(sobj) <- identity
   cluster_ids <- Idents(sobj)
   sample_ids <- sobj@meta.data[[group.by]]
@@ -1432,6 +1467,27 @@ acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = N
         vlines <- vlines[-length(vlines)]
       }
     }
+  }
+  
+  # Handle cluster_order: set factor levels to control stacking order
+  if(!is.null(cluster_order)) {
+    # Validate cluster_order
+    available_clusters <- unique(summary_data$cluster)
+    if(!all(cluster_order %in% available_clusters)) {
+      missing <- setdiff(cluster_order, available_clusters)
+      warning("Some clusters in cluster_order not found in data: ", paste(missing, collapse=", "))
+      cluster_order <- intersect(cluster_order, available_clusters)
+    }
+    # Add any missing clusters to the end
+    missing_clusters <- setdiff(available_clusters, cluster_order)
+    if(length(missing_clusters) > 0) {
+      cluster_order <- c(cluster_order, sort(missing_clusters))
+    }
+    # Set factor levels (order determines stacking: first = bottom, last = top)
+    summary_data$cluster <- factor(summary_data$cluster, levels = cluster_order)
+  } else {
+    # Default: use natural order
+    summary_data$cluster <- factor(summary_data$cluster)
   }
   
   output=ggplot(summary_data, aes(x = sample, y = count, fill = cluster)) +
