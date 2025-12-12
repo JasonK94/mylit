@@ -80,3 +80,4 @@ sink(file.path(OUTPUT_DIR, "masc_simple_summary.txt"))
 print(results$masc_results)
 sink()
 
+

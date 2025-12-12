@@ -607,10 +607,12 @@ run_masc_pipeline <- function(
                 })
             }
 
-            cluster_models[[i]]$null_model <- null_model
-            cluster_models[[i]]$full_model <- full_model
-            cluster_models[[i]]$model_lrt <- model_lrt
-            cluster_models[[i]]$confint <- contrast_ci
+            cluster_models[[i]] <- list(
+                null_model = null_model,
+                full_model = full_model,
+                model_lrt = model_lrt,
+                confint = contrast_ci
+            )
         } else {
             cluster_models[[i]] <- NULL
         }
@@ -640,6 +642,7 @@ run_masc_pipeline <- function(
 
     output[[paste(contrast_lvl2, "OR", "95pct.ci.lower", sep = ".")]] <- sapply(cluster_models, function(x) {
         if (is.null(x) || is.null(x$confint)) return(NA_real_)
+        if (!contrast_lvl2 %in% rownames(x$confint)) return(NA_real_)
         ci_val <- x$confint[contrast_lvl2, "2.5 %"]
         if (is.na(ci_val)) return(NA_real_)
         exp(ci_val)
@@ -647,6 +650,7 @@ run_masc_pipeline <- function(
 
     output[[paste(contrast_lvl2, "OR", "95pct.ci.upper", sep = ".")]] <- sapply(cluster_models, function(x) {
         if (is.null(x) || is.null(x$confint)) return(NA_real_)
+        if (!contrast_lvl2 %in% rownames(x$confint)) return(NA_real_)
         ci_val <- x$confint[contrast_lvl2, "97.5 %"]
         if (is.na(ci_val)) return(NA_real_)
         exp(ci_val)
@@ -708,8 +712,19 @@ run_masc_pipeline <- function(
     }
 
     if (save && length(plots) > 0) {
-        qs::qsave(plots, save_path)
-        if (verbose) cat(sprintf("Saved plots to %s\n", save_path))
+        base_prefix <- tools::file_path_sans_ext(save_path)
+        for (plot_name in names(plots)) {
+            plot_obj <- plots[[plot_name]]
+            png_path <- sprintf("%s_%s.png", base_prefix, plot_name)
+            pdf_path <- sprintf("%s_%s.pdf", base_prefix, plot_name)
+            tryCatch({
+                ggplot2::ggsave(filename = png_path, plot = plot_obj, width = 8, height = 6, dpi = 300)
+                ggplot2::ggsave(filename = pdf_path, plot = plot_obj, width = 8, height = 6, device = "pdf")
+            }, error = function(e) {
+                warning(sprintf("Failed to save plot '%s': %s", plot_name, e$message))
+            })
+        }
+        if (verbose) cat(sprintf("Saved plots as PNG/PDF with prefix %s\n", base_prefix))
     }
 
     if (length(plots) == 0) return(NULL)

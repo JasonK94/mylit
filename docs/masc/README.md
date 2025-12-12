@@ -37,6 +37,26 @@ results <- run_masc_pipeline(
 print(results$masc_results)
 ```
 
+### CLI 실행 (추천)
+
+`optparse` 기반 CLI: `scripts/masc/run_masc.R`
+
+```bash
+Rscript scripts/masc/run_masc.R \
+  -i /data/user3/sobj/is2_IS_3_clustered.qs \
+  -o /data/user3/sobj/masc/stroke_complex_cli \
+  --cluster_var anno3 \
+  --contrast_var g3 \
+  --random_effects hos_no \
+  --fixed_effects GEM,SET,age,sex,bmi,hx_smok,hx_alcohol \
+  --prefix masc_anno3_complex
+```
+
+### Plot 저장 형식
+
+- 기존: plot bundle을 `.qs`로 저장
+- 현재: `--no_plot`이 아니면 **PNG/PDF 파일로 저장** (예: `..._plots_or_forest.png`, `..._plots_or_forest.pdf`)
+
 ### 주요 파라미터
 
 | 파라미터 | 설명 | 예시 |
