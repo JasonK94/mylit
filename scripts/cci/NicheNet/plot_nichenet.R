@@ -74,7 +74,19 @@ if (!is.null(results$plot_circos)) {
 # Note: The result object doesn't contain the Seurat object to save space.
 # We can only plot what is available.
 
-# 7. Dotplot of Top Targets (using expression data if available in results?)
-# results doesn't seem to store expression data directly, only inference results.
+# 7. Combined PDF
+cat("Saving combined PDF...\n")
+combined_pdf <- file.path(opt$outdir, "nichenet_plots_combined.pdf")
+pdf(combined_pdf, width = 12, height = 10)
+
+if (!is.null(results$plot_ligand_activity_hist)) print(results$plot_ligand_activity_hist)
+if (!is.null(results$plot_ligand_aupr_heatmap)) print(results$plot_ligand_aupr_heatmap)
+if (!is.null(results$plot_ligand_target_network)) print(results$plot_ligand_target_network)
+if (!is.null(results$plot_ligand_receptor_network)) print(results$plot_ligand_receptor_network)
+# Circos usually needs to be redrawn or replayed
+if (!is.null(results$plot_circos)) tryCatch(replayPlot(results$plot_circos), error = function(e) cat("Circos replay failed in combined PDF\n"))
+
+dev.off()
+cat("Combined PDF saved to:", combined_pdf, "\n")
 
 cat("✅ Plots saved to:", opt$outdir, "\n")

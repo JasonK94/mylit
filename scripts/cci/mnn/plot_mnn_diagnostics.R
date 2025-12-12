@@ -91,4 +91,15 @@ if (!is.null(mnn_results$prioritization_tables)) {
     cat("Warning: Prioritization tables not found in results.\n")
 }
 
+# 3. Combined PDF
+cat("Saving combined PDF...\n")
+combined_pdf <- file.path(opt$outdir, "mnn_diagnostics_combined.pdf")
+pdf(combined_pdf, width = 10, height = 12)
+
+if (exists("p_scores")) print(p_scores)
+if (exists("p_la")) print(p_la)
+
+dev.off()
+cat("Combined PDF saved to:", combined_pdf, "\n")
+
 cat("✅ Diagnostic Plots Generated!\n")
