@@ -347,12 +347,37 @@ run_masc_pipeline <- function(
     dataset <- dataset[complete_cases, all_vars, drop = FALSE]
     cluster <- cluster[complete_cases]
 
+    # Track variable categories for logging
+    var_categories <- list(categorical = character(0), numeric = character(0), ordinal = character(0))
+    
+    # Coerce known numeric covariates if present (prevents accidental factor treatment)
+    # NOTE: The stroke metadata can contain numeric fields stored as character/factor.
+    numeric_candidates <- intersect(c("age", "bmi", "ht", "wt"), colnames(dataset))
+    for (var in numeric_candidates) {
+        if (var %in% fixed_effects || var %in% random_effects) {
+            if (is.factor(dataset[[var]])) dataset[[var]] <- as.character(dataset[[var]])
+            if (is.character(dataset[[var]])) {
+                x_num <- suppressWarnings(as.numeric(dataset[[var]]))
+                # Only replace if conversion is not catastrophic (i.e., doesn't turn almost everything into NA)
+                if (sum(!is.na(x_num)) >= max(10, floor(0.5 * length(x_num)))) {
+                    dataset[[var]] <- x_num
+                    var_categories$numeric <- c(var_categories$numeric, var)
+                }
+            } else if (is.numeric(dataset[[var]])) {
+                var_categories$numeric <- c(var_categories$numeric, var)
+            }
+        }
+    }
+
     # Convert random effects to factors if they are character
     if (!is.null(random_effects)) {
         for (var in random_effects) {
             if (var %in% colnames(dataset)) {
                 if (is.character(dataset[[var]]) || is.numeric(dataset[[var]])) {
                     dataset[[var]] <- as.factor(dataset[[var]])
+                    var_categories$categorical <- c(var_categories$categorical, var)
+                } else if (is.factor(dataset[[var]])) {
+                    var_categories$categorical <- c(var_categories$categorical, var)
                 }
             }
         }
@@ -362,8 +387,13 @@ run_masc_pipeline <- function(
     if (!is.null(fixed_effects)) {
         for (var in fixed_effects) {
             if (var %in% colnames(dataset)) {
+                
                 # Skip if already properly formatted
                 if (is.numeric(dataset[[var]])) {
+                    # Check if it's already in numeric_candidates (tracked above)
+                    if (!var %in% var_categories$numeric) {
+                        var_categories$numeric <- c(var_categories$numeric, var)
+                    }
                     next  # Keep numeric variables as numeric
                 }
                 
@@ -379,21 +409,43 @@ run_masc_pipeline <- function(
                     }
                     
                     dataset[[var]] <- var_factor
+                    var_categories$categorical <- c(var_categories$categorical, var)
                     if (verbose && n_levels <= 20) {
-                        if (verbose) cat(sprintf("Converted '%s' to factor with %d levels\n", var, n_levels))
+                        cat(sprintf("Converted '%s' to categorical (factor) with %d levels\n", var, n_levels))
                     }
-                } else if (!is.factor(dataset[[var]])) {
+                } else if (is.factor(dataset[[var]])) {
+                    var_categories$categorical <- c(var_categories$categorical, var)
+                } else {
                     # Try to convert to numeric
                     dataset[[var]] <- tryCatch({
-                        as.numeric(dataset[[var]])
+                        converted <- as.numeric(dataset[[var]])
+                        var_categories$numeric <- c(var_categories$numeric, var)
+                        converted
                     }, warning = function(w) {
+                        var_categories$categorical <- c(var_categories$categorical, var)
                         as.factor(dataset[[var]])
                     }, error = function(e) {
+                        var_categories$categorical <- c(var_categories$categorical, var)
                         as.factor(dataset[[var]])
                     })
                 }
             }
         }
+    }
+    
+    # Log variable categories
+    if (verbose) {
+        cat("\nVariable categories:\n")
+        if (length(var_categories$numeric) > 0) {
+            cat(sprintf("  * numeric: %s\n", paste(var_categories$numeric, collapse = ", ")))
+        }
+        if (length(var_categories$categorical) > 0) {
+            cat(sprintf("  * categorical: %s\n", paste(var_categories$categorical, collapse = ", ")))
+        }
+        if (length(var_categories$ordinal) > 0) {
+            cat(sprintf("  * ordinal: %s\n", paste(var_categories$ordinal, collapse = ", ")))
+        }
+        cat("\n")
     }
 
     if (verbose) {

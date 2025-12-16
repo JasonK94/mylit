@@ -47,7 +47,7 @@ seurat_obj@meta.data$g3 <- as.factor(seurat_obj@meta.data$g3)
 seurat_obj@meta.data$hos_no <- as.character(seurat_obj@meta.data$hos_no)
 
 # 4. Covariates (Fixed Effects)
-# Calculate BMI
+# Calculate BMI (kept, but BMI is omitted from the model by default due to missingness/type artifacts)
 if ("ht" %in% colnames(seurat_obj@meta.data) && "wt" %in% colnames(seurat_obj@meta.data)) {
     seurat_obj@meta.data$bmi <- calculate_bmi(seurat_obj@meta.data$ht, seurat_obj@meta.data$wt)
     cat("Calculated BMI from ht and wt\n")
@@ -78,11 +78,22 @@ for (var in yes_no_vars) {
     }
 }
 
-# Define variables for complex model
-fixed_effects <- c("GEM", "SET", "age", "sex", "bmi", "hx_smok", "hx_alcohol")
-# Filter to only available columns
-fixed_effects <- fixed_effects[fixed_effects %in% colnames(seurat_obj@meta.data)]
+# Model choice note (nested structure):
+# - hos_no is fully contained within GEM, and GEM is fully contained within SET.
+# - Avoid including both GEM and SET together (collinearity/rank deficiency).
+# - BMI often contains NULL/character artifacts; omit by default.
 random_effects <- "hos_no"
+
+# Reduced/stable model (recommended)
+fixed_effects <- c("age", "sex")
+if ("GEM" %in% colnames(seurat_obj@meta.data)) {
+    fixed_effects <- c(fixed_effects, "GEM")
+} else if ("SET" %in% colnames(seurat_obj@meta.data)) {
+    fixed_effects <- c(fixed_effects, "SET")
+}
+
+# Filter to only available columns (defensive)
+fixed_effects <- fixed_effects[fixed_effects %in% colnames(seurat_obj@meta.data)]
 
 cat(sprintf("Fixed effects: %s\n", paste(fixed_effects, collapse = ", ")))
 cat(sprintf("Random effects: %s\n", paste(random_effects, collapse = ", ")))

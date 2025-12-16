@@ -12,7 +12,7 @@
 #     --cluster_var anno3 \
 #     --contrast_var g3 \
 #     --random_effects hos_no \
-#     --fixed_effects GEM,SET,age,sex,bmi,hx_smok,hx_alcohol \
+#     --fixed_effects GEM,age,sex \
 #     --prefix masc_anno3_complex
 
 suppressPackageStartupMessages({
@@ -55,7 +55,10 @@ option_list <- list(
               help = "Path to masc.R (defaults to current worktree)"),
   make_option(c("--start_r_path"), type = "character",
               default = "/home/user3/GJC_KDW_250721/start.R",
-              help = "Optional start.R path (loads env/renv). If missing, ignored.")
+              help = "Optional start.R path (loads env/renv). If missing, ignored."),
+  make_option(c("--renv"), type = "character",
+              default = "/home/user3/GJC_KDW_250721/renv",
+              help = "Optional renv directory path. If specified and exists, activates renv. Default: /home/user3/GJC_KDW_250721/renv")
 )
 
 parser <- OptionParser(option_list = option_list)
@@ -69,9 +72,25 @@ if (is.null(opt$input) || is.null(opt$output_dir) || is.null(opt$cluster_var) ||
 if (!file.exists(opt$input)) stop("Input not found: ", opt$input, call. = FALSE)
 dir.create(opt$output_dir, recursive = TRUE, showWarnings = FALSE)
 
+# Activate renv if specified and exists
+if (!is.null(opt$renv) && opt$renv != "" && dir.exists(opt$renv)) {
+  if (!requireNamespace("renv", quietly = TRUE)) {
+    cat("Warning: renv package not available, skipping renv activation\n")
+  } else {
+    tryCatch({
+      renv::activate(opt$renv)
+      cat(sprintf("Activated renv from: %s\n", opt$renv))
+    }, error = function(e) {
+      cat(sprintf("Warning: Failed to activate renv from %s: %s\n", opt$renv, e$message))
+    })
+  }
+}
+
+# Also try start.R if it exists (for backward compatibility)
 if (file.exists(opt$start_r_path)) {
   suppressWarnings(try(source(opt$start_r_path), silent = TRUE))
 }
+
 if (!file.exists(opt$masc_r_path)) stop("masc.R not found: ", opt$masc_r_path, call. = FALSE)
 source(opt$masc_r_path)
 
@@ -94,6 +113,19 @@ if (!"bmi" %in% colnames(meta) && all(c("ht", "wt") %in% colnames(meta))) {
 # Ensure hos_no and other ID-like columns are not numeric if chosen
 random_effects <- .split_csv(opt$random_effects)
 fixed_effects <- .split_csv(opt$fixed_effects)
+
+## Guard against nested/collinear batch terms:
+## - In this dataset, GEM is fully contained within SET (and hos_no within GEM).
+## - Using both GEM and SET together often causes rank deficiency.
+if (!is.null(fixed_effects) && all(c("GEM", "SET") %in% fixed_effects)) {
+  fixed_effects <- setdiff(fixed_effects, "SET")
+  cat("Note: both GEM and SET were provided; dropping SET to avoid collinearity (GEM ⊂ SET).\n")
+}
+
+## BMI warning: often missing / type artifacts in real metadata; omit unless you really need it
+if (!is.null(fixed_effects) && "bmi" %in% fixed_effects) {
+  cat("Note: bmi was included as a fixed effect. If you see many dropped rows or strange factor levels, omit bmi.\n")
+}
 
 if (!is.null(random_effects)) {
   for (v in random_effects) {

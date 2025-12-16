@@ -96,3 +96,44 @@ scripts/
 └── run_masc_simple.R   # 단순화된 테스트 스크립트
 ```
 
+
+### 변수 선택 및 모델 설정
+
+#### 변수 타입 인식
+
+MASC 파이프라인은 입력 변수들을 자동으로 분류하고 로그를 출력합니다:
+
+```
+Variable categories:
+  * numeric: age
+  * categorical: hos_no, GEM, sex
+```
+
+- **numeric**: 연속형 변수 (예: `age`, `bmi`). 강제 numeric 캐스팅 적용.
+- **categorical**: 범주형 변수 (factor). 문자형/숫자형 ID는 자동으로 factor로 변환.
+
+#### 중첩 구조 주의
+
+**중요**: 이 데이터셋에서는 변수 간 완전 포함 관계가 있습니다:
+- `hos_no` ⊂ `GEM` ⊂ `SET` (완전 중첩)
+
+따라서 **동시에 포함하지 않도록 주의**:
+- ✅ 권장: `g3 + age + sex + GEM + (1|hos_no)` (GEM과 hos_no는 동시 사용 가능, 단 GEM이 fixed, hos_no가 random)
+- ❌ 피해야 할 조합: `GEM + SET` (SET이 GEM을 완전 포함)
+- ⚠️ `bmi`는 결측값이 많아 기본적으로 제외하는 것을 권장합니다.
+
+#### CLI에서 자동 필터링
+
+`scripts/masc/run_masc.R`는 `--fixed_effects`에 `GEM,SET`이 함께 들어오면 자동으로 `SET`을 제거하고 경고를 출력합니다.
+
+### renv 활성화
+
+CLI 스크립트는 기본적으로 `/home/user3/GJC_KDW_250721/renv`를 활성화합니다.
+다른 경로를 사용하려면 `--renv` 옵션을 지정:
+
+```bash
+Rscript scripts/masc/run_masc.R \
+  --renv /path/to/your/renv \
+  ...
+```
+
