@@ -771,6 +771,10 @@ run_masc_pipeline <- function(
                 "non_sig"
             )
             
+            # Create color mapping for labels
+            plot_df$label_color <- ifelse(plot_df$sig_direction == "level2_favor", "red",
+                                         ifelse(plot_df$sig_direction == "level1_favor", "blue", "black"))
+            
             # Create display dataframe: show non-extreme values normally, extreme values as capped
             plot_df$logOR_display <- ifelse(plot_df$is_extreme,
                                            ifelse(plot_df$logOR > 2, 2.1, -2.1),
@@ -807,6 +811,27 @@ run_masc_pipeline <- function(
                 ) +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(legend.position = "bottom")
+            
+            # Apply colors to y-axis labels using theme
+            # Create named vector of colors matching cluster order
+            cluster_levels <- levels(plot_df$cluster)
+            label_colors <- plot_df$label_color[match(cluster_levels, plot_df$cluster)]
+            names(label_colors) <- cluster_levels
+            
+            # Use ggtext if available for colored labels, otherwise use theme workaround
+            if (requireNamespace("ggtext", quietly = TRUE)) {
+                # Use ggtext for colored axis labels
+                p <- p + ggplot2::theme(axis.text.y = ggtext::element_markdown())
+                # Create markdown-formatted labels with colors
+                colored_labels <- sapply(cluster_levels, function(cl) {
+                    color <- label_colors[cl]
+                    sprintf("<span style='color:%s'>%s</span>", color, cl)
+                })
+                p <- p + ggplot2::scale_x_discrete(labels = colored_labels)
+            } else {
+                # Fallback: use theme with vectorized colors (may show warning)
+                p <- p + ggplot2::theme(axis.text.y = ggplot2::element_text(color = label_colors))
+            }
             
             # Add text annotation for extreme values (use geom_text instead of annotate for better control)
             if (n_extreme > 0) {
