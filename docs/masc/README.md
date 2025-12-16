@@ -137,3 +137,27 @@ Rscript scripts/masc/run_masc.R \
   ...
 ```
 
+
+### 빠른 플롯 생성 (중간 결과 파일 사용)
+
+분석이 이미 완료되어 `masc_results.qs` 파일만 있는 경우, 플롯만 빠르게 생성할 수 있습니다:
+
+```bash
+Rscript scripts/masc/plot_masc.R \
+  --results /data/user3/sobj/masc/stroke_complex/masc_anno3_complex_results.qs \
+  -o /data/user3/sobj/masc/stroke_complex \
+  --prefix masc_anno3_complex \
+  --cluster_var anno3 \
+  --contrast_var g3
+```
+
+**시간 절약**: `.masc_run_analysis` 단계(각 클러스터마다 `glmer` 모델 실행)가 rate limiting step이므로, 중간 결과 파일로부터 플롯만 생성하면 매우 빠릅니다.
+
+### Plot 특징
+
+- **OR Forest Plot**: `log10` scale로 표시하여 extreme 값도 명확히 볼 수 있습니다.
+- **Extreme 값 처리**: `|log10(OR)| > 2` (즉, OR < 0.01 또는 OR > 100)인 경우:
+  - 그래프에서는 ±2.1로 capping하여 표시
+  - 실제 OR 값은 annotation으로 표시 (예: `(OR=1.69e+03)`)
+  - 범례에서 "Extreme (capped)"로 구분
+

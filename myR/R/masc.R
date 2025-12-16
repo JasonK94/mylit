@@ -719,7 +719,7 @@ run_masc_pipeline <- function(
 
     plots <- list()
 
-    # Plot 1: OR with confidence intervals (forest plot style)
+    # Plot 1: OR with confidence intervals (forest plot style) - log scale
     if (any(grepl("\\.OR$", names(masc_results)))) {
         or_col <- grep("\\.OR$", names(masc_results), value = TRUE)[1]
         ci_lower_col <- grep("ci\\.lower", names(masc_results), value = TRUE)[1]
@@ -729,19 +729,68 @@ run_masc_pipeline <- function(
             plot_df <- masc_results[, c("cluster", or_col, ci_lower_col, ci_upper_col)]
             names(plot_df) <- c("cluster", "OR", "CI_lower", "CI_upper")
             plot_df <- plot_df[!is.na(plot_df$OR), ]
-
-            plots$or_forest <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$cluster, y = .data$OR)) +
-                ggplot2::geom_point() +
-                ggplot2::geom_errorbar(ggplot2::aes(ymin = .data$CI_lower, ymax = .data$CI_upper),
+            
+            # Convert to log scale (handle zeros/infinities)
+            plot_df$logOR <- log10(pmax(plot_df$OR, .Machine$double.xmin))
+            plot_df$logCI_lower <- log10(pmax(plot_df$CI_lower, .Machine$double.xmin))
+            plot_df$logCI_upper <- log10(pmax(plot_df$CI_upper, .Machine$double.xmin))
+            
+            # Identify extreme values (OR < 0.01 or OR > 100, i.e., |log10(OR)| > 2)
+            plot_df$is_extreme <- abs(plot_df$logOR) > 2
+            n_extreme <- sum(plot_df$is_extreme, na.rm = TRUE)
+            
+            # Create display dataframe: show non-extreme values normally, extreme values as capped
+            plot_df$logOR_display <- ifelse(plot_df$is_extreme,
+                                           ifelse(plot_df$logOR > 2, 2.1, -2.1),
+                                           plot_df$logOR)
+            plot_df$logCI_lower_display <- ifelse(plot_df$is_extreme,
+                                                  ifelse(plot_df$logOR > 2, 2.05, -2.15),
+                                                  plot_df$logCI_lower)
+            plot_df$logCI_upper_display <- ifelse(plot_df$is_extreme,
+                                                  ifelse(plot_df$logOR > 2, 2.15, -2.05),
+                                                  plot_df$logCI_upper)
+            
+            # Order by logOR for better visualization
+            plot_df <- plot_df[order(plot_df$logOR_display, decreasing = FALSE), ]
+            plot_df$cluster <- factor(plot_df$cluster, levels = plot_df$cluster)
+            
+            # Build plot
+            p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$cluster, y = .data$logOR_display)) +
+                ggplot2::geom_point(ggplot2::aes(color = .data$is_extreme), size = 2) +
+                ggplot2::geom_errorbar(ggplot2::aes(ymin = .data$logCI_lower_display,
+                                                    ymax = .data$logCI_upper_display,
+                                                    color = .data$is_extreme),
                                       width = 0.2) +
-                ggplot2::geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+                ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+                ggplot2::scale_color_manual(values = c("FALSE" = "black", "TRUE" = "orange"),
+                                           labels = c("FALSE" = "Normal", "TRUE" = "Extreme (capped)"),
+                                           name = "Value Type") +
                 ggplot2::coord_flip() +
                 ggplot2::labs(
-                    title = "MASC Results: Odds Ratios",
+                    title = "MASC Results: Odds Ratios (log10 scale)",
                     x = "Cluster",
-                    y = "Odds Ratio (95% CI)"
+                    y = "log10(Odds Ratio) (95% CI)"
                 ) +
-                ggplot2::theme_minimal()
+                ggplot2::theme_minimal() +
+                ggplot2::theme(legend.position = "bottom")
+            
+            # Add text annotation for extreme values
+            if (n_extreme > 0) {
+                extreme_df <- plot_df[plot_df$is_extreme, ]
+                # Add annotation showing actual values
+                p <- p + ggplot2::annotate("text",
+                                          x = extreme_df$cluster,
+                                          y = extreme_df$logOR_display,
+                                          label = sprintf("(OR=%.2e)", extreme_df$OR),
+                                          hjust = ifelse(extreme_df$logOR > 2, -0.1, 1.1),
+                                          size = 2.5,
+                                          color = "orange")
+                
+                # Add subtitle with count
+                p <- p + ggplot2::labs(subtitle = sprintf("%d cluster(s) with extreme OR values (|log10(OR)| > 2) shown as capped", n_extreme))
+            }
+            
+            plots$or_forest <- p
         }
     }
 
