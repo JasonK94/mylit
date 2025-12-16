@@ -17,6 +17,19 @@ Rscript /home/user3/data_user3/git_repo/mylit/Git_Repo/_wt/masc/scripts/masc/run
   --prefix masc_anno3_complex
 ```
 
+### Plot only (from cached results)
+
+분석 결과 파일(`*_results.qs`)이 이미 있는 경우, 플롯만 빠르게 생성:
+
+```bash
+Rscript /home/user3/data_user3/git_repo/mylit/Git_Repo/_wt/masc/scripts/masc/plot_masc.R \
+  --results /data/user3/sobj/masc/stroke_complex_cli2/masc_anno3_complex_results.qs \
+  -o /data/user3/sobj/masc/stroke_complex_cli2 \
+  --prefix masc_anno3_complex \
+  --cluster_var anno3 \
+  --contrast_var g3
+```
+
 ### Notes
 - **Plot 저장**: PNG/PDF로 생성됨 (출력 디렉토리 확인).
 - **변수 타입 자동 인식**: 실행 시 "Variable categories: numeric/categorical" 로그 출력됨.
