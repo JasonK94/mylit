@@ -6,19 +6,23 @@
 ### Run (CLI)
 
 ```bash
-# anno3 + g3 (complex covariates), random effect: hos_no
+# anno3 + g3 (권장 모델: age, sex, GEM만), random effect: hos_no
 Rscript /home/user3/data_user3/git_repo/mylit/Git_Repo/_wt/masc/scripts/masc/run_masc.R \
   -i /data/user3/sobj/is2_IS_3_clustered.qs \
-  -o /data/user3/sobj/masc/stroke_complex_cli \
+  -o /data/user3/sobj/masc/stroke_complex_cli2 \
   --cluster_var anno3 \
   --contrast_var g3 \
   --random_effects hos_no \
-  --fixed_effects GEM,SET,age,sex,bmi,hx_smok,hx_alcohol \
+  --fixed_effects GEM,age,sex \
   --prefix masc_anno3_complex
 ```
 
 ### Notes
-- Plot 저장은 PNG/PDF로 생성됨(출력 디렉토리 확인).
+- **Plot 저장**: PNG/PDF로 생성됨 (출력 디렉토리 확인).
+- **변수 타입 자동 인식**: 실행 시 "Variable categories: numeric/categorical" 로그 출력됨.
+- **중첩 구조 주의**: `hos_no` ⊂ `GEM` ⊂ `SET`. `GEM`과 `SET`을 동시에 포함하지 말 것. CLI는 자동으로 `SET`을 제거함.
+- **bmi 제외 권장**: 결측값이 많아 기본적으로 제외하는 것을 권장.
+- **renv**: 기본 `/home/user3/GJC_KDW_250721/renv` 사용. `--renv` 옵션으로 변경 가능.
 - `hos_no`가 numeric으로 들어오면 내부에서 character로 변환됨.
 - 너무 느리면 `--max_cells 20000` 같은 옵션으로 global downsample 가능.
 
@@ -48,6 +52,10 @@ Rscript /home/user3/data_user3/git_repo/mylit/Git_Repo/_wt/masc/scripts/masc/run
 ### Run
 ```bash
 # 1. Permissive 설정으로 데이터 다시 분석 (약 10-20분 소요 예상)
+# -p 1: permissive p-value threshold (interaction cutoff)
+# --thresh_p_expression 1: p-value threshold (expression cutoff)
+# -m 5: min cells
+# -c 1: core #
 Rscript scripts/cellchat/run_cellchat_cli.R \
   -i /data/user3/sobj/is2_IS_3_1_plots.qs \
   -g anno3 \
@@ -55,7 +63,8 @@ Rscript scripts/cellchat/run_cellchat_cli.R \
   -a g3 \
   --subset_aggregate "2,1" \
   -d "Secreted Signaling" \
-  --thresh_p_expression 0.1 \
+  --thresh_p_expression 1 \
+  -p 1 \
   -m 5 \
   -c 1 \
   -o /data/user3/sobj/cci/cellchat/permissive_run
