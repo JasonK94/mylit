@@ -175,7 +175,9 @@ run_masc_pipeline <- function(
             contrast_var = contrast_var,
             save = save,
             save_path = paths$files$plots,
-            verbose = verbose
+            verbose = verbose,
+            fixed_effects = fixed_effects,
+            random_effects = random_effects
         )
     }
 
@@ -711,7 +713,8 @@ run_masc_pipeline <- function(
     list(results = output, models = if (save_models) cluster_models else NULL)
 }
 
-.masc_plot_bundle <- function(masc_results, cluster_var, contrast_var, save, save_path, verbose) {
+.masc_plot_bundle <- function(masc_results, cluster_var, contrast_var, save, save_path, verbose,
+                               fixed_effects = NULL, random_effects = NULL, model_formula = NULL) {
     if (!requireNamespace("ggplot2", quietly = TRUE)) {
         if (verbose) warning("ggplot2 not available; skipping plots.")
         return(NULL)
@@ -840,10 +843,12 @@ run_masc_pipeline <- function(
                 extreme_df$or_label <- sprintf("OR=%.2e", extreme_df$OR)
                 
                 # Use geom_text with better positioning
+                # OR > 1 (logOR > 0): label on the left (negative hjust)
+                # OR < 1 (logOR < 0): label on the right (positive hjust)
                 p <- p + ggplot2::geom_text(
                     data = extreme_df,
                     ggplot2::aes(x = .data$cluster, y = .data$logOR_display, label = .data$or_label),
-                    hjust = ifelse(extreme_df$logOR > 2, -0.05, 1.05),
+                    hjust = ifelse(extreme_df$OR > 1, -0.05, 1.05),
                     vjust = 0.5,
                     size = 2.8,
                     color = "orange",
@@ -854,6 +859,21 @@ run_masc_pipeline <- function(
                 p <- p + ggplot2::labs(subtitle = sprintf("%d cluster(s) with extreme OR values (|log10(OR)| > 2) shown as capped", n_extreme))
             }
             
+            # Add model formula below legend if provided
+            if (!is.null(model_formula)) {
+                p <- p + ggplot2::labs(caption = model_formula)
+            } else if (!is.null(fixed_effects) || !is.null(random_effects)) {
+                # Construct formula from components
+                formula_parts <- paste0(cluster_var, " ~ ", contrast_var)
+                if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                    formula_parts <- paste0(formula_parts, " + ", paste(fixed_effects, collapse = " + "))
+                }
+                if (!is.null(random_effects) && length(random_effects) > 0) {
+                    formula_parts <- paste0(formula_parts, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+                }
+                p <- p + ggplot2::labs(caption = formula_parts)
+            }
+            
             plots$or_forest <- p
         }
     }
@@ -861,19 +881,90 @@ run_masc_pipeline <- function(
     # Plot 2: P-value bar plot
     if ("model.pvalue" %in% names(masc_results)) {
         plot_df <- masc_results[, c("cluster", "model.pvalue")]
+        if (any(grepl("\\.OR$", names(masc_results)))) {
+            or_col <- grep("\\.OR$", names(masc_results), value = TRUE)[1]
+            plot_df$OR <- masc_results[[or_col]]
+        } else {
+            plot_df$OR <- NA_real_
+        }
+        
+        # Determine significance and direction for coloring (same logic as OR plot)
+        plot_df$sig_direction <- ifelse(
+            !is.na(plot_df$model.pvalue) & plot_df$model.pvalue < 0.05,
+            ifelse(!is.na(plot_df$OR) & plot_df$OR > 1, "level2_favor", "level1_favor"),
+            "non_sig"
+        )
+        plot_df$bar_color <- ifelse(plot_df$sig_direction == "level2_favor", "red",
+                                    ifelse(plot_df$sig_direction == "level1_favor", "blue", "black"))
+        plot_df$label_color <- plot_df$bar_color
+        
         plot_df <- plot_df[order(plot_df$model.pvalue), ]
         plot_df$cluster <- factor(plot_df$cluster, levels = plot_df$cluster)
+        
+        # Extract contrast level for legend (same as OR plot)
+        if (any(grepl("\\.OR$", names(masc_results)))) {
+            or_col_base <- gsub("\\.OR$", "", or_col)
+            contrast_level2_str <- gsub(paste0("^", contrast_var), "", or_col_base)
+            if (nchar(contrast_level2_str) > 0) {
+                level1_label <- paste0(contrast_var, " == Reference")
+                level2_label <- paste0(contrast_var, " == ", contrast_level2_str)
+            } else {
+                level1_label <- paste0(contrast_var, " == Reference")
+                level2_label <- paste0(contrast_var, " == Level2")
+            }
+        } else {
+            level1_label <- paste0(contrast_var, " == Reference")
+            level2_label <- paste0(contrast_var, " == Level2")
+        }
 
-        plots$pvalue_bar <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$cluster, y = -log10(.data$model.pvalue))) +
-            ggplot2::geom_bar(stat = "identity") +
+        p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$cluster, y = -log10(.data$model.pvalue))) +
+            ggplot2::geom_bar(stat = "identity", ggplot2::aes(fill = .data$sig_direction)) +
             ggplot2::geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "red") +
+            ggplot2::scale_fill_manual(
+                values = c("level2_favor" = "red", "level1_favor" = "blue", "non_sig" = "black"),
+                labels = c("level2_favor" = level2_label, "level1_favor" = level1_label, "non_sig" = "Non-significant"),
+                name = "Significance"
+            ) +
             ggplot2::coord_flip() +
             ggplot2::labs(
                 title = "MASC Results: P-values",
                 x = "Cluster",
                 y = "-log10(p-value)"
             ) +
-            ggplot2::theme_minimal()
+            ggplot2::theme_minimal() +
+            ggplot2::theme(legend.position = "bottom")
+        
+        # Apply colors to y-axis labels
+        cluster_levels <- levels(plot_df$cluster)
+        label_colors <- plot_df$label_color[match(cluster_levels, plot_df$cluster)]
+        names(label_colors) <- cluster_levels
+        
+        if (requireNamespace("ggtext", quietly = TRUE)) {
+            colored_labels <- sapply(cluster_levels, function(cl) {
+                color <- label_colors[cl]
+                sprintf("<span style='color:%s'>%s</span>", color, cl)
+            })
+            p <- p + ggplot2::scale_x_discrete(labels = colored_labels) +
+                ggplot2::theme(axis.text.y = ggtext::element_markdown())
+        } else {
+            p <- p + ggplot2::theme(axis.text.y = ggplot2::element_text(color = label_colors))
+        }
+        
+        # Add model formula below legend if provided
+        if (!is.null(model_formula)) {
+            p <- p + ggplot2::labs(caption = model_formula)
+        } else if (!is.null(fixed_effects) || !is.null(random_effects)) {
+            formula_parts <- paste0(cluster_var, " ~ ", contrast_var)
+            if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                formula_parts <- paste0(formula_parts, " + ", paste(fixed_effects, collapse = " + "))
+            }
+            if (!is.null(random_effects) && length(random_effects) > 0) {
+                formula_parts <- paste0(formula_parts, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+            }
+            p <- p + ggplot2::labs(caption = formula_parts)
+        }
+        
+        plots$pvalue_bar <- p
     }
 
     if (save && length(plots) > 0) {

@@ -90,13 +90,22 @@ contrast_var <- if (!is.null(opt$contrast_var)) opt$contrast_var else "contrast"
 
 plots_path <- file.path(opt$output_dir, paste0(opt$prefix, "_plots.qs"))
 
+# Extract fixed_effects and random_effects from column names if possible
+# (Note: This is a heuristic approach; ideally these should be passed as parameters)
+fixed_effects <- NULL
+random_effects <- NULL
+model_formula <- NULL
+
 plots <- .masc_plot_bundle(
   masc_results = masc_results,
   cluster_var = cluster_var,
   contrast_var = contrast_var,
   save = TRUE,
   save_path = plots_path,
-  verbose = TRUE
+  verbose = TRUE,
+  fixed_effects = fixed_effects,
+  random_effects = random_effects,
+  model_formula = model_formula
 )
 
 if (!is.null(plots)) {
