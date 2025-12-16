@@ -724,10 +724,32 @@ run_masc_pipeline <- function(
         or_col <- grep("\\.OR$", names(masc_results), value = TRUE)[1]
         ci_lower_col <- grep("ci\\.lower", names(masc_results), value = TRUE)[1]
         ci_upper_col <- grep("ci\\.upper", names(masc_results), value = TRUE)[1]
+        pvalue_col <- if ("model.pvalue" %in% names(masc_results)) "model.pvalue" else NULL
 
         if (!is.null(or_col) && !is.null(ci_lower_col) && !is.null(ci_upper_col)) {
+            # Extract contrast level from OR column name (e.g., "g32.OR" -> "g32" -> "2")
+            # OR column format: "{contrast_var}{level2}.OR" (e.g., "g32.OR" means g3 level 2)
+            or_col_base <- gsub("\\.OR$", "", or_col)
+            contrast_level2_str <- gsub(paste0("^", contrast_var), "", or_col_base)
+            
+            # Determine contrast level names for legend
+            # Level 1 is reference (OR=1), Level 2 is the comparison
+            if (nchar(contrast_level2_str) > 0) {
+                level1_label <- paste0(contrast_var, " == ", "Reference")
+                level2_label <- paste0(contrast_var, " == ", contrast_level2_str)
+            } else {
+                # Fallback if we can't parse
+                level1_label <- paste0(contrast_var, " == Reference")
+                level2_label <- paste0(contrast_var, " == Level2")
+            }
+            
             plot_df <- masc_results[, c("cluster", or_col, ci_lower_col, ci_upper_col)]
-            names(plot_df) <- c("cluster", "OR", "CI_lower", "CI_upper")
+            if (!is.null(pvalue_col)) {
+                plot_df$pvalue <- masc_results[[pvalue_col]]
+            } else {
+                plot_df$pvalue <- NA_real_
+            }
+            names(plot_df) <- c("cluster", "OR", "CI_lower", "CI_upper", "pvalue")
             plot_df <- plot_df[!is.na(plot_df$OR), ]
             
             # Convert to log scale (handle zeros/infinities)
@@ -738,6 +760,16 @@ run_masc_pipeline <- function(
             # Identify extreme values (OR < 0.01 or OR > 100, i.e., |log10(OR)| > 2)
             plot_df$is_extreme <- abs(plot_df$logOR) > 2
             n_extreme <- sum(plot_df$is_extreme, na.rm = TRUE)
+            
+            # Determine significance and direction for coloring
+            # p < 0.05 and OR > 1: red (level2 favor)
+            # p < 0.05 and OR < 1: blue (level1 favor)
+            # else: black (non-significant)
+            plot_df$sig_direction <- ifelse(
+                !is.na(plot_df$pvalue) & plot_df$pvalue < 0.05,
+                ifelse(plot_df$OR > 1, "level2_favor", "level1_favor"),
+                "non_sig"
+            )
             
             # Create display dataframe: show non-extreme values normally, extreme values as capped
             plot_df$logOR_display <- ifelse(plot_df$is_extreme,
@@ -754,17 +786,19 @@ run_masc_pipeline <- function(
             plot_df <- plot_df[order(plot_df$logOR_display, decreasing = FALSE), ]
             plot_df$cluster <- factor(plot_df$cluster, levels = plot_df$cluster)
             
-            # Build plot
+            # Build plot with color based on significance and direction
             p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$cluster, y = .data$logOR_display)) +
-                ggplot2::geom_point(ggplot2::aes(color = .data$is_extreme), size = 2) +
+                ggplot2::geom_point(ggplot2::aes(color = .data$sig_direction), size = 2) +
                 ggplot2::geom_errorbar(ggplot2::aes(ymin = .data$logCI_lower_display,
                                                     ymax = .data$logCI_upper_display,
-                                                    color = .data$is_extreme),
+                                                    color = .data$sig_direction),
                                       width = 0.2) +
-                ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-                ggplot2::scale_color_manual(values = c("FALSE" = "black", "TRUE" = "orange"),
-                                           labels = c("FALSE" = "Normal", "TRUE" = "Extreme (capped)"),
-                                           name = "Value Type") +
+                ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+                ggplot2::scale_color_manual(
+                    values = c("level2_favor" = "red", "level1_favor" = "blue", "non_sig" = "black"),
+                    labels = c("level2_favor" = level2_label, "level1_favor" = level1_label, "non_sig" = "Non-significant"),
+                    name = "Significance"
+                ) +
                 ggplot2::coord_flip() +
                 ggplot2::labs(
                     title = "MASC Results: Odds Ratios (log10 scale)",
@@ -774,17 +808,22 @@ run_masc_pipeline <- function(
                 ggplot2::theme_minimal() +
                 ggplot2::theme(legend.position = "bottom")
             
-            # Add text annotation for extreme values
+            # Add text annotation for extreme values (use geom_text instead of annotate for better control)
             if (n_extreme > 0) {
                 extreme_df <- plot_df[plot_df$is_extreme, ]
-                # Add annotation showing actual values
-                p <- p + ggplot2::annotate("text",
-                                          x = extreme_df$cluster,
-                                          y = extreme_df$logOR_display,
-                                          label = sprintf("(OR=%.2e)", extreme_df$OR),
-                                          hjust = ifelse(extreme_df$logOR > 2, -0.1, 1.1),
-                                          size = 2.5,
-                                          color = "orange")
+                # Format OR values for display
+                extreme_df$or_label <- sprintf("OR=%.2e", extreme_df$OR)
+                
+                # Use geom_text with better positioning
+                p <- p + ggplot2::geom_text(
+                    data = extreme_df,
+                    ggplot2::aes(x = .data$cluster, y = .data$logOR_display, label = .data$or_label),
+                    hjust = ifelse(extreme_df$logOR > 2, -0.05, 1.05),
+                    vjust = 0.5,
+                    size = 2.8,
+                    color = "orange",
+                    inherit.aes = FALSE
+                )
                 
                 # Add subtitle with count
                 p <- p + ggplot2::labs(subtitle = sprintf("%d cluster(s) with extreme OR values (|log10(OR)| > 2) shown as capped", n_extreme))
