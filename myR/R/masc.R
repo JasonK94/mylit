@@ -154,6 +154,16 @@ run_masc_pipeline <- function(
                 if (verbose) cat(sprintf("FDR correction applied: %d clusters with FDR < 0.05\n", n_sig))
             }
         }
+        
+        # Store formula in masc_results for plotting
+        formula_str <- paste0(cluster_var, " ~ ", contrast_var)
+        if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+            formula_str <- paste0(formula_str, " + ", paste(fixed_effects, collapse = " + "))
+        }
+        if (!is.null(random_effects) && length(random_effects) > 0) {
+            formula_str <- paste0(formula_str, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+        }
+        attr(masc_results, "formula") <- formula_str
 
         if (save) {
             qs::qsave(masc_results, paths$files$results)
@@ -323,7 +333,7 @@ run_masc_pipeline <- function(
     }
 }
 
-.masc_prepare_data <- function(seurat_obj, cluster_var, contrast_var, random_effects, fixed_effects, verbose) {
+.masc_prepare_data <- function(seurat_obj, cluster_var, contrast_var, random_effects, fixed_effects, verbose, model_formula = NULL) {
     # Extract metadata
     dataset <- as.data.frame(seurat_obj@meta.data)
     cluster <- dataset[[cluster_var]]
@@ -457,7 +467,14 @@ run_masc_pipeline <- function(
         if (verbose) cat(sprintf("Prepared data: %d cells, %d clusters, %d contrast levels\n", n_cells, n_clusters, n_contrast_levels))
     }
 
-    list(dataset = dataset, cluster = cluster)
+    result_list <- list(dataset = dataset, cluster = cluster)
+    
+    # Store formula if provided (for plotting later)
+    if (!is.null(model_formula)) {
+        attr(result_list, "formula") <- model_formula
+    }
+    
+    result_list
 }
 
 .masc_run_analysis <- function(dataset, cluster, contrast, random_effects, fixed_effects,
@@ -848,7 +865,7 @@ run_masc_pipeline <- function(
                 p <- p + ggplot2::geom_text(
                     data = extreme_df,
                     ggplot2::aes(x = .data$cluster, y = .data$logOR_display, label = .data$or_label),
-                    hjust = ifelse(extreme_df$OR > 1, -0.05, 1.05),
+                    hjust = ifelse(extreme_df$OR > 1, 1.2, -1.2),
                     vjust = 0.5,
                     size = 2.8,
                     color = "orange",
@@ -859,19 +876,64 @@ run_masc_pipeline <- function(
                 p <- p + ggplot2::labs(subtitle = sprintf("%d cluster(s) with extreme OR values (|log10(OR)| > 2) shown as capped", n_extreme))
             }
             
-            # Add model formula below legend if provided
-            if (!is.null(model_formula)) {
-                p <- p + ggplot2::labs(caption = model_formula)
+            # Handle model_formula: if TRUE, get from masc_results; otherwise use provided
+            formula_to_display <- NULL
+            if (identical(model_formula, TRUE) || identical(model_formula, "T") || identical(model_formula, "TRUE")) {
+                # Try to get from masc_results attributes
+                if (!is.null(attr(masc_results, "formula"))) {
+                    formula_to_display <- attr(masc_results, "formula")
+                } else if ("formula" %in% names(masc_results)) {
+                    formula_to_display <- masc_results$formula[1]
+                }
+            } else if (!is.null(model_formula)) {
+                formula_to_display <- model_formula
             } else if (!is.null(fixed_effects) || !is.null(random_effects)) {
                 # Construct formula from components
-                formula_parts <- paste0(cluster_var, " ~ ", contrast_var)
+                formula_to_display <- paste0(cluster_var, " ~ ", contrast_var)
                 if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
-                    formula_parts <- paste0(formula_parts, " + ", paste(fixed_effects, collapse = " + "))
+                    formula_to_display <- paste0(formula_to_display, " + ", paste(fixed_effects, collapse = " + "))
                 }
                 if (!is.null(random_effects) && length(random_effects) > 0) {
-                    formula_parts <- paste0(formula_parts, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+                    formula_to_display <- paste0(formula_to_display, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
                 }
-                p <- p + ggplot2::labs(caption = formula_parts)
+            }
+            
+            # Build detailed caption with formula and variable info (centered)
+            if (!is.null(formula_to_display)) {
+                # Add target_vars, covariates, random effects info
+                target_vars_str <- paste0(contrast_var, "(categorical)")
+                covariates_str <- if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                    paste(fixed_effects, collapse = ", ")
+                } else {
+                    "none"
+                }
+                random_effects_str <- if (!is.null(random_effects) && length(random_effects) > 0) {
+                    paste(random_effects, collapse = ", ")
+                } else {
+                    "none"
+                }
+                
+                # Use ggtext for bold formatting if available
+                if (requireNamespace("ggtext", quietly = TRUE)) {
+                    caption_text <- paste0(
+                        formula_to_display, "\n\n",
+                        "**target_vars:** ", target_vars_str, "  |  ",
+                        "**covariates:** ", covariates_str, "  |  ",
+                        "**random effect:** ", random_effects_str
+                    )
+                    p <- p + ggplot2::labs(caption = caption_text) +
+                        ggplot2::theme(plot.caption = ggtext::element_markdown(hjust = 0.5, size = 9))
+                } else {
+                    # Fallback: plain text
+                    caption_text <- paste0(
+                        formula_to_display, "\n\n",
+                        "target_vars: ", target_vars_str, " | ",
+                        "covariates: ", covariates_str, " | ",
+                        "random effect: ", random_effects_str
+                    )
+                    p <- p + ggplot2::labs(caption = caption_text) +
+                        ggplot2::theme(plot.caption = ggplot2::element_text(hjust = 0.5, size = 9))
+                }
             }
             
             plots$or_forest <- p
@@ -950,18 +1012,64 @@ run_masc_pipeline <- function(
             p <- p + ggplot2::theme(axis.text.y = ggplot2::element_text(color = label_colors))
         }
         
-        # Add model formula below legend if provided
-        if (!is.null(model_formula)) {
-            p <- p + ggplot2::labs(caption = model_formula)
+        # Handle model_formula: if TRUE, get from masc_results; otherwise use provided
+        formula_to_display <- NULL
+        if (identical(model_formula, TRUE) || identical(model_formula, "T") || identical(model_formula, "TRUE")) {
+            # Try to get from masc_results attributes
+            if (!is.null(attr(masc_results, "formula"))) {
+                formula_to_display <- attr(masc_results, "formula")
+            } else if ("formula" %in% names(masc_results)) {
+                formula_to_display <- masc_results$formula[1]
+            }
+        } else if (!is.null(model_formula)) {
+            formula_to_display <- model_formula
         } else if (!is.null(fixed_effects) || !is.null(random_effects)) {
-            formula_parts <- paste0(cluster_var, " ~ ", contrast_var)
+            # Construct formula from components
+            formula_to_display <- paste0(cluster_var, " ~ ", contrast_var)
             if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
-                formula_parts <- paste0(formula_parts, " + ", paste(fixed_effects, collapse = " + "))
+                formula_to_display <- paste0(formula_to_display, " + ", paste(fixed_effects, collapse = " + "))
             }
             if (!is.null(random_effects) && length(random_effects) > 0) {
-                formula_parts <- paste0(formula_parts, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+                formula_to_display <- paste0(formula_to_display, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
             }
-            p <- p + ggplot2::labs(caption = formula_parts)
+        }
+        
+        # Build detailed caption with formula and variable info (centered)
+        if (!is.null(formula_to_display)) {
+            # Add target_vars, covariates, random effects info
+            target_vars_str <- paste0(contrast_var, "(categorical)")
+            covariates_str <- if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                paste(fixed_effects, collapse = ", ")
+            } else {
+                "none"
+            }
+            random_effects_str <- if (!is.null(random_effects) && length(random_effects) > 0) {
+                paste(random_effects, collapse = ", ")
+            } else {
+                "none"
+            }
+            
+            # Use ggtext for bold formatting if available
+            if (requireNamespace("ggtext", quietly = TRUE)) {
+                caption_text <- paste0(
+                    formula_to_display, "\n\n",
+                    "**target_vars:** ", target_vars_str, "  |  ",
+                    "**covariates:** ", covariates_str, "  |  ",
+                    "**random effect:** ", random_effects_str
+                )
+                p <- p + ggplot2::labs(caption = caption_text) +
+                    ggplot2::theme(plot.caption = ggtext::element_markdown(hjust = 0.5, size = 9))
+            } else {
+                # Fallback: plain text
+                caption_text <- paste0(
+                    formula_to_display, "\n\n",
+                    "target_vars: ", target_vars_str, " | ",
+                    "covariates: ", covariates_str, " | ",
+                    "random effect: ", random_effects_str
+                )
+                p <- p + ggplot2::labs(caption = caption_text) +
+                    ggplot2::theme(plot.caption = ggplot2::element_text(hjust = 0.5, size = 9))
+            }
         }
         
         plots$pvalue_bar <- p

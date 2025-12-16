@@ -32,7 +32,9 @@ option_list <- list(
               help = "Optional renv directory path. If specified and exists, activates renv."),
   make_option(c("--start_r_path"), type = "character",
               default = "/home/user3/GJC_KDW_250721/start.R",
-              help = "Optional start.R path (loads env/renv). If missing, ignored.")
+              help = "Optional start.R path (loads env/renv). If missing, ignored."),
+  make_option(c("--model_formula"), type = "character", default = NULL,
+              help = "Model formula string (e.g., 'Frequency ~ g3 + age + sex + GEM + (1|hos_no)'). If not provided and results contain formula, will use it.")
 )
 
 parser <- OptionParser(option_list = option_list)
@@ -94,7 +96,14 @@ plots_path <- file.path(opt$output_dir, paste0(opt$prefix, "_plots.qs"))
 # (Note: This is a heuristic approach; ideally these should be passed as parameters)
 fixed_effects <- NULL
 random_effects <- NULL
-model_formula <- NULL
+
+# Handle model_formula: if TRUE or not provided, try to get from results; otherwise use provided string
+model_formula <- opt$model_formula
+if (is.null(model_formula) || model_formula == "TRUE" || model_formula == "T") {
+  # Set to TRUE to trigger extraction in .masc_plot_bundle
+  model_formula <- TRUE
+  cat("Will extract formula from results if available\n")
+}
 
 plots <- .masc_plot_bundle(
   masc_results = masc_results,
