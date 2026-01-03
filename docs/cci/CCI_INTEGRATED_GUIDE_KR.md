@@ -124,6 +124,7 @@ flowchart TD
 CellChat 분석은 다음 두 가지 전략 중 하나를 선택하여 수행할 수 있습니다. 각 단계별 상세 로직은 아래와 같습니다.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryEdgeColor':'#000000', 'primaryEdgeThickness':4, 'primaryTextColor':'#000000', 'primaryBorderColor':'#000000', 'edgeLabelBackground':'#ffffff', 'tertiaryColor':'#000000'}}}%%
 graph TD
     %% 노드 스타일 정의
     classDef step fill:#f9f,stroke:#333,stroke-width:2px;
@@ -196,8 +197,9 @@ graph TD
     *   **Sample-wise Analysis**: 각 환자별로 독립 분석 후 병합. 엄밀하지만 세포 수가 적을 경우 Interaction이 검출되지 않을 수 있음(Zero Interaction).
 
 2.  **DEG & Interaction 식별 (`identifyOverExpressedGenes`)**
-    *   **Method**: Wilcoxon Rank Sum Test
-    *   각 Cell Group 내에서 유의하게 발현이 높은 리간드/수용체를 식별.
+    *   **Method**: Wilcoxon Rank Sum Test (기본값)
+    *   이 함수는 단순한 발현량 Thresholding(임계값 설정)만이 아니라, 통계적 검정(Wilcoxon Test)을 수행하여 유의미한 과발현 유전자를 식별합니다.
+    *   **Thresholding**: 계산된 P-value(`thresh.p`)와 Fold Change(`thresh.fc`), 발현 비율(`thresh.pc`) 등을 기준으로 필터링합니다.
     *   **P-value 이슈**: 대규모 데이터셋에서 Adjusted P-value (Bonferroni 등) 계산 시, $P_{adj} = P_{raw} \times N$ 공식에 의해 1.0을 초과하는 값이 나올 수 있습니다. 이는 수학적으로 가능한 값이며, 보통 1.0으로 간주하면 됩니다.
 
 3.  **확률 계산 (`computeCommunProb`)**
@@ -210,7 +212,9 @@ graph TD
         *   **검정**: 무작위 상태에서의 확률 분포(Null Distribution) 생성 후, 관측된 확률이 상위 5% 안에 드는지 확인 ($P < 0.05$).
 
 4.  **비교 분석 (`netVisual_diffInteraction`)**
-    *   **Difference Calculation**: 두 조건 간의 Interaction 수(Count) 또는 강도(Weight) 차이를 계산.
+    *   **Count**: 상호작용의 개수 (유의미한 L-R 쌍의 수).
+    *   **Weight (Interaction Strength)**: 상호작용 확률(Communication Probability)의 합 또는 강도입니다. 단순한 확률(Probability) 자체가 아니라, 해당 그룹 간의 모든 유의미한 L-R Pair의 통신 확률을 누적(Accumulate)한 값으로 "상호작용 강도"를 의미합니다.
+    *   **Difference Calculation**: 두 조건 간의 Count 또는 Weight 차이를 계산.
         $$ \Delta_{weight} = Weight_{Condition2} - Weight_{Condition1} $$
     *   **Red Edge**: $\Delta > 0$ (증가) / **Blue Edge**: $\Delta < 0$ (감소).
 
@@ -218,6 +222,7 @@ graph TD
 
 ### 주요 변경 사항
 *   **v1.0 (2025-11-14)**: 초기 구현. DEG 리스트 직접 입력 지원, 모듈화된 구조(준비, 분석, 저장) 구축.
+*   **v1.1 (2025-12-16)**: 파일 구조 리팩토링 및 CellChat v2 호환성 업데이트. NicheNet 관련 파일 명확화.
 *   **최적화**:
     *   `receiver_de_table` 재사용: 동일 Receiver에 대해 DEG 계산 반복 방지.
     *   메모리 관리: 중간 결과 저장 후 대용량 객체 정리(`rm`, `gc`).
@@ -233,7 +238,7 @@ graph TD
 ### 기본 사용법
 
 ```r
-source("myR/R/cci/run_cci_analysis.R")
+source("myR/R/cci_nichenet_run.R")
 library(qs)
 
 # 1. 데이터 로드
@@ -289,6 +294,6 @@ results <- run_cci_analysis(
 *   `analysis_summary.qs`: 분석 메타데이터 요약.
 
 ### 관련 스크립트
-*   `myR/R/cci/run_cci_analysis.R`: 메인 분석 함수.
+*   `myR/R/cci_nichenet_run.R`: 메인 분석 함수 (구 `run_cci_analysis.R`).
+*   `myR/R/cci_nichenet_wrapper.R`: NicheNet 래퍼 (구 `CCI.R`)
 *   `scripts/cci/test_is5_downsample.R`: 다운샘플링 데이터 테스트 스크립트.
-

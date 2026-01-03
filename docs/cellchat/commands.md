@@ -40,8 +40,10 @@ Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/run_cellch
   -m 20 \
   -p 0.05 \
   -o /data/user3/sobj/cci/cellchat/proper_full \
-  -c 1
+  -c 8
 ```
+*   `-p 0.05`: Probability threshold for identifying expressed genes.
+*   `-c 8`: Number of cores for parallel processing.
 
 #### B. Secreted Signaling Only (Most Common)
 ```bash
@@ -54,7 +56,7 @@ Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/run_cellch
   -d "Secreted Signaling" \
   -m 20 \
   -o /data/user3/sobj/cci/cellchat/proper_secreted \
-  -c 1
+  -c 8
 ```
 
 ---
@@ -73,11 +75,21 @@ Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/run_cellch
   -d "Secreted Signaling" \
   -m 50 \
   -o /data/user3/sobj/cci/cellchat/pooled_secreted_strict \
-  -c 1
+  -c 8
 ```
 *Tip: Use higher `-m` (min.cells, e.g., 50) and strict probability thresholds to control false positives.*
 
 ---
+## 3. Comparison
+```bash
+Rscript scripts/cellchat/run_cellchat_comparison_analysis.R \
+  --file1 /data/user3/sobj/cci/cellchat/permissive_run2/merged/X1/cellchat_merged.qs \
+  --file2 /data/user3/sobj/cci/cellchat/permissive_run2/merged/X2/cellchat_merged.qs \
+  --name1 "Control" \
+  --name2 "Stroke" \
+  -o /data/user3/sobj/cci/cellchat/permissive_run2/comparison \
+  --renv /home/user3/GJC_KDW_250721/renv/
+```
 
 ## 3. Plotting & Visualization
 
@@ -95,7 +107,16 @@ Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/plot_cellc
 ```
 
 ### Comparison Plots
-**(Coming Soon)**: Will use `plot_cellchat_comparison.R` to compare Control vs Stroke.
+Use `plot_cellchat_comparison.R` to compare Control vs Stroke.
+```bash
+Rscript scripts/cellchat/plot_cellchat_comparison.R \
+  --file1 /data/user3/sobj/cci/cellchat/permissive_run2/merged/X1/cellchat_merged.qs \
+  --file2 /data/user3/sobj/cci/cellchat/permissive_run2/merged/X2/cellchat_merged.qs \
+  --name1 "Control" \
+  --name2 "Stroke" \
+  -o /data/user3/sobj/cci/cellchat/permissive_run2/merge_comparison \
+  --renv /home/user3/GJC_KDW_250721/renv/
+```
 
 ---
 
@@ -118,3 +139,9 @@ Rscript /home/user3/data_user3/git_repo/_wt/cellchat/scripts/cellchat/inspect_ce
 | **Comparability** | Hard to compare P-values | Can use diffInteractions properly |
 | **Sensitivity** | Very High (can be noisy) | Moderate (depends on sample size) |
 | **Analogy** | Bulk RNA Normalization | Pseudobulk DEG Analysis |
+
+## Appendix: NicheNet File Organization
+Files related to NicheNet analysis have been renamed for clarity:
+- `cci_nichenet_run.R` (formerly `cci_run_analysis.R`)
+- `cci_nichenet_utils.R` (formerly `utils_cci.R`)
+- `cci_nichenet_wrapper.R` (formerly `CCI.R`)

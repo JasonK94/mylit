@@ -1,1 +1,0 @@
-../../docs/cci/commands.md

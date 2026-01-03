@@ -3,11 +3,11 @@
 # ============================================================================
 
 # 환경 설정
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/prepare_cci_data.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/utils_cci.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_prepare.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_utils.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_save.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_run.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci_nichenet_wrapper.R")
 
 library(Seurat)
 library(dplyr)

@@ -14,16 +14,16 @@ cat("  ✓ Packages loaded\n\n")
 
 # Load functions
 cat("2. Loading CCI functions...\n")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/prepare_cci_data.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/utils_cci.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_prepare.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_utils.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_save.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_run.R")
 cat("  ✓ CCI functions loaded\n\n")
 
 # Load run_nichenet_analysis
 cat("3. Loading run_nichenet_analysis...\n")
-cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
-cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci_nichenet_wrapper.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/cci_nichenet_wrapper.R"
 if (file.exists(cci_core_worktree)) {
   source(cci_core_worktree)
   cat("  ✓ run_nichenet_analysis loaded from worktree\n\n")
@@ -31,7 +31,7 @@ if (file.exists(cci_core_worktree)) {
   source(cci_core_mainrepo)
   cat("  ✓ run_nichenet_analysis loaded from main repo\n\n")
 } else {
-  stop("CCI.R not found!")
+  stop("cci_nichenet_wrapper.R not found!")
 }
 
 # Load data

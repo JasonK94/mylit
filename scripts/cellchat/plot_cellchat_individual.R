@@ -1,38 +1,17 @@
 #!/usr/bin/env Rscript
 
-# scripts/cellchat/run_cellchat_plots.R
-# Script to generate comparison plots from merged CellChat objects
-
-# Set library path
-renv_lib <- "/home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu"
-if (dir.exists(renv_lib)) {
-    .libPaths(c(renv_lib, .libPaths()))
-}
+# scripts/cellchat/plot_cellchat_individual.R
+# Script to generate plots from CellChat objects (Merged or Single)
 
 suppressPackageStartupMessages({
     library(optparse)
-    library(Seurat)
-    library(CellChat)
-    library(ggplot2)
-    library(qs)
 })
-
-# Source plotting function
-plot_func_path <- "myR/R/cci_cellchat_plotting.R"
-if (!file.exists(plot_func_path)) {
-    plot_func_path <- "/home/user3/data_user3/git_repo/_wt/cellchat/myR/R/cci_cellchat_plotting.R"
-}
-if (file.exists(plot_func_path)) {
-    source(plot_func_path)
-} else {
-    stop("Cannot find plotting function: ", plot_func_path)
-}
 
 # Options
 option_list <- list(
     make_option(c("-i", "--input"),
         type = "character", default = NULL,
-        help = "Path to MERGED CellChat object (.qs) or directory containing them [Required]"
+        help = "Path to CellChat object (.qs) or directory containing them [Required]"
     ),
     make_option(c("-o", "--output_dir"),
         type = "character", default = NULL,
@@ -49,6 +28,10 @@ option_list <- list(
     make_option(c("-q", "--quantile"),
         type = "numeric", default = 0,
         help = "Quantile cutoff (0-1). E.g. 0.95 keeps top 5% links."
+    ),
+    make_option(c("--renv"),
+        type = "character", default = "/home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu",
+        help = "Path to renv library [default: %default]"
     )
 )
 
@@ -60,8 +43,31 @@ if (is.null(opt$input) || is.null(opt$output_dir)) {
     stop("--input and --output_dir are required")
 }
 
-# Check and fix aliases if user used old flags (optional)
-# if (!is.null(opt$t)) opt$top_links <- opt$t
+# Set library path
+if (dir.exists(opt$renv)) {
+    .libPaths(c(opt$renv, .libPaths()))
+    message(paste0("Using renv library: ", opt$renv))
+} else {
+    warning("renv library not found: ", opt$renv)
+}
+
+suppressPackageStartupMessages({
+    library(Seurat)
+    library(CellChat)
+    library(ggplot2)
+    library(qs)
+})
+
+# Source plotting function
+plot_func_path <- "myR/R/cci_cellchat_plotting.R"
+if (!file.exists(plot_func_path)) {
+    plot_func_path <- "/home/user3/data_user3/git_repo/_wt/cellchat/myR/R/cci_cellchat_plotting.R"
+}
+if (file.exists(plot_func_path)) {
+    source(plot_func_path)
+} else {
+    stop("Cannot find plotting function: ", plot_func_path)
+}
 
 # Check input
 if (dir.exists(opt$input)) {
@@ -87,26 +93,15 @@ for (qs_file in qs_files) {
     cc_merged <- qs::qread(qs_file)
     message("  Size: ", round(file.size(qs_file) / 1024 / 1024, 2), " MB")
 
-    # Check if it's actually a merged object (list of cellchats inside or merged struct)
-    # CellChat mergeCellChat returns a CellChat object, but with
-    # @meta$datasets indicating original datasets if merged properly.
-    # WAIT: aggregate.by implementation produces ONE merged object per condition (X1, X2).
-    # BUT compareInteractions needs a LIST of CellChat objects (one per condition).
-
-    # The user request said: "X2, X1 각각의 merged.qs에 대하여"
-    # But comparison plots usually compare X1 vs X2.
-    # IF we just want to plot X1 alone and X2 alone, that's fine.
-    # Comparison functions (netVisual_diffInteraction) require a MERGED object containing BOTH conditions.
-    # OR a list of two objects.
-
-    # Let's check what we have.
-    # X1/cellchat_merged.qs = Merged 8 control patients (Condition 1 Aggregated)
-    # X2/cellchat_merged.qs = Merged 15 stroke patients (Condition 2 Aggregated)
-
-    # The comparison needs to JOIN these two.
-
-    # For now, let's implement PLOTTING FOR SINGLE CONDITION (since input is single file)
-    # Standard plots for aggregated object: Circle, Bubble, NetVisual
+    # Update CellChat object for v2 compatibility
+    tryCatch(
+        {
+            cc_merged <- CellChat::updateCellChat(cc_merged)
+        },
+        error = function(e) {
+            message("  Warning: updateCellChat failed (might already be up to date or compatible): ", e$message)
+        }
+    )
 
     # Process merged object
     # If net$count is missing (common after merge), run aggregateNet to consolidate

@@ -20,10 +20,10 @@ library(qs)
 # 함수 로드
 message("Loading CCI functions...")
 tryCatch({
-  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/prepare_cci_data.R")
-  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/utils_cci.R")
-  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
-  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
+  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_prepare.R")
+  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_utils.R")
+  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_save.R")
+  source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_run.R")
   message("  ✓ CCI functions loaded")
 }, error = function(e) {
   stop("Failed to load CCI functions: ", e$message)
@@ -32,8 +32,8 @@ tryCatch({
 # run_nichenet_analysis 로드
 message("Loading run_nichenet_analysis...")
 tryCatch({
-  cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
-  cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+  cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci_nichenet_wrapper.R"
+  cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/cci_nichenet_wrapper.R"
   if (file.exists(cci_core_worktree)) {
     source(cci_core_worktree)
     message("  ✓ run_nichenet_analysis loaded from worktree")
@@ -41,7 +41,7 @@ tryCatch({
     source(cci_core_mainrepo)
     message("  ✓ run_nichenet_analysis loaded from main repo")
   } else {
-    warning("CCI.R not found. run_nichenet_analysis may not be available.")
+    warning("cci_nichenet_wrapper.R not found. run_nichenet_analysis may not be available.")
   }
 }, error = function(e) {
   warning("Failed to load run_nichenet_analysis: ", e$message)

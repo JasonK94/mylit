@@ -12,7 +12,7 @@
 #' @param group.by Character string. Cell type grouping column.
 #' @param split.by Character string. Sample-level split (e.g., hos_no for patients). Each will get independent CellChat analysis.
 #' @param aggregate.by Character string. Condition for aggregation/comparison (e.g., g3). CellChat objects will be merged by this. Default: NULL (no aggregation).
-#' @param subset.aggregate Character vector. Specific conditions to analyze. Default: NULL (all conditions).
+#' @param subset.aggregate Character vector. Specific conditions to analyze. Default: NULL (all conditions). (e.g. c("2", "1"))
 #' @param species Character string. "human" or "mouse". Default: "human".
 #' @param db.use Character vector. DB types to analyze separately. If multiple, runs analysis for each type.
 #'        Options: "Secreted Signaling", "ECM-Receptor", "Cell-Cell Contact". Default: NULL (uses all in one analysis).
@@ -282,6 +282,9 @@ run_cellchat_analysis <- function(input_data,
 
       log_msg(paste0("  ", cond, ": Merging ", length(cc_objects), " samples"))
 
+      # Ensure objects are updated for v2 before merging
+      cc_objects <- lapply(cc_objects, CellChat::updateCellChat)
+
       # Merge using CellChat::mergeCellChat
       cc_merged <- CellChat::mergeCellChat(
         cc_objects,
@@ -406,15 +409,18 @@ run_single_cellchat <- function(sobj, group.by, species, db.use, assay_name,
       future::plan("sequential")
     }
 
-    cc <- CellChat::identifyOverExpressedGenes(cc)
+    # Corrected variable usage: prob.threshold
+    cc <- CellChat::identifyOverExpressedGenes(cc, thresh.p = prob.threshold)
+
     cc <- CellChat::identifyOverExpressedInteractions(cc)
 
     save_ckpt(cc, "step1")
   } else {
     log_msg("  Loaded checkpoint: step1")
     # Restore parallel plan for subsequent steps if needed
-    # Note: re-evaluating optimal workers as above would be better but simple restore is ok
     if (do_parallel) future::plan("multisession", workers = n_cores)
+    # Ensure v2 compatibility for loaded objects
+    cc <- CellChat::updateCellChat(cc)
   }
 
   # Step 2: Communication probability
@@ -427,6 +433,7 @@ run_single_cellchat <- function(sobj, group.by, species, db.use, assay_name,
   } else {
     cc <- cc_step2
     log_msg("  Loaded checkpoint: step2")
+    cc <- CellChat::updateCellChat(cc)
   }
 
   # Step 3: Pathways
@@ -434,16 +441,22 @@ run_single_cellchat <- function(sobj, group.by, species, db.use, assay_name,
   if (is.null(cc_step3)) {
     log_msg("  Computing pathways...")
     cc <- CellChat::computeCommunProbPathway(cc)
+
+    # Check if aggregateNet is still valid in v2 or needs args
     cc <- CellChat::aggregateNet(cc)
     save_ckpt(cc, "step3")
   } else {
     cc <- cc_step3
     log_msg("  Loaded checkpoint: step3")
+    cc <- CellChat::updateCellChat(cc)
   }
 
   # Save final
   if (!skip_plots) {
     log_msg("  Generating plots...")
+
+    # Update for plotting if needed
+    cc <- CellChat::updateCellChat(cc)
 
     # Circle plot
     pdf(file.path(output_dir, "net_circle.pdf"), width = 10, height = 10)

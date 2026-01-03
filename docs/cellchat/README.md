@@ -5,9 +5,7 @@ This directory contains documentation for the CellChat analysis pipeline.
 
 ## Overview
 The CellChat pipeline is designed to automate the analysis of cell-cell communication using the CellChat package.
-It takes a Seurat object and metadata columns as input and generates:
-- CellChat object with computed probabilities
-- Visualization plots (Circle plots, Bubble plots)
+It supports both "Proper" (sample-wise followed by aggregation) and "Pooled" analysis strategies.
 
 ## Usage
 
@@ -18,26 +16,45 @@ The main wrapper function is `run_cellchat_analysis` located in `myR/R/cci_cellc
 source("myR/R/cci_cellchat_wrapper.R")
 
 cellchat <- run_cellchat_analysis(
-  sobj = sobj,
+  input_data = sobj,
   group.by = "cell_type_column",
   species = "human",
-  output_dir = "path/to/output"
+  output_dir = "path/to/output",
+  # Proper method:
+  split.by = "hos_no",
+  aggregate.by = "g3"
 )
 ```
 
+### CLI Usage
+The primary entry point is `scripts/cellchat/run_cellchat_cli.R`.
+
+```bash
+Rscript scripts/cellchat/run_cellchat_cli.R \
+  -i input.qs \
+  -g anno3 \
+  -s hos_no \
+  -a g3 \
+  -o output_dir
+```
+
 ### Arguments
-- `sobj`: Seurat object.
-- `group.by`: Character string. The metadata column to use for cell labels (e.g., cell types).
-- `species`: Character string. "human" or "mouse". Default: "human".
-- `db.use`: Character vector. Subset of CellChatDB to use (e.g., "Secreted Signaling"). If NULL, uses the entire database.
-- `assay_name`: Character string. Assay to use. Default: "SCT".
-- `output_dir`: Character string. Path to save results.
-- `n_cores`: Integer. Number of cores for parallel processing. Default: 4.
+- `input_data`: Seurat object or path.
+- `group.by`: Character string. The metadata column to use for cell labels.
+- `split.by`: Column to split samples (e.g. `hos_no`). Recommended for rigorous statistical analysis.
+- `aggregate.by`: Column to aggregate/compare groups (e.g. `g3`).
+- `species`: "human" or "mouse". Default: "human".
+- `db.use`: Subset of CellChatDB (e.g., "Secreted Signaling").
+- `output_dir`: Path to save results.
+- `n_cores`: Number of cores.
+- `prob.threshold`: P-value threshold for `identifyOverExpressedGenes` (default: 0.05).
+
+## Version Compatibility
+This pipeline is compatible with CellChat v2.
+It includes automatic `updateCellChat()` calls to handle objects created with older versions.
 
 ## Outputs
-- `cellchat_object.rds`: The computed CellChat object (also saved as .qs if qs package is available).
-- `net_visual_circle.pdf`: Circle plots of interaction counts and weights.
-- `net_visual_bubble.pdf`: Bubble plots of signaling pathways.
-
-## Example
-See `scripts/cellchat/test_cellchat.R` for a running example.
+- `cellchat.qs` (each sample/condition)
+- `net_circle.pdf`: Interaction circle plot.
+- `net_bubble.pdf`: Bubble plot.
+- Merged objects for comparison.

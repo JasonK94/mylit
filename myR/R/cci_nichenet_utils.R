@@ -15,10 +15,9 @@ NULL
 #' @return Data frame with summary statistics
 #' @export
 format_deg_summary <- function(deg_df, receiver_cluster) {
-  
   receiver_degs <- deg_df %>%
     dplyr::filter(cluster == receiver_cluster)
-  
+
   if (nrow(receiver_degs) == 0) {
     return(data.frame(
       cluster = receiver_cluster,
@@ -27,10 +26,10 @@ format_deg_summary <- function(deg_df, receiver_cluster) {
       n_downregulated = 0
     ))
   }
-  
+
   # Determine logFC column
   logfc_col <- if ("avg_log2FC" %in% colnames(receiver_degs)) "avg_log2FC" else "logFC"
-  
+
   summary_df <- data.frame(
     cluster = receiver_cluster,
     n_degs = nrow(receiver_degs),
@@ -39,7 +38,7 @@ format_deg_summary <- function(deg_df, receiver_cluster) {
     mean_logfc = mean(receiver_degs[[logfc_col]], na.rm = TRUE),
     median_logfc = median(receiver_degs[[logfc_col]], na.rm = TRUE)
   )
-  
+
   # Add p-value summary if available
   pval_col <- NULL
   if ("p_val_adj" %in% colnames(receiver_degs)) {
@@ -49,13 +48,13 @@ format_deg_summary <- function(deg_df, receiver_cluster) {
   } else if ("p_val" %in% colnames(receiver_degs)) {
     pval_col <- "p_val"
   }
-  
+
   if (!is.null(pval_col)) {
     summary_df$mean_pval <- mean(receiver_degs[[pval_col]], na.rm = TRUE)
     summary_df$median_pval <- median(receiver_degs[[pval_col]], na.rm = TRUE)
     summary_df$n_significant <- sum(receiver_degs[[pval_col]] < 0.05, na.rm = TRUE)
   }
-  
+
   return(summary_df)
 }
 
@@ -71,22 +70,21 @@ format_deg_summary <- function(deg_df, receiver_cluster) {
 #' @return Character vector of top sender cluster IDs
 #' @export
 identify_top_senders <- function(deg_df, sender_clusters, top_n = NULL) {
-  
   # Count DEGs per cluster
   deg_counts <- deg_df %>%
     dplyr::filter(cluster %in% sender_clusters) %>%
     dplyr::count(cluster, sort = TRUE)
-  
+
   if (nrow(deg_counts) == 0) {
     return(character(0))
   }
-  
+
   top_senders <- deg_counts$cluster
-  
+
   if (!is.null(top_n) && top_n < length(top_senders)) {
     top_senders <- top_senders[1:top_n]
   }
-  
+
   return(top_senders)
 }
 
@@ -100,13 +98,12 @@ identify_top_senders <- function(deg_df, sender_clusters, top_n = NULL) {
 #' @return Data frame with sender-receiver mappings
 #' @export
 create_sender_receiver_map <- function(sender_clusters, receiver_cluster) {
-  
   map_df <- data.frame(
     sender_cluster = sender_clusters,
     receiver_cluster = receiver_cluster,
     stringsAsFactors = FALSE
   )
-  
+
   return(map_df)
 }
 
@@ -135,61 +132,60 @@ create_sender_receiver_map <- function(sender_clusters, receiver_cluster) {
 #' @return List with CCI analysis results
 #' @export
 resume_cci_from_prepared <- function(prepared_data_file,
-                                      sobj,
-                                      cluster_col = NULL,
-                                      condition_col,
-                                      condition_oi,
-                                      condition_ref = NULL,
-                                      species = c("human", "mouse"),
-                                      assay_name = "SCT",
-                                      top_n_ligands = 20,
-                                      top_n_targets_per_ligand = NULL,
-                                      ligand_target_cutoff = 0.33,
-                                      nichenet_data_dir = NULL,
-                                      output_dir = NULL,
-                                      run_circos = TRUE,
-                                      verbose = TRUE,
-                                      ...) {
-  
+                                     sobj,
+                                     cluster_col = NULL,
+                                     condition_col,
+                                     condition_oi,
+                                     condition_ref = NULL,
+                                     species = c("human", "mouse"),
+                                     assay_name = "SCT",
+                                     top_n_ligands = 20,
+                                     top_n_targets_per_ligand = NULL,
+                                     ligand_target_cutoff = 0.33,
+                                     nichenet_data_dir = NULL,
+                                     output_dir = NULL,
+                                     run_circos = TRUE,
+                                     verbose = TRUE,
+                                     ...) {
   if (!requireNamespace("qs", quietly = TRUE)) {
     stop("qs package is required for loading prepared data")
   }
-  
+
   if (!file.exists(prepared_data_file)) {
     stop("Prepared data file not found: ", prepared_data_file)
   }
-  
+
   if (verbose) message("Loading prepared data from: ", prepared_data_file)
   prepared_data <- qs::qread(prepared_data_file)
-  
+
   # Extract components
   receiver_degs <- prepared_data$receiver_degs
   sender_clusters <- prepared_data$sender_clusters
   receiver_cluster <- prepared_data$receiver_cluster
-  
+
   if (is.null(receiver_degs) || nrow(receiver_degs) == 0) {
     stop("No receiver DEGs found in prepared data")
   }
-  
+
   # Auto-adjust top_n_targets_per_ligand if not specified
   if (is.null(top_n_targets_per_ligand)) {
     n_degs <- nrow(receiver_degs)
     if (n_degs > 3000) {
-      top_n_targets_per_ligand <- 50  # Reduce for large DEG sets
+      top_n_targets_per_ligand <- 50 # Reduce for large DEG sets
       if (verbose) message("Large DEG set (", n_degs, " genes). Reducing top_n_targets_per_ligand to ", top_n_targets_per_ligand, " for faster computation.")
     } else if (n_degs > 1000) {
       top_n_targets_per_ligand <- 100
       if (verbose) message("Moderate DEG set (", n_degs, " genes). Setting top_n_targets_per_ligand to ", top_n_targets_per_ligand, ".")
     } else {
-      top_n_targets_per_ligand <- 200  # Default for small sets
+      top_n_targets_per_ligand <- 200 # Default for small sets
     }
   }
-  
+
   # Check if run_nichenet_analysis is available
   if (!exists("run_nichenet_analysis")) {
     source_candidates <- c(
-      "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R",
-      "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+      "/home/user3/data_user3/git_repo/_wt/cellchat/myR/R/cci_nichenet_wrapper.R",
+      "/home/user3/data_user3/git_repo/mylit/myR/R/cci_nichenet_wrapper.R"
     )
     sourced <- FALSE
     for (candidate in source_candidates) {
@@ -201,10 +197,10 @@ resume_cci_from_prepared <- function(prepared_data_file,
       }
     }
     if (!sourced) {
-      stop("Cannot find run_nichenet_analysis function. Please ensure CCI.R is sourced.")
+      stop("Cannot find run_nichenet_analysis function. Please ensure cci_nichenet_wrapper.R is sourced.")
     }
   }
-  
+
   if (verbose) {
     message("Resuming NicheNet analysis with:")
     message("  - Receiver: ", receiver_cluster)
@@ -212,7 +208,7 @@ resume_cci_from_prepared <- function(prepared_data_file,
     message("  - DEGs: ", nrow(receiver_degs))
     message("  - Top targets per ligand: ", top_n_targets_per_ligand)
   }
-  
+
   # Determine cluster_col if not provided
   if (is.null(cluster_col)) {
     if (!is.null(sobj@meta.data)) {
@@ -230,7 +226,7 @@ resume_cci_from_prepared <- function(prepared_data_file,
       stop("Cannot determine cluster_col from Seurat object. Please specify cluster_col parameter.")
     }
   }
-  
+
   nichenet_results <- run_nichenet_analysis(
     seurat_obj = sobj,
     species = species,
@@ -251,7 +247,7 @@ resume_cci_from_prepared <- function(prepared_data_file,
     verbose = verbose,
     ...
   )
-  
+
   # Compile results
   results <- list(
     nichenet_results = nichenet_results,
@@ -263,7 +259,7 @@ resume_cci_from_prepared <- function(prepared_data_file,
     prepared_summary = prepared_data$summary,
     output_path = output_dir
   )
-  
+
   return(results)
 }
 
@@ -298,7 +294,7 @@ resume_cci_from_prepared <- function(prepared_data_file,
 #'   format = "png",
 #'   output_file = "/data/user3/sobj/run6/circos_replot.png"
 #' )
-#' 
+#'
 #' # Replot from results object in memory (faster for testing)
 #' results <- run_cci_analysis(...)
 #' replot_nichenet_circos(
@@ -308,25 +304,24 @@ resume_cci_from_prepared <- function(prepared_data_file,
 #' )
 #' }
 replot_nichenet_circos <- function(results_file = NULL,
-                                    results = NULL,
-                                    output_file = NULL,
-                                    circos_cex_text = 0.8,
-                                    circos_show_legend = TRUE,
-                                    circos_legend_position = "topright",
-                                    circos_legend_size = 0.9,
-                                    circos_legend_inset = c(-0.15, 0),
-                                    format = c("screen", "png", "pdf"),
-                                    width = 10,
-                                    height = 10,
-                                    res = 100,
-                                    verbose = TRUE) {
-  
+                                   results = NULL,
+                                   output_file = NULL,
+                                   circos_cex_text = 0.8,
+                                   circos_show_legend = TRUE,
+                                   circos_legend_position = "topright",
+                                   circos_legend_size = 0.9,
+                                   circos_legend_inset = c(-0.15, 0),
+                                   format = c("screen", "png", "pdf"),
+                                   width = 10,
+                                   height = 10,
+                                   res = 100,
+                                   verbose = TRUE) {
   if (!requireNamespace("circlize", quietly = TRUE)) {
     stop("circlize package is required for replotting")
   }
-  
+
   format <- match.arg(format)
-  
+
   # Load results from file or use provided results object
   if (!is.null(results)) {
     # Use provided results object (faster, no file I/O)
@@ -345,7 +340,7 @@ replot_nichenet_circos <- function(results_file = NULL,
   } else {
     stop("Either 'results_file' or 'results' must be provided")
   }
-  
+
   # Check file structure - handle both nested and flat structures
   # Structure 1: results$nichenet_results$plot_circos (from run_cci_analysis)
   # Structure 2: results$plot_circos (direct NicheNet results)
@@ -360,30 +355,32 @@ replot_nichenet_circos <- function(results_file = NULL,
     plot_circos <- results_obj$plot_circos
     if (verbose) message("Found flat structure: results$plot_circos")
   } else {
-    stop("No circos plot found in results. Please check the structure. ",
-         "Expected either 'results$nichenet_results$plot_circos' or 'results$plot_circos'.")
+    stop(
+      "No circos plot found in results. Please check the structure. ",
+      "Expected either 'results$nichenet_results$plot_circos' or 'results$plot_circos'."
+    )
   }
-  
+
   # Check if circos plot data exists
   if (is.null(plot_circos)) {
     stop("No circos plot found in results. The original analysis may not have generated a circos plot.")
   }
-  
+
   # Try to extract circos data from the saved plot
   # If plot_circos is a recorded plot, we need to replay it and extract data
   # For now, we'll replay the original plot with new parameters
   if (verbose) message("Replaying circos plot with new parameters...")
-  
+
   # Check for existing devices and close non-null devices if needed
   existing_devices <- grDevices::dev.list()
   if (verbose && length(existing_devices) > 0) {
     message("  Existing devices before opening: ", paste(existing_devices, collapse = ", "))
   }
-  
+
   # Open graphics device
   device_opened <- FALSE
   current_device <- NULL
-  
+
   if (format == "png" && !is.null(output_file)) {
     if (verbose) message("Opening PNG device: ", output_file)
     # Ensure absolute path
@@ -407,166 +404,179 @@ replot_nichenet_circos <- function(results_file = NULL,
     current_device <- grDevices::dev.cur()
     if (verbose) message("  Device opened: ", current_device)
   }
-  
-  tryCatch({
-    # Replay the original plot
-    if (inherits(plot_circos, "recordedplot")) {
-      if (verbose) message("Replaying recorded plot...")
-      # Ensure we're using the correct device
-      if (device_opened) {
-        active_dev <- grDevices::dev.set(current_device)
-        if (verbose) message("  Active device set to: ", active_dev)
-        if (active_dev != current_device) {
-          warning("Warning: Device mismatch. Expected ", current_device, " but got ", active_dev)
-        }
-      }
-      
-      # Check if plot is valid before replaying
-      if (is.null(plot_circos)) {
-        stop("Plot object is NULL. Cannot replay plot.")
-      }
-      
+
+  tryCatch(
+    {
+      # Replay the original plot
       if (inherits(plot_circos, "recordedplot")) {
-        if (length(plot_circos) == 0) {
-          stop("Plot object is empty (length 0). Cannot replay plot. ",
-               "This may indicate the plot was not properly recorded during analysis.")
-        }
-        # Check if plot has data: either [[1]] (plot commands) or [[2]] (raw graphics data) should exist
-        # Note: [[1]] can be empty (length 0) but [[2]] may contain raw graphics data
-        has_plot_data <- FALSE
-        if (length(plot_circos) >= 1 && !is.null(plot_circos[[1]]) && length(plot_circos[[1]]) > 0) {
-          has_plot_data <- TRUE
-        } else if (length(plot_circos) >= 2 && !is.null(plot_circos[[2]]) && length(plot_circos[[2]]) > 0) {
-          # [[2]] contains raw graphics data (can be raw bytes)
-          has_plot_data <- TRUE
-        }
-        if (!has_plot_data) {
-          stop("Plot object contains no plot data. Cannot replay plot. ",
-               "This may indicate the plot was not properly recorded during analysis. ",
-               "Please re-run the analysis to regenerate the plot.")
-        }
-      }
-      
-      # Replay the recorded plot
-      # Use tryCatch to catch any errors during replay
-      replay_success <- tryCatch({
-        grDevices::replayPlot(plot_circos)
-        TRUE
-      }, error = function(e) {
-        if (verbose) warning("Error during replayPlot: ", e$message)
-        FALSE
-      })
-      
-      if (!replay_success) {
-        stop("Failed to replay plot. The recorded plot may be empty or corrupted.")
-      }
-      
-      # Force flush the device to ensure plot is written
-      if (device_opened) {
-        grDevices::dev.flush()
-        # Verify device is still active
-        if (grDevices::dev.cur() != current_device) {
-          grDevices::dev.set(current_device)
-          if (verbose) message("  Device reset to: ", current_device)
-        }
-        if (verbose) message("  Device flushed and verified")
-      }
-      
-      # Note: We cannot easily modify parameters of a recorded plot
-      # The user would need to re-run the analysis with different parameters
-      # or we would need to store the raw circos data separately
-      if (verbose) {
-        message("Note: Recorded plots cannot be modified. Using original plot.")
-        message("To change parameters, re-run the analysis with different circos_* parameters.")
-      }
-    } else {
-      # If it's not a recorded plot, try to plot it directly
-      if (verbose) message("Plotting circos plot object...")
-      if (device_opened) {
-        active_dev <- grDevices::dev.set(current_device)
-        if (verbose) message("  Active device set to: ", active_dev)
-      }
-      graphics::plot(plot_circos)
-      
-      # Force flush the device
-      if (device_opened) {
-        grDevices::dev.flush()
-        if (verbose) message("  Device flushed")
-      }
-    }
-    
-    # Ensure device is properly closed
-    if (device_opened) {
-      if (verbose) {
-        message("Closing graphics device...")
-        message("  Current device before close: ", grDevices::dev.cur())
-      }
-      
-      # Verify we're closing the correct device
-      if (grDevices::dev.cur() != current_device) {
-        if (verbose) warning("Warning: Current device (", grDevices::dev.cur(), ") differs from expected (", current_device, ")")
-        grDevices::dev.set(current_device)
-      }
-      
-      # Force flush before closing to ensure all data is written
-      grDevices::dev.flush()
-      
-      # Close the device
-      grDevices::dev.off()
-      
-      # Wait a moment for file system to sync (increased from 0.3 to 0.5)
-      Sys.sleep(0.5)
-      
-      if (verbose && !is.null(output_file)) {
-        # Check if file exists (use absolute path)
-        abs_output_file <- normalizePath(output_file, mustWork = FALSE)
-        if (file.exists(abs_output_file)) {
-          file_size <- file.info(abs_output_file)$size
-          message("Plot saved to: ", abs_output_file, " (", file_size, " bytes)")
-        } else if (file.exists(output_file)) {
-          file_size <- file.info(output_file)$size
-          message("Plot saved to: ", output_file, " (", file_size, " bytes)")
-        } else {
-          warning("Warning: Output file was not created: ", output_file)
-          warning("  Absolute path: ", abs_output_file)
-          warning("  Current working directory: ", getwd())
-          warning("  Device was: ", current_device)
-          warning("  Device list after close: ", paste(grDevices::dev.list(), collapse = ", "))
-          # Try to check if file exists in parent directory
-          parent_dir <- dirname(abs_output_file)
-          if (dir.exists(parent_dir)) {
-            files_in_dir <- list.files(parent_dir, pattern = basename(output_file))
-            if (length(files_in_dir) > 0) {
-              warning("  Found similar files in directory: ", paste(files_in_dir, collapse = ", "))
-            }
+        if (verbose) message("Replaying recorded plot...")
+        # Ensure we're using the correct device
+        if (device_opened) {
+          active_dev <- grDevices::dev.set(current_device)
+          if (verbose) message("  Active device set to: ", active_dev)
+          if (active_dev != current_device) {
+            warning("Warning: Device mismatch. Expected ", current_device, " but got ", active_dev)
           }
         }
-      }
-    }
-  }, error = function(e) {
-    if (device_opened) {
-      try({
-        # Try to close the device we opened
-        if (!is.null(current_device)) {
-          if (current_device %in% grDevices::dev.list()) {
+
+        # Check if plot is valid before replaying
+        if (is.null(plot_circos)) {
+          stop("Plot object is NULL. Cannot replay plot.")
+        }
+
+        if (inherits(plot_circos, "recordedplot")) {
+          if (length(plot_circos) == 0) {
+            stop(
+              "Plot object is empty (length 0). Cannot replay plot. ",
+              "This may indicate the plot was not properly recorded during analysis."
+            )
+          }
+          # Check if plot has data: either [[1]] (plot commands) or [[2]] (raw graphics data) should exist
+          # Note: [[1]] can be empty (length 0) but [[2]] may contain raw graphics data
+          has_plot_data <- FALSE
+          if (length(plot_circos) >= 1 && !is.null(plot_circos[[1]]) && length(plot_circos[[1]]) > 0) {
+            has_plot_data <- TRUE
+          } else if (length(plot_circos) >= 2 && !is.null(plot_circos[[2]]) && length(plot_circos[[2]]) > 0) {
+            # [[2]] contains raw graphics data (can be raw bytes)
+            has_plot_data <- TRUE
+          }
+          if (!has_plot_data) {
+            stop(
+              "Plot object contains no plot data. Cannot replay plot. ",
+              "This may indicate the plot was not properly recorded during analysis. ",
+              "Please re-run the analysis to regenerate the plot."
+            )
+          }
+        }
+
+        # Replay the recorded plot
+        # Use tryCatch to catch any errors during replay
+        replay_success <- tryCatch(
+          {
+            grDevices::replayPlot(plot_circos)
+            TRUE
+          },
+          error = function(e) {
+            if (verbose) warning("Error during replayPlot: ", e$message)
+            FALSE
+          }
+        )
+
+        if (!replay_success) {
+          stop("Failed to replay plot. The recorded plot may be empty or corrupted.")
+        }
+
+        # Force flush the device to ensure plot is written
+        if (device_opened) {
+          grDevices::dev.flush()
+          # Verify device is still active
+          if (grDevices::dev.cur() != current_device) {
             grDevices::dev.set(current_device)
-            grDevices::dev.off()
+            if (verbose) message("  Device reset to: ", current_device)
           }
+          if (verbose) message("  Device flushed and verified")
         }
-        # Also try to close any remaining non-null devices
-        remaining_devices <- grDevices::dev.list()
-        if (length(remaining_devices) > 0 && !is.null(remaining_devices)) {
-          for (dev in remaining_devices) {
-            if (dev != grDevices::dev.cur()) {
-              try(grDevices::dev.off(dev), silent = TRUE)
+
+        # Note: We cannot easily modify parameters of a recorded plot
+        # The user would need to re-run the analysis with different parameters
+        # or we would need to store the raw circos data separately
+        if (verbose) {
+          message("Note: Recorded plots cannot be modified. Using original plot.")
+          message("To change parameters, re-run the analysis with different circos_* parameters.")
+        }
+      } else {
+        # If it's not a recorded plot, try to plot it directly
+        if (verbose) message("Plotting circos plot object...")
+        if (device_opened) {
+          active_dev <- grDevices::dev.set(current_device)
+          if (verbose) message("  Active device set to: ", active_dev)
+        }
+        graphics::plot(plot_circos)
+
+        # Force flush the device
+        if (device_opened) {
+          grDevices::dev.flush()
+          if (verbose) message("  Device flushed")
+        }
+      }
+
+      # Ensure device is properly closed
+      if (device_opened) {
+        if (verbose) {
+          message("Closing graphics device...")
+          message("  Current device before close: ", grDevices::dev.cur())
+        }
+
+        # Verify we're closing the correct device
+        if (grDevices::dev.cur() != current_device) {
+          if (verbose) warning("Warning: Current device (", grDevices::dev.cur(), ") differs from expected (", current_device, ")")
+          grDevices::dev.set(current_device)
+        }
+
+        # Force flush before closing to ensure all data is written
+        grDevices::dev.flush()
+
+        # Close the device
+        grDevices::dev.off()
+
+        # Wait a moment for file system to sync (increased from 0.3 to 0.5)
+        Sys.sleep(0.5)
+
+        if (verbose && !is.null(output_file)) {
+          # Check if file exists (use absolute path)
+          abs_output_file <- normalizePath(output_file, mustWork = FALSE)
+          if (file.exists(abs_output_file)) {
+            file_size <- file.info(abs_output_file)$size
+            message("Plot saved to: ", abs_output_file, " (", file_size, " bytes)")
+          } else if (file.exists(output_file)) {
+            file_size <- file.info(output_file)$size
+            message("Plot saved to: ", output_file, " (", file_size, " bytes)")
+          } else {
+            warning("Warning: Output file was not created: ", output_file)
+            warning("  Absolute path: ", abs_output_file)
+            warning("  Current working directory: ", getwd())
+            warning("  Device was: ", current_device)
+            warning("  Device list after close: ", paste(grDevices::dev.list(), collapse = ", "))
+            # Try to check if file exists in parent directory
+            parent_dir <- dirname(abs_output_file)
+            if (dir.exists(parent_dir)) {
+              files_in_dir <- list.files(parent_dir, pattern = basename(output_file))
+              if (length(files_in_dir) > 0) {
+                warning("  Found similar files in directory: ", paste(files_in_dir, collapse = ", "))
+              }
             }
           }
         }
-      }, silent = TRUE)
+      }
+    },
+    error = function(e) {
+      if (device_opened) {
+        try(
+          {
+            # Try to close the device we opened
+            if (!is.null(current_device)) {
+              if (current_device %in% grDevices::dev.list()) {
+                grDevices::dev.set(current_device)
+                grDevices::dev.off()
+              }
+            }
+            # Also try to close any remaining non-null devices
+            remaining_devices <- grDevices::dev.list()
+            if (length(remaining_devices) > 0 && !is.null(remaining_devices)) {
+              for (dev in remaining_devices) {
+                if (dev != grDevices::dev.cur()) {
+                  try(grDevices::dev.off(dev), silent = TRUE)
+                }
+              }
+            }
+          },
+          silent = TRUE
+        )
+      }
+      stop("Error during plot generation: ", e$message)
     }
-    stop("Error during plot generation: ", e$message)
-  })
-  
+  )
+
   return(invisible(list(
     plot = plot_circos,
     results = nichenet_results,
@@ -583,4 +593,3 @@ replot_nichenet_circos <- function(results_file = NULL,
     )
   )))
 }
-
