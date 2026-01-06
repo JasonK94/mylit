@@ -318,458 +318,6 @@ mydensity <- function(data, column = NULL, adjust = 1, x_unit = NULL, y_unit = N
 
 
 
-#' 세포 단위 피처 발현 박스플롯 (plot_gene_boxplot 스타일)
-#'
-#' @param data Seurat 객체 또는 data.frame
-#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
-#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
-#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
-#' @param idents 'group.by'에서 포함할 특정 값들
-#' @param assay Seurat 객체용 assay
-#' @param layer Seurat 객체용 layer
-#' @param ncol 플롯 컬럼 수
-#' @param pt.size 점 크기 (0이면 숨김)
-#' @param violin 바이올린 플롯 오버레이
-#' @param add_stats 통계 검정 추가 (ggpubr::stat_compare_means)
-#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE, method = "t.test")
-#'
-#' @return ggplot 객체
-#' @export
-mybox_cell <- function(data, 
-                                      features, 
-                                      group.by, 
-                                      split.by, 
-                                      idents = NULL, 
-                                      assay = NULL, 
-                                      layer = "data",
-                                      ncol = 3, 
-                                      pt.size = 0.2, 
-                                      violin = FALSE,
-                                      add_stats = TRUE,
-                                      ...) {
-
-  plot_df_base <- .fetch_plot_data(data, features, NULL, group.by, split.by, assay, layer)
-  
-  all_plots <- list()
-  
-  for (feature_name in features) {
-    current_df <- plot_df_base
-    
-    # 1. group.by가 NULL일 경우 "Overall"로 처리
-    group.by.internal <- group.by
-    if (is.null(group.by)) {
-      group.by.internal <- ".internal_placeholder_group"
-      current_df[[group.by.internal]] <- "Overall"
-    }
-    
-    # 2. idents 필터링 (mybox 로직과 동일)
-    if (!is.null(group.by) && !is.null(idents)) {
-      original_col_type <- class(current_df[[group.by.internal]])
-      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
-      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
-      
-      if (nrow(current_df) == 0) {
-         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
-         next
-      }
-      
-      if ("factor" %in% original_col_type) {
-        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
-        valid_subset_levels <- intersect(original_levels, idents)
-        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
-      } else {
-        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-      }
-    }
-    
-    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-    current_df[[split.by]] <- as.factor(current_df[[split.by]])
-    
-    # 3. ggplot 생성 (Req 3 레이아웃)
-    p <- ggplot(current_df, aes(x = .data[[split.by]], y = .data[[feature_name]], fill = .data[[split.by]]))
-    
-    if (violin) {
-      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
-    }
-    
-    # outlier.shape=NA로 설정 (Req 2)
-    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
-    
-    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
-    if (pt.size > 0) {
-      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.3, 
-                           width = 0.2, height = 0, na.rm = TRUE)
-    }
-    
-    # 통계 추가 (ggpubr)
-    if (add_stats) {
-      # `...` 인수로 paired=TRUE 등을 받을 수 있음
-      p <- p + stat_compare_means(label = "p.format", ...) 
-    }
-    
-    # 패널(facet) 적용 및 테마 설정 (Req 3)
-    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
-      labs(title = feature_name,
-           x = split.by,
-           y = feature_name) +
-      theme_bw(base_size = 12) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(hjust = 0.5),
-            legend.position = "none") # 범례 제거
-    
-    all_plots[[feature_name]] <- p
-  }
-  
-  if (length(all_plots) == 0) {
-    message("생성된 플롯이 없습니다.")
-    return(invisible(NULL))
-  }
-  
-  return(patchwork::wrap_plots(all_plots, ncol = ncol))
-}
-#' 샘플 단위(Pseudobulk) 피처 평균 박스플롯 (mybox 로직 + plot_gene_boxplot 스타일)
-#'
-#' @param data Seurat 객체 또는 data.frame
-#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
-#' @param sample_col 샘플/환자 식별 컬럼 (필수)
-#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
-#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
-#' @param idents 'group.by'에서 포함할 특정 값들
-#' @param assay Seurat 객체용 assay
-#' @param layer Seurat 객체용 layer
-#' @param ncol 플롯 컬럼 수
-#' @param pt.size 샘플 평균 점 크기 (0이면 숨김)
-#' @param violin 바이올린 플롯 오버레이
-#' @param add_stats 통계 검정 추가 (요약된 데이터 대상)
-#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE)
-#'
-#' @return ggplot 객체
-#' @export
-mybox_pb <- function(data, 
-                                    features, 
-                                    sample_col, 
-                                    group.by, 
-                                    split.by, 
-                                    idents = NULL, 
-                                    assay = NULL, 
-                                    layer = "data",
-                                    ncol = 3, 
-                                    pt.size = 1.0, 
-                                    violin = FALSE,
-                                    add_stats = FALSE,
-                                    ...) {
-
-  if (is.null(sample_col)) {
-    stop("`sample_col` 인수는 Pseudobulk 플롯에 필수입니다.")
-  }
-
-  plot_df_base <- .fetch_plot_data(data, features, sample_col, group.by, split.by, assay, layer)
-  
-  all_plots <- list()
-  
-  for (feature_name in features) {
-    current_df <- plot_df_base
-    
-    # 1. group.by가 NULL일 경우 "Overall"로 처리
-    group.by.internal <- group.by
-    if (is.null(group.by)) {
-      group.by.internal <- ".internal_placeholder_group"
-      current_df[[group.by.internal]] <- "Overall"
-    }
-    
-    # 2. idents 필터링
-    if (!is.null(group.by) && !is.null(idents)) {
-      original_col_type <- class(current_df[[group.by.internal]])
-      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
-      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
-      
-      if (nrow(current_df) == 0) {
-         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
-         next
-      }
-      
-      if ("factor" %in% original_col_type) {
-        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
-        valid_subset_levels <- intersect(original_levels, idents)
-        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
-      } else {
-        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-      }
-    }
-    
-    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
-    current_df[[split.by]] <- as.factor(current_df[[split.by]])
-    current_df[[sample_col]] <- as.factor(current_df[[sample_col]])
-    
-    # 3. *** 데이터 요약 (Aggregation) ***
-    grouping_vars <- unique(c(sample_col, group.by.internal, split.by))
-    
-    aggregated_df <- current_df %>%
-      dplyr::group_by(dplyr::across(dplyr::all_of(grouping_vars))) %>%
-      dplyr::summarise(mean_value = mean(.data[[feature_name]], na.rm = TRUE), .groups = 'drop')
-    
-    if (nrow(aggregated_df) == 0) {
-      warning(feature_name, "에서 요약 후 데이터가 없습니다. 건너뜁니다.")
-      next
-    }
-    
-    # 4. ggplot 생성 (Req 3 레이아웃)
-    p <- ggplot(aggregated_df, aes(x = .data[[split.by]], y = mean_value, fill = .data[[split.by]]))
-    
-    if (violin) {
-      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
-    }
-    
-    # outlier.shape=NA로 설정 (Req 2)
-    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
-    
-    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
-    if (pt.size > 0) {
-      # PB 플롯은 점이 샘플을 의미하므로 더 진하게 (alpha=0.7)
-      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.7, 
-                           width = 0.2, height = 0, na.rm = TRUE)
-    }
-
-    # 통계 추가 (요약된 데이터를 대상으로 함)
-    if (add_stats) {
-      # paired=TRUE를 `...`로 전달받아 샘플 페어 테스트 가능
-      p <- p + stat_compare_means(label = "p.format", ...) 
-    }
-
-    # 패널(facet) 적용 및 테마 설정 (Req 3)
-    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
-      labs(title = feature_name,
-           x = split.by,
-           y = paste("Average", feature_name)) +
-      theme_bw(base_size = 12) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(hjust = 0.5),
-            legend.position = "none") # 범례 제거
-            
-    all_plots[[feature_name]] <- p
-  }
-  
-  if (length(all_plots) == 0) {
-    message("생성된 플롯이 없습니다.")
-    return(invisible(NULL))
-  }
-  
-  return(patchwork::wrap_plots(all_plots, ncol = ncol))
-}
-
-mybox_geomx <- function(
-    data_norm,
-    metadata,
-    features,
-    group.by,
-    split.by = NULL,
-    test_method = "wilcox.test",
-    p_adjust_method = "holm",
-    hide_ns = FALSE,
-    show_points = TRUE,
-    comparisons = "all"  # "all" 또는 특정 비교 리스트
-) {
-  
-  # 1. 라이브러리 로드
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-  library(ggpubr)
-  library(rstatix)
-  
-  # 2. 입력 데이터 유효성 검사
-  if (!group.by %in% colnames(metadata)) {
-    stop(paste("Error: `group.by` 변수인 '", group.by, "'가 metadata에 존재하지 않습니다.", sep=""))
-  }
-  if (!is.null(split.by) && !split.by %in% colnames(metadata)) {
-    stop(paste("Error: `split.by` 변수인 '", split.by, "'가 metadata에 존재하지 않습니다.", sep=""))
-  }
-  if (!test_method %in% c("t.test", "wilcox.test")) {
-    stop("Error: `test_method`는 't.test' 또는 'wilcox.test' 중 하나여야 합니다.")
-  }
-  
-  # 3. 데이터 준비
-  common_aois <- intersect(colnames(data_norm), metadata$SegmentDisplayName)
-  if(length(common_aois) == 0){
-    stop("Error: 'data_norm'의 컬럼명과 'metadata'의 SegmentDisplayName이 일치하는 AOI가 없습니다.")
-  }
-  
-  metadata_sub <- metadata %>% filter(SegmentDisplayName %in% common_aois)
-  data_norm_sub <- data_norm[features, common_aois, drop = FALSE]
-  
-  plot_data <- data_norm_sub %>%
-    t() %>%
-    as.data.frame() %>%
-    mutate(SegmentDisplayName = rownames(.)) %>%
-    pivot_longer(
-      cols = all_of(features),
-      names_to = "feature",
-      values_to = "expression"
-    ) %>%
-    left_join(metadata_sub, by = "SegmentDisplayName")
-  
-  # 결과 저장용 리스트
-  stat_results <- list()
-  
-  # 4. 각 Feature에 대해 Boxplot 생성
-  for (feat in features) {
-    
-    feature_data <- plot_data %>% filter(feature == feat)
-    
-    # Factor 변환
-    if(!is.factor(feature_data[[group.by]])) {
-      feature_data[[group.by]] <- as.factor(feature_data[[group.by]])
-    }
-    if(!is.null(split.by) && !is.factor(feature_data[[split.by]])) {
-      feature_data[[split.by]] <- as.factor(feature_data[[split.by]])
-    }
-    
-    # 기본 플롯 설정
-    p <- ggplot(feature_data, aes(x = .data[[group.by]], y = expression))
-    
-    # Case 1: split.by가 지정된 경우
-    if (!is.null(split.by)) {
-      dodge_width <- 0.85
-      
-      p <- p +
-        geom_boxplot(
-          aes(fill = .data[[split.by]]), 
-          position = position_dodge(width = dodge_width), 
-          outlier.shape = NA, 
-          alpha = 0.8
-        ) +
-        {if(show_points) geom_jitter(
-          aes(color = .data[[split.by]]), 
-          position = position_jitterdodge(dodge.width = dodge_width, jitter.width = 0.2), 
-          size = 1, 
-          alpha = 0.5
-        )} +
-        scale_color_discrete(name = split.by) +
-        labs(fill = split.by)
-      
-      # 각 group.by 수준 내에서 split.by 수준들 간 비교
-      stat_formula <- as.formula(paste("expression ~", paste0("`", split.by, "`")))
-      
-      base_stat_test <- if (test_method == "t.test") {
-        feature_data %>% 
-          group_by(.data[[group.by]]) %>% 
-          t_test(stat_formula)
-      } else {
-        feature_data %>% 
-          group_by(.data[[group.by]]) %>% 
-          wilcox_test(stat_formula)
-      }
-      
-      if (nrow(base_stat_test) > 0) {
-        # p-value 조정 및 위치 계산
-        stat_test <- base_stat_test %>%
-          adjust_pvalue(method = p_adjust_method) %>%
-          add_xy_position(x = group.by, dodge = dodge_width, fun = "max", scales = "free_y")
-        
-        # 통계 결과 저장
-        stat_results[[feat]] <- stat_test
-        
-        # 플롯에 p-value 추가
-        p <- p + stat_pvalue_manual(
-          stat_test, 
-          label = "p.adj", 
-          hide.ns = hide_ns, 
-          tip.length = 0.01
-        )
-      }
-      
-      # Case 2: split.by가 없는 경우
-    } else {
-      p <- p +
-        geom_boxplot(
-          aes(fill = .data[[group.by]]), 
-          outlier.shape = NA, 
-          alpha = 0.8
-        ) +
-        {if(show_points) geom_jitter(width = 0.2, size = 1, alpha = 0.6)} +
-        theme(legend.position = "none")
-      
-      # group.by의 수준이 2개 이상일 때만 통계 검정 수행
-      n_groups <- length(unique(feature_data[[group.by]]))
-      
-      if (n_groups >= 2) {
-        stat_formula <- as.formula(paste("expression ~", paste0("`", group.by, "`")))
-        
-        # 그룹이 2개면 단순 비교, 3개 이상이면 pairwise
-        if (n_groups == 2) {
-          base_stat_test <- if (test_method == "t.test") {
-            feature_data %>% t_test(stat_formula)
-          } else {
-            feature_data %>% wilcox_test(stat_formula)
-          }
-        } else {
-          # 3개 이상 그룹: pairwise comparison
-          if (comparisons == "all") {
-            base_stat_test <- if (test_method == "t.test") {
-              feature_data %>% 
-                t_test(stat_formula, p.adjust.method = "none")
-            } else {
-              feature_data %>% 
-                wilcox_test(stat_formula, p.adjust.method = "none")
-            }
-          } else if (is.list(comparisons)) {
-            base_stat_test <- if (test_method == "t.test") {
-              feature_data %>% 
-                t_test(stat_formula, comparisons = comparisons, p.adjust.method = "none")
-            } else {
-              feature_data %>% 
-                wilcox_test(stat_formula, comparisons = comparisons, p.adjust.method = "none")
-            }
-          }
-        }
-        
-        if (exists("base_stat_test") && nrow(base_stat_test) > 0) {
-          # p-value 조정 및 위치 계산
-          stat_test <- base_stat_test %>%
-            adjust_pvalue(method = p_adjust_method) %>%
-            add_y_position(scales = "free_y", step.increase = 0.1)
-          
-          # 통계 결과 저장
-          stat_results[[feat]] <- stat_test
-          
-          # 플롯에 p-value 추가
-          p <- p + stat_pvalue_manual(
-            stat_test, 
-            label = "p.adj", 
-            hide.ns = hide_ns, 
-            tip.length = 0.01
-          )
-        }
-      }
-    }
-    
-    # 공통 테마 및 레이블 적용
-    p <- p +
-      theme_classic() +
-      labs(
-        title = paste("Expression of", feat),
-        x = group.by,
-        y = "Normalized Expression"
-      ) +
-      theme(
-        plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
-        axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title = element_text(size = 14),
-        legend.title = element_text(size = 12),
-        legend.text = element_text(size = 11)
-      )
-    
-    # 플롯 출력
-    print(p)
-  }
-  
-  # 통계 결과 반환 (invisible로 콘솔에 자동 출력되지 않도록)
-  invisible(stat_results)
-}
-
-
-# boxplot end
 
 #' UpSet Plot for Multiple Gene Lists
 #'
@@ -837,144 +385,94 @@ upset_gene_lists <- function(gene_lists,
   return(p)
 }
 
-vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
-  plist <- VlnPlot(
-    object    = sobj,
-    features  = feature,
-    group.by  = group.by,
-    split.by  = split.by,
-    combine   = FALSE,
-    pt.size=pt.size,
-    ...
-  )
-  
-  plist2 <- lapply(plist, function(p){
-    df <- p$data
-    
-    p +
-      ggpubr::stat_compare_means(
-        data       = df,
-        mapping    = aes_string(group = "split"),
-        method     = "wilcox.test",
-        label      = "p.signif",
-        hide.ns    = TRUE,
-        tip.length = 0.02
-      ) +
-      theme(legend.position = "none")
-  })
-  
-  return(patchwork::wrap_plots(plist2, ncol = ncol))
-}
-
 # Helper function for sort.by logic in cmb and acmb
-# Supports vector input for multiple sorting criteria
-.calculate_sort_values <- function(sobj, summary_data, sort.by, identity, group.by) {
+# Returns a dataframe with sample, value (mean), and optionally q1, q3 for IQR
+.calculate_sort_values <- function(sobj, summary_data, sort.by, identity, group.by, return_iqr = FALSE) {
   # Handle vector input: process each element in order
   if(length(sort.by) > 1) {
-    # Collect all sort values as a data frame
+    # For multiple criteria, we only use the first one for the graph
+    # But we use all for the ranking/sorting
     all_sort_dfs <- list()
     for(i in seq_along(sort.by)) {
-      single_sort_vals <- .calculate_sort_values(sobj, summary_data, sort.by[i], identity, group.by)
-      if(!is.null(single_sort_vals)) {
-        all_sort_dfs[[i]] <- data.frame(
-          sample = names(single_sort_vals),
-          value = single_sort_vals,
-          stringsAsFactors = FALSE
-        )
-        names(all_sort_dfs[[i]])[2] <- paste0("sort_", i)
+      single_sort_df <- .calculate_sort_values(sobj, summary_data, sort.by[i], identity, group.by, return_iqr = (i == 1 && return_iqr))
+      if(!is.null(single_sort_df)) {
+        all_sort_dfs[[i]] <- single_sort_df
+        names(all_sort_dfs[[i]])[names(all_sort_dfs[[i]]) == "value"] <- paste0("sort_", i)
       }
     }
     
-    if(length(all_sort_dfs) == 0) {
-      return(NULL)
-    }
+    if(length(all_sort_dfs) == 0) return(NULL)
     
-    # Merge all sort criteria
+    # Merge all sort criteria for ranking
     merged_df <- all_sort_dfs[[1]]
     if(length(all_sort_dfs) > 1) {
       for(i in 2:length(all_sort_dfs)) {
-        merged_df <- dplyr::left_join(merged_df, all_sort_dfs[[i]], by = "sample")
+        merged_df <- dplyr::left_join(merged_df, all_sort_dfs[[i]] %>% dplyr::select(sample, !!sym(paste0("sort_", i))), by = "sample")
       }
     }
     
-    # Create a combined sort value (for ordering)
-    # Use order() with multiple columns: first by sort_1, then by sort_2, etc.
+    # Create rank
     sort_cols <- paste0("sort_", 1:length(all_sort_dfs))
     merged_df <- merged_df %>%
       dplyr::arrange(dplyr::across(dplyr::all_of(sort_cols), dplyr::desc))
     
-    # Return a named vector with combined ranking
-    # Use row number as the sort value (lower row number = higher priority)
     merged_df$combined_rank <- 1:nrow(merged_df)
-    sort_vals <- setNames(merged_df$combined_rank, merged_df$sample)
-    return(sort_vals)
+    # The 'value' for the primary graph is sort_1
+    merged_df$value <- merged_df$sort_1
+    return(merged_df)
   }
   
-  # Single value processing (original logic)
-  sort.by <- sort.by[1]
+  # Single value processing
+  sb <- sort.by[1]
+  unique_samples <- unique(summary_data$sample)
   
   # 1. Check if sort.by is a cluster in identity
   unique_clusters <- unique(summary_data$cluster)
-  if(sort.by %in% unique_clusters) {
-    # Sort by frequency of this cluster per sample
-    cluster_counts <- summary_data %>%
-      dplyr::filter(cluster == sort.by) %>%
-      dplyr::select(sample, count) %>%
-      dplyr::right_join(
-        data.frame(sample = unique(summary_data$sample), stringsAsFactors = FALSE),
-        by = "sample"
-      ) %>%
-      dplyr::mutate(count = ifelse(is.na(count), 0, count))
-    
-    sort_vals <- setNames(cluster_counts$count, cluster_counts$sample)
-    return(sort_vals)
+  if(sb %in% unique_clusters) {
+    res <- summary_data %>%
+      dplyr::filter(cluster == sb) %>%
+      dplyr::select(sample, count, proportion) %>%
+      dplyr::right_join(data.frame(sample = unique_samples, stringsAsFactors = FALSE), by = "sample") %>%
+      dplyr::mutate(value = ifelse(is.na(proportion), 0, proportion)) %>% # Use proportion for cmb/acmb consistency in sorting
+      dplyr::select(sample, value) %>%
+      dplyr::arrange(dplyr::desc(value)) %>%
+      dplyr::mutate(combined_rank = dplyr::row_number())
+    return(res)
   }
   
-  # 2. Check if sort.by is a metadata column
-  if(sort.by %in% names(sobj@meta.data)) {
-    # Calculate mean value per sample
-    meta_vals <- sobj@meta.data[[sort.by]]
-    sample_vals <- sobj@meta.data[[group.by]]
-    
-    if(!is.numeric(meta_vals)) {
-      warning("sort.by metadata column '", sort.by, "' is not numeric. Skipping sort.by.")
+  # 2 & 3. Metadata or Feature
+  data_to_fetch <- NULL
+  if(sb %in% names(sobj@meta.data)) {
+    data_to_fetch <- sobj@meta.data[[sb]]
+    if(!is.numeric(data_to_fetch)) {
+      warning("sort.by metadata column '", sb, "' is not numeric.")
       return(NULL)
     }
-    
-    meta_df <- data.frame(
-      sample = sample_vals,
-      value = meta_vals,
-      stringsAsFactors = FALSE
-    ) %>%
-      dplyr::filter(sample %in% unique(summary_data$sample)) %>%
-      dplyr::group_by(sample) %>%
-      dplyr::summarise(mean_value = mean(value, na.rm = TRUE), .groups = "drop")
-    
-    sort_vals <- setNames(meta_df$mean_value, meta_df$sample)
-    return(sort_vals)
+  } else if(sb %in% rownames(sobj)) {
+    data_to_fetch <- Seurat::FetchData(sobj, vars = sb)[[sb]]
   }
   
-  # 3. Check if sort.by is a feature/gene
-  if(sort.by %in% rownames(sobj)) {
-    # Fetch expression data
-    expr_data <- Seurat::FetchData(sobj, vars = sort.by)
-    sample_vals <- sobj@meta.data[[group.by]]
-    
-    expr_df <- data.frame(
-      sample = sample_vals,
-      expression = expr_data[[sort.by]],
+  if(!is.null(data_to_fetch)) {
+    df <- data.frame(
+      sample = sobj@meta.data[[group.by]],
+      val = data_to_fetch,
       stringsAsFactors = FALSE
-    ) %>%
-      dplyr::filter(sample %in% unique(summary_data$sample)) %>%
-      dplyr::group_by(sample) %>%
-      dplyr::summarise(mean_expr = mean(expression, na.rm = TRUE), .groups = "drop")
+    ) %>% dplyr::filter(sample %in% unique_samples)
     
-    sort_vals <- setNames(expr_df$mean_expr, expr_df$sample)
-    return(sort_vals)
+    res <- df %>%
+      dplyr::group_by(sample) %>%
+      dplyr::summarise(
+        value = mean(val, na.rm = TRUE),
+        q1 = if(return_iqr) quantile(val, 0.25, na.rm = TRUE) else NA,
+        q3 = if(return_iqr) quantile(val, 0.75, na.rm = TRUE) else NA,
+        .groups = "drop"
+      ) %>%
+      dplyr::arrange(dplyr::desc(value)) %>%
+      dplyr::mutate(combined_rank = dplyr::row_number())
+    return(res)
   }
   
-  # If none of the above, return NULL
-  warning("sort.by '", sort.by, "' not found in identity clusters, metadata, or features. Skipping sort.by.")
+  warning("sort.by '", sb, "' not found.")
   return(NULL)
 }
 
@@ -1014,238 +512,223 @@ vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
 #'                     Clusters will be stacked in this order (bottom to top).
 #'                     If NULL, clusters are ordered by their natural order.
 #'                     Default is NULL.
+#' @param label.by Character string specifying a metadata column to color-code sample labels.
+#'                If provided, each sample label will be colored according to this variable.
+#'                Default is NULL.
+#' @param label.numeric Logical. If TRUE, treats label.by as numeric (gradient). If FALSE, as categorical.
+#'                     If NULL (default), auto-detects.
+#' @param sort.graph Logical. If TRUE, adds a line plot showing sort.by values. Default is FALSE.
+#' @param sort.graph.overlay Logical. If TRUE, overlays the sort graph on the bar plot.
+#'                          If FALSE (default), draws it above the bar plot.
+#' @param sort.graph.iqr Logical. If TRUE, shows IQR for the sort graph (if applicable). Default is FALSE.
+#' @param legend_detail Logical. If TRUE, displays input parameters as text at the bottom. Default is FALSE.
 #'
-#' @return A ggplot object showing the proportional distribution of clusters, or a data frame
-#'         if df = TRUE
-#'
-#' @examples
-#' \dontrun{
-#' # Create proportional bar plot for all clusters
-#' p <- cmb(sobj, identity = "seurat_clusters", group.by = "sample")
-#' 
-#' # Create plot for specific clusters with vertical lines
-#' p <- cmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
-#' 
-#' # Filter specific group.by values
-#' p <- cmb(sobj, group.by = "sample", group.by.filter = c("sample1", "sample2", "sample3"))
-#' 
-#' # Use split.by to automatically set vlines at group boundaries
-#' p <- cmb(sobj, group.by = "sample", split.by = "g3")
-#' 
-#' # Sort by cluster frequency
-#' p <- cmb(sobj, sort.by = "Monocytes")
-#' 
-#' # Sort by metadata column
-#' p <- cmb(sobj, sort.by = "logP")
-#' 
-#' # Sort by gene expression
-#' p <- cmb(sobj, sort.by = "CXCL8")
-#' 
-#' # Sort by multiple criteria
-#' p <- cmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
-#' 
-#' # Sort by multiple criteria
-#' p <- cmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
-#' 
-#' # Control cluster stacking order
-#' p <- cmb(sobj, cluster_order = c("Monocytes", "T_cells", "B_cells", "NK_cells"))
-#' 
-#' # Get the underlying data frame
-#' df <- cmb(sobj, df = TRUE)
-#' }
+#' @return A ggplot object or a patchwork object (if sort.graph is TRUE and not overlaid).
 #' @export
 cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents = NULL, 
                 group.by.filter = NULL, split.by = NULL, sort.by = NULL,
-                df=F, vlines=NULL, vline_color = "red", cluster_order = NULL) {
+                df = FALSE, vlines = NULL, vline_color = "red", cluster_order = NULL,
+                label.by = NULL, label.numeric = NULL,
+                sort.graph = FALSE, sort.graph.overlay = FALSE, sort.graph.iqr = FALSE,
+                legend_detail = FALSE) {
+  
+  # 1. Prepare Data
   Idents(sobj) <- identity
   cluster_ids <- Idents(sobj)
   sample_ids <- sobj@meta.data[[group.by]]
   
   data <- data.frame(cluster = cluster_ids, sample = sample_ids)
   
-  # Filter identities if idents is provided
-  if(!is.null(idents)) {
-    data <- data[data$cluster %in% idents,]
-  }
-  
-  # Filter group.by values if group.by.filter is provided
+  if(!is.null(idents)) data <- data[data$cluster %in% idents, ]
   if(!is.null(group.by.filter)) {
-    data <- data[data$sample %in% group.by.filter,]
-    if(nrow(data) == 0) {
-      stop("No data remaining after group.by.filter. Please check the filter values.")
-    }
+    data <- data[data$sample %in% group.by.filter, ]
+    if(nrow(data) == 0) stop("No data remaining after group.by.filter.")
   }
   
   summary_data <- data %>%
-    group_by(sample, cluster) %>%
-    summarise(count = n(), .groups = "drop") %>%
-    group_by(sample) %>%
-    mutate(proportion = count / sum(count)) %>%
-    ungroup()
+    dplyr::group_by(sample, cluster) %>%
+    dplyr::summarise(count = dplyr::n(), .groups = "drop") %>%
+    dplyr::group_by(sample) %>%
+    dplyr::mutate(proportion = count / sum(count)) %>%
+    dplyr::ungroup()
   
-  # Handle split.by and sort.by: split.by takes priority for grouping, sort.by for within-group sorting
+  # 2. Sorting Logic
   sample_split_map <- NULL
   if(!is.null(split.by)) {
-    if(!split.by %in% names(sobj@meta.data)) {
-      stop("split.by column '", split.by, "' not found in metadata.")
-    }
-    
-    # Get split.by values for each sample
+    if(!split.by %in% names(sobj@meta.data)) stop("split.by column not found.")
     sample_split_map <- sobj@meta.data %>%
       dplyr::select(!!sym(group.by), !!sym(split.by)) %>%
-      distinct() %>%
+      dplyr::distinct() %>%
       dplyr::filter(!!sym(group.by) %in% unique(summary_data$sample))
   }
   
-  # Handle sort.by: determine sort order based on sort.by parameter
-  # If split.by is provided, sort within each split.by group
+  sort_df <- NULL
   if(!is.null(sort.by)) {
-    sort_values <- .calculate_sort_values(sobj, summary_data, sort.by, identity, group.by)
-    if(!is.null(sort_values) && !is.null(sample_split_map)) {
-      # Sort within each split.by group - ensure proper ordering
-      split_groups <- unique(sample_split_map[[split.by]])
-      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-      
-      sorted_samples <- c()
-      for(sg in split_groups) {
-        if(is.na(sg)) next  # Skip NA groups
-        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
-        if(length(samples_in_group) > 0) {
-          # Get sort values for samples in this group
-          group_sort_vals <- sort_values[names(sort_values) %in% samples_in_group]
-          # Ensure all samples in group have sort values (fill missing with 0 or min)
-          missing_samples <- setdiff(samples_in_group, names(group_sort_vals))
-          if(length(missing_samples) > 0) {
-            min_val <- if(length(group_sort_vals) > 0) min(group_sort_vals, na.rm = TRUE) - 1 else 0
-            group_sort_vals[missing_samples] <- min_val
-          }
-          # Sort by decreasing order (higher values first)
-          sorted_group <- names(sort(group_sort_vals, decreasing = TRUE, na.last = TRUE))
-          sorted_samples <- c(sorted_samples, sorted_group)
-        }
-      }
-      # Ensure all samples are included
-      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
-      if(length(missing_samples) > 0) {
-        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
-      }
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-    } else if(!is.null(sort_values)) {
-      # No split.by, just sort by sort_values
-      sorted_samples <- names(sort(sort_values, decreasing = TRUE, na.last = TRUE))
-      # Include any missing samples
-      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
-      if(length(missing_samples) > 0) {
-        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
-      }
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    sort_df <- .calculate_sort_values(sobj, summary_data, sort.by, identity, group.by, return_iqr = sort.graph.iqr)
+  }
+  
+  sorted_samples <- NULL
+  if(!is.null(sort_df)) {
+    if(!is.null(sample_split_map)) {
+      merged_sort <- sample_split_map %>%
+        dplyr::left_join(sort_df, by = "sample") %>%
+        dplyr::arrange(!!sym(split.by), combined_rank)
+      sorted_samples <- merged_sort$sample
     } else {
-      # Fallback to default sorting
-      if(!is.null(sample_split_map)) {
-        # Sort by split.by groups
-        split_groups <- unique(sample_split_map[[split.by]])
-        split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-        sorted_samples <- c()
-        for(sg in split_groups) {
-          if(is.na(sg)) next
-          samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-          samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
-          sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
-        }
-        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-      } else {
-        sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
-        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-      }
+      sorted_samples <- (sort_df %>% dplyr::arrange(combined_rank))$sample
+    }
+  } else if(!is.null(sample_split_map)) {
+    merged_sort <- sample_split_map %>% dplyr::arrange(!!sym(split.by), !!sym(group.by))
+    split_groups <- unique(merged_sort[[split.by]])
+    sorted_samples <- c()
+    for(sg in split_groups) {
+      s_in_g <- merged_sort[merged_sort[[split.by]] == sg, ]$sample
+      sorted_samples <- c(sorted_samples, sort_samples(s_in_g))
     }
   } else {
-    # No sort.by: use split.by grouping if available, otherwise default sorting
-    if(!is.null(sample_split_map)) {
-      # Sort by split.by groups
-      split_groups <- unique(sample_split_map[[split.by]])
-      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-      sorted_samples <- c()
-      for(sg in split_groups) {
-        if(is.na(sg)) next
-        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
-        sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
-      }
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-    } else {
-      # Default sorting
-      sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-    }
+    sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
   }
   
-  # Calculate vlines from split.by if not provided
+  summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+  
+  # Auto vlines
   if(!is.null(split.by) && is.null(vlines)) {
-    if(!is.null(sample_split_map)) {
-      split_groups <- unique(sample_split_map[[split.by]])
-      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-      
-      vlines <- c()
-      current_pos <- 0
-      for(sg in split_groups) {
-        if(is.na(sg)) next
-        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-        n_samples <- length(intersect(samples_in_group, unique(summary_data$sample)))
-        if(n_samples > 0) {
-          current_pos <- current_pos + n_samples
-          vlines <- c(vlines, current_pos)
-        }
-      }
-      # Remove the last vline (end of plot)
-      if(length(vlines) > 0) {
-        vlines <- vlines[-length(vlines)]
-      }
-    }
+    split_vals <- sample_split_map[[split.by]][match(sorted_samples, sample_split_map[[group.by]])]
+    vlines <- which(split_vals[-1] != split_vals[-length(split_vals)])
   }
   
-  # Handle cluster_order: set factor levels to control stacking order
+  # Stacking order
   if(!is.null(cluster_order)) {
-    # Validate cluster_order
-    available_clusters <- unique(summary_data$cluster)
-    if(!all(cluster_order %in% available_clusters)) {
-      missing <- setdiff(cluster_order, available_clusters)
-      warning("Some clusters in cluster_order not found in data: ", paste(missing, collapse=", "))
-      cluster_order <- intersect(cluster_order, available_clusters)
-    }
-    # Add any missing clusters to the end
-    missing_clusters <- setdiff(available_clusters, cluster_order)
-    if(length(missing_clusters) > 0) {
-      cluster_order <- c(cluster_order, sort(missing_clusters))
-    }
-    # Set factor levels (order determines stacking: first = bottom, last = top)
+    available <- unique(summary_data$cluster)
+    cluster_order <- c(intersect(cluster_order, available), setdiff(available, cluster_order))
     summary_data$cluster <- factor(summary_data$cluster, levels = cluster_order)
   } else {
-    # Default: use natural order
     summary_data$cluster <- factor(summary_data$cluster)
   }
   
-  output=ggplot(summary_data, aes(x = sample, y = proportion, fill = cluster)) +
-    geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
-    labs(title = paste0("Proportional Bar Graph of Clusters for Each ", group.by),
-         x = group.by,
-         y = "Proportion of Cells") +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "right") +
-    scale_fill_viridis_d() +
-    scale_y_continuous(labels = scales::percent_format())
+  if(df) return(summary_data)
   
-  if(!is.null(vlines)){
-    for (line_pos in vlines) {
-      output <- output + geom_vline(xintercept = line_pos + 0.5, color = vline_color, linetype = "dashed", linewidth = 0.5)
+  # 3. Base Bar Plot
+  p_bar <- ggplot2::ggplot(summary_data, ggplot2::aes(x = sample, y = proportion, fill = cluster)) +
+    ggplot2::geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
+    ggplot2::scale_y_continuous(labels = scales::percent_format(), expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ggplot2::scale_fill_viridis_d() +
+    ggplot2::labs(x = group.by, y = "Proportion", fill = "Cluster") +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                   panel.grid.minor = ggplot2::element_blank())
+  
+  # Vertical Lines
+  if(!is.null(vlines)) {
+    for(vl in vlines) {
+      p_bar <- p_bar + ggplot2::geom_vline(xintercept = vl + 0.5, color = vline_color, linetype = "dashed")
     }
   }
   
-  if(df){
-    return(summary_data)
+  # Label.by color bar
+  y_lower <- 0
+  if(!is.null(label.by)) {
+    l_data <- sobj@meta.data %>%
+      dplyr::select(!!sym(group.by), !!sym(label.by)) %>%
+      dplyr::distinct() %>%
+      dplyr::filter(!!sym(group.by) %in% sorted_samples)
+    l_vals <- l_data[[label.by]][match(sorted_samples, l_data[[group.by]])]
+    
+    is_num <- if(is.null(label.numeric)) (is.numeric(l_vals) && length(unique(na.omit(l_vals))) > 10) else label.numeric
+    
+    if(is_num) {
+      l_colors <- scales::rescale(l_vals)
+      l_colors_hex <- viridis::viridis(100)[as.numeric(cut(l_colors, breaks = 100, include.lowest = TRUE))]
+      p_bar <- p_bar + 
+        ggplot2::annotate("rect", xmin = seq_along(sorted_samples)-0.45, xmax = seq_along(sorted_samples)+0.45,
+                          ymin = -0.05, ymax = -0.01, fill = l_colors_hex)
+      
+      # Dummy for legend using actual data mapping for robustness
+      l_df <- data.frame(sample = sorted_samples, val = l_vals)
+      p_bar <- p_bar + ggplot2::geom_point(data=l_df, ggplot2::aes(x=sample, y=1, color=val), alpha=0, inherit.aes = F) +
+        ggplot2::scale_color_viridis_c(name = label.by) +
+        ggplot2::guides(color = ggplot2::guide_colorbar(override.aes = list(alpha = 1)))
+    } else {
+      unique_l <- sort(unique(na.omit(l_vals)))
+      pal <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(min(8, length(unique_l)), "Set1"))(length(unique_l))
+      names(pal) <- unique_l
+      l_colors_hex <- pal[as.character(l_vals)]
+      p_bar <- p_bar + 
+        ggplot2::annotate("rect", xmin = seq_along(sorted_samples)-0.45, xmax = seq_along(sorted_samples)+0.45,
+                          ymin = -0.05, ymax = -0.01, fill = l_colors_hex)
+      
+      # Dummy for legend
+      l_df <- data.frame(sample = sorted_samples, val = factor(l_vals, levels = unique_l))
+      p_bar <- p_bar + ggplot2::geom_point(data=l_df, ggplot2::aes(x=sample, y=1, color=val), alpha=0, inherit.aes = F) +
+        ggplot2::scale_color_manual(name = label.by, values = pal) +
+        ggplot2::guides(color = ggplot2::guide_legend(override.aes = list(alpha = 1, size = 4, shape = 15)))
+    }
+    y_lower <- -0.06
   }
-  return(output)
+  
+  # Apply limits
+  p_bar <- p_bar + ggplot2::coord_cartesian(ylim = c(y_lower, 1.05), clip = "off")
+  
+  # 4. Sort Graph
+  if(sort.graph && !is.null(sort_df)) {
+    sort_df$sample <- factor(sort_df$sample, levels = sorted_samples)
+    sort_df <- sort_df[order(sort_df$sample), ]
+    
+    s_min <- min(sort_df$value, na.rm = TRUE)
+    s_max <- max(sort_df$value, na.rm = TRUE)
+    s_range <- s_max - s_min
+    if(s_range == 0) s_range <- 1
+    
+    if(sort.graph.overlay) {
+      # Scale to [0, 1] for overlay
+      sort_df$value_scaled <- (sort_df$value - s_min) / s_range
+      
+      p_bar <- p_bar + 
+        ggplot2::geom_line(data = sort_df, ggplot2::aes(x = sample, y = value_scaled, group = 1), color = "red", linewidth = 1, inherit.aes = F) +
+        ggplot2::geom_point(data = sort_df, ggplot2::aes(x = sample, y = value_scaled), color = "red", size = 2, inherit.aes = F)
+      
+      if(sort.graph.iqr && !is.na(sort_df$q1[1])) {
+        sort_df$q1_scaled <- (sort_df$q1 - s_min) / s_range
+        sort_df$q3_scaled <- (sort_df$q3 - s_min) / s_range
+        p_bar <- p_bar + ggplot2::geom_ribbon(data = sort_df, ggplot2::aes(x = sample, ymin = q1_scaled, ymax = q3_scaled, group = 1), 
+                                     fill = "red", alpha = 0.2, inherit.aes = F)
+      }
+      
+      # Add secondary axis
+      p_bar <- p_bar + ggplot2::scale_y_continuous(labels = scales::percent_format(), 
+                                                   expand = ggplot2::expansion(mult = c(0, 0.05)),
+                                                   sec.axis = ggplot2::sec_axis(~ . * s_range + s_min, name = sort.by[1]))
+      res_p <- p_bar
+    } else {
+      # Independent plot above
+      p_sort <- ggplot2::ggplot(sort_df, ggplot2::aes(x = sample, y = value, group = 1)) +
+        ggplot2::geom_line(color = "red", linewidth = 1) +
+        ggplot2::geom_point(color = "red", size = 2) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(axis.text.x = ggplot2::element_blank(), 
+                       axis.title.x = ggplot2::element_blank(), 
+                       axis.ticks.x = ggplot2::element_blank(),
+                       panel.grid.minor = ggplot2::element_blank()) +
+        ggplot2::labs(y = sort.by[1])
+      
+      if(sort.graph.iqr && !is.na(sort_df$q1[1])) {
+        p_sort <- p_sort + ggplot2::geom_ribbon(ggplot2::aes(ymin = q1, ymax = q3), fill = "red", alpha = 0.2)
+      }
+      
+      if(!requireNamespace("patchwork", quietly = TRUE)) stop("Please install patchwork.")
+      res_p <- (p_sort / p_bar) + patchwork::plot_layout(heights = c(1, 3))
+    }
+  } else {
+    res_p <- p_bar
+  }
+  
+  if(legend_detail) {
+    detail <- paste0("identity: ", identity, " | group.by: ", group.by, 
+                     if(!is.null(sort.by)) paste0(" | sort.by: ", paste(sort.by, collapse=", ")) else "")
+    res_p <- res_p + ggplot2::labs(caption = detail)
+  }
+  
+  return(res_p)
 }
 
 
@@ -1285,231 +768,227 @@ cmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents 
 #'                     Clusters will be stacked in this order (bottom to top).
 #'                     If NULL, clusters are ordered by their natural order.
 #'                     Default is NULL.
+#' @param label.by Character string specifying a metadata column to color-code sample labels.
+#'                If provided, each sample label will be colored according to this variable.
+#'                Default is NULL.
+#' @param label.numeric Logical. If TRUE, treats label.by as numeric (gradient). If FALSE, as categorical.
+#'                     If NULL (default), auto-detects.
+#' @param sort.graph Logical. If TRUE, adds a line plot showing sort.by values. Default is FALSE.
+#' @param sort.graph.overlay Logical. If TRUE, overlays the sort graph on the bar plot.
+#'                          If FALSE (default), draws it above the bar plot.
+#' @param sort.graph.iqr Logical. If TRUE, shows IQR for the sort graph (if applicable). Default is FALSE.
+#' @param legend_detail Logical. If TRUE, displays input parameters as text at the bottom. Default is FALSE.
 #'
-#' @return A ggplot object showing the absolute count distribution of clusters, or a data frame
-#'         if df = TRUE
-#'
-#' @examples
-#' \dontrun{
-#' # Create absolute count bar plot for all clusters
-#' p <- acmb(sobj, identity = "seurat_clusters", group.by = "sample")
-#' 
-#' # Create plot for specific clusters with vertical lines
-#' p <- acmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
-#' 
-#' # Filter specific group.by values
-#' p <- acmb(sobj, group.by = "sample", group.by.filter = c("sample1", "sample2", "sample3"))
-#' 
-#' # Use split.by to automatically set vlines at group boundaries
-#' p <- acmb(sobj, group.by = "sample", split.by = "g3")
-#' 
-#' # Sort by cluster frequency
-#' p <- acmb(sobj, sort.by = "Monocytes")
-#' 
-#' # Sort by metadata column
-#' p <- acmb(sobj, sort.by = "logP")
-#' 
-#' # Sort by gene expression
-#' p <- acmb(sobj, sort.by = "CXCL8")
-#' 
-#' # Sort by multiple criteria
-#' p <- acmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
-#' 
-#' # Control cluster stacking order
-#' p <- acmb(sobj, cluster_order = c("Monocytes", "T_cells", "B_cells", "NK_cells"))
-#' 
-#' # Get the underlying data frame
-#' df <- acmb(sobj, df = TRUE)
-#' }
+#' @return A ggplot object or a patchwork object (if sort.graph is TRUE and not overlaid).
 #' @export
-acmb <- function(sobj, identity="seurat_clusters", group.by="sample", idents = NULL,
-                group.by.filter = NULL, split.by = NULL, sort.by = NULL,
-                df=F, vlines=NULL, vline_color = "red", cluster_order = NULL) {
+acmb <- function(sobj, identity = "seurat_clusters", group.by = "sample", idents = NULL, 
+                 group.by.filter = NULL, split.by = NULL, sort.by = NULL,
+                 df = FALSE, vlines = NULL, vline_color = "red", cluster_order = NULL,
+                 label.by = NULL, label.numeric = NULL,
+                 sort.graph = FALSE, sort.graph.overlay = FALSE, sort.graph.iqr = FALSE,
+                 legend_detail = FALSE) {
+  
+  # 1. Prepare Data
   Idents(sobj) <- identity
   cluster_ids <- Idents(sobj)
   sample_ids <- sobj@meta.data[[group.by]]
   
   data <- data.frame(cluster = cluster_ids, sample = sample_ids)
   
-  # Filter identities if idents is provided
-  if(!is.null(idents)) {
-    data <- data[data$cluster %in% idents,]
-  }
-  
-  # Filter group.by values if group.by.filter is provided
+  if(!is.null(idents)) data <- data[data$cluster %in% idents, ]
   if(!is.null(group.by.filter)) {
-    data <- data[data$sample %in% group.by.filter,]
-    if(nrow(data) == 0) {
-      stop("No data remaining after group.by.filter. Please check the filter values.")
-    }
+    data <- data[data$sample %in% group.by.filter, ]
+    if(nrow(data) == 0) stop("No data remaining after group.by.filter.")
   }
   
   summary_data <- data %>%
-    group_by(sample, cluster) %>%
-    summarise(count = n(), .groups = "drop")
+    dplyr::group_by(sample, cluster) %>%
+    dplyr::summarise(count = dplyr::n(), .groups = "drop") %>%
+    dplyr::group_by(sample) %>%
+    dplyr::mutate(proportion = count / sum(count)) %>% # For sorting
+    dplyr::ungroup()
   
-  # Handle split.by and sort.by: split.by takes priority for grouping, sort.by for within-group sorting
+  # Total counts for each sample
+  sample_totals <- summary_data %>% dplyr::group_by(sample) %>% dplyr::summarise(total = sum(count), .groups = "drop")
+  y_max_base <- max(sample_totals$total)
+  
+  # 2. Sorting Logic
   sample_split_map <- NULL
   if(!is.null(split.by)) {
-    if(!split.by %in% names(sobj@meta.data)) {
-      stop("split.by column '", split.by, "' not found in metadata.")
-    }
-    
-    # Get split.by values for each sample
+    if(!split.by %in% names(sobj@meta.data)) stop("split.by column not found.")
     sample_split_map <- sobj@meta.data %>%
       dplyr::select(!!sym(group.by), !!sym(split.by)) %>%
-      distinct() %>%
+      dplyr::distinct() %>%
       dplyr::filter(!!sym(group.by) %in% unique(summary_data$sample))
   }
   
-  # Handle sort.by: determine sort order based on sort.by parameter
-  # If split.by is provided, sort within each split.by group
+  sort_df <- NULL
   if(!is.null(sort.by)) {
-    sort_values <- .calculate_sort_values(sobj, summary_data, sort.by, identity, group.by)
-    if(!is.null(sort_values) && !is.null(sample_split_map)) {
-      # Sort within each split.by group - ensure proper ordering
-      split_groups <- unique(sample_split_map[[split.by]])
-      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-      
-      sorted_samples <- c()
-      for(sg in split_groups) {
-        if(is.na(sg)) next  # Skip NA groups
-        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
-        if(length(samples_in_group) > 0) {
-          # Get sort values for samples in this group
-          group_sort_vals <- sort_values[names(sort_values) %in% samples_in_group]
-          # Ensure all samples in group have sort values (fill missing with 0 or min)
-          missing_samples <- setdiff(samples_in_group, names(group_sort_vals))
-          if(length(missing_samples) > 0) {
-            min_val <- if(length(group_sort_vals) > 0) min(group_sort_vals, na.rm = TRUE) - 1 else 0
-            group_sort_vals[missing_samples] <- min_val
-          }
-          # Sort by decreasing order (higher values first)
-          sorted_group <- names(sort(group_sort_vals, decreasing = TRUE, na.last = TRUE))
-          sorted_samples <- c(sorted_samples, sorted_group)
-        }
-      }
-      # Ensure all samples are included
-      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
-      if(length(missing_samples) > 0) {
-        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
-      }
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-    } else if(!is.null(sort_values)) {
-      # No split.by, just sort by sort_values
-      sorted_samples <- names(sort(sort_values, decreasing = TRUE, na.last = TRUE))
-      # Include any missing samples
-      missing_samples <- setdiff(unique(summary_data$sample), sorted_samples)
-      if(length(missing_samples) > 0) {
-        sorted_samples <- c(sorted_samples, sort_samples(missing_samples))
-      }
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+    sort_df <- .calculate_sort_values(sobj, summary_data, sort.by, identity, group.by, return_iqr = sort.graph.iqr)
+  }
+  
+  sorted_samples <- NULL
+  if(!is.null(sort_df)) {
+    if(!is.null(sample_split_map)) {
+      merged_sort <- sample_split_map %>%
+        dplyr::left_join(sort_df, by = "sample") %>%
+        dplyr::arrange(!!sym(split.by), combined_rank)
+      sorted_samples <- merged_sort$sample
     } else {
-      # Fallback to default sorting
-      if(!is.null(sample_split_map)) {
-        # Sort by split.by groups
-        split_groups <- unique(sample_split_map[[split.by]])
-        split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-        sorted_samples <- c()
-        for(sg in split_groups) {
-          if(is.na(sg)) next
-          samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-          samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
-          sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
-        }
-        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-      } else {
-        sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
-        summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-      }
+      sorted_samples <- (sort_df %>% dplyr::arrange(combined_rank))$sample
+    }
+  } else if(!is.null(sample_split_map)) {
+    merged_sort <- sample_split_map %>% dplyr::arrange(!!sym(split.by), !!sym(group.by))
+    split_groups <- unique(merged_sort[[split.by]])
+    sorted_samples <- c()
+    for(sg in split_groups) {
+      s_in_g <- merged_sort[merged_sort[[split.by]] == sg, ]$sample
+      sorted_samples <- c(sorted_samples, sort_samples(s_in_g))
     }
   } else {
-    # No sort.by: use split.by grouping if available, otherwise default sorting
-    if(!is.null(sample_split_map)) {
-      # Sort by split.by groups
-      split_groups <- unique(sample_split_map[[split.by]])
-      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-      sorted_samples <- c()
-      for(sg in split_groups) {
-        if(is.na(sg)) next
-        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-        samples_in_group <- intersect(samples_in_group, unique(summary_data$sample))
-        sorted_samples <- c(sorted_samples, sort_samples(samples_in_group))
-      }
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-    } else {
-      # Default sorting
-      sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
-      summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
-    }
+    sorted_samples <- sort_samples(unique(as.character(summary_data$sample)))
   }
   
-  # Calculate vlines from split.by if not provided
+  summary_data$sample <- factor(summary_data$sample, levels = sorted_samples)
+  
+  # Auto vlines
   if(!is.null(split.by) && is.null(vlines)) {
-    if(!is.null(sample_split_map)) {
-      split_groups <- unique(sample_split_map[[split.by]])
-      split_groups <- split_groups[order(split_groups, na.last = TRUE)]
-      
-      vlines <- c()
-      current_pos <- 0
-      for(sg in split_groups) {
-        if(is.na(sg)) next
-        samples_in_group <- sample_split_map[sample_split_map[[split.by]] == sg, ][[group.by]]
-        n_samples <- length(intersect(samples_in_group, unique(summary_data$sample)))
-        if(n_samples > 0) {
-          current_pos <- current_pos + n_samples
-          vlines <- c(vlines, current_pos)
-        }
-      }
-      # Remove the last vline (end of plot)
-      if(length(vlines) > 0) {
-        vlines <- vlines[-length(vlines)]
-      }
-    }
+    split_vals <- sample_split_map[[split.by]][match(sorted_samples, sample_split_map[[group.by]])]
+    vlines <- which(split_vals[-1] != split_vals[-length(split_vals)])
   }
   
-  # Handle cluster_order: set factor levels to control stacking order
+  # Stacking order
   if(!is.null(cluster_order)) {
-    # Validate cluster_order
-    available_clusters <- unique(summary_data$cluster)
-    if(!all(cluster_order %in% available_clusters)) {
-      missing <- setdiff(cluster_order, available_clusters)
-      warning("Some clusters in cluster_order not found in data: ", paste(missing, collapse=", "))
-      cluster_order <- intersect(cluster_order, available_clusters)
-    }
-    # Add any missing clusters to the end
-    missing_clusters <- setdiff(available_clusters, cluster_order)
-    if(length(missing_clusters) > 0) {
-      cluster_order <- c(cluster_order, sort(missing_clusters))
-    }
-    # Set factor levels (order determines stacking: first = bottom, last = top)
+    available <- unique(summary_data$cluster)
+    cluster_order <- c(intersect(cluster_order, available), setdiff(available, cluster_order))
     summary_data$cluster <- factor(summary_data$cluster, levels = cluster_order)
   } else {
-    # Default: use natural order
     summary_data$cluster <- factor(summary_data$cluster)
   }
   
-  output=ggplot(summary_data, aes(x = sample, y = count, fill = cluster)) +
-    geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
-    labs(title = paste0("Cumulative Bar Graph of Clusters for Each ", group.by),
-         x = group.by,
-         y = "Number of Cells") +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "right") +
-    scale_fill_viridis_d()
+  if(df) return(summary_data)
   
-  if(!is.null(vlines)){
-    for (line_pos in vlines) {
-      output <- output + geom_vline(xintercept = line_pos + 0.5, color = vline_color, linetype = "dashed", linewidth = 0.5)
+  # 3. Base Bar Plot
+  p_bar <- ggplot2::ggplot(summary_data, ggplot2::aes(x = sample, y = count, fill = cluster)) +
+    ggplot2::geom_bar(stat = "identity", position = "stack", color = "black", linewidth = 0.2) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ggplot2::scale_fill_viridis_d() +
+    ggplot2::labs(x = group.by, y = "Cell Count", fill = "Cluster") +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                   panel.grid.minor = ggplot2::element_blank())
+  
+  # Vertical Lines
+  if(!is.null(vlines)) {
+    for(vl in vlines) {
+      p_bar <- p_bar + ggplot2::geom_vline(xintercept = vl + 0.5, color = vline_color, linetype = "dashed")
     }
   }
   
-  if(df){
-    return(summary_data)
+  # Label.by color bar
+  y_lower <- 0
+  if(!is.null(label.by)) {
+    l_data <- sobj@meta.data %>%
+      dplyr::select(!!sym(group.by), !!sym(label.by)) %>%
+      dplyr::distinct() %>%
+      dplyr::filter(!!sym(group.by) %in% sorted_samples)
+    l_vals <- l_data[[label.by]][match(sorted_samples, l_data[[group.by]])]
+    
+    is_num <- if(is.null(label.numeric)) (is.numeric(l_vals) && length(unique(na.omit(l_vals))) > 10) else label.numeric
+    
+    y_tick <- y_max_base * 0.05
+    if(is_num) {
+      l_colors <- scales::rescale(l_vals)
+      l_colors_hex <- viridis::viridis(100)[as.numeric(cut(l_colors, breaks = 100, include.lowest = TRUE))]
+      p_bar <- p_bar + 
+        ggplot2::annotate("rect", xmin = seq_along(sorted_samples)-0.45, xmax = seq_along(sorted_samples)+0.45,
+                          ymin = -y_tick, ymax = -y_tick*0.2, fill = l_colors_hex)
+      
+      # Dummy for legend using actual data mapping for robustness
+      l_df <- data.frame(sample = sorted_samples, val = l_vals)
+      p_bar <- p_bar + ggplot2::geom_point(data=l_df, ggplot2::aes(x=sample, y=y_max_base, color=val), alpha=0, inherit.aes = F) +
+        ggplot2::scale_color_viridis_c(name = label.by) +
+        ggplot2::guides(color = ggplot2::guide_colorbar(override.aes = list(alpha = 1)))
+    } else {
+      unique_l <- sort(unique(na.omit(l_vals)))
+      pal <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(min(8, length(unique_l)), "Set1"))(length(unique_l))
+      names(pal) <- unique_l
+      l_colors_hex <- pal[as.character(l_vals)]
+      p_bar <- p_bar + 
+        ggplot2::annotate("rect", xmin = seq_along(sorted_samples)-0.45, xmax = seq_along(sorted_samples)+0.45,
+                          ymin = -y_tick, ymax = -y_tick*0.2, fill = l_colors_hex)
+      
+      # Dummy for legend
+      l_df <- data.frame(sample = sorted_samples, val = factor(l_vals, levels = unique_l))
+      p_bar <- p_bar + ggplot2::geom_point(data=l_df, ggplot2::aes(x=sample, y=y_max_base, color=val), alpha=0, inherit.aes = F) +
+        ggplot2::scale_color_manual(name = label.by, values = pal) +
+        ggplot2::guides(color = ggplot2::guide_legend(override.aes = list(alpha = 1, size = 4, shape = 15)))
+    }
+    y_lower <- -y_tick * 1.2
   }
-  return(output)
+  
+  # Apply limits
+  p_bar <- p_bar + ggplot2::coord_cartesian(ylim = c(y_lower, y_max_base * 1.05), clip = "off")
+  
+  # 4. Sort Graph
+  if(sort.graph && !is.null(sort_df)) {
+    sort_df$sample <- factor(sort_df$sample, levels = sorted_samples)
+    sort_df <- sort_df[order(sort_df$sample), ]
+    
+    s_min <- min(sort_df$value, na.rm = TRUE)
+    s_max <- max(sort_df$value, na.rm = TRUE)
+    s_range <- s_max - s_min
+    if(s_range == 0) s_range <- 1
+    
+    if(sort.graph.overlay) {
+      # Scale to [0, y_max_base] for overlay
+      sort_df$value_scaled <- (sort_df$value - s_min) / s_range * y_max_base
+      
+      p_bar <- p_bar + 
+        ggplot2::geom_line(data = sort_df, ggplot2::aes(x = sample, y = value_scaled, group = 1), color = "red", linewidth = 1, inherit.aes = F) +
+        ggplot2::geom_point(data = sort_df, ggplot2::aes(x = sample, y = value_scaled), color = "red", size = 2, inherit.aes = F)
+      
+      if(sort.graph.iqr && !is.na(sort_df$q1[1])) {
+        sort_df$q1_scaled <- (sort_df$q1 - s_min) / s_range * y_max_base
+        sort_df$q3_scaled <- (sort_df$q3 - s_min) / s_range * y_max_base
+        p_bar <- p_bar + ggplot2::geom_ribbon(data = sort_df, ggplot2::aes(x = sample, ymin = q1_scaled, ymax = q3_scaled, group = 1), 
+                                     fill = "red", alpha = 0.2, inherit.aes = F)
+      }
+      
+      # Add secondary axis
+      p_bar <- p_bar + ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05)),
+                                                   sec.axis = ggplot2::sec_axis(~ . / y_max_base * s_range + s_min, name = sort.by[1]))
+      res_p <- p_bar
+    } else {
+      # Independent plot above
+      p_sort <- ggplot2::ggplot(sort_df, ggplot2::aes(x = sample, y = value, group = 1)) +
+        ggplot2::geom_line(color = "red", linewidth = 1) +
+        ggplot2::geom_point(color = "red", size = 2) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(axis.text.x = ggplot2::element_blank(), 
+                       axis.title.x = ggplot2::element_blank(), 
+                       axis.ticks.x = ggplot2::element_blank(),
+                       panel.grid.minor = ggplot2::element_blank()) +
+        ggplot2::labs(y = sort.by[1])
+      
+      if(sort.graph.iqr && !is.na(sort_df$q1[1])) {
+        p_sort <- p_sort + ggplot2::geom_ribbon(ggplot2::aes(ymin = q1, ymax = q3), fill = "red", alpha = 0.2)
+      }
+      
+      if(!requireNamespace("patchwork", quietly = TRUE)) stop("Please install patchwork.")
+      res_p <- (p_sort / p_bar) + patchwork::plot_layout(heights = c(1, 3))
+    }
+  } else {
+    res_p <- p_bar
+  }
+  
+  if(legend_detail) {
+    detail <- paste0("identity: ", identity, " | group.by: ", group.by, 
+                     if(!is.null(sort.by)) paste0(" | sort.by: ", paste(sort.by, collapse=", ")) else "")
+    res_p <- res_p + ggplot2::labs(caption = detail)
+  }
+  
+  return(res_p)
 }
 
 
@@ -2711,3 +2190,486 @@ myhm_genes4 <- function(
   return(gene_expression_df)
 }
 
+
+#' 세포 단위 피처 발현 박스플롯 (plot_gene_boxplot 스타일)
+#'
+#' @param data Seurat 객체 또는 data.frame
+#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
+#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
+#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
+#' @param idents 'group.by'에서 포함할 특정 값들
+#' @param assay Seurat 객체용 assay
+#' @param layer Seurat 객체용 layer
+#' @param ncol 플롯 컬럼 수
+#' @param pt.size 점 크기 (0이면 숨김)
+#' @param violin 바이올린 플롯 오버레이
+#' @param add_stats 통계 검정 추가 (ggpubr::stat_compare_means)
+#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE, method = "t.test")
+#'
+#' @return ggplot 객체
+#' @export
+mybox_cell <- function(data, 
+                                      features, 
+                                      group.by, 
+                                      split.by, 
+                                      idents = NULL, 
+                                      assay = NULL, 
+                                      layer = "data",
+                                      ncol = 3, 
+                                      pt.size = 0.2, 
+                                      violin = FALSE,
+                                      add_stats = TRUE,
+                                      ...) {
+
+  plot_df_base <- .fetch_plot_data(data, features, NULL, group.by, split.by, assay, layer)
+  
+  all_plots <- list()
+  
+  for (feature_name in features) {
+    current_df <- plot_df_base
+    
+    # 1. group.by가 NULL일 경우 "Overall"로 처리
+    group.by.internal <- group.by
+    if (is.null(group.by)) {
+      group.by.internal <- ".internal_placeholder_group"
+      current_df[[group.by.internal]] <- "Overall"
+    }
+    
+    # 2. idents 필터링 (mybox 로직과 동일)
+    if (!is.null(group.by) && !is.null(idents)) {
+      original_col_type <- class(current_df[[group.by.internal]])
+      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
+      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
+      
+      if (nrow(current_df) == 0) {
+         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
+         next
+      }
+      
+      if ("factor" %in% original_col_type) {
+        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
+        valid_subset_levels <- intersect(original_levels, idents)
+        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
+      } else {
+        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+      }
+    }
+    
+    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+    current_df[[split.by]] <- as.factor(current_df[[split.by]])
+    
+    # 3. ggplot 생성 (Req 3 레이아웃)
+    p <- ggplot(current_df, aes(x = .data[[split.by]], y = .data[[feature_name]], fill = .data[[split.by]]))
+    
+    if (violin) {
+      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
+    }
+    
+    # outlier.shape=NA로 설정 (Req 2)
+    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
+    
+    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
+    if (pt.size > 0) {
+      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.3, 
+                           width = 0.2, height = 0, na.rm = TRUE)
+    }
+    
+    # 통계 추가 (ggpubr)
+    if (add_stats) {
+      # `...` 인수로 paired=TRUE 등을 받을 수 있음
+      p <- p + stat_compare_means(label = "p.format", ...) 
+    }
+    
+    # 패널(facet) 적용 및 테마 설정 (Req 3)
+    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
+      labs(title = feature_name,
+           x = split.by,
+           y = feature_name) +
+      theme_bw(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            plot.title = element_text(hjust = 0.5),
+            legend.position = "none") # 범례 제거
+    
+    all_plots[[feature_name]] <- p
+  }
+  
+  if (length(all_plots) == 0) {
+    message("생성된 플롯이 없습니다.")
+    return(invisible(NULL))
+  }
+  
+  return(patchwork::wrap_plots(all_plots, ncol = ncol))
+}
+#' 샘플 단위(Pseudobulk) 피처 평균 박스플롯 (mybox 로직 + plot_gene_boxplot 스타일)
+#'
+#' @param data Seurat 객체 또는 data.frame
+#' @param features 플로팅할 피처 (유전자 또는 메타데이터)
+#' @param sample_col 샘플/환자 식별 컬럼 (필수)
+#' @param group.by 패널(facet)로 분리할 그룹 변수 (예: "cell_type")
+#' @param split.by X축에서 나눌 그룹 변수 (예: "timepoint")
+#' @param idents 'group.by'에서 포함할 특정 값들
+#' @param assay Seurat 객체용 assay
+#' @param layer Seurat 객체용 layer
+#' @param ncol 플롯 컬럼 수
+#' @param pt.size 샘플 평균 점 크기 (0이면 숨김)
+#' @param violin 바이올린 플롯 오버레이
+#' @param add_stats 통계 검정 추가 (요약된 데이터 대상)
+#' @param ... stat_compare_means에 전달할 추가 인수 (예: paired = TRUE)
+#'
+#' @return ggplot 객체
+#' @export
+mybox_pb <- function(data, 
+                                    features, 
+                                    sample_col, 
+                                    group.by, 
+                                    split.by, 
+                                    idents = NULL, 
+                                    assay = NULL, 
+                                    layer = "data",
+                                    ncol = 3, 
+                                    pt.size = 1.0, 
+                                    violin = FALSE,
+                                    add_stats = FALSE,
+                                    ...) {
+
+  if (is.null(sample_col)) {
+    stop("`sample_col` 인수는 Pseudobulk 플롯에 필수입니다.")
+  }
+
+  plot_df_base <- .fetch_plot_data(data, features, sample_col, group.by, split.by, assay, layer)
+  
+  all_plots <- list()
+  
+  for (feature_name in features) {
+    current_df <- plot_df_base
+    
+    # 1. group.by가 NULL일 경우 "Overall"로 처리
+    group.by.internal <- group.by
+    if (is.null(group.by)) {
+      group.by.internal <- ".internal_placeholder_group"
+      current_df[[group.by.internal]] <- "Overall"
+    }
+    
+    # 2. idents 필터링
+    if (!is.null(group.by) && !is.null(idents)) {
+      original_col_type <- class(current_df[[group.by.internal]])
+      current_df[[group.by.internal]] <- as.character(current_df[[group.by.internal]])
+      current_df <- current_df[current_df[[group.by.internal]] %in% idents, ]
+      
+      if (nrow(current_df) == 0) {
+         warning(feature_name, "에서 idents 필터링 후 데이터가 없습니다. 건너뜁니다.")
+         next
+      }
+      
+      if ("factor" %in% original_col_type) {
+        original_levels <- levels(if(inherits(data, "Seurat")) data@meta.data[[group.by]] else data[[group.by]])
+        valid_subset_levels <- intersect(original_levels, idents)
+        current_df[[group.by.internal]] <- factor(current_df[[group.by.internal]], levels = valid_subset_levels)
+      } else {
+        current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+      }
+    }
+    
+    current_df[[group.by.internal]] <- as.factor(current_df[[group.by.internal]])
+    current_df[[split.by]] <- as.factor(current_df[[split.by]])
+    current_df[[sample_col]] <- as.factor(current_df[[sample_col]])
+    
+    # 3. *** 데이터 요약 (Aggregation) ***
+    grouping_vars <- unique(c(sample_col, group.by.internal, split.by))
+    
+    aggregated_df <- current_df %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(grouping_vars))) %>%
+      dplyr::summarise(mean_value = mean(.data[[feature_name]], na.rm = TRUE), .groups = 'drop')
+    
+    if (nrow(aggregated_df) == 0) {
+      warning(feature_name, "에서 요약 후 데이터가 없습니다. 건너뜁니다.")
+      next
+    }
+    
+    # 4. ggplot 생성 (Req 3 레이아웃)
+    p <- ggplot(aggregated_df, aes(x = .data[[split.by]], y = mean_value, fill = .data[[split.by]]))
+    
+    if (violin) {
+      p <- p + geom_violin(alpha = 0.5, scale = "width", trim = FALSE, na.rm = TRUE)
+    }
+    
+    # outlier.shape=NA로 설정 (Req 2)
+    p <- p + geom_boxplot(na.rm = TRUE, outlier.shape = NA, alpha = 0.7)
+    
+    # pt.size > 0 일 때만 jitter 추가 (Req 2: 색상 "black" 고정)
+    if (pt.size > 0) {
+      # PB 플롯은 점이 샘플을 의미하므로 더 진하게 (alpha=0.7)
+      p <- p + geom_jitter(color = "black", size = pt.size, alpha = 0.7, 
+                           width = 0.2, height = 0, na.rm = TRUE)
+    }
+
+    # 통계 추가 (요약된 데이터를 대상으로 함)
+    if (add_stats) {
+      # paired=TRUE를 `...`로 전달받아 샘플 페어 테스트 가능
+      p <- p + stat_compare_means(label = "p.format", ...) 
+    }
+
+    # 패널(facet) 적용 및 테마 설정 (Req 3)
+    p <- p + facet_wrap(as.formula(paste("~", group.by.internal))) +
+      labs(title = feature_name,
+           x = split.by,
+           y = paste("Average", feature_name)) +
+      theme_bw(base_size = 12) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            plot.title = element_text(hjust = 0.5),
+            legend.position = "none") # 범례 제거
+            
+    all_plots[[feature_name]] <- p
+  }
+  
+  if (length(all_plots) == 0) {
+    message("생성된 플롯이 없습니다.")
+    return(invisible(NULL))
+  }
+  
+  return(patchwork::wrap_plots(all_plots, ncol = ncol))
+}
+
+mybox_geomx <- function(
+    data_norm,
+    metadata,
+    features,
+    group.by,
+    split.by = NULL,
+    test_method = "wilcox.test",
+    p_adjust_method = "holm",
+    hide_ns = FALSE,
+    show_points = TRUE,
+    comparisons = "all"  # "all" 또는 특정 비교 리스트
+) {
+  
+  # 1. 라이브러리 로드
+  library(ggplot2)
+  library(dplyr)
+  library(tidyr)
+  library(ggpubr)
+  library(rstatix)
+  
+  # 2. 입력 데이터 유효성 검사
+  if (!group.by %in% colnames(metadata)) {
+    stop(paste("Error: `group.by` 변수인 '", group.by, "'가 metadata에 존재하지 않습니다.", sep=""))
+  }
+  if (!is.null(split.by) && !split.by %in% colnames(metadata)) {
+    stop(paste("Error: `split.by` 변수인 '", split.by, "'가 metadata에 존재하지 않습니다.", sep=""))
+  }
+  if (!test_method %in% c("t.test", "wilcox.test")) {
+    stop("Error: `test_method`는 't.test' 또는 'wilcox.test' 중 하나여야 합니다.")
+  }
+  
+  # 3. 데이터 준비
+  common_aois <- intersect(colnames(data_norm), metadata$SegmentDisplayName)
+  if(length(common_aois) == 0){
+    stop("Error: 'data_norm'의 컬럼명과 'metadata'의 SegmentDisplayName이 일치하는 AOI가 없습니다.")
+  }
+  
+  metadata_sub <- metadata %>% filter(SegmentDisplayName %in% common_aois)
+  data_norm_sub <- data_norm[features, common_aois, drop = FALSE]
+  
+  plot_data <- data_norm_sub %>%
+    t() %>%
+    as.data.frame() %>%
+    mutate(SegmentDisplayName = rownames(.)) %>%
+    pivot_longer(
+      cols = all_of(features),
+      names_to = "feature",
+      values_to = "expression"
+    ) %>%
+    left_join(metadata_sub, by = "SegmentDisplayName")
+  
+  # 결과 저장용 리스트
+  stat_results <- list()
+  
+  # 4. 각 Feature에 대해 Boxplot 생성
+  for (feat in features) {
+    
+    feature_data <- plot_data %>% filter(feature == feat)
+    
+    # Factor 변환
+    if(!is.factor(feature_data[[group.by]])) {
+      feature_data[[group.by]] <- as.factor(feature_data[[group.by]])
+    }
+    if(!is.null(split.by) && !is.factor(feature_data[[split.by]])) {
+      feature_data[[split.by]] <- as.factor(feature_data[[split.by]])
+    }
+    
+    # 기본 플롯 설정
+    p <- ggplot(feature_data, aes(x = .data[[group.by]], y = expression))
+    
+    # Case 1: split.by가 지정된 경우
+    if (!is.null(split.by)) {
+      dodge_width <- 0.85
+      
+      p <- p +
+        geom_boxplot(
+          aes(fill = .data[[split.by]]), 
+          position = position_dodge(width = dodge_width), 
+          outlier.shape = NA, 
+          alpha = 0.8
+        ) +
+        {if(show_points) geom_jitter(
+          aes(color = .data[[split.by]]), 
+          position = position_jitterdodge(dodge.width = dodge_width, jitter.width = 0.2), 
+          size = 1, 
+          alpha = 0.5
+        )} +
+        scale_color_discrete(name = split.by) +
+        labs(fill = split.by)
+      
+      # 각 group.by 수준 내에서 split.by 수준들 간 비교
+      stat_formula <- as.formula(paste("expression ~", paste0("`", split.by, "`")))
+      
+      base_stat_test <- if (test_method == "t.test") {
+        feature_data %>% 
+          group_by(.data[[group.by]]) %>% 
+          t_test(stat_formula)
+      } else {
+        feature_data %>% 
+          group_by(.data[[group.by]]) %>% 
+          wilcox_test(stat_formula)
+      }
+      
+      if (nrow(base_stat_test) > 0) {
+        # p-value 조정 및 위치 계산
+        stat_test <- base_stat_test %>%
+          adjust_pvalue(method = p_adjust_method) %>%
+          add_xy_position(x = group.by, dodge = dodge_width, fun = "max", scales = "free_y")
+        
+        # 통계 결과 저장
+        stat_results[[feat]] <- stat_test
+        
+        # 플롯에 p-value 추가
+        p <- p + stat_pvalue_manual(
+          stat_test, 
+          label = "p.adj", 
+          hide.ns = hide_ns, 
+          tip.length = 0.01
+        )
+      }
+      
+      # Case 2: split.by가 없는 경우
+    } else {
+      p <- p +
+        geom_boxplot(
+          aes(fill = .data[[group.by]]), 
+          outlier.shape = NA, 
+          alpha = 0.8
+        ) +
+        {if(show_points) geom_jitter(width = 0.2, size = 1, alpha = 0.6)} +
+        theme(legend.position = "none")
+      
+      # group.by의 수준이 2개 이상일 때만 통계 검정 수행
+      n_groups <- length(unique(feature_data[[group.by]]))
+      
+      if (n_groups >= 2) {
+        stat_formula <- as.formula(paste("expression ~", paste0("`", group.by, "`")))
+        
+        # 그룹이 2개면 단순 비교, 3개 이상이면 pairwise
+        if (n_groups == 2) {
+          base_stat_test <- if (test_method == "t.test") {
+            feature_data %>% t_test(stat_formula)
+          } else {
+            feature_data %>% wilcox_test(stat_formula)
+          }
+        } else {
+          # 3개 이상 그룹: pairwise comparison
+          if (comparisons == "all") {
+            base_stat_test <- if (test_method == "t.test") {
+              feature_data %>% 
+                t_test(stat_formula, p.adjust.method = "none")
+            } else {
+              feature_data %>% 
+                wilcox_test(stat_formula, p.adjust.method = "none")
+            }
+          } else if (is.list(comparisons)) {
+            base_stat_test <- if (test_method == "t.test") {
+              feature_data %>% 
+                t_test(stat_formula, comparisons = comparisons, p.adjust.method = "none")
+            } else {
+              feature_data %>% 
+                wilcox_test(stat_formula, comparisons = comparisons, p.adjust.method = "none")
+            }
+          }
+        }
+        
+        if (exists("base_stat_test") && nrow(base_stat_test) > 0) {
+          # p-value 조정 및 위치 계산
+          stat_test <- base_stat_test %>%
+            adjust_pvalue(method = p_adjust_method) %>%
+            add_y_position(scales = "free_y", step.increase = 0.1)
+          
+          # 통계 결과 저장
+          stat_results[[feat]] <- stat_test
+          
+          # 플롯에 p-value 추가
+          p <- p + stat_pvalue_manual(
+            stat_test, 
+            label = "p.adj", 
+            hide.ns = hide_ns, 
+            tip.length = 0.01
+          )
+        }
+      }
+    }
+    
+    # 공통 테마 및 레이블 적용
+    p <- p +
+      theme_classic() +
+      labs(
+        title = paste("Expression of", feat),
+        x = group.by,
+        y = "Normalized Expression"
+      ) +
+      theme(
+        plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 11)
+      )
+    
+    # 플롯 출력
+    print(p)
+  }
+  
+  # 통계 결과 반환 (invisible로 콘솔에 자동 출력되지 않도록)
+  invisible(stat_results)
+}
+
+
+# boxplot end
+
+
+vln_p=function(sobj, feature, group.by, split.by, pt.size=0,ncol=4, ...){
+  plist <- VlnPlot(
+    object    = sobj,
+    features  = feature,
+    group.by  = group.by,
+    split.by  = split.by,
+    combine   = FALSE,
+    pt.size=pt.size,
+    ...
+  )
+  
+  plist2 <- lapply(plist, function(p){
+    df <- p$data
+    
+    p +
+      ggpubr::stat_compare_means(
+        data       = df,
+        mapping    = aes_string(group = "split"),
+        method     = "wilcox.test",
+        label      = "p.signif",
+        hide.ns    = TRUE,
+        tip.length = 0.02
+      ) +
+      theme(legend.position = "none")
+  })
+  
+  return(patchwork::wrap_plots(plist2, ncol = ncol))
+}
