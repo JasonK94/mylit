@@ -1,0 +1,100 @@
+iter  90 value 1871.388243
+iter 100 value 1870.951102
+final  value 1870.951102 
+stopped after 100 iterations
+# weights:  10
+initial  value 3047.432778 
+iter  10 value 2429.222044
+iter  20 value 2342.958480
+iter  30 value 2340.349395
+iter  40 value 2340.100817
+iter  50 value 2339.802522
+iter  60 value 2339.760403
+iter  70 value 2339.696085
+iter  80 value 2339.675504
+iter  90 value 2339.649610
+final  value 2339.642492 
+converged
+✓ nnet 완료: 10.5초 (0.2분) | 진행: 7/8 | 예상 남은 시간: 0.3분 (평균 19.2초/모델, 3.85초/fold)
+Training L2 candidate: glmnet [8/8] (예상: 0.1분, metric=ROC)
+✗ glmnet 실패: 1.5초 (0.0분) | 진행: 8/8
+
+=== TML7 L2 학습 완료: 총 8개 모델, 2.3분 소요 ===
+Best model: nnet (CV ROC=0.7607).
+✓ TML7 Completed Successfully
+
+=================================================================
+TEST 3: LOGO CV
+=================================================================
+Number of groups (patients): 23 
+Sanitizing target levels: '1'/'2' -> 'X1'/'X2'
+Using Leave-One-Group-Out CV (23 groups).
+Group CV fold 1: index=4085 cells (22 groups), indexOut=188 cells (1 groups), hold-out groups: 38860238
+Group CV fold 2: index=4127 cells (22 groups), indexOut=146 cells (1 groups), hold-out groups: 20260851
+Group CV fold 3: index=4049 cells (22 groups), indexOut=224 cells (1 groups), hold-out groups: 13097877
+Group CV fold 4: index=4002 cells (22 groups), indexOut=271 cells (1 groups), hold-out groups: 38763490
+Group CV fold 5: index=4109 cells (22 groups), indexOut=164 cells (1 groups), hold-out groups: 25510753
+Group CV fold 6: index=4133 cells (22 groups), indexOut=140 cells (1 groups), hold-out groups: 38865442
+Group CV fold 7: index=4208 cells (22 groups), indexOut=65 cells (1 groups), hold-out groups: 38282636
+Group CV fold 8: index=4101 cells (22 groups), indexOut=172 cells (1 groups), hold-out groups: 35969251
+Group CV fold 9: index=4001 cells (22 groups), indexOut=272 cells (1 groups), hold-out groups: 38098095
+Group CV fold 10: index=4088 cells (22 groups), indexOut=185 cells (1 groups), hold-out groups: 38153567
+Group CV fold 11: index=4025 cells (22 groups), indexOut=248 cells (1 groups), hold-out groups: 33020073
+Group CV fold 12: index=4141 cells (22 groups), indexOut=132 cells (1 groups), hold-out groups: 38327414
+Group CV fold 13: index=4128 cells (22 groups), indexOut=145 cells (1 groups), hold-out groups: 38865194
+Group CV fold 14: index=4090 cells (22 groups), indexOut=183 cells (1 groups), hold-out groups: 10956946
+Group CV fold 15: index=4026 cells (22 groups), indexOut=247 cells (1 groups), hold-out groups: 13762164
+Group CV fold 16: index=4029 cells (22 groups), indexOut=244 cells (1 groups), hold-out groups: 38368105
+Group CV fold 17: index=4092 cells (22 groups), indexOut=181 cells (1 groups), hold-out groups: 13854645
+Group CV fold 18: index=4057 cells (22 groups), indexOut=216 cells (1 groups), hold-out groups: 38956526
+Group CV fold 19: index=4121 cells (22 groups), indexOut=152 cells (1 groups), hold-out groups: 38011461
+Group CV fold 20: index=4078 cells (22 groups), indexOut=195 cells (1 groups), hold-out groups: 38962949
+Group CV fold 21: index=4091 cells (22 groups), indexOut=182 cells (1 groups), hold-out groups: 38787667
+Group CV fold 22: index=4151 cells (22 groups), indexOut=122 cells (1 groups), hold-out groups: 38944213
+Group CV fold 23: index=4074 cells (22 groups), indexOut=199 cells (1 groups), hold-out groups: 38942387
+Validated L2 method set (2): glm, ranger
+Training L2 candidate: glm [1/2] (예상: 0.0분, metric=ROC)
+Something is wrong; all the ROC metric values are missing:
+      ROC           Sens            Spec      
+ Min.   : NA   Min.   :0.423   Min.   :0.789  
+ 1st Qu.: NA   1st Qu.:0.423   1st Qu.:0.789  
+ Median : NA   Median :0.423   Median :0.789  
+ Mean   :NaN   Mean   :0.423   Mean   :0.789  
+ 3rd Qu.: NA   3rd Qu.:0.423   3rd Qu.:0.789  
+ Max.   : NA   Max.   :0.423   Max.   :0.789  
+ NA's   :1                                    
+✗ glm 실패: 1.8초 (0.0분) | 진행: 1/2
+Training L2 candidate: ranger [2/2] (예상: 0.1분, metric=ROC)
+Something is wrong; all the ROC metric values are missing:
+      ROC           Sens             Spec       
+ Min.   : NA   Min.   :0.4051   Min.   :0.6837  
+ 1st Qu.: NA   1st Qu.:0.4051   1st Qu.:0.6837  
+ Median : NA   Median :0.4051   Median :0.6837  
+ Mean   :NaN   Mean   :0.4051   Mean   :0.6837  
+ 3rd Qu.: NA   3rd Qu.:0.4051   3rd Qu.:0.6837  
+ Max.   : NA   Max.   :0.4051   Max.   :0.6837  
+ NA's   :1                                      
+✗ ranger 실패: 69.2초 (1.2분) | 진행: 2/2
+
+=== TML7 L2 학습 완료: 총 2개 모델, 1.2분 소요 ===
+✗ FAILED: LOGO CV
+  Error: No L2 models were successfully trained. 
+Warning messages:
+1: In TML7(l1_signatures = l1_sigs_for_tml, holdout_data = sobj, target_var = target_var,  :
+  Failed to train 'glmnet': Error in glmnet::glmnet(x, y, family = fam, nlambda = len + 2, alpha = 0.5) : 
+  x should be a matrix with 2 or more columns
+
+2: In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
+  There were missing values in resampled performance measures.
+3: In TML7(l1_signatures = l1_sigs_for_tml, holdout_data = sobj, target_var = target_var,  :
+  Failed to train 'glm': Error : Stopping
+
+4: In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
+  There were missing values in resampled performance measures.
+5: In TML7(l1_signatures = l1_sigs_for_tml, holdout_data = sobj, target_var = target_var,  :
+  Failed to train 'ranger': Error : Stopping
+
+
+=================================================================
+Testing Complete!
+End Time: 2025-11-26 20:21:25 
