@@ -199,7 +199,7 @@ fgs_preprocess_data_v5 <- function(data,
 
     covariates_df <- meta.data[, control_vars, drop = FALSE]
     covariate_mat <- model.matrix(~ . - 1, data = covariates_df)
-    expr_mat_corrected <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
+    expr_mat_corrected <- suppressWarnings(limma::removeBatchEffect(expr_mat, covariates = covariate_mat))
   }
 
   # --- 반환 객체 ---
@@ -214,48 +214,40 @@ fgs_preprocess_data_v5 <- function(data,
   )
 }
 
-#' Main FGS Entry Point
+#' Find Gene Signature (FGS)
 #'
 #' @description
 #' Finds gene signatures using various methods (Random Forest, Lasso, NMF, etc.).
-#' This is the main wrapper for the FGS framework.
 #'
 #' @param ... Arguments passed to the implementation.
 #' @export
-FGS <- function(...) {
-  find_gene_signature_v5_impl(..., method_impl = "v5.4")
-}
-
-find_gene_signature_v5_impl <- function(data,
-                                        meta.data = NULL,
-                                        target_var,
-                                        target_group = NULL,
-                                        control_vars = NULL,
-                                        method = c(
-                                          "random_forest", "random_forest_ranger",
-                                          "lasso", "ridge", "elastic_net",
-                                          "pca_loadings", "nmf_loadings",
-                                          "gam", "limma", "wilcoxon",
-                                          "xgboost"
-                                        ),
-                                        n_features = 50,
-                                        test_n = NULL,
-                                        preprocess = TRUE,
-                                        min_cells = 10,
-                                        min_pct = 0.01,
-                                        return_model = FALSE,
-                                        fgs_seed = 42,
-                                        # --- 신규/수정된 인자 ---
-                                        lambda_selection = "lambda.1se",
-                                        enet.alpha = 0.5, # (Elastic Net용)
-                                        pca.n_pcs = 1, # (PCA용)
-                                        gam.min_unique = 15, # (GAM용)
-                                        gam.k = NULL,
-                                        gam.k_dynamic_factor = 5,
-                                        method_impl = c("v5.3", "v5.4"),
-                                        ...) {
-  method_impl <- match.arg(method_impl)
-
+find_gene_signature <- function(data,
+                                meta.data = NULL,
+                                target_var,
+                                target_group = NULL,
+                                control_vars = NULL,
+                                method = c(
+                                  "random_forest_ranger",
+                                  "lasso", "ridge", "elastic_net",
+                                  "pca_loadings", "nmf_loadings",
+                                  "gam", "limma", "wilcoxon",
+                                  "xgboost"
+                                ),
+                                n_features = 50,
+                                test_n = NULL,
+                                preprocess = TRUE,
+                                min_cells = 10,
+                                min_pct = 0.01,
+                                return_model = FALSE,
+                                fgs_seed = 42,
+                                # --- 신규/수정된 인자 ---
+                                lambda_selection = "lambda.1se",
+                                enet.alpha = 0.5, # (Elastic Net용)
+                                pca.n_pcs = 1, # (PCA용)
+                                gam.min_unique = 15, # (GAM용)
+                                gam.k = NULL,
+                                gam.k_dynamic_factor = 5,
+                                ...) {
   # [Req 5] 메서드 순서 및 이름 변경
   all_methods <- c(
     # 1. Tree-based
@@ -390,29 +382,48 @@ find_gene_signature_v5_impl <- function(data,
 
   # === 2. [V5] 메서드 순회 (for 루프) ===
 
-  # Progress tracking: load previous timing data if available
-  timing_file <- file.path(getwd(), ".fgs_timing_cache.rds")
-  timing_cache <- if (file.exists(timing_file)) {
-    tryCatch(readRDS(timing_file), error = function(e) list())
+  # Progress tracking: load previous timing data (v2)
+  timing_file <- file.path(getwd(), ".fgs_timing_v2.rds")
+  timing_data <- if (file.exists(timing_file)) {
+    tryCatch(readRDS(timing_file), error = function(e) data.frame())
   } else {
-    list()
+    data.frame()
   }
 
   total_methods <- length(method)
   completed_methods <- 0
   total_start_time <- Sys.time()
 
-  # Calculate total estimated time if we have cache for all methods
+  # Current data dimensions
+  curr_n_cells <- ncol(expr_mat_base)
+  curr_n_genes <- nrow(expr_mat_base)
+  curr_complexity <- as.numeric(curr_n_cells) * as.numeric(curr_n_genes)
+
+  # Calculate total estimated time
   total_estimated_sec <- 0
   methods_with_estimate <- 0
+
+  estimate_time <- function(m_name, history, complexity) {
+    if (nrow(history) == 0) {
+      return(NA_real_)
+    }
+    # Filter for this method
+    m_hist <- history[history$method == m_name, ]
+    if (nrow(m_hist) == 0) {
+      return(NA_real_)
+    }
+
+    # Calculate rate (sec per complexity unit)
+    # Add small epsilon to complexity to avoid division by zero
+    rates <- m_hist$time_sec / (m_hist$n_cells * m_hist$n_genes + 1)
+    avg_rate <- median(rates, na.rm = TRUE)
+
+    return(avg_rate * complexity)
+  }
+
   for (m_check in method) {
     if (m_check %in% all_methods) {
-      method_key_check <- paste0("fgs_v5.4_", m_check)
-      est_sec <- if (!is.null(timing_cache[[method_key_check]])) {
-        mean(timing_cache[[method_key_check]], na.rm = TRUE)
-      } else {
-        NA_real_
-      }
+      est_sec <- estimate_time(m_check, timing_data, curr_complexity)
       if (!is.na(est_sec) && est_sec > 0) {
         total_estimated_sec <- total_estimated_sec + est_sec
         methods_with_estimate <- methods_with_estimate + 1
@@ -423,11 +434,11 @@ find_gene_signature_v5_impl <- function(data,
 
   if (has_total_estimate) {
     message(sprintf(
-      "\n=== FGS v5.4 시작: 총 %d개 메서드, 전체 예상 시간: %.1f분 ===\n",
-      total_methods, total_estimated_sec / 60
+      "\n=== FGS v5.4 시작: 총 %d개 메서드, 전체 예상 시간: %.1f분 (데이터: %d cells x %d genes) ===\n",
+      total_methods, total_estimated_sec / 60, curr_n_cells, curr_n_genes
     ))
   } else {
-    message(sprintf("\n=== FGS v5.4 시작: 총 %d개 메서드 ===\n", total_methods))
+    message(sprintf("\n=== FGS v5.4 시작: 총 %d개 메서드 (데이터: %d cells x %d genes) ===\n", total_methods, curr_n_cells, curr_n_genes))
   }
 
   for (m_idx in seq_along(method)) {
@@ -438,13 +449,8 @@ find_gene_signature_v5_impl <- function(data,
       next
     }
 
-    # Estimate time based on previous runs
-    method_key <- paste0("fgs_v5.4_", m)
-    estimated_sec <- if (!is.null(timing_cache[[method_key]])) {
-      mean(timing_cache[[method_key]], na.rm = TRUE)
-    } else {
-      NA_real_
-    }
+    # Estimate time
+    estimated_sec <- estimate_time(m, timing_data, curr_complexity)
 
     if (!is.na(estimated_sec) && estimated_sec > 0) {
       estimated_str <- sprintf("%.1f분", estimated_sec / 60)
@@ -567,7 +573,7 @@ find_gene_signature_v5_impl <- function(data,
             name_mapping <- setNames(orig_colnames, make.names(orig_colnames))
 
             ranger_data <- data.frame(y = y, X_ranger)
-            importance_mode <- if (method_impl == "v5.4") "permutation" else "impurity"
+            importance_mode <- "permutation"
 
             rf_model <- tryCatch(
               ranger::ranger(
@@ -578,7 +584,7 @@ find_gene_signature_v5_impl <- function(data,
                 ...
               ),
               error = function(e) {
-                if (method_impl == "v5.4" && importance_mode == "permutation") {
+                if (importance_mode == "permutation") {
                   warning("Permutation importance failed in ranger; falling back to impurity. ", e$message)
                   ranger::ranger(
                     y ~ .,
@@ -731,13 +737,13 @@ find_gene_signature_v5_impl <- function(data,
           ridge = run_glmnet_signature(
             X,
             alpha_value = 0,
-            apply_v54 = (method_impl == "v5.4"),
+            apply_v54 = TRUE,
             ...
           ),
           elastic_net = run_glmnet_signature(
             X,
             alpha_value = enet.alpha,
-            apply_v54 = (method_impl == "v5.4"),
+            apply_v54 = TRUE,
             ...
           ),
 
@@ -809,23 +815,18 @@ find_gene_signature_v5_impl <- function(data,
 
             min_expr <- suppressWarnings(min(expr_mat_nmf, na.rm = TRUE))
             eps <- 1e-3
-            shift <- if (method_impl == "v5.4") {
-              if (is.finite(min_expr) && min_expr <= 0) abs(min_expr) + eps else eps
-            } else {
-              -min_expr + 0.01
+            shift <- {
+              min_val <- min(expr_mat_nmf)
+              if (min_val < 0) abs(min_val) + 1 else 0
             }
-            expr_mat_pos <- expr_mat_nmf + shift
+            expr_mat_nmf <- expr_mat_nmf + shift
+
+            # [V5.4] NMF는 항상 비-음수여야 함. shift 후에도 0 미만이 있으면 0으로 치환 (안전장치)
+            expr_mat_nmf[expr_mat_nmf < 0] <- 0
 
             rank_cap <- min(n_groups + 2, 10)
-            if (method_impl == "v5.4") {
-              max_rank_allowed <- min(nrow(expr_mat_pos) - 1, ncol(expr_mat_pos) - 1)
-              if (!is.finite(max_rank_allowed) || max_rank_allowed < 2) {
-                stop("nmf_loadings: insufficient dimensions to fit requested rank.")
-              }
-              rank <- max(2, min(rank_cap, max_rank_allowed))
-            } else {
-              rank <- rank_cap
-            }
+            rank <- rank_cap
+
             dots <- list(...)
 
             # [Req 6 FIX] '...' (dots)에서 NMF 유효 인자만 필터링
@@ -834,7 +835,7 @@ find_gene_signature_v5_impl <- function(data,
 
             nmf_args <- c(
               list(
-                x = expr_mat_pos,
+                x = expr_mat_nmf,
                 rank = rank,
                 seed = fgs_seed,
                 method = "brunet"
@@ -1143,23 +1144,30 @@ find_gene_signature_v5_impl <- function(data,
 
         # Update timing cache
         method_key <- paste0("fgs_v5.4_", m)
-        if (is.null(timing_cache[[method_key]])) {
-          timing_cache[[method_key]] <- numeric()
-        }
-        timing_cache[[method_key]] <- c(timing_cache[[method_key]], elapsed_sec)
-        # Keep only last 5 runs for averaging
-        if (length(timing_cache[[method_key]]) > 5) {
-          timing_cache[[method_key]] <- tail(timing_cache[[method_key]], 5)
+        # Update timing data (v2)
+        new_record <- data.frame(
+          method = m,
+          time_sec = elapsed_sec,
+          n_cells = curr_n_cells,
+          n_genes = curr_n_genes,
+          timestamp = Sys.time(),
+          stringsAsFactors = FALSE
+        )
+        timing_data <- rbind(timing_data, new_record)
+
+        # Keep only last 10 runs per method to avoid infinite growth
+        # (Simple cleanup if it gets too large)
+        if (nrow(timing_data) > 100) {
+          timing_data <- do.call(rbind, lapply(split(timing_data, timing_data$method), function(df) {
+            tail(df[order(df$timestamp), ], 10)
+          }))
         }
 
-        # Save timing cache
         tryCatch(
           {
-            saveRDS(timing_cache, timing_file)
+            saveRDS(timing_data, timing_file)
           },
-          error = function(e) {
-            # Ignore save errors
-          }
+          error = function(e) {}
         )
 
         # Improved progress estimation: use actual elapsed time from first completed method

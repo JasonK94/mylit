@@ -44,42 +44,54 @@ if (file.exists("/home/user3/GJC_KDW_250721/start.R")) {
 }
 
 # Source start.R (it will respect MYLIT_DISABLE_PARALLEL=TRUE)
-tryCatch({
-  source("start.R")
-  message("✓ start.R sourced (parallel processing disabled)")
-}, error = function(e) {
-  warning("Failed to source start.R: ", conditionMessage(e))
-  # Fallback: just activate renv
-  if (file.exists("renv/activate.R")) {
-    source("renv/activate.R")
-    message("✓ renv activated (fallback)")
+tryCatch(
+  {
+    suppressPackageStartupMessages(source("start.R"))
+    message("✓ start.R sourced (parallel processing disabled)")
+  },
+  error = function(e) {
+    warning("Failed to source start.R: ", conditionMessage(e))
+    # Fallback: just activate renv
+    if (file.exists("renv/activate.R")) {
+      source("renv/activate.R")
+      message("✓ renv activated (fallback)")
+    }
   }
-})
+)
 
 # Ensure sequential plan is set (double-check)
 if (requireNamespace("future", quietly = TRUE)) {
-  tryCatch({
-    future::plan(future::sequential)
-  }, error = function(e) {
-    # Ignore if already set
-  })
+  tryCatch(
+    {
+      future::plan(future::sequential)
+    },
+    error = function(e) {
+      # Ignore if already set
+    }
+  )
 }
 
 # Disable all parallel backends
 if (requireNamespace("foreach", quietly = TRUE)) {
-  tryCatch({
-    foreach::registerDoSEQ()
-  }, error = function(e) {
-    # Ignore
-  })
+  tryCatch(
+    {
+      foreach::registerDoSEQ()
+    },
+    error = function(e) {
+      # Ignore
+    }
+  )
 }
 
 if (requireNamespace("doParallel", quietly = TRUE)) {
-  tryCatch({
-    doParallel::stopImplicitCluster()
-  }, error = function(e) {
-    # Ignore if no cluster
-  })
+  tryCatch(
+    {
+      doParallel::stopImplicitCluster()
+    },
+    error = function(e) {
+      # Ignore if no cluster
+    }
+  )
 }
 
 message("\n=== FGS Environment Ready ===")
@@ -97,4 +109,3 @@ message("  - FGS_MAX_CPU_CORES: maximum CPU cores (default: 16)")
 message("  - FGS_BLAS_THREADS: BLAS/LAPACK threads (default: 1)")
 message("  - FGS_DISABLE_PARALLEL: disable parallel (default: TRUE)")
 message("  - FGS_MEMORY_GB: memory limit in GB (default: 200)")
-
