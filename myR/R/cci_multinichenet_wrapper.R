@@ -50,8 +50,13 @@ run_multinichenet_analysis <- function(sobj,
                                        min_pct = 0.05,
                                        logfc_thresh = 0.10,
                                        p_val_thresh = 0.05,
+                                       p_val_thresh = 0.05,
                                        p_val_adj = FALSE) {
     if (verbose) message("Starting MultiNicheNet analysis...")
+
+    # Ensure parameters are strictly numeric (some packages have strict checks)
+    min_cells <- as.numeric(min_cells)
+    cores <- as.numeric(cores)
 
     # Ensure required packages are loaded
     if (!requireNamespace("multinichenetr", quietly = TRUE)) {
