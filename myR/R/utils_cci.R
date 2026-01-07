@@ -658,17 +658,51 @@ load_nichenet_reference <- function(species = "human", data_dir = NULL, verbose 
       results[[key]] <- qs::qread(qs_path)
     } else if (file.exists(rds_path)) {
       if (verbose) message("Loading ", basename(rds_path), " (converting to .qs)...")
-      obj <- readRDS(rds_path)
-      qs::qsave(obj, qs_path) # Convert for future use
-      if (verbose) message("  Saved .qs version for faster loading.")
-      results[[key]] <- obj
-    } else {
+
+      # Try processing RDS
+      processed <- FALSE
+      tryCatch(
+        {
+          obj <- readRDS(rds_path)
+          qs::qsave(obj, qs_path) # Convert for future use
+          if (verbose) message("  Saved .qs version for faster loading.")
+          results[[key]] <- obj
+          processed <- TRUE
+        },
+        error = function(e) {
+          if (verbose) message("Error loading RDS: ", e$message)
+          if (verbose) message("File seems corrupted. Deleting and re-downloading...")
+          unlink(rds_path)
+        }
+      )
+
+      # If processing failed (downloaded new one), proceed to download block logic
+      if (!processed) {
+        # This block intentionally falls through if unlink happened
+      }
+    }
+
+    # Check again if result exists (it might have been set above)
+    if (is.null(results[[key]])) {
       # Download RDS
       if (verbose) message("Downloading ", f_base, ".rds ...")
-      download.file(paste0(base_url, f_base, ".rds"), rds_path, mode = "wb", quiet = !verbose)
-      obj <- readRDS(rds_path)
-      qs::qsave(obj, qs_path)
-      results[[key]] <- obj
+
+      # Ensure directory exists
+      if (!dir.exists(dirname(rds_path))) dir.create(dirname(rds_path), recursive = TRUE)
+
+      tryCatch(
+        {
+          download.file(paste0(base_url, f_base, ".rds"), rds_path, mode = "wb", quiet = !verbose)
+
+          # verify load
+          obj <- readRDS(rds_path)
+          qs::qsave(obj, qs_path)
+          results[[key]] <- obj
+        },
+        error = function(e) {
+          stop("Failed to download or load NicheNet data: ", e$message)
+        }
+      )
     }
   }
 
