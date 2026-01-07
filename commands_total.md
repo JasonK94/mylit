@@ -6,7 +6,7 @@
 ### Run (CLI)
 
 ```bash
-# anno3 + g3 (권장 모델: age, sex, GEM만), random effect: hos_no
+logs# anno3 + g3 (권장 모델: age, sex, GEM만), random effect: hos_no
 Rscript /home/user3/data_user3/git_repo/mylit/Git_Repo/_wt/masc/scripts/masc/run_masc.R \
   -i /data/user3/sobj/is2_IS_3_clustered.qs \
   -o /data/user3/sobj/masc/stroke_complex_cli2 \
@@ -27,7 +27,8 @@ Rscript /home/user3/data_user3/git_repo/mylit/Git_Repo/_wt/masc/scripts/masc/plo
   -o /data/user3/sobj/masc/stroke_complex_cli2 \
   --prefix masc_anno3_complex \
   --cluster_var anno3 \
-  --contrast_var g3
+  --contrast_var g3 \
+  --model_formula 'Frequency ~ g3 + age + sex + GEM + (1|hos_no)'
 ```
 
 ### Notes
@@ -47,6 +48,29 @@ Rscript /home/user3/data_user3/git_repo/mylit/Git_Repo/_wt/masc/scripts/masc/plo
 ## Single Tools
 
 ## Consensus DEG
+
+### run analysis
+```bash
+Rscript scripts/consensus/run_deg_consensus_cli.R \
+  --input "/data/user3/sobj/is2_IS_3_clustered.qs" \
+  --output "/data/user3/sobj/consensus/AG_run1_CLI" \
+  --cluster "anno3big" \
+  --group "g3" \
+  --contrast "2 - 1" \
+  --covariates "sex,age" \
+  --methods "all" \
+  --cores 8
+```
+
+### plotting
+```bash
+Rscript scripts/consensus/plot_consensus_cli.R \
+  --input /data/user3/sobj/consensus/AG_run1/Broad_anno3big/results_consensus.qs \
+  --output /data/user3/sobj/consensus/AG_run1/Broad_anno3big/plots_cli \
+  --cluster "anno3big" \
+  --group "g3" \
+  --covariates "sex,age,GEM"
+```
 
 # Signature Analysis
 
@@ -121,29 +145,59 @@ Rscript /home/user3/data_user3/git_repo/_wt/cci/scripts/cci/mnn/run_multinichene
 ### Circos plot
 ```bash
 Rscript scripts/cci/mnn/plot_comparison_circos.R   --top_n 100   --sort_by score   --max_per_sender 10   --max_per_receiver 10
+
+Rscript scripts/cci/mnn/plot_comparison_circos.R   --top_n 100   --sort_by score   --max_per_sender 10   --max_per_receiver 10 -f /data/user3/sobj/cci/mnn/multinichenet_IS2_IS3_permissive/multinichenet_results.qs -o /data/user3/sobj/cci/mnn/multinichenet_IS2_IS3_permissive
 ```
 
 
 
 
 # Trajectory Analysis
-
+## Run analysis
 ```bash
-
+Rscript scripts/pseudotime-dev/run_trajectory_subsets.R \
+  -i /data/user3/sobj/is2_IS_3_1_plots.qs \
+  -o /data/user3/sobj/pseudotime/pseudotime_results_run1 \
+  -t "TXNIP,DDIT4,S100B,CCL4,HLA-B,UTY,XIST" \
+  -s anno3big \
+  -r umap \
+  -c g3 \
+  -f FALSE
 ```
 
-
+## Plotting
+### TXNIP
 ```bash
+Rscript scripts/pseudotime-dev/plot_trajectory_results.R \
+  -i /data/user3/sobj/pseudotime/pseudotime_results_run1/Tc_cds.qs \
+  -o /data/user3/sobj/pseudotime/pseudotime_results_Tc2 \
+  -t "TXNIP"
+```
+### flexible
+```bash
+Rscript scripts/pseudotime-dev/plot_trajectory_gene_list.R \
+  -i /data/user3/sobj/pseudotime/pseudotime_results_run1/Tc_cds.qs \
+  -o /data/user3/sobj/pseudotime/pseudotime_results_Tc_txnip_v1 \
+  --target_list "txnip"
 
+Rscript scripts/pseudotime-dev/plot_trajectory_gene_list.R \
+  -i /data/user3/sobj/pseudotime/pseudotime_results_run1/Mono_cds.qs \
+  -o /data/user3/sobj/pseudotime/pseudotime_results_Mono_txnip_v1 \
+  --target_list "txnip"
 ```
 
-
+## Differential Analysis
 ```bash
-
+Rscript scripts/pseudotime-dev/analyze_trajectory_diff.R \
+  -i /data/user3/sobj/pseudotime/pseudotime_results_run1/Tc_cds.qs \
+  -o /data/user3/sobj/pseudotime/diff_analysis_Tc2 \
+  -c g3 \
+  -p 10
 ```
 
-
-```bash
-
-```
+Rscript scripts/pseudotime-dev/analyze_trajectory_diff.R \
+  -i /data/user3/sobj/pseudotime/pseudotime_results_run1/Mono_cds.qs \
+  -o /data/user3/sobj/pseudotime/diff_analysis_Mono2 \
+  -c g3 \
+  -p 10
 

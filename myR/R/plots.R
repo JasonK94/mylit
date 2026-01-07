@@ -2711,3 +2711,439 @@ myhm_genes4 <- function(
   return(gene_expression_df)
 }
 
+myhm_genesets5 <- function(
+    sobj,
+    group = "seurat_clusters",
+    value = "average",
+    assay = "SCT",
+    gene_sets = NULL,
+    pre_normalize = FALSE,
+    title="Normalized Gene Set Expression per Cluster",
+    x_label="Cluster",
+    y_label="Gene Set"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  #-------------------------------'
+  # (A) 유효성 체크
+  #-------------------------------'
+  if(is.null(gene_sets)){
+    stop("gene_sets를 지정해 주세요. (ex: list(Immune=c('CD3D','CD3E'), Bcell=c('MS4A1','CD79A'))) ")
+  }
+  
+  # 만약 gene_sets가 리스트가 아니라 벡터만 들어왔다면 리스트로 변환
+  if(!is.list(gene_sets)){
+    gene_sets <- list(GeneSet1 = gene_sets)
+  }
+  
+  # 이름이 없는 리스트 원소가 있다면 자동으로 이름 부여
+  if(is.null(names(gene_sets)) || any(names(gene_sets) == "")){
+    for(i in seq_along(gene_sets)){
+      if(is.null(names(gene_sets)[i]) || names(gene_sets)[i] == ""){
+        names(gene_sets)[i] <- paste0("GeneSet", i)
+      }
+    }
+  }
+  
+  #-------------------------------'
+  # (B) Seurat 객체에 grouping 적용
+  #-------------------------------'
+  Idents(sobj) <- group
+  
+  #-------------------------------'
+  # (C) 평균 발현량(또는 합계 등) 계산
+  #-------------------------------'
+  if(value == "average"){
+    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  # Handle case when result is a vector (single group)
+  if(is.null(dim(cluster_avg)) || length(dim(cluster_avg)) == 1){
+    # Convert vector to single-column matrix
+    cluster_avg <- as.matrix(cluster_avg)
+    if(ncol(cluster_avg) == 1 && is.null(colnames(cluster_avg))){
+      # Get the unique group value
+      unique_groups <- unique(as.character(Idents(sobj)))
+      if(length(unique_groups) == 1){
+        colnames(cluster_avg) <- unique_groups[1]
+      } else {
+        colnames(cluster_avg) <- "Group1"
+      }
+    }
+  }
+  
+  #-------------------------------'
+  # (C-2) Pre-normalization: gene별로 group 간 z-score 정규화
+  #       (절대 발현량이 낮은 gene도 동등하게 반영되도록)
+  #-------------------------------'
+  if(pre_normalize && ncol(cluster_avg) > 1){
+    # 각 gene(row)에 대해 group(column) 간 z-score 정규화
+    # t()로 전치 -> scale() -> 다시 t()로 원래 형태로
+    cluster_avg <- t(scale(t(cluster_avg)))
+    
+    # scale() 결과 NA가 생기는 경우 처리 (분산이 0인 gene)
+    cluster_avg[is.na(cluster_avg)] <- 0
+    
+    message("Pre-normalization applied: Each gene is z-score normalized across groups before gene set aggregation.")
+  } else if(pre_normalize && ncol(cluster_avg) == 1){
+    warning("pre_normalize=TRUE but only one group exists. Skipping pre-normalization.")
+  }
+  
+  #-------------------------------'
+  # (D) Gene Set 별 발현량 계산
+  #-------------------------------'
+  cluster_names <- colnames(cluster_avg)
+  
+  # 결과를 담을 data.frame 생성
+  gene_set_expression <- data.frame(Cluster = cluster_names, stringsAsFactors = FALSE)
+  
+  # gene_sets 각각에 대해 평균 발현량을 구함
+  for(gset_name in names(gene_sets)){
+    genes <- gene_sets[[gset_name]]
+    genes_present <- genes[genes %in% rownames(cluster_avg)]
+    
+    if(length(genes_present) == 0){
+      warning(paste("No genes from", gset_name, "found in the dataset."))
+      gene_set_expression[[gset_name]] <- NA
+      next
+    }
+    
+    # Calculate means
+    subset_data <- cluster_avg[genes_present, , drop = FALSE]
+    
+    # Ensure subset_data is a matrix
+    if(!is.matrix(subset_data)){
+      subset_data <- as.matrix(subset_data)
+    }
+    
+    # Calculate column means
+    if(nrow(subset_data) == 1){
+      # If only one gene, the values are already the means
+      gene_set_expression[[gset_name]] <- as.numeric(subset_data[1,])
+    } else if(ncol(subset_data) == 1){
+      # If only one cluster/group
+      gene_set_expression[[gset_name]] <- mean(subset_data[,1])
+    } else {
+      # Multiple genes and multiple clusters
+      gene_set_expression[[gset_name]] <- colMeans(subset_data)
+    }
+  }
+  
+  #-------------------------------'
+  # (E) Z-score 정규화 (Gene Set 간)
+  #-------------------------------'
+  gene_set_expression_normalized <- gene_set_expression
+  
+  # Check if we have more than one cluster
+  if(nrow(gene_set_expression_normalized) > 1){
+    gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
+  } else {
+    # For single cluster, z-score normalization doesn't make sense
+    # Set all values to 0 (neutral)
+    gene_set_expression_normalized[,-1] <- 0
+  }
+  
+  # 각 Cluster에서 가장 높은 값을 가지는 gene set을 배정
+  gene_set_expression_normalized$Assigned_CellType <- apply(
+    gene_set_expression_normalized[,-c(1, ncol(gene_set_expression_normalized))], 1, 
+    function(x){
+      if(all(is.na(x))) return(NA)
+      names(x)[which.max(x)]
+    }
+  )
+  
+  #-------------------------------'
+  # (F) 클러스터 순서 정렬
+  #-------------------------------'
+  numeric_test <- suppressWarnings(as.numeric(gene_set_expression_normalized$Cluster))
+  
+  if(!all(is.na(numeric_test))){
+    if(sum(is.na(numeric_test)) == 0){
+      sorted_levels <- sort(unique(numeric_test))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
+    gene_set_expression_normalized$Cluster <- factor(
+      gene_set_expression_normalized$Cluster,
+      levels = sorted_levels
+    )
+  }
+  
+  #-------------------------------'
+  # (G) Heatmap용 long format 만들기
+  #-------------------------------'
+  melted_data <- melt(
+    gene_set_expression_normalized,
+    id.vars = c("Cluster","Assigned_CellType"),
+    variable.name = "GeneSet",
+    value.name = "Zscore"
+  )
+  
+  #-------------------------------'
+  # (H) Heatmap 그리기
+  #-------------------------------'
+  p <- ggplot(melted_data, aes(x = Cluster, y = GeneSet, fill = Zscore)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme(axis.text.x = element_text(angle=45, hjust=1, size=12),
+          axis.text.y = element_text(hjust=1, size=12),
+          axis.title.x = element_text(face="bold", size=14),
+          axis.title.y = element_text(face="bold", size=14),
+          plot.title = element_text(size=16, face="bold", hjust=0.5))
+  
+  print(p)
+  
+  #-------------------------------'
+  # (I) 결과 반환
+  #-------------------------------'
+  return(list(gene_set_expression_normalized, p))
+}
+
+
+myhm_genesets6 <- function(
+    sobj,
+    group = "seurat_clusters",
+    value = "average",
+    assay = "SCT",
+    gene_sets = NULL,
+    pre_normalize = FALSE,
+    color_scale = "diverging",
+    title="Normalized Gene Set Expression per Cluster",
+    x_label="Cluster",
+    y_label="Gene Set"
+){
+  library(Seurat)
+  library(dplyr)
+  library(reshape2)
+  library(ggplot2)
+  
+  #-------------------------------'
+  # (A) 유효성 체크
+  #-------------------------------'
+  if(is.null(gene_sets)){
+    stop("gene_sets를 지정해 주세요. (ex: list(Immune=c('CD3D','CD3E'), Bcell=c('MS4A1','CD79A'))) ")
+  }
+  
+  # 만약 gene_sets가 리스트가 아니라 벡터만 들어왔다면 리스트로 변환
+  if(!is.list(gene_sets)){
+    gene_sets <- list(GeneSet1 = gene_sets)
+  }
+  
+  # 이름이 없는 리스트 원소가 있다면 자동으로 이름 부여
+  if(is.null(names(gene_sets)) || any(names(gene_sets) == "")){
+    for(i in seq_along(gene_sets)){
+      if(is.null(names(gene_sets)[i]) || names(gene_sets)[i] == ""){
+        names(gene_sets)[i] <- paste0("GeneSet", i)
+      }
+    }
+  }
+  
+  #-------------------------------'
+  # (B) Seurat 객체에 grouping 적용
+  #-------------------------------'
+  Idents(sobj) <- group
+  
+  #-------------------------------'
+  # (C) 평균 발현량(또는 합계 등) 계산
+  #-------------------------------'
+  if(value == "average"){
+    cluster_avg <- AverageExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  } else {
+    cluster_avg <- AggregateExpression(sobj, assays = assay, slot = "data", group.by = group)[[assay]]
+  }
+  
+  # Handle case when result is a vector (single group)
+  if(is.null(dim(cluster_avg)) || length(dim(cluster_avg)) == 1){
+    # Convert vector to single-column matrix
+    cluster_avg <- as.matrix(cluster_avg)
+    if(ncol(cluster_avg) == 1 && is.null(colnames(cluster_avg))){
+      # Get the unique group value
+      unique_groups <- unique(as.character(Idents(sobj)))
+      if(length(unique_groups) == 1){
+        colnames(cluster_avg) <- unique_groups[1]
+      } else {
+        colnames(cluster_avg) <- "Group1"
+      }
+    }
+  }
+  
+  #-------------------------------'
+  # (C-2) Pre-normalization: gene별로 group 간 z-score 정규화
+  #       (절대 발현량이 낮은 gene도 동등하게 반영되도록)
+  #-------------------------------'
+  if(pre_normalize && ncol(cluster_avg) > 1){
+    # 각 gene(row)에 대해 group(column) 간 z-score 정규화
+    # t()로 전치 -> scale() -> 다시 t()로 원래 형태로
+    cluster_avg <- t(scale(t(cluster_avg)))
+    
+    # scale() 결과 NA가 생기는 경우 처리 (분산이 0인 gene)
+    cluster_avg[is.na(cluster_avg)] <- 0
+    
+    message("Pre-normalization applied: Each gene is z-score normalized across groups before gene set aggregation.")
+  } else if(pre_normalize && ncol(cluster_avg) == 1){
+    warning("pre_normalize=TRUE but only one group exists. Skipping pre-normalization.")
+  }
+  
+  #-------------------------------'
+  # (D) Gene Set 별 발현량 계산
+  #-------------------------------'
+  cluster_names <- colnames(cluster_avg)
+  
+  # 결과를 담을 data.frame 생성
+  gene_set_expression <- data.frame(Cluster = cluster_names, stringsAsFactors = FALSE)
+  
+  # gene_sets 각각에 대해 평균 발현량을 구함
+  for(gset_name in names(gene_sets)){
+    genes <- gene_sets[[gset_name]]
+    genes_present <- genes[genes %in% rownames(cluster_avg)]
+    
+    if(length(genes_present) == 0){
+      warning(paste("No genes from", gset_name, "found in the dataset."))
+      gene_set_expression[[gset_name]] <- NA
+      next
+    }
+    
+    # Calculate means
+    subset_data <- cluster_avg[genes_present, , drop = FALSE]
+    
+    # Ensure subset_data is a matrix
+    if(!is.matrix(subset_data)){
+      subset_data <- as.matrix(subset_data)
+    }
+    
+    # Calculate column means
+    if(nrow(subset_data) == 1){
+      # If only one gene, the values are already the means
+      gene_set_expression[[gset_name]] <- as.numeric(subset_data[1,])
+    } else if(ncol(subset_data) == 1){
+      # If only one cluster/group
+      gene_set_expression[[gset_name]] <- mean(subset_data[,1])
+    } else {
+      # Multiple genes and multiple clusters
+      gene_set_expression[[gset_name]] <- colMeans(subset_data)
+    }
+  }
+  
+  #-------------------------------'
+  # (E) Z-score 정규화 (Gene Set 간)
+  #-------------------------------'
+  gene_set_expression_normalized <- gene_set_expression
+  
+  # Check if we have more than one cluster
+  if(nrow(gene_set_expression_normalized) > 1){
+    gene_set_expression_normalized[,-1] <- scale(gene_set_expression_normalized[,-1])
+  } else {
+    # For single cluster, z-score normalization doesn't make sense
+    # Set all values to 0 (neutral)
+    gene_set_expression_normalized[,-1] <- 0
+  }
+  
+  # 각 Cluster에서 가장 높은 값을 가지는 gene set을 배정
+  gene_set_expression_normalized$Assigned_CellType <- apply(
+    gene_set_expression_normalized[,-c(1, ncol(gene_set_expression_normalized))], 1, 
+    function(x){
+      if(all(is.na(x))) return(NA)
+      names(x)[which.max(x)]
+    }
+  )
+  
+  #-------------------------------'
+  # (F) 클러스터 순서 정렬
+  #-------------------------------'
+  numeric_test <- suppressWarnings(as.numeric(gene_set_expression_normalized$Cluster))
+  
+  if(!all(is.na(numeric_test))){
+    if(sum(is.na(numeric_test)) == 0){
+      sorted_levels <- sort(unique(numeric_test))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = as.character(sorted_levels)
+      )
+    } else {
+      sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
+      gene_set_expression_normalized$Cluster <- factor(
+        gene_set_expression_normalized$Cluster,
+        levels = sorted_levels
+      )
+    }
+  } else {
+    sorted_levels <- sort(unique(gene_set_expression_normalized$Cluster))
+    gene_set_expression_normalized$Cluster <- factor(
+      gene_set_expression_normalized$Cluster,
+      levels = sorted_levels
+    )
+  }
+  
+  #-------------------------------'
+  # (G) Heatmap용 long format 만들기
+  #-------------------------------'
+  melted_data <- melt(
+    gene_set_expression_normalized,
+    id.vars = c("Cluster","Assigned_CellType"),
+    variable.name = "GeneSet",
+    value.name = "Zscore"
+  )
+  
+  #-------------------------------'
+  # (H) Heatmap 그리기
+  #-------------------------------'
+  
+  # Color scale 설정
+  if(color_scale == "plasma"){
+    fill_scale <- scale_fill_viridis_c(option = "plasma")
+  } else if(color_scale == "magma"){
+    fill_scale <- scale_fill_viridis_c(option = "magma")
+  } else if(color_scale == "viridis"){
+    fill_scale <- scale_fill_viridis_c(option = "viridis")
+  } else if(color_scale == "inferno"){
+    fill_scale <- scale_fill_viridis_c(option = "inferno")
+  } else if(color_scale == "cividis"){
+    fill_scale <- scale_fill_viridis_c(option = "cividis")
+  } else {
+    # 기본값: diverging (blue-white-red)
+    fill_scale <- scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0)
+  }
+  
+  p <- ggplot(melted_data, aes(x = Cluster, y = GeneSet, fill = Zscore)) +
+    geom_tile() +
+    fill_scale +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label
+    ) +
+    theme(axis.text.x = element_text(angle=45, hjust=1, size=12),
+          axis.text.y = element_text(hjust=1, size=12),
+          axis.title.x = element_text(face="bold", size=14),
+          axis.title.y = element_text(face="bold", size=14),
+          plot.title = element_text(size=16, face="bold", hjust=0.5))
+  
+  print(p)
+  
+  #-------------------------------'
+  # (I) 결과 반환
+  #-------------------------------'
+  return(list(gene_set_expression_normalized, p))
+}
