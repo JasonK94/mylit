@@ -2,6 +2,14 @@
 # Generic MultiNicheNet Analysis Script
 # Usage: Rscript run_multinichenet.R -i <data_path> -g <group_id> -s <sample_id> -c <celltype_id> -f <contrasts>
 
+# Set library path
+renv_lib <- "/home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu"
+if (dir.exists(renv_lib)) {
+    .libPaths(c(renv_lib, .libPaths()))
+} else {
+    warning("Shared renv library not found at: ", renv_lib)
+}
+
 suppressPackageStartupMessages({
     library(optparse)
     library(Seurat)
