@@ -58,6 +58,17 @@ run_multinichenet_analysis <- function(sobj,
         stop("Package 'multinichenetr' is required but not installed.")
     }
 
+    # Validate metadata columns
+    required_cols <- c(sample_id, group_id, celltype_id)
+    missing_cols <- required_cols[!required_cols %in% colnames(sobj@meta.data)]
+    if (length(missing_cols) > 0) {
+        stop(
+            "The following metadata columns are missing in the Seurat object: ",
+            paste(missing_cols, collapse = ", "),
+            "\nAvailable columns: ", paste(head(colnames(sobj@meta.data), 10), collapse = ", "), "..."
+        )
+    }
+
     # Convert Seurat to SingleCellExperiment
     if (verbose) message("Converting Seurat object to SingleCellExperiment...")
     sce <- Seurat::as.SingleCellExperiment(sobj, assay = "RNA") # Use RNA assay for DE
