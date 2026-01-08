@@ -199,7 +199,7 @@ fgs_preprocess_data_v5 <- function(data,
 
     covariates_df <- meta.data[, control_vars, drop = FALSE]
     covariate_mat <- model.matrix(~ . - 1, data = covariates_df)
-    expr_mat_corrected <- suppressWarnings(limma::removeBatchEffect(expr_mat, covariates = covariate_mat))
+    expr_mat_corrected <- limma::removeBatchEffect(expr_mat, covariates = covariate_mat)
   }
 
   # --- 반환 객체 ---
@@ -434,11 +434,17 @@ find_gene_signature <- function(data,
 
   if (has_total_estimate) {
     message(sprintf(
-      "\n=== FGS v5.4 시작: 총 %d개 메서드, 전체 예상 시간: %.1f분 (데이터: %d cells x %d genes) ===\n",
+      "\n=== FGS v5.4 시작: %s (예상 완료: %s) ===",
+      format(total_start_time, "%H:%M:%S"),
+      format(total_start_time + total_estimated_sec, "%H:%M:%S")
+    ))
+    message(sprintf(
+      "    총 %d개 메서드, 전체 예상 시간: %.1f분 (데이터: %d cells x %d genes) \n",
       total_methods, total_estimated_sec / 60, curr_n_cells, curr_n_genes
     ))
   } else {
-    message(sprintf("\n=== FGS v5.4 시작: 총 %d개 메서드 (데이터: %d cells x %d genes) ===\n", total_methods, curr_n_cells, curr_n_genes))
+    message(sprintf("\n=== FGS v5.4 시작: %s ===\n", format(total_start_time, "%H:%M:%S")))
+    message(sprintf("    총 %d개 메서드 (데이터: %d cells x %d genes) \n", total_methods, curr_n_cells, curr_n_genes))
   }
 
   for (m_idx in seq_along(method)) {

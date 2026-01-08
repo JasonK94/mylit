@@ -675,6 +675,12 @@ TML7 <- function(
   completed_l2_methods <- 0
   tml_start_time <- Sys.time()
 
+  message(sprintf(
+    "\n=== TML7 Start: %s (Models: %d) ===",
+    format(tml_start_time, "%H:%M:%S"),
+    total_l2_methods
+  ))
+
   model_list <- list()
   for (m_idx in seq_along(l2_methods)) {
     m <- l2_methods[m_idx]
