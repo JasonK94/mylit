@@ -196,6 +196,9 @@ fgs_results <- find_gene_signature(
 )
 
 fgs_out_file <- paste0(opt$output, "_fgs.qs")
+if (!dir.exists(dirname(fgs_out_file))) {
+    dir.create(dirname(fgs_out_file), recursive = TRUE)
+}
 qs::qsave(fgs_results, fgs_out_file)
 message("✓ FGS results saved to: ", fgs_out_file)
 
