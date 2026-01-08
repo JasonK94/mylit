@@ -128,10 +128,12 @@ log_file <- file.path(log_dir, paste0("fgs_", format(Sys.time(), "%Y%m%d_%H%M%S"
 message("Logging to: ", log_file)
 
 # Divert output to file (and keep console if interactive, but Rscript usually needs sinking)
-# We use 'tee' like behavior using sink
+# Note: R does not support split=TRUE for 'message' (stderr).
+# So: stdout -> Console & File
+#     stderr -> File only (Console will be silent for warnings/messages)
 con <- file(log_file, open = "wt")
 sink(con, type = "output", split = TRUE)
-sink(con, type = "message", split = TRUE)
+sink(con, type = "message")
 
 # Log command line arguments
 message("\n=== Execution Details ===")
