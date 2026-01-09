@@ -1,155 +1,63 @@
 # ============================================================================
-# Dream-based DEG Method (variancePartition)
+# Dream-based DEG Methods (Phase 2)
+# ============================================================================
+# variancePartition 패키지의 voomWithDreamWeights 및 dream 활용
 # ============================================================================
 
-#' Run Dream (variancePartition) Analysis (v1)
+#' Run Dream Analysis (v1)
 #'
 #' @description
-#' Performs differential expression analysis using the dream workflow from the
-#' variancePartition package. This method models sample-level random effects
-#' (e.g., patient IDs) via linear mixed models on pseudobulk counts.
+#' Performs differential expression analysis using variancePartition::dream (LMM).
+#' Uses native create_pseudobulk_v1.
+#' Handles batch effects as Random Effects if specified.
 #'
 #' @inheritParams runLIMMA_voom_v1
-#' @param patient_col Column name to use for the random effect (default: `sample_id`)
-#' @param min_samples_per_group Minimum number of pseudobulk samples required
-#'   per contrast group (default: 2). Clusters that do not meet this requirement
-#'   are skipped.
+#' @param use_batch_as_random Logical. If TRUE and batch_id is provided,
+#'        batch is modeled as a random effect (1|batch). Default is TRUE.
 #'
-#' @return Data frame of differential expression results per cluster.
+#' @return Data frame with differential expression results per cluster
+#'
 #' @export
 runDREAM_v1 <- function(
   sobj,
   cluster_id = "seurat_clusters",
-  sample_id  = "hos_no",
-  group_id   = "type",
-  batch_id   = NULL,
-  patient_col = sample_id,
-  contrast   = NULL,
+  sample_id = "hos_no",
+  group_id = "type",
+  batch_id = NULL,
+  covar_effects = NULL,
+  contrast = NULL,
   pb_min_cells = 3,
   keep_clusters = NULL,
   cluster_label_map = NULL,
   remove_na_groups = TRUE,
-  min_samples_per_group = 2
+  use_batch_as_random = TRUE
 ) {
-  if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
-  
-  req <- c("Seurat","muscat","SingleCellExperiment","SummarizedExperiment",
-           "S4Vectors","limma","edgeR","variancePartition")
+  params <- as.list(match.call())[-1]
+  if (is.null(contrast)) stop("contrast required")
+
+  req <- c("Seurat", "SingleCellExperiment", "SummarizedExperiment", "S4Vectors", "limma", "dplyr", "variancePartition", "edgeR")
   miss <- req[!vapply(req, requireNamespace, logical(1), quietly = TRUE)]
-  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse = ", "))
-  
-  message("0/7: 메타데이터에서 NA 값 확인 중...")
+  if (length(miss)) stop("Packages missing: ", paste(miss, collapse = ", "))
+
+  if (!exists("create_pseudobulk_v1")) stop("create_pseudobulk_v1 not found")
+
+  # 0. Pre-check Metadata
   meta <- sobj@meta.data
-  required_cols <- c(cluster_id, sample_id, group_id, patient_col)
-  missing_cols <- required_cols[!required_cols %in% colnames(meta)]
-  if (length(missing_cols) > 0) {
-    stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
-  }
-  
   if (remove_na_groups) {
-    na_mask <- is.na(meta[[group_id]]) |
-      is.na(meta[[cluster_id]]) |
-      is.na(meta[[sample_id]]) |
-      is.na(meta[[patient_col]])
-    if (!is.null(batch_id) && batch_id %in% colnames(meta)) {
-      na_mask <- na_mask | is.na(meta[[batch_id]])
-    }
-    n_na <- sum(na_mask)
-    if (n_na > 0) {
-      message(sprintf("... NA 값이 있는 %d 개의 세포를 제거합니다.", n_na))
-      sobj <- sobj[, !na_mask]
-      meta <- sobj@meta.data
-    } else {
-      message("... NA 값이 없습니다.")
-    }
+    cols_to_check <- c(group_id, cluster_id, sample_id, batch_id, covar_effects)
+    na_mask <- rep(FALSE, nrow(meta))
+    for (c in cols_to_check) if (!is.null(c) && c %in% colnames(meta)) na_mask <- na_mask | is.na(meta[[c]]) | meta[[c]] %in% c("NA", "na")
+    if (sum(na_mask) > 0) sobj <- sobj[, !na_mask]
+    meta <- sobj@meta.data
   }
-  
-  if (length(unique(meta[[group_id]])) < 2) {
-    stop(sprintf("group_id ('%s')에 최소 2개의 그룹이 필요합니다.", group_id))
-  }
-  
-  message("1/7: Seurat -> SCE 변환 중...")
-  sce <- Seurat::as.SingleCellExperiment(sobj)
-  sce <- muscat::prepSCE(sce, kid = cluster_id, sid = sample_id, gid = group_id)
-  
-  message("2/7: 메타데이터 정리 중...")
-  sce$cluster_id <- droplevels(factor(SummarizedExperiment::colData(sce)$cluster_id))
-  sce$sample_id  <- droplevels(factor(SummarizedExperiment::colData(sce)$sample_id))
-  sce$group_id   <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
-    sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
-  }
-  
-normalize_sample_column <- function(df) {
-    if (!"sample_id" %in% names(df)) {
-      sample_cols <- grep("^sample_id", names(df), value = TRUE)
-      if (length(sample_cols) > 0) {
-        df$sample_id <- df[[sample_cols[1]]]
-      }
-    }
-    df
-  }
-  
-  sample_lookup <- data.frame(
-    sample_id = as.character(meta[[sample_id]]),
-    group_id = meta[[group_id]],
-    stringsAsFactors = FALSE
-  )
-  sample_lookup[[patient_col]] <- meta[[patient_col]]
-  if (!is.null(batch_id)) {
-    sample_lookup[[batch_id]] <- meta[[batch_id]]
-  }
-  sample_lookup <- sample_lookup[!is.na(sample_lookup$sample_id), , drop = FALSE]
-  sample_lookup$sample_id <- as.character(sample_lookup$sample_id)
-  sample_lookup <- dplyr::distinct(sample_lookup, sample_id, .keep_all = TRUE)
-  
-  message("3/7: Pseudobulking 중...")
-  pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
-  if (!is.null(keep_clusters)) {
-    keep_clusters <- as.character(keep_clusters)
-    pb <- pb[names(SummarizedExperiment::assays(pb)) %in% keep_clusters]
-    if (length(SummarizedExperiment::assays(pb)) == 0L) stop("keep_clusters에 해당하는 클러스터가 없습니다.")
-  }
-  
-  message("4/7: Pseudobulk 메타데이터 보강 중...")
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-  if (!"sample_id" %in% names(pb_meta)) {
-    first_assay <- names(SummarizedExperiment::assays(pb))[1]
-    sid_guess <- colnames(SummarizedExperiment::assays(pb)[[first_assay]])
-    if (is.null(sid_guess)) stop("pb에 sample_id가 없습니다.")
-    pb_meta$sample_id <- sid_guess
-    rownames(pb_meta) <- pb_meta$sample_id
-    SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta)
-  }
-  
-  sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
-  map_cols <- c("sample_id","group_id")
-  if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
-  if (!patient_col %in% map_cols) map_cols <- c(map_cols, patient_col)
-  sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
-  sce_map <- sce_map[complete.cases(sce_map), ]
-  
-  pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
-  pb_meta <- normalize_sample_column(pb_meta)
-  pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
-  pb_meta2 <- normalize_sample_column(pb_meta2)
-  if (!patient_col %in% names(pb_meta2)) {
-    if ("sample_id" %in% names(pb_meta2)) {
-      pb_meta2[[patient_col]] <- pb_meta2$sample_id
-    } else {
-      pb_meta2[[patient_col]] <- rownames(pb_meta2)
-    }
-  }
-  rownames(pb_meta2) <- rownames(pb_meta)
-  SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta2)
-  pb$sample_id <- droplevels(factor(SummarizedExperiment::colData(pb)$sample_id))
-  pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
-  if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
-    pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
-  }
-  
-  message("5/7: Contrast 그룹 필터링 중...")
-  extract_groups <- function(contrast_str, levels_available){
+  if (length(unique(meta[[group_id]])) < 2) stop("Group < 2")
+
+  # 1. Pseudobulk
+  message("Pseudobulking (Dream)...")
+  pb <- create_pseudobulk_v1(sobj, cluster_id, sample_id, group_id)
+  pb_meta <- SummarizedExperiment::colData(pb)
+
+  extract_groups <- function(contrast_str, levels_available) {
     z <- gsub("\\s+", "", contrast_str)
     toks <- unique(gsub("^group(_id)?", "", unlist(strsplit(z, "[^A-Za-z0-9_]+"))))
     toks <- toks[nchar(toks) > 0]
@@ -160,155 +68,189 @@ normalize_sample_column <- function(df) {
     }
     keep
   }
-  grp_lvls <- levels(SummarizedExperiment::colData(pb)$group_id)
-  tg <- extract_groups(contrast, grp_lvls)
-  if (length(tg) < 2) stop(sprintf("contrast에서 추출한 그룹이 부족합니다. contrast='%s'", contrast))
-  
-  keep_idx <- SummarizedExperiment::colData(pb)$group_id %in% tg
-  pb_sub <- pb[, keep_idx]
-  pb_sub$group_id <- droplevels(factor(SummarizedExperiment::colData(pb_sub)$group_id))
-  
+
   all_results <- list()
-  cluster_names <- names(SummarizedExperiment::assays(pb_sub))
-  
-  fix_contrast <- function(contrast_str, design_cols){
-    z <- gsub("\\s+", "", contrast_str)
-    toks <- unlist(strsplit(z, "([+\\-])", perl=TRUE))
-    ops  <- unlist(regmatches(z, gregexpr("([+\\-])", z, perl=TRUE)))
-    rebuild <- function(tok){
-      tok <- gsub("^group(_id)?", "group", tok)
-      if (!grepl("^group", tok)) tok <- paste0("group", tok)
-      tok
-    }
-    toks2 <- vapply(toks, rebuild, character(1))
-    out <- toks2[1]; if (length(ops)) for (i in seq_along(ops)) out <- paste0(out, ops[i], toks2[i+1])
-    out
-  }
-  
-  message("6/7: dream 분석 실행 중...")
-  pb_sub_meta <- as.data.frame(SummarizedExperiment::colData(pb_sub))
-  pb_sub_meta <- normalize_sample_column(pb_sub_meta)
-  pb_sub_meta$sample_id <- as.character(pb_sub_meta$sample_id)
-  
+  cluster_names <- names(SummarizedExperiment::assays(pb))
+  if (!is.null(keep_clusters)) cluster_names <- intersect(cluster_names, keep_clusters)
+
   for (clust in cluster_names) {
-    pb_clust <- SummarizedExperiment::assays(pb_sub)[[clust]]
-    if (ncol(pb_clust) < 2) {
-      message(sprintf("  클러스터 %s: 샘플 수 부족 (%d), 건너뜁니다.", clust, ncol(pb_clust)))
+    pb_clust <- SummarizedExperiment::assays(pb)[[clust]] # Gene x Sample count matrix
+
+    # Filter low expression
+    # Dream usually expects DGEList inputs
+    # Minimal Filtering
+    y <- edgeR::DGEList(counts = pb_clust)
+    keep <- edgeR::filterByExpr(y)
+    y <- y[keep, , keep.lib.sizes = FALSE]
+    y <- edgeR::calcNormFactors(y)
+
+    if (ncol(y) < 3) {
+      message(sprintf("  Cluster %s: too few samples (%d), skip.", clust, ncol(y)))
       next
     }
-    
-    sample_ids <- colnames(pb_clust)
-    pb_clust_meta <- dplyr::left_join(
-      data.frame(sample_id = sample_ids, stringsAsFactors = FALSE),
-      sample_lookup,
-      by = "sample_id"
-    )
-    pb_clust_meta <- pb_clust_meta[!is.na(pb_clust_meta$group_id), , drop = FALSE]
-    if (nrow(pb_clust_meta) < 2) {
-      message(sprintf("  클러스터 %s: 그룹 정보가 부족하여 건너뜁니다.", clust))
-      next
+
+    # Metadata
+    sample_ids <- colnames(y)
+    pb_clust_meta <- pb_meta[sample_ids, , drop = FALSE]
+
+    # Handle Design
+    if (is.null(pb_clust_meta[[group_id]])) next
+    grp_col <- droplevels(factor(pb_clust_meta[[group_id]]))
+    if (nlevels(grp_col) < 2) next
+
+    design_meta <- as.data.frame(pb_clust_meta)
+    design_meta$group <- grp_col
+
+    # 1. Fixed Effects
+    fixed_terms <- c("group")
+    random_terms <- c()
+
+    if (!is.null(batch_id) && batch_id %in% names(design_meta)) {
+      if (use_batch_as_random) {
+        b_col <- droplevels(factor(design_meta[[batch_id]]))
+        if (nlevels(b_col) > 1) {
+          design_meta$batch <- b_col
+          random_terms <- c(random_terms, "(1|batch)")
+        }
+      } else {
+        # Fixed: assume batch_id column exists or map specific name?
+        # handle_design expects exact column names for Fixed
+        # Should we map batch_id -> 'batch'?
+        # If we used 'batch' in fixed_terms, we must have 'batch' col in design_meta
+        design_meta$batch <- droplevels(factor(design_meta[[batch_id]]))
+        fixed_terms <- c(fixed_terms, "batch")
+      }
     }
-    keep_samples <- sample_ids[sample_ids %in% pb_clust_meta$sample_id]
-    if (length(keep_samples) < 2) {
-      message(sprintf("  클러스터 %s: sample_id 매칭 실패, 건너뜁니다.", clust))
-      next
+
+    if (!is.null(covar_effects)) {
+      valid_cv <- covar_effects[covar_effects %in% names(design_meta)]
+      fixed_terms <- c(fixed_terms, valid_cv)
     }
-    pb_clust <- pb_clust[, keep_samples, drop = FALSE]
-    pb_clust_meta <- pb_clust_meta[match(keep_samples, pb_clust_meta$sample_id), , drop = FALSE]
-    pb_clust_meta$group_id <- droplevels(factor(pb_clust_meta$group_id))
-    pb_clust_meta$group <- pb_clust_meta$group_id
-    
-    group_counts <- table(pb_clust_meta$group)
-    if (length(group_counts) < 2 || any(group_counts < min_samples_per_group)) {
-      message(sprintf("  클러스터 %s: 그룹별 샘플 수 부족 (%s), 건너뜁니다.",
-                      clust,
-                      paste(names(group_counts), group_counts, sep=":", collapse=", ")))
-      next
+
+    # Run handle_design on Fixed
+    hd <- handle_design_v1(design_meta, fixed_terms)
+
+    # Construct Full Formula
+    # Fixed part: ~ 0 + terms...
+    fm_str <- paste("~ 0 +", paste(hd$final_terms, collapse = " + "))
+
+    # Append Random
+    if (length(random_terms) > 0) {
+      fm_str <- paste(fm_str, "+", paste(random_terms, collapse = " + "))
     }
-    
-    lib_sizes <- colSums(pb_clust)
-    valid_samples <- lib_sizes > 0
-    if (sum(valid_samples) < 2) {
-      message(sprintf("  클러스터 %s: 유효 샘플 수 부족, 건너뜁니다.", clust))
-      next
-    }
-    pb_clust <- round(pb_clust[, valid_samples, drop = FALSE])
-    storage.mode(pb_clust) <- "integer"
-    pb_clust_meta <- pb_clust_meta[valid_samples, , drop = FALSE]
-    pb_clust_meta$group <- droplevels(factor(pb_clust_meta$group))
-    
-    patient_vec <- NULL
-    if (!is.null(patient_col) && patient_col %in% colnames(pb_clust_meta)) {
-      patient_vec <- pb_clust_meta[[patient_col]]
-    } else if (sample_id %in% colnames(pb_clust_meta)) {
-      patient_vec <- pb_clust_meta[[sample_id]]
-    } else if ("sample_id" %in% colnames(pb_clust_meta)) {
-      patient_vec <- pb_clust_meta[["sample_id"]]
-    }
-    if (is.null(patient_vec) || length(patient_vec) == 0) {
-      patient_vec <- rownames(pb_clust_meta)
-    }
-    if (is.null(patient_vec) || length(patient_vec) == 0) {
-      message(sprintf("  클러스터 %s: random effect 컬럼을 찾을 수 없습니다, 건너뜁니다.", clust))
-      next
-    }
-    pb_clust_meta$patient_effect <- droplevels(factor(patient_vec))
-    if (length(levels(pb_clust_meta$patient_effect)) < 2) {
-      message(sprintf("  클러스터 %s: random effect 레벨 수 부족, 건너뜁니다.", clust))
-      next
-    }
-    
-    form <- stats::as.formula("~ 0 + group + (1|patient_effect)")
+
+    design_formula <- stats::as.formula(fm_str)
+
+    # Check rank? Dream handles collinearity reasonably but better check.
+    # But with Random Effects, model.matrix is not straightforward to check rank.
+    # We skip explicit rank check for LMM part, trusting variancePartition.
+
+    # Voom with Dream Weights
+    message(sprintf("  Cluster %s: voomWithDreamWeights...", clust))
     vobj <- tryCatch(
-      variancePartition::voomWithDreamWeights(
-        pb_clust,
-        form,
-        data = as.data.frame(pb_clust_meta),
-        quiet = TRUE
-      ),
+      {
+        variancePartition::voomWithDreamWeights(y, design_formula, hd$meta, quiet = TRUE)
+      },
       error = function(e) {
-        message(sprintf("  클러스터 %s: voomWithDreamWeights 실패 (%s)", clust, conditionMessage(e)))
-        NULL
+        message("    voomWithDreamWeights failed: ", e$message)
+        return(NULL)
       }
     )
     if (is.null(vobj)) next
-    
+
+    # Fit Dream
+    message(sprintf("  Cluster %s: dream fitting...", clust))
     fit <- tryCatch(
-      variancePartition::dream(
-        vobj,
-        form,
-        data = as.data.frame(pb_clust_meta),
-        quiet = TRUE
-      ),
+      {
+        variancePartition::dream(vobj, design_formula, hd$meta, quiet = TRUE)
+      },
       error = function(e) {
-        message(sprintf("  클러스터 %s: dream 실패 (%s)", clust, conditionMessage(e)))
-        NULL
+        message("    dream fit failed: ", e$message)
+        return(NULL)
       }
     )
     if (is.null(fit)) next
-    
-    design <- stats::model.matrix(~ 0 + group, data = as.data.frame(pb_clust_meta))
-    contrast_fixed <- fix_contrast(contrast, colnames(design))
-    contrast_matrix <- limma::makeContrasts(contrasts = contrast_fixed, levels = colnames(design))
-    
-    fit_contr <- variancePartition::contrastCoefficients(fit, contrast_matrix)
-    tt <- limma::topTable(fit_contr, coef = 1, number = Inf, sort.by = "none")
-    tt$cluster_id <- clust
-    if (!is.null(cluster_label_map)) {
-      tt$cluster_label <- cluster_label_map[as.character(clust)]
-      tt$cluster_label[is.na(tt$cluster_label)] <- as.character(clust)
+
+    # Contrast
+    # We used ~ 0 + group ..., so coefficients are groupLEVELS
+    design_cols <- colnames(fit$design) # Fixed effects part
+
+    # Fix contrast
+    # e.g. "2 - 1". group levels are "1", "2". coefs are "group1", "group2".
+    # We need to map "1" -> "group1".
+
+    # Identify group coefficients
+    grp_levels <- levels(grp)
+    # The coefficients will be named 'group1', 'group2', etc. if factor.
+
+    # Need to parse contrast string
+    # Helper to map user contrast "2 - 1" to "group2 - group1"
+    fix_contrast_dream <- function(c_str, d_cols) {
+      # Reuse logic from deg_methods_edger/limma but adapted
+      # If d_cols contains "groupLevel", assume standard mapping
+
+      # Simple heuristic: replace words matching group levels with "group"+word
+      # ONLY if "group"+word exists in d_cols
+
+      final_c <- c_str
+      for (l in grp_levels) {
+        target <- paste0("group", l)
+        if (target %in% d_cols) {
+          # Replace whole word 'l' with 'target'
+          # Use word boundaries
+          final_c <- gsub(paste0("\\b", l, "\\b"), target, final_c)
+        }
+      }
+      return(final_c)
     }
-    all_results[[clust]] <- tt
+
+    final_contrast <- fix_contrast_dream(contrast, design_cols)
+
+    # makeContrasts
+    # Note: variancePartition::getContrast can be used or limma::makeContrasts
+    # dream returns MArrayLM-like object, compatible with limma contrasts
+
+    cm <- tryCatch(
+      {
+        limma::makeContrasts(contrasts = final_contrast, levels = design_cols)
+        # Note: design_cols only includes Fixed Effects. That's correct for contrast.
+      },
+      error = function(e) {
+        message("    makeContrasts failed: ", e$message)
+        return(NULL)
+      }
+    )
+
+    if (is.null(cm)) next
+
+    fit2 <- limma::contrasts.fit(fit, cm)
+    fit2 <- limma::eBayes(fit2)
+
+    # TopTable
+    res <- limma::topTable(fit2, coef = 1, number = Inf, sort.by = "P")
+
+    res_df <- as.data.frame(res)
+    res_df$cluster_id <- clust
+    res_df$gene <- rownames(res_df)
+    rownames(res_df) <- NULL
+
+    if ("adj.P.Val" %in% names(res_df)) res_df$FDR <- res_df$adj.P.Val
+    if ("P.Value" %in% names(res_df)) res_df$pvalue <- res_df$P.Value
+    # t-statistic is already 't'
+    if ("t" %in% names(res_df)) res_df$statistic <- res_df$t
+
+    all_results[[clust]] <- res_df
   }
-  
-  if (length(all_results) == 0) {
-    warning("dream 분석 결과가 없습니다.")
-    return(data.frame())
+
+  if (length(all_results) == 0) stop("All clusters failed")
+  combined <- do.call(rbind, all_results)
+  if (!is.null(cluster_label_map)) {
+    combined$cluster_label <- cluster_label_map[as.character(combined$cluster_id)]
+    combined$cluster_label[is.na(combined$cluster_label)] <- as.character(combined$cluster_id)
+  } else {
+    combined$cluster_label <- as.character(combined$cluster_id)
   }
-  
-  message("7/7: 결과 정리 중...")
-  res_df <- do.call(rbind, all_results)
-  return(res_df)
+  attr(combined, "run_info") <- params
+  attr(combined, "formula") <- "Varies per cluster (LMM)"
+  return(combined)
 }
-
-

@@ -3,7 +3,7 @@
 # ============================================================================
 # Phase 1: 통합 함수 구현
 # ============================================================================
-# 
+#
 # Note: This function requires:
 # - runMUSCAT and runNEBULA (from test_analysis.R)
 # - runLIMMA_voom_v1, runLIMMA_trend_v1 (from deg_methods_limma.R)
@@ -31,7 +31,7 @@
 #' @param sample_id Column name for sample ID (default: "hos_no")
 #' @param group_id Column name for group/condition (default: "g3")
 #' @param batch_id Optional column name for batch variable (default: "GEM")
-#' @param covar_effects Optional character vector of column names for additional covariates 
+#' @param covar_effects Optional character vector of column names for additional covariates
 #'   to include as fixed effects (e.g., c("sex")). These will be added to the design matrix.
 #' @param pb_min_cells Minimum cells per pseudobulk sample (default: 3)
 #' @param filter_genes Filtering method for muscat (default: "edgeR")
@@ -53,8 +53,10 @@
 run_deg_consensus <- function(
   sobj,
   contrast = "2 - 1",
-  methods = c("muscat-edgeR", "muscat-DESeq2", "muscat-limma-voom", 
-              "muscat-limma-trend", "nebula"),
+  methods = c(
+    "muscat-edgeR", "muscat-DESeq2", "muscat-limma-voom",
+    "muscat-limma-trend", "nebula"
+  ),
   cluster_id = "anno3.scvi",
   sample_id = "hos_no",
   group_id = "g3",
@@ -68,23 +70,23 @@ run_deg_consensus <- function(
   n_cores = 4,
   verbose = TRUE
 ) {
-  
+  params <- as.list(match.call())[-1]
   # --- 0. Validation ---
   if (is.null(contrast)) {
     stop("'contrast'를 지정하세요. 예: '2 - 1'")
   }
-  
+
   if (length(methods) == 0) {
     stop("최소 하나의 방법론을 지정해야 합니다.")
   }
-  
+
   # Check required packages
   req_pkgs <- c("Seurat")
   miss_pkgs <- req_pkgs[!vapply(req_pkgs, requireNamespace, logical(1), quietly = TRUE)]
   if (length(miss_pkgs) > 0) {
     stop("필요 패키지 설치: ", paste(miss_pkgs, collapse = ", "))
   }
-  
+
   # --- 1. Method mapping ---
   # Map method names to their handler functions
   method_handlers <- list(
@@ -175,18 +177,18 @@ run_deg_consensus <- function(
       runDESEQ2_LRT_v1(...)
     }
   )
-  
+
   # Check if all requested methods are available
   missing_methods <- setdiff(methods, names(method_handlers))
   if (length(missing_methods) > 0) {
     warning("다음 방법론은 지원되지 않습니다: ", paste(missing_methods, collapse = ", "))
     methods <- setdiff(methods, missing_methods)
   }
-  
+
   if (length(methods) == 0) {
     stop("실행 가능한 방법론이 없습니다.")
   }
-  
+
   # --- 2. Prepare common arguments ---
   # Arguments that are common across methods
   common_args <- list(
@@ -202,29 +204,31 @@ run_deg_consensus <- function(
     keep_clusters = keep_clusters,
     remove_na_groups = remove_na_groups
   )
-  
+
   # Method-specific arguments
   muscat_args <- c("pb_min_cells", "filter_genes", "keep_clusters", "cluster_label_map")
-  nebula_args <- c("layer", "fixed_effects", "covar_effects", "patient_col", 
-                   "offset", "min_count", "remove_na_cells")
-  
+  nebula_args <- c(
+    "layer", "fixed_effects", "covar_effects", "patient_col",
+    "offset", "min_count", "remove_na_cells"
+  )
+
   # --- 3. Run methods ---
   results <- list()
   methods_run <- character(0)
   methods_failed <- character(0)
   errors <- list()
-  
+
   if (verbose) {
     message(sprintf("=== DEG Consensus Analysis 시작 ==="))
     message(sprintf("총 %d 개의 방법론 실행 예정", length(methods)))
     message(sprintf("Contrast: %s", contrast))
   }
-  
+
   for (method in methods) {
     if (verbose) {
       message(sprintf("\n--- [%s] 실행 중 ---", method))
     }
-    
+
     # Check if handler function exists
     handler <- method_handlers[[method]]
     if (is.null(handler)) {
@@ -233,10 +237,10 @@ run_deg_consensus <- function(
       errors[[method]] <- "Handler function not found"
       next
     }
-    
+
     # Prepare method-specific arguments
     method_args <- common_args
-    
+
     # For nebula, adjust arguments
     if (method == "nebula") {
       method_args$fixed_effects <- c(group_id)
@@ -252,9 +256,12 @@ run_deg_consensus <- function(
       method_args$keep_clusters <- NULL
       method_args$cluster_id <- NULL
       method_args$batch_id <- NULL
-      method_args$contrast <- NULL  # nebula doesn't use contrast string
+      method_args$contrast <- NULL # nebula doesn't use contrast string
+      method_args$sample_id <- NULL
+      method_args$group_id <- NULL
+      method_args$remove_na_groups <- NULL
     }
-    
+
     # For muscat methods, ensure cluster_id is provided and fix filter_genes
     if (startsWith(method, "muscat-")) {
       if (is.null(method_args$cluster_id)) {
@@ -262,37 +269,40 @@ run_deg_consensus <- function(
       }
       # filter_genes should be one of "both", "genes", "samples", "none"
       if (!is.null(method_args$filter_genes) && method_args$filter_genes == "edgeR") {
-        method_args$filter_genes <- "both"  # edgeR은 "both"로 변경
+        method_args$filter_genes <- "both" # edgeR은 "both"로 변경
       }
     }
-    
+
     # For non-muscat methods, remove filter_genes if present
     if (!startsWith(method, "muscat-") && !startsWith(method, "nebula")) {
       method_args$filter_genes <- NULL
     }
-    
+
     # Try to run the method
-    tryCatch({
-      result <- do.call(handler, method_args)
-      
-      # Store result with method name
-      results[[method]] <- result
-      methods_run <- c(methods_run, method)
-      
-      if (verbose) {
-        message(sprintf("✓ [%s] 완료", method))
+    tryCatch(
+      {
+        result <- do.call(handler, method_args)
+
+        # Store result with method name
+        results[[method]] <- result
+        methods_run <- c(methods_run, method)
+
+        if (verbose) {
+          message(sprintf("✓ [%s] 완료", method))
+        }
+      },
+      error = function(e) {
+        error_msg <- conditionMessage(e)
+        methods_failed <- c(methods_failed, method)
+        errors[[method]] <- error_msg
+
+        if (verbose) {
+          message(sprintf("✗ [%s] 실패: %s", method, error_msg))
+        }
       }
-    }, error = function(e) {
-      error_msg <- conditionMessage(e)
-      methods_failed <- c(methods_failed, method)
-      errors[[method]] <- error_msg
-      
-      if (verbose) {
-        message(sprintf("✗ [%s] 실패: %s", method, error_msg))
-      }
-    })
+    )
   }
-  
+
   # --- 4. Summary ---
   if (verbose) {
     message(sprintf("\n=== 실행 완료 ==="))
@@ -302,7 +312,7 @@ run_deg_consensus <- function(
       message(sprintf("실패한 방법론: %s", paste(methods_failed, collapse = ", ")))
     }
   }
-  
+
   # --- 5. Return results ---
   return(list(
     results = results,
@@ -316,7 +326,7 @@ run_deg_consensus <- function(
       group_id = group_id,
       batch_id = batch_id,
       covar_effects = covar_effects
-    )
+    ),
+    run_info = params
   ))
 }
-

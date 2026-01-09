@@ -1,7 +1,7 @@
 # ============================================================================
 # Differential Expression Analysis Functions
 # ============================================================================
-# Consolidated from test_working.R (priority 1), test.R (priority 2), 
+# Consolidated from test_working.R (priority 1), test.R (priority 2),
 # test_cursor.R (priority 3)
 # Version names are explicitly included to avoid conflicts
 # ============================================================================
@@ -42,11 +42,11 @@
 #                     min_cells_expr = 10,
 #                     n_cores = 4,
 #                     lrt_variable = NULL) {
-  
+
 #   if (!requireNamespace("MAST", quietly = TRUE)) stop("MAST 패키지가 필요합니다.")
 #   if (!requireNamespace("SingleCellExperiment", quietly = TRUE)) stop("SCE 패키지가 필요합니다.")
 #   if (is.null(lrt_variable)) stop("'lrt_variable' 인자 (예: 'g3')를 지정해야 합니다.")
-  
+
 #   if (is.character(formula)) {
 #     formula_obj <- as.formula(formula)
 #   } else if (inherits(formula, "formula")) {
@@ -54,14 +54,14 @@
 #   } else {
 #     stop("'formula'는 문자열 또는 formula 객체여야 합니다.")
 #   }
-  
+
 #   # --- 1. SCA 객체 생성 및 정규화 ---
 #   message("1/5: Seurat -> SingleCellAssay(SCA) 객체 변환 중...")
-  
+
 #   # MAST requires SingleCellAssay, not SingleCellExperiment
 #   # Convert via SingleCellExperiment then to SCA using SceToSingleCellAssay
 #   sce <- Seurat::as.SingleCellExperiment(sobj)
-  
+
 #   # Use MAST::SceToSingleCellAssay for conversion
 #   sca <- tryCatch({
 #     MAST::SceToSingleCellAssay(sce)
@@ -88,32 +88,32 @@
 #     }
 #     MAST::FromMatrix(exprsArray = counts_mat, cData = cdata, fData = fdata, check_sanity = FALSE)
 #   })
-  
+
 #   # --- 2. 유전자 필터링 ---
 #   message(sprintf("2/5: 유전자 필터링 (min %d cells)...", min_cells_expr))
 #   # freq()는 발현 비율 (0~1)을 반환
 #   keep_genes <- (MAST::freq(sca) * ncol(sca)) >= min_cells_expr
 #   sca_filtered <- sca[keep_genes, ]
 #   message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(sca)))
-  
+
 #   # --- 3. 정규화 (MAST는 log2cpm 사용) ---
 #   message("3/5: Log2(CPM+1) 정규화 중...")
 #   SummarizedExperiment::assay(sca_filtered, "logcpm") <- MAST::cpm(sca_filtered, log = TRUE)
-  
+
 #   # --- 4. zlm (Hurdle LMM) 실행 ---
 #   message(sprintf("4/5: MAST::zlm 실행 (Cores: %d). 시간이 오래 걸릴 수 있습니다...", n_cores))
-  
-#   zfit <- MAST::zlm(formula_obj, 
-#                     sca = sca_filtered, 
-#                     method = "glmer", 
+
+#   zfit <- MAST::zlm(formula_obj,
+#                     sca = sca_filtered,
+#                     method = "glmer",
 #                     parallel = TRUE,
 #                     nCores = n_cores)
-  
+
 #   # --- 5. LRT 결과 요약 ---
 #   message(sprintf("5/5: LRT 검정 수행 (변수: %s)...", lrt_variable))
 #   summary_res <- summary(zfit, doLRT = lrt_variable)
 #   summary_dt <- summary_res$datatable
-  
+
 #   results_df <- merge(
 #       summary_dt[component == 'H', .(primerid, `Pr(>Chisq)`)], # Hurdle (logistic)
 #       summary_dt[component == 'logcpm', .(primerid, coef, ci.hi, ci.lo)], # Continuous
@@ -121,7 +121,7 @@
 #   )
 #   colnames(results_df)[2] <- "p_value_hurdle"
 #   results_df <- results_df[order(p_value_hurdle), ]
-  
+
 #   message("MAST 분석 완료.")
 #   return(results_df)
 # }
@@ -165,66 +165,66 @@
 #                                 patient_col = "patient_col",
 #                                 offset = "nCount_RNA",
 #                                 min_count = 10) {
-  
+
 #   # --- 0. 데이터 추출 ---
 #   meta <- sobj@meta.data
 #   counts <- GetAssayData(sobj, layer = layer) # dgCMatrix (희소 행렬)
-  
+
 #   # --- 1. 유전자 필터링 ---
 #   message(sprintf("1/6: 유전자 필터링 (min %d cells)...", min_count))
 #   keep_genes <- rowSums(counts > 0) >= min_count
 #   counts_filtered <- counts[keep_genes, ]
 #   message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(counts)))
-  
+
 #   # --- 2. NA 값 확인 및 제거 ---
 #   # [수정] NEBULA는 'covar_effects'도 고정 효과로 처리해야 함
 #   all_fixed_vars <- c(fixed_effects, covar_effects)
-  
+
 #   # [수정] NA 체크할 모든 변수 목록
 #   vars_to_check <- c(all_fixed_vars, patient_col, offset)
-  
+
 #   message("2/6: 모델 변수에서 NA 값 확인 중...")
 #   message(paste("... 확인 대상:", paste(vars_to_check, collapse = ", ")))
-  
+
 #   keep_cells_idx <- complete.cases(meta[, vars_to_check])
 #   n_removed <- sum(!keep_cells_idx)
-  
+
 #   if (n_removed > 0) {
 #     message(sprintf("... NA 값으로 인해 %d 개의 세포를 제거합니다.", n_removed))
 #   }
-  
+
 #   # NA가 없는 '깨끗한' 데이터 생성
 #   meta_clean <- meta[keep_cells_idx, ]
 #   counts_clean <- counts_filtered[, keep_cells_idx]
-  
+
 #   message(sprintf("... 최종 분석 대상 세포: %d 개", nrow(meta_clean)))
-  
+
 #   # --- 3. 디자인 행렬 및 벡터 생성 ---
 #   message("3/6: 디자인 행렬 및 벡터 생성 중...")
-  
+
 #   # [수정] 범주형 변수와 숫자형 변수 분리
 #   # 'offset'은 숫자로 유지해야 함!
 #   factor_vars <- c(all_fixed_vars, patient_col)
-  
+
 #   # [수정] lapply + as.factor 적용 (오타 수정 as.factors -> as.factor)
 #   meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], as.factor)
-  
+
 #   # [수정] 'offset'은 numeric으로 강제 변환 (안전장치)
 #   meta_clean[[offset]] <- as.numeric(meta_clean[[offset]])
 #   if (any(is.na(meta_clean[[offset]]))) {
 #       stop(sprintf("'%s' 컬럼에 NA가 아닌 숫자형 값만 있어야 합니다.", offset))
 #   }
-  
+
 #   # [수정] 'formula' 인수를 없애고, 변수명으로부터 동적 생성
 #   formula_str <- paste("~", paste(all_fixed_vars, collapse = " + "))
 #   message(sprintf("... 사용할 고정 효과 포뮬러: %s", formula_str))
-  
+
 #   design_matrix <- model.matrix(as.formula(formula_str), data = meta_clean)
-  
+
 #   # id 및 offset 벡터 추출
 #   id_vector <- meta_clean[[patient_col]]
 #   offset_vector <- meta_clean[[offset]]
-  
+
 #   # --- 4. group_cell()로 데이터 정렬 ---
 #   message(sprintf("4/6: NEBULA를 위해 id (%s) 기준으로 데이터 정렬 중...", patient_col))
 #   data_grouped <- nebula::group_cell(
@@ -233,7 +233,7 @@
 #     pred = design_matrix,
 #     offset = offset_vector
 #   )
-  
+
 #   # --- 5. NEBULA 실행 ---
 #   message("5/6: NEBULA 실행 중 (NBLMM)...")
 #   # Add stability options to prevent convergence issues
@@ -258,15 +258,62 @@
 #         model = "NBLMM"
 #       )
 #     }, error = function(e2) {
-#       stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", 
+#       stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.",
 #                    conditionMessage(e2)))
 #     })
 #   })
-  
-#   # --- 6. 결과 반환 ---
-#   message("6/6: 분석 완료.")
-  
-#   # [수정] 함수는 결과를 'return' 해야 함
+
+#   message("7/7: 결과 정리 및 반환 중...")
+
+#   # [Added] Format for standardization if requested or generally good practice
+#   # Extract the summary table for the coefficient of interest
+#   # The coefficient names are usually the fixed effects.
+#   # We need to find the one matching 'g3' or the first fixed effect.
+
+#   # Standardize column names for the primary coefficient
+#   # Nebula summary columns: logFC_g31, se_g31, p_g31 (if g3 is factor)
+#   # Or logFC_g3, se_g3, p_g3 (if numeric)
+
+#   # Heuristic: Find columns starting with logFC_ and pick the last one (often the contrast)
+#   # Or specific to the first term in fixed_effects
+#   target_var <- fixed_effects[1]
+
+#   # Clean up summary table
+#   summ <- re_nebula$summary
+#   if(!is.null(summ)) {
+#       # Find columns for target_var
+#       # e.g. target_var="g3", columns might be "logFC_g32" (level 2 vs 1)
+#       # We assume simple contrast (2 vs 1) or continuous
+
+#       # Just identify the columns associated with the target variable
+#       # If multiple levels, we pick the first one? Or all?
+#       # For consensus, we usually expect 1 contrast.
+
+#       # Let's search for logFC columns
+#       lfc_cols <- grep("^logFC_", colnames(summ), value=TRUE)
+
+#       if(length(lfc_cols) > 0) {
+#            # Use the last one (often the highest level vs baseline in default model.matrix)
+#            # Or filter by target_var
+#            target_lfc <- grep(paste0("_", target_var), lfc_cols, value=TRUE)
+#            if(length(target_lfc) == 0) target_lfc <- lfc_cols[length(lfc_cols)] else target_lfc <- target_lfc[length(target_lfc)]
+
+#            suffix <- sub("^logFC_", "", target_lfc)
+
+#            p_col <- paste0("p_", suffix)
+#            se_col <- paste0("se_", suffix)
+
+#            if(all(c(target_lfc, p_col, se_col) %in% colnames(summ))) {
+#                # Add standard columns
+#                re_nebula$summary$logFC <- summ[[target_lfc]]
+#                re_nebula$summary$pvalue <- summ[[p_col]]
+#                re_nebula$summary$se <- summ[[se_col]]
+#                re_nebula$summary$statistic <- summ[[target_lfc]] / summ[[se_col]]
+#                re_nebula$summary$gene <- summ$gene
+#            }
+#       }
+#   }
+
 #   return(re_nebula)
 # }
 
@@ -461,14 +508,6 @@
 #   )
 
 #   # 6) 결과 평탄화: **sce_sub가 먼저, res가 다음**
-#   combined <- muscat::resDS(sce_sub, res)
-
-#   # cluster_id 정리 + 라벨
-#   if ("cluster" %in% names(combined) && !"cluster_id" %in% names(combined)) {
-#     combined$cluster_id <- combined$cluster
-#   }
-#   if (!"cluster_id" %in% names(combined)) stop("resDS 결과에 'cluster_id'가 없습니다.")
-#   if (!is.null(cluster_label_map)) {
 #     combined$cluster_label <- cluster_label_map[as.character(combined$cluster_id)]
 #     combined$cluster_label[is.na(combined$cluster_label)] <- as.character(combined$cluster_id)
 #   } else {
@@ -496,7 +535,7 @@
 #' Multi-condition DE analysis). This function automatically performs
 #' pseudobulking by aggregating cells within each cluster and sample, then
 #' applies edgeR, DESeq2, or limma-voom for differential expression testing.
-#' 
+#'
 #' This version (v2) improves upon v5 by:
 #' - Better handling of missing values in group_id and other metadata columns
 #' - More robust NA filtering before pseudobulking
@@ -528,51 +567,51 @@
 runMUSCAT2_v1 <- function(
   sobj,
   cluster_id = "seurat_clusters",
-  sample_id  = "hos_no",
-  group_id   = "type",
-  batch_id   = NULL,                 # ex) "exp_batch"
-  covar_effects = NULL,              # ex) c("sex") - additional covariates as fixed effects
-  contrast   = NULL,                 # ex) "IS - SAH"
-  method     = "edgeR",
+  sample_id = "hos_no",
+  group_id = "type",
+  batch_id = NULL, # ex) "exp_batch"
+  covar_effects = NULL, # ex) c("sex") - additional covariates as fixed effects
+  contrast = NULL, # ex) "IS - SAH"
+  method = "edgeR",
   pb_min_cells = 3,
-  filter_genes = c("none","genes","both","edgeR"),
+  filter_genes = c("none", "genes", "both", "edgeR"),
   keep_clusters = NULL,
   cluster_label_map = NULL,
   remove_na_groups = TRUE
-){
+) {
   if (is.null(contrast)) stop("'contrast'를 지정하세요. 예: 'IS - SAH'")
   filter_genes <- match.arg(filter_genes)
 
   # deps
-  req <- c("Seurat","muscat","SingleCellExperiment","SummarizedExperiment","S4Vectors","limma","dplyr")
-  miss <- req[!vapply(req, requireNamespace, logical(1), quietly=TRUE)]
-  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse=", "))
+  req <- c("Seurat", "muscat", "SingleCellExperiment", "SummarizedExperiment", "S4Vectors", "limma", "dplyr")
+  miss <- req[!vapply(req, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse = ", "))
 
   # --- 0. NA 값 처리 (g3 등 결측치 제거) ---
   message("0/7: 메타데이터에서 NA 값 확인 중...")
   meta <- sobj@meta.data
-  
+
   # 필수 컬럼 확인
   required_cols <- c(cluster_id, sample_id, group_id)
   missing_cols <- required_cols[!required_cols %in% colnames(meta)]
   if (length(missing_cols) > 0) {
-    stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
+    stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse = ", ")))
   }
-  
+
   # covar_effects 컬럼 확인
   if (!is.null(covar_effects)) {
     missing_covars <- covar_effects[!covar_effects %in% colnames(meta)]
     if (length(missing_covars) > 0) {
-      stop(sprintf("covar_effects에 지정된 컬럼이 없습니다: %s", paste(missing_covars, collapse=", ")))
+      stop(sprintf("covar_effects에 지정된 컬럼이 없습니다: %s", paste(missing_covars, collapse = ", ")))
     }
   }
-  
+
   # NA 값이 있는 셀 확인 (R의 NA와 character "NA" 모두 제거)
   if (remove_na_groups) {
     # R의 NA 값 확인
-    na_mask <- is.na(meta[[group_id]]) | 
-               is.na(meta[[cluster_id]]) | 
-               is.na(meta[[sample_id]])
+    na_mask <- is.na(meta[[group_id]]) |
+      is.na(meta[[cluster_id]]) |
+      is.na(meta[[sample_id]])
     if (!is.null(batch_id) && batch_id %in% colnames(meta)) {
       na_mask <- na_mask | is.na(meta[[batch_id]])
     }
@@ -583,7 +622,7 @@ runMUSCAT2_v1 <- function(
         }
       }
     }
-    
+
     # character "NA" 문자열도 제거 (group_id, cluster_id, sample_id, batch_id, covar_effects)
     if (is.character(meta[[group_id]])) {
       na_mask <- na_mask | (meta[[group_id]] == "NA" | meta[[group_id]] == "na")
@@ -604,7 +643,7 @@ runMUSCAT2_v1 <- function(
         }
       }
     }
-    
+
     n_na_cells <- sum(na_mask)
     if (n_na_cells > 0) {
       message(sprintf("... NA 값(또는 'NA' 문자열)이 있는 %d 개의 세포를 제거합니다.", n_na_cells))
@@ -614,11 +653,13 @@ runMUSCAT2_v1 <- function(
       message("... NA 값이 없습니다.")
     }
   }
-  
+
   # 최소 그룹 수 확인
   if (length(unique(meta[[group_id]])) < 2) {
-    stop(sprintf("group_id ('%s')에 최소 2개의 그룹이 필요합니다. 현재: %s",
-                 group_id, paste(unique(meta[[group_id]]), collapse=", ")))
+    stop(sprintf(
+      "group_id ('%s')에 최소 2개의 그룹이 필요합니다. 현재: %s",
+      group_id, paste(unique(meta[[group_id]]), collapse = ", ")
+    ))
   }
 
   # 1) Seurat -> SCE, prepSCE
@@ -629,15 +670,15 @@ runMUSCAT2_v1 <- function(
   # factor 보장 및 NA 제거
   message("2/7: 메타데이터 정리 중...")
   sce$cluster_id <- droplevels(factor(SummarizedExperiment::colData(sce)$cluster_id))
-  sce$sample_id  <- droplevels(factor(SummarizedExperiment::colData(sce)$sample_id))
-  sce$group_id   <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
+  sce$sample_id <- droplevels(factor(SummarizedExperiment::colData(sce)$sample_id))
+  sce$group_id <- droplevels(factor(SummarizedExperiment::colData(sce)$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce))) {
     sce[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(sce)[[batch_id]]))
   }
 
   # 2) Pseudobulk
   message("3/7: Pseudobulking 중...")
-  pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id","sample_id"))
+  pb <- muscat::aggregateData(sce, assay = "counts", by = c("cluster_id", "sample_id"))
 
   # (선택) 특정 클러스터만
   if (!is.null(keep_clusters)) {
@@ -662,28 +703,29 @@ runMUSCAT2_v1 <- function(
 
   # sce에서 (sample_id -> group_id / batch / covar_effects) map
   sce_meta <- as.data.frame(SummarizedExperiment::colData(sce))
-  map_cols <- c("sample_id","group_id")
+  map_cols <- c("sample_id", "group_id")
   if (!is.null(batch_id) && batch_id %in% names(sce_meta)) map_cols <- c(map_cols, batch_id)
   if (!is.null(covar_effects)) {
     covar_cols <- covar_effects[covar_effects %in% names(sce_meta)]
     if (length(covar_cols) > 0) map_cols <- c(map_cols, covar_cols)
   }
-  sce_map <- unique(sce_meta[, map_cols, drop=FALSE])
-  
+  sce_map <- unique(sce_meta[, map_cols, drop = FALSE])
+
   # NA 제거
   sce_map <- sce_map[complete.cases(sce_map), ]
 
   # pb에 group_id / batch / covar_effects 보강
   pb_meta <- as.data.frame(SummarizedExperiment::colData(pb))
   need_fix <- (!"group_id" %in% names(pb_meta)) ||
-              (length(unique(pb_meta$group_id)) < 2) ||
-              (all(unique(pb_meta$group_id) %in% c("type","group","group_id", NA, "")))
+    (length(unique(pb_meta$group_id)) < 2) ||
+    (all(unique(pb_meta$group_id) %in% c("type", "group", "group_id", NA, "")))
   need_covar_fix <- !is.null(covar_effects) && any(!covar_effects %in% names(pb_meta))
   if (need_fix || (!is.null(batch_id) && !batch_id %in% names(pb_meta)) || need_covar_fix) {
     pb_meta2 <- dplyr::left_join(pb_meta, sce_map, by = "sample_id")
     if ("group_id.x" %in% names(pb_meta2) && "group_id.y" %in% names(pb_meta2)) {
       pb_meta2$group_id <- ifelse(is.na(pb_meta2$group_id.y), pb_meta2$group_id.x, pb_meta2$group_id.y)
-      pb_meta2$group_id.x <- NULL; pb_meta2$group_id.y <- NULL
+      pb_meta2$group_id.x <- NULL
+      pb_meta2$group_id.y <- NULL
     }
     rownames(pb_meta2) <- rownames(pb_meta)
     SummarizedExperiment::colData(pb) <- S4Vectors::DataFrame(pb_meta2)
@@ -691,7 +733,7 @@ runMUSCAT2_v1 <- function(
 
   # factor화
   pb$sample_id <- droplevels(factor(SummarizedExperiment::colData(pb)$sample_id))
-  pb$group_id  <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
+  pb$group_id <- droplevels(factor(SummarizedExperiment::colData(pb)$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(pb))) {
     pb[[batch_id]] <- droplevels(factor(SummarizedExperiment::colData(pb)[[batch_id]]))
   }
@@ -705,7 +747,7 @@ runMUSCAT2_v1 <- function(
 
   # 3) contrast 그룹만 자동 subset
   message("5/7: Contrast 그룹 필터링 중...")
-  extract_groups <- function(contrast_str, levels_available){
+  extract_groups <- function(contrast_str, levels_available) {
     z <- gsub("\\s+", "", contrast_str)
     toks <- unique(gsub("^group(_id)?", "", unlist(strsplit(z, "[^A-Za-z0-9_]+"))))
     toks <- toks[nchar(toks) > 0]
@@ -718,8 +760,12 @@ runMUSCAT2_v1 <- function(
   }
   grp_lvls <- levels(SummarizedExperiment::colData(pb)$group_id)
   tg <- extract_groups(contrast, grp_lvls)
-  if (length(tg) < 2) stop(sprintf("contrast에서 추출한 그룹이 부족합니다. contrast='%s', 사용가능레벨=%s",
-                                   contrast, paste(grp_lvls, collapse=", ")))
+  if (length(tg) < 2) {
+    stop(sprintf(
+      "contrast에서 추출한 그룹이 부족합니다. contrast='%s', 사용가능레벨=%s",
+      contrast, paste(grp_lvls, collapse = ", ")
+    ))
+  }
 
   keep_idx <- SummarizedExperiment::colData(pb)$group_id %in% tg
   pb_sub <- pb[, keep_idx]
@@ -727,10 +773,10 @@ runMUSCAT2_v1 <- function(
 
   # **sce도 동일 기준으로 subset (resDS용 필수)**
   sce_sub <- sce[, sce$sample_id %in% SummarizedExperiment::colData(pb_sub)$sample_id &
-                    sce$group_id  %in% tg]
+    sce$group_id %in% tg]
   sce_sub$cluster_id <- droplevels(factor(sce_sub$cluster_id))
-  sce_sub$sample_id  <- droplevels(factor(sce_sub$sample_id))
-  sce_sub$group_id   <- droplevels(factor(sce_sub$group_id))
+  sce_sub$sample_id <- droplevels(factor(sce_sub$sample_id))
+  sce_sub$group_id <- droplevels(factor(sce_sub$group_id))
   if (!is.null(batch_id) && batch_id %in% colnames(SummarizedExperiment::colData(sce_sub))) {
     sce_sub[[batch_id]] <- droplevels(factor(sce_sub[[batch_id]]))
   }
@@ -746,7 +792,7 @@ runMUSCAT2_v1 <- function(
   message("6/7: Design matrix 생성 및 DE 분석 실행 중...")
   pb_sub$group <- pb_sub$group_id
   pb_meta_df <- as.data.frame(SummarizedExperiment::colData(pb_sub))
-  
+
   # Design formula 구성
   formula_terms <- c("group")
   if (!is.null(batch_id) && batch_id %in% colnames(pb_meta_df)) {
@@ -761,21 +807,22 @@ runMUSCAT2_v1 <- function(
       }
     }
   }
-  
+
   formula_str <- paste("~ 0 +", paste(formula_terms, collapse = " + "))
   design <- stats::model.matrix(as.formula(formula_str), data = pb_meta_df)
 
-  fix_contrast <- function(contrast_str, design_cols){
+  fix_contrast <- function(contrast_str, design_cols) {
     z <- gsub("\\s+", "", contrast_str)
-    toks <- unlist(strsplit(z, "([+\\-])", perl=TRUE))
-    ops  <- unlist(regmatches(z, gregexpr("([+\\-])", z, perl=TRUE)))
-    rebuild <- function(tok){
+    toks <- unlist(strsplit(z, "([+\\-])", perl = TRUE))
+    ops <- unlist(regmatches(z, gregexpr("([+\\-])", z, perl = TRUE)))
+    rebuild <- function(tok) {
       tok <- gsub("^group(_id)?", "group", tok)
       if (!grepl("^group", tok)) tok <- paste0("group", tok)
       tok
     }
     toks2 <- vapply(toks, rebuild, character(1))
-    out <- toks2[1]; if (length(ops)) for (i in seq_along(ops)) out <- paste0(out, ops[i], toks2[i+1])
+    out <- toks2[1]
+    if (length(ops)) for (i in seq_along(ops)) out <- paste0(out, ops[i], toks2[i + 1])
     out
   }
   contrast_fixed <- fix_contrast(contrast, colnames(design))
@@ -795,6 +842,47 @@ runMUSCAT2_v1 <- function(
   # 6) 결과 평탄화: **sce_sub가 먼저, res가 다음**
   message("7/7: 결과 정리 중...")
   combined <- muscat::resDS(sce_sub, res)
+
+  # [Added] Extract 'statistic' (t-stat/F-stat) from 'res' and merge into 'combined'
+  tryCatch(
+    {
+      c_name <- names(res$table)[1] # Assuming one contrast
+      tbl_list <- res$table[[c_name]]
+
+      stat_list <- lapply(names(tbl_list), function(cl) {
+        x <- tbl_list[[cl]]
+        if (nrow(x) == 0) {
+          return(NULL)
+        }
+
+        # Find statistic column
+        st_col <- grep("^(t|F|LR|stat)", colnames(x), value = TRUE)[1]
+        if (is.na(st_col)) {
+          return(NULL)
+        }
+
+        df_out <- data.frame(
+          cluster_id = cl,
+          gene = if ("gene" %in% names(x)) x$gene else rownames(x),
+          statistic = x[[st_col]],
+          stringsAsFactors = FALSE
+        )
+        df_out
+      })
+      stat_df <- do.call(rbind, stat_list)
+
+      if (!is.null(stat_df) && nrow(stat_df) > 0) {
+        combined$temp_key <- paste(combined$cluster_id, combined$gene, sep = "_")
+        stat_df$temp_key <- paste(stat_df$cluster_id, stat_df$gene, sep = "_")
+        match_idx <- match(combined$temp_key, stat_df$temp_key)
+        combined$statistic <- stat_df$statistic[match_idx]
+        combined$temp_key <- NULL
+      }
+    },
+    error = function(e) {
+      # statistic is optional, so just warn
+    }
+  )
 
   # cluster_id 정리 + 라벨
   if ("cluster" %in% names(combined) && !"cluster_id" %in% names(combined)) {
@@ -819,7 +907,7 @@ runMUSCAT2_v1 <- function(
 #' Performs differential expression analysis using NEBULA (Negative Binomial
 #' mixed-effects model). NEBULA accounts for patient/sample-level random effects
 #' and is suitable for multi-level experimental designs.
-#' 
+#'
 #' This version (v2) improves upon v1 by:
 #' - Better handling of missing values (especially g3) in metadata
 #' - More robust NA filtering before analysis
@@ -847,49 +935,51 @@ runMUSCAT2_v1 <- function(
 #'
 #' @export
 runNEBULA2_v1 <- function(sobj,
-                                layer = "counts",
-                                fixed_effects = c("g3"),
-                                covar_effects = NULL,
-                                patient_col = "hos_no",
-                                offset = "nCount_RNA",
-                                min_count = 10,
-                                max_genes = 5000,
-                                remove_na_cells = TRUE,
-                                return_summary_only = FALSE) {
-  
-  req <- c("Seurat","nebula","Matrix")
+                          layer = "counts",
+                          fixed_effects = c("g3"),
+                          covar_effects = NULL,
+                          patient_col = "hos_no",
+                          offset = "nCount_RNA",
+                          min_count = 10,
+                          max_genes = NULL,
+                          remove_na_cells = TRUE,
+                          return_summary_only = FALSE) {
+  req <- c("Seurat", "nebula", "Matrix", "doFuture", "future")
   miss <- req[!vapply(req, requireNamespace, logical(1), quietly = TRUE)]
   if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse = ", "))
-  
+
+  # Ensure doFuture is loaded
+  if (!"doFuture" %in% loadedNamespaces()) library(doFuture)
+
   # --- 0. 데이터 추출 ---
   meta <- sobj@meta.data
   counts <- GetAssayData(sobj, layer = layer) # dgCMatrix (희소 행렬)
-  
+
   # --- 1. 유전자 필터링 ---
   message(sprintf("1/7: 유전자 필터링 (min %d cells)...", min_count))
   keep_genes <- rowSums(counts > 0) >= min_count
   counts_filtered <- counts[keep_genes, ]
   message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(counts)))
   if (!is.null(max_genes) && is.finite(max_genes) && max_genes > 0 &&
-      nrow(counts_filtered) > max_genes) {
+    nrow(counts_filtered) > max_genes) {
     message(sprintf("... 상위 %d개의 유전자만 사용 (max_genes 제한)", max_genes))
     gene_scores <- Matrix::rowSums(counts_filtered)
     keep_idx <- order(gene_scores, decreasing = TRUE)[seq_len(max_genes)]
     counts_filtered <- counts_filtered[keep_idx, , drop = FALSE]
   }
-  
+
   # --- 2. NA 값 확인 및 제거 ---
   # NEBULA는 'covar_effects'도 고정 효과로 처리해야 함
   all_fixed_vars <- c(fixed_effects, covar_effects)
   all_fixed_vars <- all_fixed_vars[!is.null(all_fixed_vars)]
-  
+
   # NA 체크할 모든 변수 목록
   vars_to_check <- c(all_fixed_vars, patient_col, offset)
   vars_to_check <- vars_to_check[vars_to_check %in% colnames(meta)]
-  
+
   message("2/7: 모델 변수에서 NA 값 확인 중...")
   message(paste("... 확인 대상:", paste(vars_to_check, collapse = ", ")))
-  
+
   # 각 변수별 NA 개수 확인
   if (remove_na_cells) {
     na_counts <- vapply(vars_to_check, function(v) sum(is.na(meta[[v]])), integer(1))
@@ -899,10 +989,10 @@ runNEBULA2_v1 <- function(sobj,
         message(sprintf("    %s: %d 개", v, na_counts[v]))
       }
     }
-    
+
     keep_cells_idx <- complete.cases(meta[, vars_to_check])
     n_removed <- sum(!keep_cells_idx)
-    
+
     if (n_removed > 0) {
       message(sprintf("... NA 값으로 인해 %d 개의 세포를 제거합니다.", n_removed))
     } else {
@@ -916,36 +1006,38 @@ runNEBULA2_v1 <- function(sobj,
       warning("일부 변수에 NA가 있지만 제거하지 않습니다. 분석 결과에 영향을 줄 수 있습니다.")
     }
   }
-  
+
   # NA가 없는 '깨끗한' 데이터 생성
   meta_clean <- meta[keep_cells_idx, ]
   counts_clean <- counts_filtered[, keep_cells_idx]
-  
+
   message(sprintf("... 최종 분석 대상 세포: %d 개", nrow(meta_clean)))
-  
+
   # --- 3. 디자인 행렬 및 벡터 생성 ---
   message("3/7: 디자인 행렬 및 벡터 생성 중...")
-  
+
   # 범주형 변수와 숫자형 변수 분리
   # 'offset'은 숫자로 유지해야 함!
   factor_vars <- c(all_fixed_vars, patient_col)
   factor_vars <- factor_vars[factor_vars %in% colnames(meta_clean)]
-  
+
   # factor 변환
   meta_clean[factor_vars] <- lapply(meta_clean[factor_vars], as.factor)
-  
+
   # 각 factor 변수의 레벨 수 확인
   for (v in factor_vars) {
     n_levels <- length(levels(meta_clean[[v]]))
-    message(sprintf("... %s: %d 레벨 (%s)", v, n_levels, 
-                    paste(levels(meta_clean[[v]]), collapse=", ")))
+    message(sprintf(
+      "... %s: %d 레벨 (%s)", v, n_levels,
+      paste(levels(meta_clean[[v]]), collapse = ", ")
+    ))
   }
-  
+
   # 'offset'은 numeric으로 강제 변환 (안전장치)
   if (offset %in% colnames(meta_clean)) {
     meta_clean[[offset]] <- as.numeric(meta_clean[[offset]])
     if (any(is.na(meta_clean[[offset]]))) {
-        stop(sprintf("'%s' 컬럼에 NA가 아닌 숫자형 값만 있어야 합니다.", offset))
+      stop(sprintf("'%s' 컬럼에 NA가 아닌 숫자형 값만 있어야 합니다.", offset))
     }
     if (any(meta_clean[[offset]] <= 0)) {
       warning(sprintf("'%s' 컬럼에 0 이하 값이 있습니다. offset은 양수여야 합니다.", offset))
@@ -953,33 +1045,35 @@ runNEBULA2_v1 <- function(sobj,
   } else {
     stop(sprintf("'%s' 컬럼이 메타데이터에 없습니다.", offset))
   }
-  
+
   # formula 생성
   formula_str <- paste("~", paste(all_fixed_vars, collapse = " + "))
   message(sprintf("... 사용할 고정 효과 포뮬러: %s", formula_str))
-  
+
   # 설계 행렬 생성 및 특이성(singularity) 확인
   design_matrix <- model.matrix(as.formula(formula_str), data = meta_clean)
-  
+
   # 설계 행렬의 특이성 확인 (rank deficiency) - qr() 사용
   design_qr <- qr(design_matrix)
   design_rank <- design_qr$rank
   n_cols <- ncol(design_matrix)
-  
+
   # 완전 분리된 조합 확인 (설계 행렬이 특이하기 전에 미리 확인)
   if (length(all_fixed_vars) >= 2) {
     message("... 변수 간 완전 분리(complete separation) 확인 중...")
     separation_issues <- FALSE
-    for (i in 1:(length(all_fixed_vars)-1)) {
-      for (j in (i+1):length(all_fixed_vars)) {
+    for (i in 1:(length(all_fixed_vars) - 1)) {
+      for (j in (i + 1):length(all_fixed_vars)) {
         var1 <- all_fixed_vars[i]
         var2 <- all_fixed_vars[j]
         contingency <- table(meta_clean[[var1]], meta_clean[[var2]])
         zero_cells <- sum(contingency == 0)
         if (zero_cells > 0) {
           separation_issues <- TRUE
-          warning(sprintf("%s와 %s 사이에 완전 분리된 조합이 있습니다 (0인 셀: %d개).", 
-                         var1, var2, zero_cells))
+          warning(sprintf(
+            "%s와 %s 사이에 완전 분리된 조합이 있습니다 (0인 셀: %d개).",
+            var1, var2, zero_cells
+          ))
           message(sprintf("  %s x %s contingency table:", var1, var2))
           print(contingency)
         }
@@ -989,23 +1083,27 @@ runNEBULA2_v1 <- function(sobj,
       message("... 완전 분리 문제 없음")
     }
   }
-  
+
   if (design_rank < n_cols) {
-    warning(sprintf("설계 행렬이 특이(singular)합니다. rank=%d < columns=%d. 완전 분리(complete separation) 문제로 인해 분석이 실패할 수 있습니다.", 
-                    design_rank, n_cols))
+    warning(sprintf(
+      "설계 행렬이 특이(singular)합니다. rank=%d < columns=%d. 완전 분리(complete separation) 문제로 인해 분석이 실패할 수 있습니다.",
+      design_rank, n_cols
+    ))
     message("설계 행렬이 특이하지만 분석을 계속 진행합니다. 오류가 발생하면:")
     message("  1. covar_effects를 제거하거나 다른 변수를 사용하세요.")
     message("  2. 완전 분리된 조합을 제거하거나 데이터를 필터링하세요.")
     message("  3. min_count를 높여서 더 적은 유전자로 분석하세요.")
   }
-  
-  message(sprintf("... 설계 행렬: %d 행 x %d 열 (rank=%d)", 
-                  nrow(design_matrix), ncol(design_matrix), design_rank))
-  
+
+  message(sprintf(
+    "... 설계 행렬: %d 행 x %d 열 (rank=%d)",
+    nrow(design_matrix), ncol(design_matrix), design_rank
+  ))
+
   # id 및 offset 벡터 추출
   id_vector <- meta_clean[[patient_col]]
   offset_vector <- meta_clean[[offset]]
-  
+
   # --- 4. group_cell()로 데이터 정렬 ---
   message(sprintf("4/7: NEBULA를 위해 id (%s) 기준으로 데이터 정렬 중...", patient_col))
   data_grouped <- nebula::group_cell(
@@ -1014,19 +1112,21 @@ runNEBULA2_v1 <- function(sobj,
     pred = design_matrix,
     offset = offset_vector
   )
-  
-  message(sprintf("... %d 개의 유전자, %d 개의 샘플", 
-                  nrow(data_grouped$count), length(unique(data_grouped$id))))
-  
+
+  message(sprintf(
+    "... %d 개의 유전자, %d 개의 샘플",
+    nrow(data_grouped$count), length(unique(data_grouped$id))
+  ))
+
   # --- 5. NEBULA 실행 ---
   message("5/7: NEBULA 실행 중 (NBLMM)...")
-  
+
   # 유전자 수가 너무 많으면 일부만 테스트
   n_genes <- nrow(data_grouped$count)
   n_samples <- length(unique(data_grouped$id))
-  
+
   message(sprintf("... %d 개의 유전자, %d 개의 샘플 분석 시작", n_genes, n_samples))
-  
+
   # 샘플 수가 적거나 설계 행렬이 특이하면 유전자 수 제한
   if (n_samples < 10 || design_rank < n_cols) {
     if (n_genes > 1000) {
@@ -1036,68 +1136,111 @@ runNEBULA2_v1 <- function(sobj,
       message(sprintf("... %d 개의 유전자로 분석 진행", nrow(data_grouped$count)))
     }
   }
-  
+
   # Add stability options to prevent convergence issues
-  re_nebula <- tryCatch({
-    nebula::nebula(
-      count = data_grouped$count,
-      id = data_grouped$id,
-      pred = data_grouped$pred,
-      offset = data_grouped$offset,
-      model = "NBLMM", # lme4::glmer.nb와 유사한 Lognormal random effect 권장
-      method = "HL" # Use HL (Hessian-Laplace) method for stability
-    )
-  }, error = function(e) {
-    # If HL fails, try with fewer genes or different method
-    warning("NEBULA with HL method failed, trying with default settings...")
-    tryCatch({
+  re_nebula <- tryCatch(
+    {
       nebula::nebula(
         count = data_grouped$count,
         id = data_grouped$id,
         pred = data_grouped$pred,
         offset = data_grouped$offset,
-        model = "NBLMM"
+        model = "NBLMM", # lme4::glmer.nb와 유사한 Lognormal random effect 권장
+        method = "HL" # Use HL (Hessian-Laplace) method for stability
       )
-    }, error = function(e2) {
-      # 더 자세한 오류 메시지
-      error_msg <- conditionMessage(e2)
-      suggestions <- character(0)
-      
-      if (grepl("NA|NaN", error_msg)) {
-        suggestions <- c(suggestions, 
-                        "- 설계 행렬이 특이(singular)할 수 있습니다. 변수 조합을 확인하세요.",
-                        "- 완전 분리(complete separation) 문제가 있을 수 있습니다.",
-                        "- min_count를 높여서 더 적은 유전자로 분석하세요.",
-                        "- covar_effects를 제거하거나 다른 변수를 사용하세요.")
-      }
-      
-      if (n_genes > 5000) {
-        suggestions <- c(suggestions, 
-                        "- 유전자 수가 너무 많습니다. min_count를 높이거나 유전자를 제한하세요.")
-      }
-      
-      if (n_samples < 10) {
-        suggestions <- c(suggestions, 
-                        "- 샘플 수가 너무 적습니다. 더 많은 샘플이 필요합니다.")
-      }
-      
-      full_error_msg <- sprintf("NEBULA failed: %s", error_msg)
-      if (length(suggestions) > 0) {
-        full_error_msg <- paste0(full_error_msg, "\n제안사항:\n", paste(suggestions, collapse = "\n"))
-      }
-      
-      stop(full_error_msg)
-    })
-  })
-  
+    },
+    error = function(e) {
+      # If HL fails, try with fewer genes or different method
+      warning("NEBULA with HL method failed, trying with default settings...")
+      tryCatch(
+        {
+          nebula::nebula(
+            count = data_grouped$count,
+            id = data_grouped$id,
+            pred = data_grouped$pred,
+            offset = data_grouped$offset,
+            model = "NBLMM"
+          )
+        },
+        error = function(e2) {
+          # 더 자세한 오류 메시지
+          error_msg <- conditionMessage(e2)
+          suggestions <- character(0)
+
+          if (grepl("NA|NaN", error_msg)) {
+            suggestions <- c(
+              suggestions,
+              "- 설계 행렬이 특이(singular)할 수 있습니다. 변수 조합을 확인하세요.",
+              "- 완전 분리(complete separation) 문제가 있을 수 있습니다.",
+              "- min_count를 높여서 더 적은 유전자로 분석하세요.",
+              "- covar_effects를 제거하거나 다른 변수를 사용하세요."
+            )
+          }
+
+          if (n_genes > 5000) {
+            suggestions <- c(
+              suggestions,
+              "- 유전자 수가 너무 많습니다. min_count를 높이거나 유전자를 제한하세요."
+            )
+          }
+
+          if (n_samples < 10) {
+            suggestions <- c(
+              suggestions,
+              "- 샘플 수가 너무 적습니다. 더 많은 샘플이 필요합니다."
+            )
+          }
+
+          full_error_msg <- sprintf("NEBULA failed: %s", error_msg)
+          if (length(suggestions) > 0) {
+            full_error_msg <- paste0(full_error_msg, "\n제안사항:\n", paste(suggestions, collapse = "\n"))
+          }
+
+          stop(full_error_msg)
+        }
+      )
+    }
+  )
+
   # --- 6. 결과 정리 ---
   message("6/7: 결과 정리 중...")
   # NEBULA 결과는 리스트로 반환됨
+  # NEBULA 결과는 리스트로 반환됨
   # summary는 자동으로 포함되어 있음
-  
+
+  # [Added] Standardize summary columns
+  if (!is.null(re_nebula$summary)) {
+    summ <- re_nebula$summary
+    target_var <- fixed_effects[1]
+    lfc_cols <- grep("^logFC_", colnames(summ), value = TRUE)
+
+    if (length(lfc_cols) > 0) {
+      target_lfc <- grep(paste0("_", target_var), lfc_cols, value = TRUE)
+      if (length(target_lfc) == 0) target_lfc <- lfc_cols[length(lfc_cols)] else target_lfc <- target_lfc[length(target_lfc)]
+
+      suffix <- sub("^logFC_", "", target_lfc)
+      p_col <- paste0("p_", suffix)
+      se_col <- paste0("se_", suffix)
+
+      if (all(c(target_lfc, p_col, se_col) %in% colnames(summ))) {
+        re_nebula$summary$logFC <- summ[[target_lfc]]
+        re_nebula$summary$pvalue <- summ[[p_col]]
+        re_nebula$summary$se <- summ[[se_col]]
+        if (!"statistic" %in% colnames(summ)) {
+          re_nebula$summary$statistic <- summ[[target_lfc]] / summ[[se_col]]
+        }
+        if (!"gene" %in% colnames(summ) && "gene_id" %in% colnames(summ)) {
+          re_nebula$summary$gene <- summ$gene_id
+        } else if (!"gene" %in% colnames(summ) && !is.null(re_nebula$summary$gene)) {
+          re_nebula$summary$gene <- re_nebula$summary$gene
+        }
+      }
+    }
+  }
+
   # --- 7. 완료 ---
   message("7/7: 분석 완료.")
-  
+
   if (return_summary_only) {
     if (!("summary" %in% names(re_nebula))) {
       warning("NEBULA 결과에 summary가 없어 raw 객체를 반환합니다.")
@@ -1107,7 +1250,7 @@ runNEBULA2_v1 <- function(sobj,
     attr(summary_df, "nebula_result") <- re_nebula
     return(summary_df)
   }
-  
+
   return(re_nebula)
 }
 
@@ -1118,7 +1261,7 @@ runNEBULA2_v1 <- function(sobj,
 #' Performs NEBULA analysis after pseudobulking by cluster and sample.
 #' This function first aggregates cells within each cluster and sample to create
 #' pseudobulk samples, then runs NEBULA analysis on the pseudobulked data.
-#' 
+#'
 #' This allows combining the benefits of pseudobulking (reduced computational
 #' burden, better signal-to-noise ratio) with NEBULA's mixed-effects modeling
 #' (accounting for patient-level random effects).
@@ -1155,52 +1298,51 @@ runNEBULA2_v1 <- function(sobj,
 #'
 #' @export
 runNEBULA2_v1_with_pseudobulk <- function(sobj,
-                                layer = "counts",
-                                cluster_id = "seurat_clusters",
-                                sample_id  = "hos_no",
-                                group_id   = "type",
-                                fixed_effects = c("g3"),
-                                covar_effects = NULL,
-                                patient_col = "hos_no",
-                                offset_method = c("sum", "mean", "n_cells"),
-                                min_count = 10,
-                                min_cells_per_pb = 3,
-                                max_genes = 5000,
-                                remove_na_cells = TRUE,
-                                keep_clusters = NULL,
-                                return_summary_only = FALSE) {
-  
-  req <- c("Seurat","nebula","Matrix")
+                                          layer = "counts",
+                                          cluster_id = "seurat_clusters",
+                                          sample_id = "hos_no",
+                                          group_id = "type",
+                                          fixed_effects = c("g3"),
+                                          covar_effects = NULL,
+                                          patient_col = "hos_no",
+                                          offset_method = c("sum", "mean", "n_cells"),
+                                          min_count = 10,
+                                          min_cells_per_pb = 3,
+                                          max_genes = 5000,
+                                          remove_na_cells = TRUE,
+                                          keep_clusters = NULL,
+                                          return_summary_only = FALSE) {
+  req <- c("Seurat", "nebula", "Matrix")
   miss <- req[!vapply(req, requireNamespace, logical(1), quietly = TRUE)]
   if (length(miss)) stop("필요 패키지 설치: ", paste(miss, collapse = ", "))
-  
+
   offset_method <- match.arg(offset_method)
-  
+
   # --- 0. 데이터 추출 및 NA 처리 ---
   message("0/8: 메타데이터에서 NA 값 확인 중...")
   meta <- sobj@meta.data
-  
+
   # 필수 컬럼 확인
   required_cols <- c(cluster_id, sample_id, group_id, patient_col)
   missing_cols <- required_cols[!required_cols %in% colnames(meta)]
   if (length(missing_cols) > 0) {
-    stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse=", ")))
+    stop(sprintf("필수 컬럼이 없습니다: %s", paste(missing_cols, collapse = ", ")))
   }
-  
+
   # NA 값이 있는 셀 확인
   if (remove_na_cells) {
-    na_mask <- is.na(meta[[group_id]]) | 
-               is.na(meta[[cluster_id]]) | 
-               is.na(meta[[sample_id]]) |
-               is.na(meta[[patient_col]])
-    
+    na_mask <- is.na(meta[[group_id]]) |
+      is.na(meta[[cluster_id]]) |
+      is.na(meta[[sample_id]]) |
+      is.na(meta[[patient_col]])
+
     # fixed_effects와 covar_effects도 확인
     all_vars <- c(fixed_effects, covar_effects)
     all_vars <- all_vars[!is.null(all_vars) & all_vars %in% colnames(meta)]
     for (v in all_vars) {
       na_mask <- na_mask | is.na(meta[[v]])
     }
-    
+
     n_na_cells <- sum(na_mask)
     if (n_na_cells > 0) {
       message(sprintf("... NA 값이 있는 %d 개의 세포를 제거합니다.", n_na_cells))
@@ -1210,40 +1352,42 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
       message("... NA 값이 없습니다.")
     }
   }
-  
+
   # --- 1. Pseudobulking ---
   message("1/8: Pseudobulking 중...")
-  
+
   # 특정 클러스터만 필터링
   if (!is.null(keep_clusters)) {
     keep_clusters <- as.character(keep_clusters)
     cells_to_keep <- rownames(meta)[meta[[cluster_id]] %in% keep_clusters]
     sobj <- sobj[, cells_to_keep]
     meta <- sobj@meta.data
-    message(sprintf("... 클러스터 %s만 사용 (%d 세포)", 
-                    paste(keep_clusters, collapse=", "), ncol(sobj)))
+    message(sprintf(
+      "... 클러스터 %s만 사용 (%d 세포)",
+      paste(keep_clusters, collapse = ", "), ncol(sobj)
+    ))
   }
-  
+
   # Pseudobulk 생성: cluster_id와 sample_id로 집계
   counts <- GetAssayData(sobj, layer = layer)
-  
+
   # 각 cluster-sample 조합에 대해 집계
   pb_list <- list()
   pb_meta_list <- list()
-  
+
   clusters <- unique(meta[[cluster_id]])
   samples <- unique(meta[[sample_id]])
-  
+
   for (clust in clusters) {
     for (samp in samples) {
       # 해당 cluster-sample 조합의 세포 선택
       cell_mask <- meta[[cluster_id]] == clust & meta[[sample_id]] == samp
       n_cells <- sum(cell_mask)
-      
+
       if (n_cells >= min_cells_per_pb) {
         # Pseudobulk ID 생성
         pb_id <- paste(clust, samp, sep = "_")
-        
+
         # Counts 합계
         if (n_cells == 1) {
           pb_counts <- counts[, cell_mask, drop = FALSE]
@@ -1253,9 +1397,9 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
           pb_counts <- as.matrix(pb_counts)
           colnames(pb_counts) <- pb_id
         }
-        
+
         pb_list[[pb_id]] <- pb_counts
-        
+
         # Metadata 생성
         pb_meta_row <- data.frame(
           pb_id = pb_id,
@@ -1265,38 +1409,40 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
           n_cells = n_cells,
           stringsAsFactors = FALSE
         )
-        
+
         # group_id 추가
         pb_meta_row[[group_id]] <- unique(meta[cell_mask, group_id])[1]
-        
+
         # fixed_effects와 covar_effects 추가 (sample-level이면 첫 번째 값 사용)
         all_vars <- c(fixed_effects, covar_effects)
         all_vars <- all_vars[!is.null(all_vars) & all_vars %in% colnames(meta)]
         for (v in all_vars) {
           pb_meta_row[[v]] <- unique(meta[cell_mask, v])[1]
         }
-        
+
         pb_meta_list[[pb_id]] <- pb_meta_row
       }
     }
   }
-  
+
   if (length(pb_list) == 0) {
     stop("Pseudobulk 샘플이 생성되지 않았습니다. min_cells_per_pb를 낮추거나 데이터를 확인하세요.")
   }
-  
+
   # Pseudobulk count matrix 생성
   message("2/8: Pseudobulk count matrix 생성 중...")
   pb_counts <- do.call(cbind, pb_list)
   pb_meta <- do.call(rbind, pb_meta_list)
   rownames(pb_meta) <- pb_meta$pb_id
-  
+
   # 컬럼 순서 맞추기
   pb_counts <- pb_counts[, pb_meta$pb_id, drop = FALSE]
-  
-  message(sprintf("... %d 개의 pseudobulk 샘플 생성 (%d 클러스터, %d 샘플)",
-                  ncol(pb_counts), length(clusters), length(samples)))
-  
+
+  message(sprintf(
+    "... %d 개의 pseudobulk 샘플 생성 (%d 클러스터, %d 샘플)",
+    ncol(pb_counts), length(clusters), length(samples)
+  ))
+
   # --- 3. Offset 계산 ---
   message("3/8: Offset 계산 중...")
   if (offset_method == "sum") {
@@ -1306,50 +1452,52 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
   } else if (offset_method == "n_cells") {
     pb_meta$offset <- pb_meta$n_cells
   }
-  
-  message(sprintf("... Offset 방법: %s (범위: %.2f - %.2f)",
-                  offset_method, min(pb_meta$offset), max(pb_meta$offset)))
-  
+
+  message(sprintf(
+    "... Offset 방법: %s (범위: %.2f - %.2f)",
+    offset_method, min(pb_meta$offset), max(pb_meta$offset)
+  ))
+
   # --- 4. 유전자 필터링 ---
   message("4/8: 유전자 필터링 중...")
   keep_genes <- rowSums(pb_counts > 0) >= min_count
   pb_counts_filtered <- pb_counts[keep_genes, ]
   message(sprintf("... %d / %d 유전자 통과", sum(keep_genes), nrow(pb_counts)))
   if (!is.null(max_genes) && is.finite(max_genes) && max_genes > 0 &&
-      nrow(pb_counts_filtered) > max_genes) {
+    nrow(pb_counts_filtered) > max_genes) {
     message(sprintf("... 상위 %d개의 유전자만 사용 (max_genes 제한)", max_genes))
     gene_scores <- Matrix::rowSums(pb_counts_filtered)
     keep_idx <- order(gene_scores, decreasing = TRUE)[seq_len(max_genes)]
     pb_counts_filtered <- pb_counts_filtered[keep_idx, , drop = FALSE]
   }
-  
+
   # --- 5. 디자인 행렬 생성 ---
   message("5/8: 디자인 행렬 생성 중...")
-  
+
   # fixed_effects에 cluster_id가 없으면 추가
   if (!cluster_id %in% fixed_effects) {
     fixed_effects <- c(fixed_effects, "cluster_id")
     message(sprintf("... cluster_id를 fixed_effects에 추가"))
   }
-  
+
   all_fixed_vars <- c(fixed_effects, covar_effects)
   all_fixed_vars <- all_fixed_vars[!is.null(all_fixed_vars)]
   all_fixed_vars <- all_fixed_vars[all_fixed_vars %in% colnames(pb_meta)]
-  
+
   # factor 변환
   factor_vars <- c(all_fixed_vars, "patient_id")
   pb_meta[factor_vars] <- lapply(pb_meta[factor_vars], as.factor)
-  
+
   # formula 생성
   formula_str <- paste("~", paste(all_fixed_vars, collapse = " + "))
   message(sprintf("... 사용할 고정 효과 포뮬러: %s", formula_str))
-  
+
   design_matrix <- model.matrix(as.formula(formula_str), data = pb_meta)
-  
+
   # id 및 offset 벡터 추출
   id_vector <- pb_meta[["patient_id"]]
   offset_vector <- pb_meta[["offset"]]
-  
+
   # --- 6. group_cell()로 데이터 정렬 ---
   message("6/8: NEBULA를 위해 id 기준으로 데이터 정렬 중...")
   data_grouped <- nebula::group_cell(
@@ -1358,40 +1506,50 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
     pred = design_matrix,
     offset = offset_vector
   )
-  
-  message(sprintf("... %d 개의 유전자, %d 개의 샘플", 
-                  nrow(data_grouped$count), length(unique(data_grouped$id))))
-  
+
+  message(sprintf(
+    "... %d 개의 유전자, %d 개의 샘플",
+    nrow(data_grouped$count), length(unique(data_grouped$id))
+  ))
+
   # --- 7. NEBULA 실행 ---
   message("7/8: NEBULA 실행 중 (NBLMM)...")
-  re_nebula <- tryCatch({
-    nebula::nebula(
-      count = data_grouped$count,
-      id = data_grouped$id,
-      pred = data_grouped$pred,
-      offset = data_grouped$offset,
-      model = "NBLMM",
-      method = "HL"
-    )
-  }, error = function(e) {
-    warning("NEBULA with HL method failed, trying with default settings...")
-    tryCatch({
+  re_nebula <- tryCatch(
+    {
       nebula::nebula(
         count = data_grouped$count,
         id = data_grouped$id,
         pred = data_grouped$pred,
         offset = data_grouped$offset,
-        model = "NBLMM"
+        model = "NBLMM",
+        method = "HL"
       )
-    }, error = function(e2) {
-      stop(sprintf("NEBULA failed: %s. Try reducing number of genes or checking data quality.", 
-                   conditionMessage(e2)))
-    })
-  })
-  
+    },
+    error = function(e) {
+      warning("NEBULA with HL method failed, trying with default settings...")
+      tryCatch(
+        {
+          nebula::nebula(
+            count = data_grouped$count,
+            id = data_grouped$id,
+            pred = data_grouped$pred,
+            offset = data_grouped$offset,
+            model = "NBLMM"
+          )
+        },
+        error = function(e2) {
+          stop(sprintf(
+            "NEBULA failed: %s. Try reducing number of genes or checking data quality.",
+            conditionMessage(e2)
+          ))
+        }
+      )
+    }
+  )
+
   # --- 8. 결과 반환 ---
   message("8/8: 분석 완료.")
-  
+
   if (return_summary_only) {
     if (!("summary" %in% names(re_nebula))) {
       warning("NEBULA 결과에 summary가 없어 raw 객체를 반환합니다.")
@@ -1403,7 +1561,7 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
     attr(summary_df, "pseudobulk_counts") <- pb_counts_filtered
     return(summary_df)
   }
-  
+
   return(list(
     nebula_result = re_nebula,
     pseudobulk_meta = pb_meta,
@@ -1411,3 +1569,244 @@ runNEBULA2_v1_with_pseudobulk <- function(sobj,
   ))
 }
 
+
+#' Create Pseudobulk Data (Native Implementation)
+#'
+#' @description
+#' Aggregates single-cell counts into pseudobulk (sample-level) counts.
+#' Replaces muscat::aggregateData dependency.
+#'
+#' @param sobj Seurat object
+#' @param cluster_id Cell type column
+#' @param sample_id Sample ID column
+#' @param group_id Group ID column
+#'
+#' @return A SingleCellExperiment object with aggregated assays
+#' @export
+create_pseudobulk_v1 <- function(sobj, cluster_id, sample_id, group_id) {
+  # 1. Extract Data
+  meta <- sobj@meta.data
+
+  # 2. Identify Unique Samples and their Metadata
+  # Ensure we have all needed columns
+  needed <- c(sample_id, group_id)
+  if (!all(needed %in% colnames(meta))) stop("Missing columns in metadata")
+
+  # extract sample metadata
+  # We assume sample_id implies group_id
+  sample_meta_df <- unique(meta[, needed, drop = FALSE])
+  rownames(sample_meta_df) <- sample_meta_df[[sample_id]]
+
+  # Check consistency
+  if (any(duplicated(sample_meta_df[[sample_id]]))) {
+    warning("Some samples are assigned to multiple groups! Taking the first assignment.")
+    sample_meta_df <- sample_meta_df[!duplicated(sample_meta_df[[sample_id]]), , drop = FALSE]
+  }
+
+  # 3. Aggregate
+  clusters <- sort(unique(as.character(meta[[cluster_id]])))
+  assays_list <- list()
+
+  counts <- Seurat::GetAssayData(sobj, layer = "counts")
+
+  for (cl in clusters) {
+    # Subset cells
+    cell_idx <- which(meta[[cluster_id]] == cl)
+    if (length(cell_idx) == 0) next
+
+    mat_sub <- counts[, cell_idx, drop = FALSE]
+    cell_samples <- as.character(meta[[sample_id]][cell_idx])
+
+    # helper to aggregate (fast rowsum on transpose)
+    # rowsum sums across rows for each group label
+    # t(mat) is Cells x Genes
+    # rowsum(t(mat), cell_samples) -> Samples x Genes
+    # t(result) -> Genes x Samples
+
+    if (length(cell_idx) == 1) {
+      # Single cell case, rowsum needs matrix
+      # Treat as matrix
+      mat_sub <- as.matrix(mat_sub)
+      pb_mat <- mat_sub
+      colnames(pb_mat) <- cell_samples
+    } else {
+      # rowsum works on matrix or dense matrix.
+      # For sparse matrix, we might want to be careful.
+      # Convert to matrix if small, or use other trick.
+      # For now, as.matrix is safest for correctness unless data is huge.
+      # But data might be huge.
+      # Optimization: use sparse matrix operations.
+      # Actually, let's just use as.matrix(t(mat_sub)) which might be big.
+      # Better: iterate.
+      # But for 'deg-consensus', we usually work with subsampled or manageable data.
+      # Let's try rowsum on base matrix.
+      # Note: rowsum is generic.
+
+      # Safe fallback:
+      pb_mat_t <- rowsum(as.matrix(t(mat_sub)), group = cell_samples)
+      pb_mat <- t(pb_mat_t)
+    }
+
+    assays_list[[cl]] <- pb_mat
+  }
+
+  # 4. Homogenize Samples
+  all_samples <- rownames(sample_meta_df)
+
+  for (cl in names(assays_list)) {
+    mat <- assays_list[[cl]]
+    missing <- setdiff(all_samples, colnames(mat))
+    if (length(missing) > 0) {
+      z <- matrix(0, nrow = nrow(mat), ncol = length(missing))
+      colnames(z) <- missing
+      mat <- cbind(mat, z)
+    }
+    assays_list[[cl]] <- mat[, all_samples, drop = FALSE]
+  }
+
+  # 5. Create SCE
+  # Ensure colData has all columns from meta that are constant per sample?
+  # For now, just sample_id and group_id are critical.
+  # But we might need 'covar_effects' too.
+  # Let's try to pull all columns that are unique per sample.
+
+  # Find columns that are 1:1 with sample_id
+  cols_to_keep <- c()
+  for (col in colnames(meta)) {
+    # Check if varying within sample
+    counts <- tapply(meta[[col]], meta[[sample_id]], function(x) length(unique(x)))
+    if (all(counts == 1, na.rm = TRUE)) {
+      cols_to_keep <- c(cols_to_keep, col)
+    }
+  }
+
+  sample_meta_full <- unique(meta[, cols_to_keep, drop = FALSE])
+  # align with all_samples
+  rownames(sample_meta_full) <- sample_meta_full[[sample_id]]
+  sample_meta_full <- sample_meta_full[all_samples, , drop = FALSE]
+
+  sce <- SingleCellExperiment::SingleCellExperiment(
+    assays = assays_list,
+    colData = sample_meta_full
+  )
+
+  return(sce)
+}
+#' Handle Design Matrix: Scale Numeric, Check Rank
+#'
+#' @description
+#' Helper function to prepare design matrix for DEG analysis.
+#' 1. Scales numeric covariates (center & scale).
+#' 2. Checks for rank deficiency in the design matrix.
+#' 3. Automatically drops terms that cause rank deficiency.
+#'
+#' @param meta Data frame of metadata (samples x features).
+#' @param formula_terms Character vector of terms to include in the formula (e.g. c("group", "batch")).
+#' @param drop_terms_if_rank_deficient Logical. If TRUE, drops terms to restore full rank.
+#'
+#' @return A list containing:
+#' \item{meta}{Updated metadata (with scaled numerics).}
+#' \item{formula}{The final formula object.}
+#' \item{formula_str}{String representation of the final formula.}
+#' \item{dropped_terms}{Character vector of terms dropped due to rank deficiency.}
+#' \item{final_terms}{Character vector of final terms included.}
+#'
+#' @export
+handle_design_v1 <- function(meta, formula_terms, drop_terms_if_rank_deficient = TRUE) {
+  # 1. Identify Numeric and Factor terms
+  meta_out <- meta
+  final_terms <- formula_terms
+
+  numeric_terms <- c()
+  # First pass: check validity and scale
+  valid_terms <- c()
+  for (term in formula_terms) {
+    if (term %in% colnames(meta_out)) {
+      if (is.numeric(meta_out[[term]])) {
+        if (var(meta_out[[term]], na.rm = TRUE) == 0) {
+          message(sprintf("Warning: Term '%s' has zero variance. Dropping.", term))
+          next
+        }
+        # Scale (Z-score)
+        meta_out[[term]] <- scale(meta_out[[term]])[, 1]
+        valid_terms <- c(valid_terms, term)
+      } else {
+        # Factor
+        meta_out[[term]] <- droplevels(factor(meta_out[[term]]))
+        if (nlevels(meta_out[[term]]) < 2) {
+          message(sprintf("Warning: Term '%s' has < 2 levels. Dropping.", term))
+          next
+        }
+        valid_terms <- c(valid_terms, term)
+      }
+    } else {
+      message(sprintf("Warning: Term '%s' not in metadata. Dropping.", term))
+    }
+  }
+  final_terms <- valid_terms
+
+  # 2. Build Initial Formula
+  if (length(final_terms) == 0) {
+    stop("No valid terms remaining for design formula.")
+  }
+  fm_str <- paste("~", paste(final_terms, collapse = " + "))
+  fm <- stats::as.formula(fm_str)
+
+  # 3. Rank Check
+  dropped <- c()
+  if (drop_terms_if_rank_deficient) {
+    mm_full <- tryCatch(stats::model.matrix(fm, data = meta_out), error = function(e) NULL)
+    if (is.null(mm_full)) stop("Failed to create model matrix.")
+
+    rnk <- qr(mm_full)$rank
+    ncol_mm <- ncol(mm_full)
+
+    if (rnk < ncol_mm) {
+      message(sprintf("Design matrix rank deficient (%d < %d). Attempting to fix...", rnk, ncol_mm))
+
+      # Greedy backward elimination
+      terms_to_try <- final_terms
+      while (rnk < ncol_mm && length(terms_to_try) > 1) {
+        candidate <- tail(terms_to_try, 1) # Last term (usually batch/covar)
+        # Don't drop primary group (assumed first)
+        if (length(terms_to_try) == 1) break
+
+        message(sprintf("... Dropping candidate term: %s", candidate))
+
+        temp_terms <- setdiff(terms_to_try, candidate)
+        temp_fm_str <- paste("~", paste(temp_terms, collapse = " + "))
+        temp_fm <- stats::as.formula(temp_fm_str)
+
+        temp_mm <- stats::model.matrix(temp_fm, data = meta_out)
+        temp_rnk <- qr(temp_mm)$rank
+        temp_ncol <- ncol(temp_mm)
+
+        # Update state
+        terms_to_try <- temp_terms
+        dropped <- c(dropped, candidate)
+
+        # Check if resolved
+        if (temp_rnk == temp_ncol) {
+          message("... Rank deficiency resolved.")
+          rnk <- temp_rnk
+          ncol_mm <- temp_ncol # Update to exit loop condition
+          # break # Or continue to be safe? Resolved means rnk == ncol.
+        } else {
+          rnk <- temp_rnk
+          ncol_mm <- temp_ncol
+        }
+      }
+      final_terms <- terms_to_try
+      fm_str <- paste("~", paste(final_terms, collapse = " + "))
+      fm <- stats::as.formula(fm_str)
+    }
+  }
+
+  return(list(
+    meta = meta_out,
+    formula = fm,
+    formula_str = fm_str,
+    dropped_terms = dropped,
+    final_terms = final_terms
+  ))
+}

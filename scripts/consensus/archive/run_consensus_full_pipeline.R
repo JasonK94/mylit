@@ -47,7 +47,7 @@ source("/home/user3/data_user3/git_repo/_wt/deg-consensus/docs-main/config/vars_
 # ============================================================================
 
 # 데이터 레벨 선택: "downsampled" (빠른 테스트) 또는 "full" (전체 분석)
-data_level <- "downsampled"  # TODO: "full"로 변경하여 전체 데이터 분석
+data_level <- "full"  # 전체 데이터 분석 실행
 
 # 출력 디렉토리
 out_dir <- "/data/user3/sobj"
