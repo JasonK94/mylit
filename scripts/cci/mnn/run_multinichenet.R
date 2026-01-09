@@ -95,7 +95,8 @@ if (!dir.exists(opt$output)) dir.create(opt$output, recursive = TRUE)
 log_file <- file.path(opt$output, "run_multinichenet.log")
 con <- file(log_file, open = "wt")
 sink(con, split = TRUE)
-sink(con, type = "message", split = TRUE)
+sink(con, type = "message") # Note: split=TRUE is not supported for output type "message"
+
 # Close sink on exit
 on.exit(
     {
