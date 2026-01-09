@@ -43,6 +43,10 @@ option_list <- list(
         type = "character", default = "multinichenet_results",
         help = "Output directory name [default: %default]"
     ),
+    make_option(c("-n", "--nichenet_data_dir"),
+        type = "character", default = "/data/user3/git_repo/human",
+        help = "Nichenet Data directory name [default: %default]"
+    ),
     make_option("--min_cells",
         type = "integer", default = 10,
         help = "Minimum cells per cell type per sample [default: %default]"
@@ -84,6 +88,24 @@ option_list <- list(
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
+# Create output directory early to save logs
+if (!dir.exists(opt$output)) dir.create(opt$output, recursive = TRUE)
+
+# Set up logging
+log_file <- file.path(opt$output, "run_multinichenet.log")
+con <- file(log_file, open = "wt")
+sink(con, split = TRUE)
+sink(con, type = "message", split = TRUE)
+# Close sink on exit
+on.exit(
+    {
+        if (sink.number() > 0) sink()
+        if (sink.number(type = "message") > 0) sink(type = "message")
+        if (isOpen(con)) close(con)
+    },
+    add = TRUE
+)
+
 cat("╔════════════════════════════════════════════════════════════╗\n")
 cat("║         MultiNicheNet Analysis - Generic Script           ║\n")
 cat("╚════════════════════════════════════════════════════════════╝\n\n")
@@ -94,6 +116,7 @@ cat("  Sample ID:         ", opt$sample_id, "\n")
 cat("  Group ID:          ", opt$group_id, "\n")
 cat("  Cell type ID:      ", opt$celltype_id, "\n")
 cat("  Contrasts:         ", opt$contrasts, "\n")
+cat("  Nichenet Data dir: ", opt$nichenet_data_dir, "\n")
 cat("  Output directory:  ", opt$output, "\n")
 cat("  Min cells:         ", opt$min_cells, "\n")
 cat("  LogFC threshold:   ", opt$logfc_threshold, "\n")
@@ -143,6 +166,7 @@ results <- tryCatch(
             sample_id = opt$sample_id,
             group_id = opt$group_id,
             celltype_id = opt$celltype_id,
+            nichenet_data_dir = opt$nichenet_data_dir,
             contrasts_oi = opt$contrasts,
             senders_oi = senders_oi,
             receivers_oi = receivers_oi,
