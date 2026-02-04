@@ -268,7 +268,7 @@ plot_box <- function(data,
 }
 
 #' @export
-pb_freq = function(sobj, cluster = "anno3", group = "g3", sample = "hos_no", ...) {
+pb_freq = function(sobj, cluster = "anno3", group = "g3", sample = "hos_no", idents= NULL, ...) {
   # 1. 셀 레벨 데이터프레임 준비
   # dplyr::select를 명시적으로 사용하여 잠재적 네이밍 충돌 방지
   freq_df <- sobj@meta.data %>%
@@ -280,6 +280,10 @@ pb_freq = function(sobj, cluster = "anno3", group = "g3", sample = "hos_no", ...
     dplyr::summarise(Cell_Count = n(), .groups = 'drop_last') %>%
     dplyr::mutate(Frequency = Cell_Count / sum(Cell_Count)) %>%
     dplyr::ungroup()
+
+  if (!is.null(idents)) {
+    cell_counts <- cell_counts[cell_counts[[cluster]] %in% idents, ]
+  }
 
   # 3. plot_box 함수 호출
   # data에 cell_counts를 전달하고, group.by와 split.by에 문자열을 전달합니다.
