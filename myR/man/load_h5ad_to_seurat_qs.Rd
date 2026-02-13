@@ -6,7 +6,7 @@
 \usage{
 load_h5ad_to_seurat_qs(
   h5ad_path,
-  condaenv = "/home/jaecheon/miniconda3/envs/scenvi",
+  condaenv = "/home/jaecheon/miniconda3/envs/scvi-tools",
   save_path = NULL,
   save_name = NULL,
   use_layer = NULL,

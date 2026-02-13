@@ -11,6 +11,9 @@ test_cluster_logfc_bias(
   block_method = c("sample", "community", "none"),
   test_methods = c("permutation", "neff"),
   n_perm = 2000L,
+  max_nhoods = NULL,
+  block_var = NULL,
+  seed = 1L,
   verbose = TRUE
 )
 }
@@ -26,6 +29,12 @@ test_cluster_logfc_bias(
 \item{test_methods}{Character vector; which tests to run: \code{"permutation"}, \code{"neff"}, \code{"lmm"}, \code{"ashr"}.}
 
 \item{n_perm}{Integer; number of permutations for block permutation test (default: 2000).}
+
+\item{max_nhoods}{Optional integer; if provided, randomly sample this many neighborhoods for faster testing.}
+
+\item{block_var}{Optional character; column name in \code{colData(milo)} to use for blocking (e.g., \code{patient_var}, \code{batch_var}). If \code{NULL}, attempts to extract from cell names.}
+
+\item{seed}{Integer; random seed for reproducibility (default: 1).}
 
 \item{verbose}{Logical; emit progress messages.}
 }

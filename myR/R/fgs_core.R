@@ -222,7 +222,7 @@ find_gene_signature_v5_impl <- function(data,
                                         method = c(
                                           "random_forest", "random_forest_ranger",
                                           "lasso", "ridge", "elastic_net",
-                                          "pca_loadings", "nmf_loadings",
+                                          "pca_loadings", "lda_loadings", "nmf_loadings",
                                           "gam", "limma", "wilcoxon",
                                           "xgboost"
                                         ),
@@ -251,7 +251,7 @@ find_gene_signature_v5_impl <- function(data,
     # 2. Regularization
     "lasso", "ridge", "elastic_net",
     # 3. Loadings / Dimensionality Reduction
-    "pca_loadings", "nmf_loadings", # nmf -> nmf_loadings
+    "pca_loadings", "lda_loadings", "nmf_loadings", # nmf -> nmf_loadings
     # 4. Statistical Modelling
     "gam", "limma", "wilcoxon"
   )
@@ -267,9 +267,9 @@ find_gene_signature_v5_impl <- function(data,
   # [Req 4] 신규 모델 스케일링 요구사항 업데이트
   methods_requiring_scale <- c(
     "lasso", "ridge", "elastic_net",
-    "gam", "pca_loadings", "xgboost"
+    "gam", "pca_loadings", "lda_loadings", "xgboost"
   )
-  methods_requiring_correction <- c("wilcoxon", "pca_loadings")
+  methods_requiring_correction <- c("wilcoxon", "pca_loadings", "lda_loadings")
 
   preprocessed_data <- fgs_preprocess_data_v5(
     data = data, meta.data = meta.data, target_var = target_var,
@@ -455,12 +455,12 @@ find_gene_signature_v5_impl <- function(data,
 
         if (m %in% c("limma", "wilcoxon", "nmf_loadings", "random_forest", "random_forest_ranger")) {
           expr_mat_method <- expr_mat_base
-        } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "xgboost")) {
+        } else if (m %in% c("lasso", "ridge", "elastic_net", "gam", "pca_loadings", "lda_loadings", "xgboost")) {
           # 'expr_mat_scaled'가 NULL이면 (필요한 메서드가 없었으면) 원본 사용
           expr_mat_method <- if (is.null(preprocessed_data$expr_mat_scaled)) expr_mat_base else preprocessed_data$expr_mat_scaled
         }
 
-        if (m %in% c("wilcoxon", "pca_loadings")) {
+        if (m %in% c("wilcoxon", "pca_loadings", "lda_loadings")) {
           if (!is.null(preprocessed_data$expr_mat_corrected)) {
             expr_mat_method <- preprocessed_data$expr_mat_corrected
           }
@@ -780,6 +780,84 @@ find_gene_signature_v5_impl <- function(data,
             list(
               genes = top_genes, weights = weights, scores = scores,
               performance = perf, model = if (return_model) pca_res else NULL
+            )
+          },
+          lda_loadings = {
+            # LDA (Linear Discriminant Analysis) — supervised dimensionality reduction
+            # Unlike PCA, LDA directly maximizes between-group / within-group variance
+            if (!requireNamespace("MASS", quietly = TRUE)) {
+              stop("MASS package required for lda_loadings.")
+            }
+
+            # Guard: LDA needs p < n. After pre-filtering (test_n=2000) and with n=27,
+            # direct MASS::lda will fail. Use regularized approach or PCA reduction first.
+            n_samples <- nrow(X)
+            n_genes_avail <- ncol(X)
+
+            if (n_genes_avail > n_samples) {
+              # Strategy: PCA reduce to n_samples-2 dimensions, then LDA on PCs
+              n_pcs <- min(n_samples - 2, 50)
+              pca_pre <- prcomp(X, center = TRUE, scale. = TRUE)
+              X_reduced <- pca_pre$x[, 1:n_pcs, drop = FALSE]
+
+              # Remove near-constant PCs within groups (LDA requirement)
+              # Check within-group variance for each PC
+              keep_pcs <- sapply(1:ncol(X_reduced), function(k) {
+                all(tapply(X_reduced[, k], y, function(x) sd(x, na.rm = TRUE)) > 1e-10)
+              })
+              if (sum(keep_pcs) < 1) stop("No PCs with within-group variance for LDA.")
+              X_reduced <- X_reduced[, keep_pcs, drop = FALSE]
+              n_pcs <- ncol(X_reduced)
+
+              lda_res <- MASS::lda(X_reduced, grouping = y)
+
+              # Back-project LDA scaling to original gene space:
+              # LDA scaling is in PC space → gene_loading = PCA_rotation %*% LDA_scaling
+              lda_scaling_pc <- lda_res$scaling[, 1, drop = TRUE]  # LD1 in PC space
+              kept_pc_indices <- which(keep_pcs)
+              pca_rotation <- pca_pre$rotation[, kept_pc_indices, drop = FALSE]
+              gene_loadings <- as.numeric(pca_rotation %*% lda_scaling_pc)
+              names(gene_loadings) <- colnames(X)
+
+              perf_extra <- list(method = "PCA+LDA", n_pcs = n_pcs)
+            } else {
+              # Direct LDA (rare: n > p)
+              lda_res <- MASS::lda(X, grouping = y)
+              gene_loadings <- lda_res$scaling[, 1]
+              names(gene_loadings) <- colnames(X)
+              perf_extra <- list(method = "Direct LDA")
+            }
+
+            # Select top genes by |loading|
+            weights_magnitude <- abs(gene_loadings)
+            top_genes <- names(sort(weights_magnitude, decreasing = TRUE)[
+              1:min(n_features, length(weights_magnitude))
+            ])
+
+            # Signed weights from LD1
+            weights <- gene_loadings[top_genes]
+
+            # Scores
+            scores <- as.numeric(X[, top_genes, drop = FALSE] %*% weights)
+            names(scores) <- rownames(X)
+
+            # Performance
+            if (n_groups == 2) {
+              # Classification accuracy on training data
+              pred_scores <- scores
+              threshold <- mean(pred_scores)
+              pred_class <- ifelse(pred_scores > threshold,
+                                   levels(y)[2], levels(y)[1])
+              acc <- mean(pred_class == as.character(y))
+              perf <- c(list(accuracy = acc, LD1_var_ratio = lda_res$svd[1]^2 / sum(lda_res$svd^2)),
+                        perf_extra)
+            } else {
+              perf <- perf_extra
+            }
+
+            list(
+              genes = top_genes, weights = weights, scores = scores,
+              performance = perf, model = if (return_model) lda_res else NULL
             )
           },
           nmf_loadings = {

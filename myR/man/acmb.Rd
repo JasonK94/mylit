@@ -9,9 +9,13 @@ acmb(
   identity = "seurat_clusters",
   group.by = "sample",
   idents = NULL,
+  group.by.filter = NULL,
+  split.by = NULL,
+  sort.by = NULL,
   df = F,
   vlines = NULL,
-  vline_color = "red"
+  vline_color = "red",
+  cluster_order = NULL
 )
 }
 \arguments{
@@ -26,14 +30,36 @@ Default is "sample"}
 \item{idents}{Character vector specifying which identities to include.
 If NULL, includes all identities}
 
+\item{group.by.filter}{Character vector specifying which values of group.by to include.
+If NULL, includes all values. Default is NULL.}
+
+\item{split.by}{Character string specifying a metadata column to group samples.
+If provided, vlines will be automatically set at group boundaries.
+If NULL and vlines is NULL, no vertical lines are drawn. Default is NULL.}
+
+\item{sort.by}{Character string or vector specifying how to sort samples. Options:
+- NULL: Use default sort_samples function
+- Single value: Identity cluster name (e.g., "Monocytes"), metadata column name, or feature/gene name
+- Vector (e.g., c("Monocytes", "logP")): Sort by multiple criteria in order (first takes priority)
+When sort.by is a cluster name, samples are sorted by frequency of that cluster.
+When sort.by is a metadata column, samples are sorted by mean value of that column.
+When sort.by is a feature/gene name, samples are sorted by mean expression.
+Default is NULL.}
+
 \item{df}{Logical. If TRUE, returns the data frame used for plotting instead of the plot.
 Default is FALSE}
 
 \item{vlines}{Numeric vector specifying x-axis positions for vertical lines.
+If NULL and split.by is provided, vlines will be automatically calculated.
 Default is NULL}
 
 \item{vline_color}{Character string specifying the color for vertical lines.
 Default is "red"}
+
+\item{cluster_order}{Character vector specifying the order of clusters in the stacked bars.
+Clusters will be stacked in this order (bottom to top).
+If NULL, clusters are ordered by their natural order.
+Default is NULL.}
 }
 \value{
 A ggplot object showing the absolute count distribution of clusters, or a data frame
@@ -50,6 +76,27 @@ p <- acmb(sobj, identity = "seurat_clusters", group.by = "sample")
 
 # Create plot for specific clusters with vertical lines
 p <- acmb(sobj, idents = c("0", "1", "2"), vlines = c(3, 6))
+
+# Filter specific group.by values
+p <- acmb(sobj, group.by = "sample", group.by.filter = c("sample1", "sample2", "sample3"))
+
+# Use split.by to automatically set vlines at group boundaries
+p <- acmb(sobj, group.by = "sample", split.by = "g3")
+
+# Sort by cluster frequency
+p <- acmb(sobj, sort.by = "Monocytes")
+
+# Sort by metadata column
+p <- acmb(sobj, sort.by = "logP")
+
+# Sort by gene expression
+p <- acmb(sobj, sort.by = "CXCL8")
+
+# Sort by multiple criteria
+p <- acmb(sobj, sort.by = c("Monocytes", "logP", "CXCL8"))
+
+# Control cluster stacking order
+p <- acmb(sobj, cluster_order = c("Monocytes", "T_cells", "B_cells", "NK_cells"))
 
 # Get the underlying data frame
 df <- acmb(sobj, df = TRUE)

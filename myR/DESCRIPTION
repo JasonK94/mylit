@@ -54,7 +54,6 @@ Imports:
     Seurat (>= 4.0.0),
     SingleCellExperiment,
     slingshot,
-    stats,
     stringr,
     SummarizedExperiment,
     tibble,

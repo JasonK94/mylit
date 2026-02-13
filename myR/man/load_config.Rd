@@ -4,19 +4,22 @@
 \alias{load_config}
 \title{Load Configuration Files}
 \usage{
-load_config(config_path, config_dir = NULL)
+load_config(config_path, config_dir = NULL, execution_config_path = NULL)
 }
 \arguments{
-\item{config_path}{Path to config.csv file}
+\item{config_path}{Path to the Manifest file (e.g., manifest_stroke.csv) or legacy config.csv}
 
 \item{config_dir}{Directory containing config files (default: dirname of config_path)}
+
+\item{execution_config_path}{Path to execution config (optional)}
 }
 \value{
 List containing:
-\item{config}{Data frame with sample-specific configuration}
-\item{defaults}{Named vector of default parameter values}
+\item{config}{Data frame with sample-specific configuration (Manifest)}
+\item{defaults}{Named vector of pipeline parameters (Pipeline Config)}
+\item{execution}{List of execution-specific settings}
 \item{methods}{Data frame with method-specific parameters}
 }
 \description{
-Loads config.csv, config_default.csv, and methods.csv into a list
+Loads Manifest, Pipeline Config, and Execution Config into a list
 }

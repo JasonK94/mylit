@@ -23,7 +23,7 @@ plot_interaction_for_gene <- function(
   optimizer = "bobyqa"
 ) {
   # ==== Data prep ====
-  expr <- GetAssayData(sobj, assay = assay, slot = layer)
+  expr <- GetAssayData(sobj, assay = assay, layer = layer)
   meta <- sobj@meta.data %>%
     mutate(
       time    = factor(.data[[time_col]], levels = time_levels, labels = time_labels),
@@ -253,7 +253,7 @@ delta_one_gene_emm <- function(
   drug_col = "drug", patient_col = "emrid", segment_col = "ck",
   ref_drug = NULL, optimizer = "bobyqa"
 ) {
-  X <- GetAssayData(sobj, assay = assay, slot = layer)
+  X <- GetAssayData(sobj, assay = assay, layer = layer)
   meta <- sobj@meta.data %>%
     mutate(
       time    = factor(.data[[time_col]], levels = time_levels),
