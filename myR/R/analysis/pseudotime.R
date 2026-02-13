@@ -872,6 +872,421 @@ analyze_gene_dynamics <- function(gene_id,
 }
 
 
+#' Batch-corrected gene dynamics along pseudotime (GAMM)
+#'
+#' Fits a negative binomial GAMM with technical/batch covariates to model
+#' gene expression along pseudotime, while adjusting for confounders.
+#' Designed for multi-sample scRNAseq with batch effects.
+#'
+#' Model structure:
+#' \code{expr ~ s(pseudotime, k, bs="cr") + disease + s(pseudotime, by=disease, k, bs="cr")
+#'       + offset(log(nCount_RNA)) + percent.mt + s(batch_col, bs="re")}
+#'
+#' The disease-by-pseudotime interaction is the primary test target.
+#' Prediction curves are generated at reference covariate values
+#' (median library size, mean percent.mt, marginalised over batch RE).
+#'
+#' @param gene_id Character. Gene symbol to analyse.
+#' @param cds_obj A Monocle3 cell_data_set with colData containing metadata.
+#' @param condition_col_name Character. Column in colData for the condition
+#'   of interest (e.g., "g3", "cohort"). This is the disease factor.
+#' @param batch_col Character. Column for batch random effect (e.g., "GEM").
+#'   Set to NULL to skip batch RE. Default "GEM".
+#' @param covariate_cols Character vector. Fixed-effect technical covariates
+#'   to include (e.g., c("percent.mt")). Default c("percent.mt").
+#' @param offset_col Character. Column to use as log-offset for library size
+#'   normalisation (e.g., "nCount_RNA"). Set to NULL to skip. Default "nCount_RNA".
+#' @param pseudotime_method Function or character to extract pseudotime.
+#'   Default monocle3::pseudotime.
+#' @param output_dir Character. Directory to save plots.
+#' @param k_val Integer. Basis dimension for pseudotime smooth. Default 6.
+#' @param min_cells_for_fit Integer. Minimum cells per condition. Default 30.
+#' @param ylim_quantile Numeric (0-1). Upper quantile for y-axis clipping.
+#'   Default 0.99 (99th percentile).
+#' @param plot_width,plot_height,plot_dpi Plot dimensions.
+#' @param scale_DR Logical. Scale Dynamic Range by mean expression. Default TRUE.
+#' @param plot_split Logical. Facet by condition. Default FALSE.
+#'
+#' @return A list with components:
+#'   \item{gene}{Gene ID}
+#'   \item{status}{Character status}
+#'   \item{metrics}{List of fitted metrics (deviance_explained, interaction_p_value, TV, DR, etc.)}
+#'   \item{plot_path}{Path to saved plot}
+#'   \item{plot_object}{ggplot object}
+#'   \item{model_formula}{Character formula used}
+#'
+#' @export
+analyze_gene_dynamics_v2 <- function(gene_id,
+                                     cds_obj,
+                                     condition_col_name,
+                                     batch_col = "GEM",
+                                     covariate_cols = c("percent.mt"),
+                                     offset_col = "nCount_RNA",
+                                     pseudotime_method = monocle3::pseudotime,
+                                     output_dir = "gam_analysis_plots",
+                                     k_val = 6,
+                                     min_cells_for_fit = 30,
+                                     ylim_quantile = 0.99,
+                                     plot_width = 7,
+                                     plot_height = 5,
+                                     plot_dpi = 300,
+                                     scale_DR = TRUE,
+                                     plot_split = FALSE) {
+
+  # --- 0. Input Validation ---
+  if (!is(cds_obj, "cell_data_set")) {
+    stop("cds_obj must be a Monocle3 cell_data_set object.")
+  }
+  if (!gene_id %in% rownames(counts(cds_obj))) {
+    warning("Gene '", gene_id, "' not found in CDS object. Skipping.")
+    return(list(gene = gene_id, status = "skipped_gene_not_found",
+                metrics = NULL, plot_path = NULL, plot_object = NULL, model_formula = NULL))
+  }
+
+  cell_metadata <- as.data.frame(colData(cds_obj))
+
+  # Validate required columns exist
+  required_cols <- condition_col_name
+  if (!is.null(batch_col)) required_cols <- c(required_cols, batch_col)
+  if (!is.null(offset_col)) required_cols <- c(required_cols, offset_col)
+  required_cols <- c(required_cols, covariate_cols)
+  missing_cols <- setdiff(required_cols, colnames(cell_metadata))
+  if (length(missing_cols) > 0) {
+    warning("Gene '", gene_id, "': Missing columns in colData: ",
+            paste(missing_cols, collapse = ", "), ". Skipping.")
+    return(list(gene = gene_id, status = "skipped_missing_columns",
+                metrics = NULL, plot_path = NULL, plot_object = NULL, model_formula = NULL))
+  }
+
+  # --- 1. Extract pseudotime ---
+  pt_values <- tryCatch({
+    if (is.character(pseudotime_method)) {
+      eval(parse(text = pseudotime_method))(cds_obj)
+    } else if (is.function(pseudotime_method)) {
+      pseudotime_method(cds_obj)
+    } else {
+      stop("pseudotime_method must be a function or character string.")
+    }
+  }, error = function(e) {
+    warning("Gene '", gene_id, "': Pseudotime extraction failed: ", e$message)
+    NULL
+  })
+  if (is.null(pt_values)) {
+    return(list(gene = gene_id, status = "skipped_pseudotime_failed",
+                metrics = NULL, plot_path = NULL, plot_object = NULL, model_formula = NULL))
+  }
+
+  # --- 2. Build data frame ---
+  gene_expr <- as.numeric(counts(cds_obj)[gene_id, ])
+  names(gene_expr) <- colnames(cds_obj)
+
+  common_cells <- Reduce(intersect, list(
+    names(pt_values), names(gene_expr), rownames(cell_metadata)
+  ))
+
+  dat <- data.frame(
+    cell_id = common_cells,
+    expr = gene_expr[common_cells],
+    pseudotime = pt_values[common_cells],
+    cond = cell_metadata[common_cells, condition_col_name],
+    stringsAsFactors = FALSE
+  )
+
+  # Add offset column
+  if (!is.null(offset_col)) {
+    dat$lib_size <- cell_metadata[common_cells, offset_col]
+    dat$log_lib_size <- log(dat$lib_size + 1)
+  }
+
+  # Add batch column
+  if (!is.null(batch_col)) {
+    dat$batch <- factor(cell_metadata[common_cells, batch_col])
+  }
+
+  # Add covariate columns
+  for (cv in covariate_cols) {
+    dat[[cv]] <- cell_metadata[common_cells, cv]
+  }
+
+  # Filter finite values
+  dat <- dat[is.finite(dat$expr) & is.finite(dat$pseudotime), ]
+  if (!is.null(offset_col)) {
+    dat <- dat[is.finite(dat$log_lib_size) & dat$lib_size > 0, ]
+  }
+
+  dat$cond <- factor(dat$cond)
+  if (nrow(dat) < min_cells_for_fit) {
+    warning("Gene '", gene_id, "': Only ", nrow(dat), " cells after filtering. Skipping.")
+    return(list(gene = gene_id, status = "skipped_insufficient_data",
+                metrics = NULL, plot_path = NULL, plot_object = NULL, model_formula = NULL))
+  }
+
+  n_conditions <- nlevels(dat$cond)
+
+  # --- 3. Build GAMM formula ---
+  # Core: pseudotime smooth
+  formula_parts <- c("expr ~ s(pseudotime, k = k_val, bs = \"cr\")")
+
+  # Disease effect + interaction (if multiple conditions)
+  if (n_conditions >= 2) {
+    formula_parts <- c(formula_parts,
+                       "cond",
+                       "s(pseudotime, by = cond, k = k_val, bs = \"cr\")")
+  }
+
+  # Offset for library size
+  if (!is.null(offset_col)) {
+    formula_parts <- c(formula_parts, "offset(log_lib_size)")
+  }
+
+  # Fixed-effect covariates
+  for (cv in covariate_cols) {
+    if (cv %in% colnames(dat)) {
+      formula_parts <- c(formula_parts, cv)
+    }
+  }
+
+  # Batch random effect
+  if (!is.null(batch_col) && nlevels(dat$batch) >= 2) {
+    formula_parts <- c(formula_parts, "s(batch, bs = \"re\")")
+  }
+
+  formula_str <- paste(formula_parts, collapse = " + ")
+  # Fix: first part already has "expr ~ s(...)", rest are additive
+  # Need to reconstruct properly
+  formula_str <- paste0("expr ~ s(pseudotime, k = k_val, bs = \"cr\")")
+  additive_terms <- c()
+  if (n_conditions >= 2) {
+    additive_terms <- c(additive_terms, "cond",
+                        "s(pseudotime, by = cond, k = k_val, bs = \"cr\")")
+  }
+  if (!is.null(offset_col)) {
+    additive_terms <- c(additive_terms, "offset(log_lib_size)")
+  }
+  for (cv in covariate_cols) {
+    if (cv %in% colnames(dat)) additive_terms <- c(additive_terms, cv)
+  }
+  if (!is.null(batch_col) && nlevels(dat$batch) >= 2) {
+    additive_terms <- c(additive_terms, "s(batch, bs = \"re\")")
+  }
+  if (length(additive_terms) > 0) {
+    formula_str <- paste(formula_str, paste(additive_terms, collapse = " + "), sep = " + ")
+  }
+
+  fit_formula <- as.formula(formula_str)
+  message("Gene '", gene_id, "': Fitting ", formula_str)
+
+  # --- 4. Fit GAMM ---
+  fit <- tryCatch({
+    gam(fit_formula, family = nb(link = "log"), data = dat, method = "REML")
+  }, error = function(e) {
+    warning("Gene '", gene_id, "': GAMM fitting failed: ", e$message)
+    NULL
+  })
+
+  if (is.null(fit)) {
+    return(list(gene = gene_id, status = "gam_fit_failed",
+                metrics = NULL, plot_path = NULL, plot_object = NULL,
+                model_formula = formula_str))
+  }
+
+  # --- 5. Interaction test (disease-specific trajectory) ---
+  interaction_p_value <- NA_real_
+
+  if (n_conditions >= 2) {
+    # Null model: same trajectory shape for all conditions
+    null_terms <- c("expr ~ s(pseudotime, k = k_val, bs = \"cr\")", "cond")
+    if (!is.null(offset_col)) null_terms <- c(null_terms, "offset(log_lib_size)")
+    for (cv in covariate_cols) {
+      if (cv %in% colnames(dat)) null_terms <- c(null_terms, cv)
+    }
+    if (!is.null(batch_col) && nlevels(dat$batch) >= 2) {
+      null_terms <- c(null_terms, "s(batch, bs = \"re\")")
+    }
+    null_formula_str <- paste(null_terms[1],
+                              paste(null_terms[-1], collapse = " + "),
+                              sep = " + ")
+    fit0 <- tryCatch({
+      gam(as.formula(null_formula_str), family = nb(link = "log"),
+          data = dat, method = "REML")
+    }, error = function(e) {
+      warning("Gene '", gene_id, "': Null model fit failed: ", e$message)
+      NULL
+    })
+
+    if (!is.null(fit0)) {
+      anova_res <- tryCatch(
+        anova(fit0, fit, test = "Chisq"),
+        error = function(e) {
+          warning("Gene '", gene_id, "': ANOVA failed: ", e$message)
+          NULL
+        }
+      )
+      if (!is.null(anova_res) && !is.null(anova_res$"P(>|Chi|)") &&
+          length(anova_res$"P(>|Chi|)") >= 2) {
+        interaction_p_value <- anova_res$"P(>|Chi|)"[2]
+      }
+    }
+  }
+
+  # --- 6. Prediction curves at reference covariate values ---
+  active_conditions <- levels(dat$cond)
+  newd_list <- lapply(active_conditions, function(lvl) {
+    pt_sub <- dat$pseudotime[dat$cond == lvl]
+    if (length(pt_sub) < 2) return(NULL)
+    nd <- data.frame(
+      pseudotime = seq(min(pt_sub, na.rm = TRUE),
+                       max(pt_sub, na.rm = TRUE), length.out = 100),
+      cond = factor(lvl, levels = active_conditions)
+    )
+    # Reference values for covariates (marginalise out confounders)
+    if (!is.null(offset_col)) {
+      nd$log_lib_size <- median(dat$log_lib_size, na.rm = TRUE)
+    }
+    for (cv in covariate_cols) {
+      if (cv %in% colnames(dat)) nd[[cv]] <- mean(dat[[cv]], na.rm = TRUE)
+    }
+    # For batch RE: set to a single level; predict with exclude="s(batch)"
+    if (!is.null(batch_col) && "batch" %in% colnames(dat)) {
+      nd$batch <- levels(dat$batch)[1]  # placeholder, will be excluded
+    }
+    nd
+  })
+  newd <- do.call(rbind, newd_list)
+
+  if (is.null(newd) || nrow(newd) == 0) {
+    warning("Gene '", gene_id, "': Could not generate prediction data.")
+    gam_summary <- summary(fit)
+    metrics <- list(gene = gene_id, n_cells_fit = nrow(dat),
+                    deviance_explained = gam_summary$dev.expl,
+                    interaction_p_value = interaction_p_value)
+    return(list(gene = gene_id, status = "prediction_failed",
+                metrics = metrics, plot_path = NULL, plot_object = NULL,
+                model_formula = formula_str))
+  }
+
+  # Predict excluding batch RE (marginal over batches)
+  exclude_terms <- if (!is.null(batch_col) && nlevels(dat$batch) >= 2) "s(batch)" else NULL
+  newd$fit_response <- predict(fit, newdata = newd, type = "response",
+                               exclude = exclude_terms)
+
+  # --- 7. Compute metrics (TV, DR) ---
+  TV_per_cond <- newd %>%
+    dplyr::filter(is.finite(fit_response)) %>%
+    dplyr::group_by(cond) %>%
+    dplyr::summarize(TV = sum(abs(diff(fit_response))), .groups = "drop")
+
+  DR_per_cond_calc <- newd %>%
+    dplyr::filter(is.finite(fit_response)) %>%
+    dplyr::group_by(cond) %>%
+    dplyr::summarize(
+      DR_val = if (dplyr::n() > 1 && (max(fit_response) - min(fit_response) > 0))
+        max(fit_response) - min(fit_response) else 0,
+      mean_expr = mean(dat$expr[dat$cond == dplyr::first(cond)], na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  if (scale_DR) {
+    DR_per_cond <- DR_per_cond_calc %>%
+      dplyr::mutate(DR = ifelse(mean_expr > 1e-6, DR_val / mean_expr, DR_val)) %>%
+      dplyr::select(cond, DR)
+  } else {
+    DR_per_cond <- DR_per_cond_calc %>% dplyr::select(cond, DR = DR_val)
+  }
+
+  gam_summary <- summary(fit)
+
+  metrics <- list(
+    gene = gene_id,
+    n_cells_fit = nrow(dat),
+    deviance_explained = gam_summary$dev.expl,
+    adj_r_squared = gam_summary$r.sq,
+    interaction_p_value = interaction_p_value,
+    TV_per_condition = if (nrow(TV_per_cond) > 0) TV_per_cond else NA,
+    DR_per_condition = if (nrow(DR_per_cond) > 0) DR_per_cond else NA,
+    smooth_term_summary = gam_summary$s.table,
+    parametric_term_summary = gam_summary$p.table,
+    batch_col = batch_col,
+    offset_col = offset_col,
+    covariate_cols = covariate_cols
+  )
+
+  # --- 8. Visualisation with y-axis clipping ---
+  subtitle_parts <- c()
+  if (is.data.frame(TV_per_cond) && nrow(TV_per_cond) > 0) {
+    tv_strings <- apply(TV_per_cond, 1, function(r)
+      paste0("TV(", r["cond"], "):", round(as.numeric(r["TV"]), 2)))
+    subtitle_parts <- c(subtitle_parts, paste(tv_strings, collapse = ", "))
+  }
+  if (is.data.frame(DR_per_cond) && nrow(DR_per_cond) > 0) {
+    dr_strings <- apply(DR_per_cond, 1, function(r)
+      paste0("DR(", r["cond"], "):", round(as.numeric(r["DR"]), 2)))
+    subtitle_parts <- c(subtitle_parts, paste(dr_strings, collapse = ", "))
+  }
+
+  plot_subtitle <- paste0(
+    "Dev.Expl: ", round(gam_summary$dev.expl, 2),
+    if (!is.na(interaction_p_value))
+      paste0(", P(int): ", format.pval(interaction_p_value, digits = 2, eps = 0.001))
+    else "",
+    "\n", paste(subtitle_parts, collapse = " | "),
+    "\nAdj: ", paste(c(
+      if (!is.null(offset_col)) paste0("offset(log ", offset_col, ")") else NULL,
+      covariate_cols,
+      if (!is.null(batch_col)) paste0("RE(", batch_col, ")") else NULL
+    ), collapse = " + ")
+  )
+
+  # Y-axis clipping
+  y_upper <- quantile(dat$expr, ylim_quantile, na.rm = TRUE)
+  y_upper <- max(y_upper, max(newd$fit_response, na.rm = TRUE) * 1.1)
+
+  p <- ggplot() +
+    geom_point(data = dat, aes(x = pseudotime, y = expr, color = cond),
+               alpha = 0.15, size = 0.5, stroke = 0) +
+    geom_line(data = newd[is.finite(newd$fit_response), ],
+              aes(x = pseudotime, y = fit_response, color = cond),
+              linewidth = 1.2) +
+    coord_cartesian(ylim = c(0, y_upper)) +
+    labs(title = paste0("Gene: ", gene_id),
+         subtitle = plot_subtitle,
+         x = "Pseudotime",
+         y = "Expression (raw counts, clipped)") +
+    theme_classic(base_size = 10) +
+    scale_color_discrete(name = "Condition")
+
+  if (plot_split && n_conditions > 1) {
+    p <- p + facet_wrap(~cond, scales = "free_y", ncol = 1)
+  }
+
+  # Save plot
+  sanitized_gene_id <- gsub("[^a-zA-Z0-9_.-]", "_", gene_id)
+  plot_filename <- paste0("GAM_dynamics_v2_", sanitized_gene_id, ".png")
+  plot_filepath <- tryCatch({
+    save_plot_with_conflict_resolution(
+      plot_object = p,
+      base_filename = plot_filename,
+      output_dir = output_dir,
+      width = plot_width, height = plot_height, dpi = plot_dpi
+    )
+  }, error = function(e) {
+    # Fallback to ggsave directly
+    fp <- file.path(output_dir, plot_filename)
+    tryCatch({
+      ggsave(fp, p, width = plot_width, height = plot_height, dpi = plot_dpi)
+      fp
+    }, error = function(e2) {
+      warning("Plot saving failed for gene '", gene_id, "': ", e2$message)
+      NA_character_
+    })
+  })
+
+  return(list(gene = gene_id, status = "success",
+              metrics = metrics, plot_path = plot_filepath, plot_object = p,
+              model_formula = formula_str))
+}
+
+
 #' Helper to process a list of genes using analyze_gene_dynamics
 #'
 #' @param gene_list A character vector of gene IDs.
