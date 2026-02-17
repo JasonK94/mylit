@@ -95,10 +95,22 @@ See `docs/claude/STROKE_HC_V8_2_CONTEXT.md` for full analysis state.
 
 ## Documentation
 
+### Project-specific (Claude context)
 | Doc | Path | Content |
 |-----|------|---------|
+| **Project goals** | `docs/claude/PROJECT_GOALS.md` | 논문 구성 분석 11개 항목, 의존성, 우선순위 |
 | Analysis context | `docs/claude/STROKE_HC_V8_2_CONTEXT.md` | Full analysis state, data locations, results |
 | Gene dynamics methods | `docs/claude/gene_dynamics_approaches.md` | GAMM model design, two-stage pseudobulk plan |
+
+### Scripts & execution
+| Doc | Path | Content |
+|-----|------|---------|
+| **Scripts index** | `docs/scripts/ANALYSIS_SCRIPTS_INDEX.md` | 모든 스크립트 위치, CLI 인자, 실행 방법, 출력 구조 |
+
+### Module guides (workflow documentation)
+| Doc | Path | Content |
+|-----|------|---------|
 | CCI guide | `docs/cci/CCI_INTEGRATED_GUIDE.md` | CellChat + MNN workflow |
 | FGS guide | `docs/fgs/FGS_TML_INTEGRATED_GUIDE.md` | Feature selection pipeline |
 | Pseudotime guide | `docs/pseudotime-dev/PSEUDOTIME_INTEGRATED_GUIDE.md` | Trajectory analysis |
+| Docs rules | `docs/DOCS_ORGANIZATION_RULE.md` | Documentation structure conventions |

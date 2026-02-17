@@ -1122,9 +1122,11 @@ analyze_gene_dynamics_v2 <- function(gene_id,
           NULL
         }
       )
-      if (!is.null(anova_res) && !is.null(anova_res$"P(>|Chi|)") &&
-          length(anova_res$"P(>|Chi|)") >= 2) {
-        interaction_p_value <- anova_res$"P(>|Chi|)"[2]
+      # anova() on gam objects returns column "Pr(>Chi)", not "P(>|Chi|)"
+      p_col <- if ("Pr(>Chi)" %in% names(anova_res)) "Pr(>Chi)" else "P(>|Chi|)"
+      if (!is.null(anova_res) && !is.null(anova_res[[p_col]]) &&
+          length(anova_res[[p_col]]) >= 2) {
+        interaction_p_value <- anova_res[[p_col]][2]
       }
     }
   }

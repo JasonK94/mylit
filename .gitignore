@@ -38,6 +38,7 @@ rmd/
 
 # data, logs, outputs...
 *deprecated*
+results
 
 # *.rds
 # *.log

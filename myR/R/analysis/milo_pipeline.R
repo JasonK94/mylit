@@ -137,7 +137,7 @@ run_milo_pipeline <- function(
         milo <- qs::qread(paths$files$distances)
     } else {
         if (verbose) cli::cli_inform(c("step" = "Calculating Milo neighbourhood distances (this may take a while)."))
-        milo <- miloR::calcNhoodDistance(milo, d = d)
+        milo <- miloR::calcNhoodDistance(milo, d = d, reduced.dim = "GRAPH")
         if (save) {
             qs::qsave(milo, paths$files$distances)
             if (verbose) cli::cli_inform(c("cache" = "Saved Milo object to {.path {paths$files$distances}}"))
@@ -238,7 +238,7 @@ run_milo_pipeline <- function(
     miloR::makeNhoods(milo, prop = prop, k = k, refined = TRUE, reduced_dims = "GRAPH")
 }
 
-.milo_run_da <- function(milo, patient_var, target_var, batch_var, cluster_var) {
+.milo_run_da <- function(milo, patient_var, target_var, batch_var, cluster_var, reduced_dim = "GRAPH") {
     milo <- miloR::countCells(
         milo,
         samples = patient_var,
@@ -258,7 +258,8 @@ run_milo_pipeline <- function(
     da_results <- miloR::testNhoods(
         milo,
         design = as.formula(formula_str),
-        design.df = sample_design
+        design.df = sample_design,
+        reduced.dim = reduced_dim
     )
 
     nhood_matrix <- miloR::nhoods(milo)
