@@ -40,6 +40,7 @@ Imports:
     mgcv,
     NMF,
     nichenetr,
+    multinichenetr,
     patchwork,
     pheatmap,
     purrr,

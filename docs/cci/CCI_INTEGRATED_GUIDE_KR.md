@@ -22,93 +22,116 @@
 
 ## 2. 워크플로우 시각화 (Workflow Visualization)
 
+### 2.1. Basic NicheNet Workflow (Standard/Single-Condition)
+
+이 워크플로우는 **단일 조건** 또는 **단순 비교**(예: Normal vs Tumor)에서 특정 Receiver 세포의 DEG를 설명하는 Ligand를 찾을 때 사용됩니다.
+
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryEdgeColor':'#000000', 'primaryEdgeThickness':4, 'primaryTextColor':'#000000', 'primaryBorderColor':'#000000', 'edgeLabelBackground':'#ffffff', 'tertiaryColor':'#000000'}}}%%
+%%{init: {'theme':'base', 'themeVariables': {'primaryEdgeColor':'#333', 'primaryTextColor':'#000', 'lineColor':'#333'}}}%%
 flowchart TD
-    Start([CCI Analysis Pipeline<br/>CCI 분석 파이프라인])
-    Start --> Input
+    %% Nodes
+    Start([Start: Seurat Object])
     
-    subgraph Input["1. 입력 데이터"]
+    subgraph DataPrep ["1. Data Preparation"]
         direction TB
-        SeuratObj[("Seurat Object<br/>셀 레벨 데이터")]
-        DEGList[("DEG List<br/>사전 계산된<br/>차등 발현 유전자")]
-        SeuratObj --> InputData[("입력 데이터")]
-        DEGList --> InputData
+        CalcDEG["DEG Calculation<br/>Method: Seurat FindMarkers (Wilcoxon/MAST)<br/>Comparison: Condition vs Control"]
+        DefineReceiver["Define Receiver & Sender<br/>Receiver: Cell type of interest<br/>Sender: All or selected types"]
+        ExtractExpressed["Filter Expressed Genes<br/>Threshold: min_pct > 0.10"]
+    end
+
+    subgraph NicheNetCore ["2. NicheNet Core Algorithm"]
+        direction TB
+        LoadModel[("NicheNet Model<br/>Ligand-Target Matrix<br/>(Weighted Regulatory Potential)")]
+        
+        CalcActivity["Calculate Ligand Activity<br/>Method: Pearson Correlation<br/>(Target Potential vs. DEG Status)"]
+        
+        PredictTargets["Infer Target Genes<br/>Identify DEGs with high<br/>regulatory potential from top ligands"]
+        
+        PrioritizePair["Ligand-Receptor Scoring<br/>Combine Activity + Expression"]
     end
     
-    InputData --> Prep
+    subgraph Output ["3. Outputs"]
+        Heatmaps["Heatmaps<br/>1. Ligand Activity<br/>2. Ligand-Target Links"]
+        Circos["Circos Plot<br/>(Simple Linkage)"]
+    end
+
+    %% Edges
+    Start --> DataPrep
+    CalcDEG -->|Receiver DEGs| CalcActivity
+    DefineReceiver --> ExtractExpressed
+    ExtractExpressed -->|Expressed Ligands/Receptors| PrioritizePair
     
-    subgraph Prep["2. 데이터 준비"]
-        direction TB
-        Validate["입력 검증<br/>Seurat 객체 및<br/>DEG 리스트 정합성"]
-        Validate --> ExtractDEG["Receiver DEG 추출<br/>deg_df에서<br/>receiver_cluster 필터링"]
-        ExtractDEG --> PrepData[("준비된 데이터")]
+    LoadModel --> CalcActivity
+    CalcActivity -->|Activity Score| PredictTargets
+    PredictTargets --> PrioritizePair
+    
+    PrioritizePair --> Output
+    
+    style Start fill:#f9f,stroke:#333
+    style LoadModel fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style CalcActivity fill:#d1ecf1,stroke:#17a2b8
+    style Output fill:#d4edda,stroke:#28a745
+```
+
+### 2.2. MultiNicheNet Workflow (Complex/Multi-Sample)
+
+이 워크플로우는 **Multi-Sample/Multi-Group** 데이터셋(IS2 vs IS3 등)에서 샘플 간 변동성을 고려한 통계적 비교 분석을 수행합니다. 현재 개발 중인 고도화 파이프라인입니다.
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryEdgeColor':'#333', 'primaryTextColor':'#000', 'lineColor':'#333'}}}%%
+flowchart TD
+    %% Nodes
+    StartMNN(["Start: Seurat Object<br/>(Multi-Sample)"])
+
+    subgraph MNNPrep ["1. Pre-processing"]
+        ToSCE["Convert to SingleCellExperiment (SCE)"]
+        Pseudobulk["Pseudobulk Aggregation<br/>Sum counts per Sample-CellType"]
     end
     
-    PrepData --> Sender
-    
-    subgraph Sender["3. Sender 식별"]
-        direction TB
-        CheckSender{sender_clusters<br/>지정됨?}
-        CheckSender -->|Yes| UseSpecified["지정된 Sender 사용"]
-        CheckSender -->|No| AutoIdentify["자동 식별<br/>Receiver 제외<br/>모든 클러스터"]
-        UseSpecified --> SenderList[("Sender 클러스터 목록")]
-        AutoIdentify --> SenderList
+    subgraph DEAnalysis ["2. Differential Expression (muscat)"]
+        MuscatRun["Run muscat (edgeR/limma-voom)<br/>Correction for Sample ID"]
+        SaveDE[("Save: celltype_de.rds<br/>(LogFC, p-val per contrast)")]
     end
     
-    PrepData --> Filter
-    
-    subgraph Filter["4. 발현 유전자 필터링"]
-        direction TB
-        FilterExpressed["발현 유전자 필터링<br/>min_pct_expressed<br/>Sender and Receiver"]
-        FilterExpressed --> ExpressedGenes[("발현 유전자 목록")]
+    subgraph MNNAlg ["3. MultiNicheNet Core"]
+        Loadprior["Load Ligand-Target Matrix"]
+        PredictAct["Predict Ligand Activities<br/>Per Contrast & Receiver"]
+        SaveAct[("Save: ligand_activities.rds")]
+        
+        ConstructNetwork["Construct Network"]
     end
     
-    SenderList --> NicheNet
-    ExpressedGenes --> NicheNet
-    
-    subgraph NicheNet["5. NicheNet 분석"]
-        direction TB
-        LigandTarget["Ligand-Target<br/>Potential 계산"]
-        LigandTarget --> LigandAct["Ligand Activity<br/>예측 및 우선순위화"]
-        LigandAct --> Prioritize["Top Ligand 선택<br/>top_n_ligands"]
-        Prioritize --> Network["Ligand-Target<br/>네트워크 추론"]
-        Network --> NicheNetResults[("NicheNet 결과")]
+    subgraph Scoring ["4. Prioritization & Scoring"]
+        IntegrateScore["Calculate Prioritization Score<br/>Weighted Sum of:<br/>- Activity (Scaled)<br/>- Ligand/Receptor Expression<br/>- DE LogFC (Concordance)"]
+        Dedup["Deduplication & Sorting<br/>1. Sort by Score (Desc)<br/>2. Distinct(L-R-S-R)"]
+        SaveTable[("Save: prioritization_tables.rds")]
     end
     
-    NicheNetResults --> Vis
-    
-    subgraph Vis["6. 시각화"]
-        direction TB
-        HeatmapLT["Ligand-Target<br/>Heatmap"]
-        HeatmapLR["Ligand-Receptor<br/>Heatmap"]
-        Circos["Circos Plot<br/>논문 수준"]
-        NicheNetResults --> HeatmapLT
-        NicheNetResults --> HeatmapLR
-        NicheNetResults --> Circos
+    subgraph Viz ["5. Advanced Visualization"]
+        CircosComp["Comparative Circos Plot (V10)<br/>- Inner Hint Tracks<br/>- Deterministic Layout<br/>- Deduped Interactions"]
     end
+
+    %% Edges
+    StartMNN --> MNNPrep
+    ToSCE --> Pseudobulk
+    Pseudobulk --> MuscatRun
+    MuscatRun --> SaveDE
+    SaveDE --> PredictAct
     
-    NicheNetResults --> Save
+    Loadprior --> PredictAct
+    PredictAct --> SaveAct
+    SaveAct --> ConstructNetwork
+    ConstructNetwork --> IntegrateScore
     
-    subgraph Save["7. 결과 저장"]
-        direction TB
-        SaveQs["결과 객체 저장<br/>.qs 포맷"]
-        SavePlots["플롯 파일 저장<br/>.png, .pdf"]
-        SaveQs --> FinalResult[("최종 결과")]
-        SavePlots --> FinalResult
-    end
-    
-    FinalResult --> End([완료])
-    
-    style Start fill:#e1f5ff,stroke:#0066cc,stroke-width:3px
-    style End fill:#d4edda,stroke:#28a745,stroke-width:3px
-    style Input fill:#fff3cd,stroke:#ffc107,stroke-width:2px
-    style Prep fill:#d1ecf1,stroke:#17a2b8,stroke-width:2px
-    style Sender fill:#cfe2ff,stroke:#0d6efd,stroke-width:2px
-    style Filter fill:#f8d7da,stroke:#dc3545,stroke-width:2px
-    style NicheNet fill:#e2e3e5,stroke:#6c757d,stroke-width:2px
-    style Vis fill:#d1ecf1,stroke:#17a2b8,stroke-width:2px
-    style Save fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    IntegrateScore --> SaveTable
+    SaveTable --> Dedup
+    Dedup --> CircosComp
+
+    style StartMNN fill:#f9f,stroke:#333
+    style SaveDE fill:#ffedcc,stroke:#d69e2e
+    style SaveAct fill:#ffedcc,stroke:#d69e2e
+    style SaveTable fill:#ffedcc,stroke:#d69e2e
+    style CircosComp fill:#d4edda,stroke:#28a745
 ```
 
 ## 3. 개발 로그 및 개선사항 (Development Log & Improvements)

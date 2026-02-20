@@ -1,24 +1,24 @@
 # Cell-to-Cell Interaction (CCI) Analysis Integrated Guide
 
-This document is the integrated guide for the Cell-to-Cell Interaction (CCI) analysis module. It analyzes ligand-receptor interactions based on NicheNet and supports flexible analysis by utilizing pre-computed DEG lists.
+이 문서는 Cell-to-Cell Interaction (CCI) 분석 모듈의 통합 가이드입니다. NicheNet을 기반으로 하여 ligand-receptor 상호작용을 분석하고, 사전 계산된 DEG 리스트를 활용하여 유연한 분석을 지원합니다.
 
-## 1. Introduction
+## 1. Introduction (소개)
 
-### Purpose
-Analyze cell-to-cell interactions in single-cell RNA sequencing (scRNAseq) data to identify **Sender cells** and **Ligands** that induce gene expression changes (DEG) in **Receiver cells** under specific conditions (e.g., disease vs. normal).
+### 목적
+단일세포 RNA 시퀀싱(scRNAseq) 데이터에서 세포 간 상호작용을 분석하여, 특정 조건(예: 질병 vs 정상)에서 **Receiver 세포**의 유전자 발현 변화(DEG)를 유도하는 **Sender 세포**와 **Ligand**를 식별합니다.
 
-### Key Features
-1.  **Direct DEG List Input**: Accepts DEG lists computed by various methods such as `FindMarkers`, `limma`, `edgeR`, etc.
-2.  **Automatic Sender Identification**: Automatically sets all clusters except Receiver as Senders, or allows user specification.
-3.  **NicheNet Integration**: Constructs Ligand-Receptor-Target gene networks using the NicheNet database.
-4.  **Publication-Quality Visualization**: Automatically generates various visualization outputs including Circos plots and heatmaps.
+### 핵심 기능
+1.  **DEG 리스트 직접 입력**: `FindMarkers`, `limma`, `edgeR` 등 다양한 방법으로 계산된 DEG 리스트를 직접 입력받아 분석합니다.
+2.  **자동 Sender 식별**: Receiver를 제외한 모든 클러스터를 자동으로 Sender로 설정하거나, 사용자가 지정할 수 있습니다.
+3.  **NicheNet 통합**: NicheNet 데이터베이스를 활용하여 Ligand-Receptor-Target 유전자 네트워크를 구축합니다.
+4.  **논문 수준 시각화**: Circos plot, 히트맵 등 다양한 시각화 결과물을 자동 생성합니다.
 
-### Key Terms
-*   **Sender**: Cell type that sends signals (Ligands).
-*   **Receiver**: Cell type that receives signals (Ligands) and responds. Cells where expression changes (DEG) of Target Genes are observed.
-*   **Ligand**: Substance secreted by Sender cells that binds to Receptors on Receiver cells.
-*   **Receptor**: Protein present on the surface of Receiver cells that binds to Ligands.
-*   **Target Gene**: Downstream genes (DEG) whose expression is regulated by Ligand-Receptor interactions.
+### 주요 용어
+*   **Sender**: 신호(Ligand)를 보내는 세포 유형.
+*   **Receiver**: 신호(Ligand)를 받아 반응하는 세포 유형. Target Gene의 발현 변화(DEG)가 관찰되는 세포입니다.
+*   **Ligand**: Sender 세포에서 분비되어 Receiver 세포의 Receptor와 결합하는 물질.
+*   **Receptor**: Receiver 세포 표면에 존재하며 Ligand와 결합하는 단백질.
+*   **Target Gene**: Ligand-Receptor 상호작용에 의해 발현이 조절되는 하위 유전자 (DEG).
 
 ## 2. Workflow Visualization (시각화)
 
@@ -42,23 +42,23 @@ flowchart TD
     Network --> Output[Save Results (.qs)]
 ```
 
-## 3. Development Log & Improvements
+## 3. Development Log & Improvements (개발 로그)
 
-### Major Changes
-*   **v1.0 (2025-11-14)**: Initial implementation. Direct DEG list input support, modular structure (preparation, analysis, saving) established.
-*   **Optimizations**:
-    *   `receiver_de_table` reuse: Prevents repeated DEG calculations for the same Receiver.
-    *   Memory management: Cleans up large objects after saving intermediate results (`rm`, `gc`).
-    *   Column mapping: Supports various DEG table formats (`avg_log2FC` vs `logFC`, etc.).
+### 주요 변경 사항
+*   **v1.0 (2025-11-14)**: 초기 구현. DEG 리스트 직접 입력 지원, 모듈화된 구조(준비, 분석, 저장) 구축.
+*   **최적화**:
+    *   `receiver_de_table` 재사용: 동일 Receiver에 대해 DEG 계산 반복 방지.
+    *   메모리 관리: 중간 결과 저장 후 대용량 객체 정리(`rm`, `gc`).
+    *   컬럼 매핑: 다양한 DEG 테이블 포맷(`avg_log2FC` vs `logFC` 등) 호환 지원.
 
-### Resolved Issues
-*   **Expressed Gene Filtering Error**: Fixed issue where 0 genes were returned due to missing `Idents(sobj)` setting.
-*   **DEG Filtering Problem**: Relaxed cutoff (`1.1`) to handle cases where adjusted p-value exceeds 1.0.
-*   **NicheNet Data Download**: Prioritizes local path (`/data/user3/git_repo/human`) and supports automatic download.
+### 해결된 이슈
+*   **발현 유전자 필터링 오류**: `Idents(sobj)` 설정 누락으로 인한 0개 유전자 반환 문제 해결.
+*   **DEG 필터링 문제**: 조정된 p-value가 1.0을 초과하는 경우에 대비하여 cutoff 완화(`1.1`).
+*   **NicheNet 데이터 다운로드**: 로컬 경로(`/data/user3/git_repo/human`) 우선 사용 및 자동 다운로드 지원.
 
-## 4. User Guide & Warnings
+## 4. User Guide & Warnings (사용자 가이드)
 
-### Basic Usage
+### 기본 사용법
 
 ```r
 source("myR/R/cci/run_cci_analysis.R")
@@ -96,33 +96,33 @@ results <- run_cci_analysis(
 *   `receiver_cluster`: 분석 대상 Receiver 클러스터 이름.
 *   `nichenet_data_dir`: NicheNet 데이터 경로 (기본값: `/data/user3/git_repo/human`).
 
-### Critical Warnings
-1.  **Memory Usage**: NicheNet analysis uses significant memory. Exercise caution when analyzing large datasets. It is recommended to test with downsampled data first.
-2.  **DEG Matching**: The `cluster` column value in `deg_df` must exactly match the `receiver_cluster` parameter.
-3.  **Data Path**: If NicheNet data is not available, the first run will attempt to download it, which may take time. Utilize the internal server path (`/data/user3/git_repo/human`).
+### Critical Warnings (주의사항)
+1.  **메모리 사용량**: NicheNet 분석은 메모리를 많이 사용하므로, 대규모 데이터셋 분석 시 주의하십시오. 다운샘플링 데이터로 먼저 테스트하는 것을 권장합니다.
+2.  **DEG 매칭**: `deg_df`의 `cluster` 컬럼 값은 `receiver_cluster` 파라미터와 정확히 일치해야 합니다.
+3.  **데이터 경로**: NicheNet 데이터가 없는 경우 최초 실행 시 다운로드를 시도하며 시간이 소요됩니다. 사내 서버 경로(`/data/user3/git_repo/human`)를 활용하세요.
 
-## 5. Methodology
+## 5. Methodology (방법론)
 
-### Analysis Logic
-1.  **Input Validation**: Verify consistency between Seurat object and DEG list.
-2.  **Receiver DEG Extraction**: Extract DEGs corresponding to the Receiver cluster from the input `deg_df`.
-3.  **Sender Identification**: Identify Sender candidates from specified Senders or all clusters.
-4.  **Expression Filtering**: Select only genes expressed above a certain percentage (`min_pct_expressed`) in both Sender and Receiver.
-5.  **NicheNet Analysis**:
-    *   Calculate Ligand-Target Potential scores.
-    *   Predict and prioritize Ligand Activities.
-    *   Infer Target Gene networks for top Ligands.
-6.  **Result Saving and Visualization**: Generate result objects (.qs) and plots.
+### 분석 로직
+1.  **입력 검증**: Seurat 객체와 DEG 리스트의 정합성 확인.
+2.  **Receiver DEG 추출**: 입력된 `deg_df`에서 Receiver 클러스터에 해당하는 DEG 추출.
+3.  **Sender 식별**: 지정된 Sender 또는 전체 클러스터에서 Sender 후보 식별.
+4.  **발현 필터링**: Sender와 Receiver에서 일정 비율(`min_pct_expressed`) 이상 발현되는 유전자만 선별.
+5.  **NicheNet 분석**:
+    *   Ligand-Target Potential 점수 계산.
+    *   Ligand Activity 예측 및 우선순위화.
+    *   Top Ligand의 Target Gene 네트워크 추론.
+6.  **결과 저장 및 시각화**: 결과 객체(.qs) 및 Plot 생성.
 
-## 6. Appendix
+## 6. Appendix (부록)
 
-### Output File Structure
-*   `nichenet_results.qs`: Complete analysis result object.
-*   `NicheNet_Ligand_Target_Heatmap.png`: Relationships between major Ligands and Target genes.
-*   `NicheNet_Circos_LR.pdf`: Ligand-Receptor interaction Circos plot.
-*   `analysis_summary.qs`: Analysis metadata summary.
+### 출력 파일 구조
+*   `nichenet_results.qs`: 전체 분석 결과 객체.
+*   `NicheNet_Ligand_Target_Heatmap.png`: 주요 Ligand와 Target 유전자 간의 관계.
+*   `NicheNet_Circos_LR.pdf`: Ligand-Receptor 상호작용 Circos plot.
+*   `analysis_summary.qs`: 분석 메타데이터 요약.
 
-### Related Scripts
-*   `myR/R/cci/run_cci_analysis.R`: Main analysis function.
-*   `scripts/cci/test_is5_downsample.R`: Downsampled data test script.
+### 관련 스크립트
+*   `myR/R/cci/run_cci_analysis.R`: 메인 분석 함수.
+*   `scripts/cci/test_is5_downsample.R`: 다운샘플링 데이터 테스트 스크립트.
 
