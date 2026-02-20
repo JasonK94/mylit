@@ -1,0 +1,23 @@
+=== System Info (SNUBH Server) ===
+Date exported: 2026-02-18
+
+OS: Ubuntu 22.04 LTS (Linux 5.15.0-164-generic)
+Architecture: x86_64
+GPU: NVIDIA RTX 4090 (24GB)
+
+R: 4.3.2 (/opt/R/4.3.2/)
+Python: via miniconda3 (/home/user3/miniconda3/)
+
+Conda environments used in this project:
+  scvi-tools  - Primary: scVI, scANVI, MELD, scCODA (pertpy), cNMF, scanpy
+  scvi-env    - Legacy: older scvi-tools version
+  cellbender-env - CellBender (ambient RNA removal)
+  demux_env   - Souporcell + Solo (demultiplexing)
+
+R library paths (in order):
+  1. /home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu  (renv)
+  2. /home/user3/R/x86_64-pc-linux-gnu-library/4.3                       (user)
+  3. /opt/R/4.3.2/lib/R/library                                          (system)
+
+Note: monocle3 is ONLY in renv path (not in user library).
+Must set .libPaths() before library(monocle3).

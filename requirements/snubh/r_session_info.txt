@@ -1,0 +1,38 @@
+=== R Version ===
+R version 4.3.2 (2023-10-31) 
+
+=== Library Paths ===
+/home/user3/GJC_KDW_250721/renv/library/R-4.3/x86_64-pc-linux-gnu
+/home/user3/R/x86_64-pc-linux-gnu-library/4.3
+/opt/R/4.3.2/lib/R/library 
+
+=== Installed Packages ===
+  1112 packages exported
+
+=== Key Package Versions ===
+  Seurat                    5.3.1
+  SeuratObject              5.2.0
+  qs                        0.27.3
+  dplyr                     1.1.4
+  ggplot2                   3.5.2
+  Matrix                    1.6.5
+  lme4                      1.1.37
+  speckle                   1.2.0
+  miloR                     1.10.0
+  SingleCellExperiment      1.24.0
+  scran                     1.30.2
+  monocle3                  1.4.26
+  slingshot                 2.10.0
+  CellChat                  2.2.0
+  nichenetr                 2.2.1.1
+  multinichenetr            2.1.0
+  muscat                    1.16.0
+  nebula                    1.5.6
+  MAST                      1.28.0
+  DESeq2                    1.42.1
+  edgeR                     4.0.16
+  ComplexHeatmap            2.18.0
+  MOFA2                     1.12.1
+  Augur                     1.0.3
+  NMF                       0.27
+  glmGamPoi                 1.14.3
