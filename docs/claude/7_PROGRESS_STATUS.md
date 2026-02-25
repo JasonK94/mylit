@@ -1,6 +1,6 @@
 # Progress Status — stroke_hc_v8_2
 
-> Updated: 2026-02-19 | 전체 분석 진행 현황 및 시각화 결과물 정리
+> Updated: 2026-02-20 | 전체 분석 진행 현황 및 시각화 결과물 정리
 
 ---
 
@@ -192,13 +192,48 @@
 - **Interpretation**: L1 has strong expression shifts (AUC 0.6-0.86); L2 shows subtle g3 effects
 - Output: `results/augur/` (3 PNG + 3 CSV)
 
----
+### Phase 15: propeller (Compositional DA) ✅
+- **L1 + L2**: Logit-transformed proportions + limma
+- Output: `frequency/propeller/` (2 PNG + 2 CSV)
 
-## 진행 중 / 실패 (In Progress / Failed)
+### Phase 16: Subclustering ✅
+- **3 compartments**: Monocyte (12 SC), CD4 T (17 SC), CD8 T (16 SC)
+- **Subcluster biological annotation**: ✅ All subclusters named with biological identities
+  - Monocyte: Classical (3 states), Inflammatory (2), Non-classical (3), S100A-high, contamination (2)
+  - CD4: TEM, Naive, TCM, NK-like (2), CTL (2), Th1 (2), Treg, gdT-like, contamination (2)
+  - CD8: TEM (4 states), Naive (2), TEMRA, NKT-like, NK-like, TCM, MAIT, gdT, contamination (2)
+- **Subcluster frequency**: L1 30/45 significant, L2 0/45 (confirms g3 = expression not composition)
+- Output: `subclustering/{Monocyte,CD4_T,CD8_T}/` (annotations, UMAPs, DotPlots, annotated .qs)
 
-| 분석 | 상태 | 세부 | 비고 |
-|------|------|------|------|
-| MASC anno1 × project_name | 🔄 실행 중 | Low priority | |
+### Phase 17: cNMF GEP Naming ✅
+- **155 GEPs across 16 cell types named** with biological pathway labels (GSEA-based)
+- 92/155 significant in L1, 49/155 in L2
+- Top Stroke-up: CD16+ Mono IFN response (logFC=3.25), ISG+ Myeloid TNFa (logFC=2.03)
+- Top Stroke-down: CD14+ Mono TGFb/TNFa (logFC=-3.72)
+- Output: `unbiased/cnmf/downstream/gep_named.csv`, `plots/gep_*.png`
+
+### Phase 18: CCI Method Integration ✅
+- **CellChat × MNN × LIANA cross-referenced**
+- L1: 10 double-concordant interactions, 2 triple genes (ANXA1, FPR1)
+- Top pathways (3-method): MIF (1.54), GALECTIN (1.39), RESISTIN (1.05), ANNEXIN (1.03)
+- Pairwise: CellChat-LIANA r=0.578, MNN-LIANA r=0.545
+- Output: `cci/plots/integrated_summary/` (9 PNG + 7 CSV + summary report)
+
+### Phase 19: Folder Reorganization ✅
+- **Entire stroke/ directory restructured** into 7 categories:
+  - `frequency/` (MASC, milo, meld, augur, sccoda, propeller, scanvi)
+  - `cci/` (cellchat, mnn, liana, cci_deg_crossref, integrated_summary)
+  - `unbiased/` (cnmf, fgs, mofa, summary)
+  - `deg/` (consensus, pathway, FindMarkers, external_validation)
+  - `trajectory/` (v1, v2, v3)
+  - `subclustering/` (Monocyte, CD4_T, CD8_T, frequency)
+  - `pipeline/` (P0_PIPE, integration, annotation_qc)
+- Scripts organized: `scripts/{cci,deg,descriptive,frequency,pipeline,trajectory,unbiased,claude}/`
+
+### Phase 20: Paper Figure Strategy ✅
+- **7 main figures + 10 supplementary + 11 tables** designed
+- Figure strategy: `docs/FIGURE_STRATEGY.md`
+- v3 paper figures: 🔄 Generation in progress (`figures/v3_paper/`)
 
 ---
 
@@ -206,15 +241,16 @@
 
 | 분석 | 우선순위 | 비고 |
 |------|---------|------|
-| Subclustering (Mono, CD4, CD8) | Medium | anno1 세분화 |
-| LIANA (CCI alternative) | Low | MNN 작동하므로 우선순위 하락 |
-| MOFA+ (multi-omics factor) | Low | Patient-level latent factors |
-| scANVI (reference mapping) | Low | 추가 분석 |
 | propeller / DirichletReg | Low | Additional compositional methods |
+| ~~Subclustering~~ | ~~Medium~~ | ✅ 완료 — 3 compartments |
+| ~~LIANA~~ | ~~Low~~ | ✅ 완료 — 5-method CCI consensus |
+| ~~MOFA+~~ | ~~Low~~ | ✅ 완료 — 4 factors, Factor1=cohort |
+| ~~scANVI~~ | ~~Low~~ | ✅ 완료 — 97.3% label agreement |
 | ~~CCI × DEG cross-reference~~ | ~~High~~ | ✅ 완료 |
 | ~~MELD~~ | ~~Low~~ | ✅ 완료 |
 | ~~Augur~~ | ~~Low~~ | ✅ 완료 |
 | ~~cNMF re-run~~ | ~~Medium~~ | ✅ 16/16 cell types consensus completed |
+| ~~cNMF downstream~~ | ~~Medium~~ | ✅ 완료 — GSEA annotation + condition association |
 | ~~External validation~~ | ~~Medium~~ | ✅ 완료 — 3 datasets |
 
 ---
@@ -347,6 +383,142 @@ results/cnmf/
 └── ... (16 cell types total)
 ```
 
+### Phase 15: cNMF Downstream (GEP Annotation + Condition Association) ✅
+- **GSEA annotation**: fgsea on 4 gene set collections (HALLMARK, KEGG, REACTOME, GOBP)
+  - 200,736 total GSEA results, **20,561 significant** enrichments (p.adj < 0.05)
+  - 155/176 GEPs successfully annotated (≥1 significant pathway)
+- **Condition association**: GEP usage ~ cohort (L1) and g3 (L2) via Wilcoxon test
+  - L1 (cohort): 144 condition-associated GEPs
+  - L2 (g3): 102 condition-associated GEPs
+- **Key findings**:
+  - Inflammatory Monocyte GEP5 = TNFa/NFkB signaling (HALLMARK NES=3.81, FDR=9.65e-50)
+  - CD14+ Monocyte GEP4 = TNFa/NFkB signaling (HALLMARK NES=3.87, FDR=8.23e-56)
+  - Multiple immune activation programs enriched in Stroke/Bad outcome
+- Output: `results/cnmf/downstream/` (plots/, gsea/, condition_association/)
+```
+results/cnmf/downstream/
+├── gsea/
+│   ├── gsea_all_results.csv         # 200,736 total results
+│   ├── gsea_significant.csv         # 20,561 significant enrichments
+│   └── gsea_top_per_gep.csv         # Top pathway per GEP
+├── condition_association/
+│   ├── gep_condition_L1_cohort.csv  # 144 associated (Wilcoxon)
+│   └── gep_condition_L2_g3.csv      # 102 associated
+├── gep_annotations.csv              # 155 annotated GEPs
+└── plots/
+    ├── 01_gep_hallmark_heatmap.png  # NES heatmap (GEP × HALLMARK)
+    ├── 02_gep_condition_L1.png      # GEP usage by cohort
+    ├── 03_gep_condition_L2.png      # GEP usage by g3
+    └── 04_top_genes_*.png           # Top spectra genes (5 cell types)
+```
+
+### Phase 16: MOFA+ (Patient-Level Factor Analysis) ✅
+- **Multi-view**: 6 views (Bc, DC, Mono, NKc, Platelet-PLA, Tc) × 79 patients
+- **4 active factors** (out of 15 requested; 11 removed as inactive)
+- **Factor 1 = Cohort effect** (p=3.5e-11, Wilcoxon)
+  - 26.5% variance in Mono, 17.3% in DC, 15.9% in NKc, 13.3% in Tc, 13.0% in Bc
+  - Top Mono weights: LINC-PINT, MBP, CDKN1A (positive/HC); S100A8, S100A9, S100A12 (negative/Stroke)
+  - Factor-age correlation: r=-0.345
+- **Factor 2 = Platelet-PLA-specific** (19.8% variance; no cohort/g3 association)
+  - NKG7, RPL3, RPS18 (positive); TUBB1, GP9 (negative) → platelet-leukocyte aggregate signature
+- **No g3 association** for any factor (all p > 0.7)
+- Output: `results/mofa/`
+```
+results/mofa/
+├── mofa_model.hdf5                # Raw MOFA model
+├── mofa_model.qs                  # R-ready MOFA model
+├── mofa_L{1,2}_*.csv              # Factor values, weights, variance, associations
+├── weights_{Bc,DC,Mono,NKc,Platelet-PLA,Tc}.csv  # Per-view gene weights
+├── 01_variance_explained.png      # Variance explained per factor × view
+├── 01b_total_variance.png         # Total variance per view
+├── 02_factors_by_cohort.png       # Factor distributions HC vs Stroke
+├── 03_factors_by_g3.png           # Factor distributions Good vs Bad
+├── 04_top_weights_*.png           # Top gene weights per factor (6 views)
+└── 05_factor_correlations.png     # Factor correlation matrix
+```
+
+### Phase 17: Subclustering (Deep Resolution) ✅
+- **3 compartments**: Monocyte, CD4 T, CD8 T
+- Uses original `umap.scvi` embeddings (no recomputation)
+- Multiple resolutions tested (0.3, 0.5, 0.8, 1.0); working res=0.5
+
+| Compartment | Cells | Subclusters | Markers | Top cohort subcluster |
+|-------------|-------|-------------|---------|----------------------|
+| **Monocyte** | 61,624 | 12 | 8,784 | SC1 (OR=956, HC-enriched), SC7 (OR=8.0, HC) |
+| **CD4 T** | 51,214 | 17 | 9,362 | SC5 (OR=148, HC), SC6 (OR=44.7, HC) |
+| **CD8 T** | 35,295 | 16 | 7,509 | SC1 (OR=177, HC), SC2 (OR=94.1, HC) |
+
+- **g3 associations (IS only)**:
+  - Mono: SC2 (OR=403, Bad), SC3 (OR=193, Bad), SC0 (OR=0.15, Good)
+  - CD4 T: SC3 (OR=18.6, Bad), SC10 (OR=11.9, Bad), SC8 (OR=0.23, Good)
+  - CD8 T: SC8 (OR=20.6, Bad), SC11 (OR=8.3, Bad), SC6 (OR=0.17, Good)
+- Output: `results/subclustering/{Monocyte,CD4_T,CD8_T}/`
+```
+results/subclustering/{compartment}/
+├── 01_umap_overview.png           # UMAP by subcluster + anno1 + cohort
+├── 02_resolution_comparison.png   # res=0.3/0.5/0.8/1.0
+├── 03_top_markers_heatmap.png     # Top 5 markers per subcluster
+├── 04_frequency_barplot.png       # HC vs Stroke subcluster frequency
+├── 05_frequency_g3_barplot.png    # Good vs Bad subcluster frequency
+├── 06_dotplot_key_genes.png       # Compartment-specific marker DotPlot
+├── 07_anno1_composition.png       # anno1 composition per subcluster
+├── markers_all.csv                # FindAllMarkers results
+└── {compartment}_subclustered.qs  # Seurat object with subclusters
+```
+
+### Phase 18: LIANA (Multi-Method CCI Consensus) ✅
+- **5 methods**: natmi, connectome, sca, logfc, cellphonedb
+- Rank aggregation via `liana_aggregate()`
+- **L1 (HC vs Stroke)**:
+  - HC: 6,755 interactions; Stroke: 3,825 interactions (Mast_cell removed, <5 cells)
+  - Top HC: Tc→Platelet/PLA IL32-ITGB3, PF4-LRP1
+  - Gained in Stroke: HLA-B→KLRD1 (DC→NKc), B2M→KIR2DL1 (Tc→NKc), S100A9→TLR4 (Mono→DC)
+  - Lost in Stroke: Mast_cell interactions (removed), SPARC-ENG (Platelet→Mono)
+- **L2 (Good vs Bad)**:
+  - Good: 3,987 interactions; Bad: 3,845 interactions
+  - Key differences: PF4-LDLR lost in Bad, SPARC-ENG gained in Bad, SNCA-LAG3 gained in Bad
+- Output: `results/liana/`
+```
+results/liana/
+├── L1_{HC,Stroke}_anno2_liana_agg.csv   # Aggregated ranks
+├── L1_{HC,Stroke}_anno2_liana_raw.rds   # Full LIANA output
+├── L1_{HC,Stroke}_anno2_top50.csv       # Top 50 interactions
+├── L1_comparison_rank_diff.csv          # Rank difference analysis
+├── L1_rank_comparison_scatter.png       # HC vs Stroke rank scatter
+├── L2_{Good,Bad}_anno2_liana_agg.csv
+├── L2_{Good,Bad}_anno2_liana_raw.rds
+├── L2_{Good,Bad}_anno2_top50.csv
+├── L2_comparison_rank_diff.csv
+└── L2_rank_comparison_scatter.png
+```
+
+### Phase 19: scANVI (Label-Aware Integration) ✅
+- **scVI base model**: 200 epochs, Final ELBO 4215.6 (n_latent=30, n_layers=2, NB likelihood)
+- **scANVI**: 100 epochs from scVI base, unlabeled_category="Unknown"
+- **Label agreement**: **97.3%** overall (scANVI predictions match anno1)
+  - Highest: cDC1 (100%), cDC2 (98.9%), CD14+ Mono (98.7%), CD8+ T_Cytotoxic (98.2%)
+  - Lowest: Mast_cell (86.4%, small N), CD4_S100A8_CSF3R (92.0%), CD4_S100A8_CD14 (94.0%)
+- **Silhouette scores** (50K subsample):
+  - Label: scVI=0.004, scANVI=**0.043** (10x better cell type separation)
+  - Batch: scVI=-0.023, scANVI=-0.052 (both good, scANVI slightly better mixing)
+- **Interpretation**: Annotation highly consistent — scANVI independently recovers 97.3% of manual labels
+  - Low-agreement types (CD4_S100A8_*) confirm these are ambiguous/transitional populations
+  - Validates anno1 quality for all downstream analyses
+- Output: `results/scanvi/`
+```
+results/scanvi/
+├── scanvi_model/                  # Trained scANVI model
+├── adata_scanvi.h5ad              # 7.3 GB annotated h5ad
+├── scanvi_latent.csv              # 205K × 30 latent dimensions
+├── scanvi_predictions.csv         # Predicted vs actual labels
+├── scanvi_per_type_agreement.csv  # Per cell type agreement
+├── scanvi_metrics.csv             # Silhouette + agreement metrics
+├── 01_scanvi_umap_overview.png    # UMAP: anno1, cohort, prediction
+├── 02_scvi_vs_scanvi_umap.png    # scVI vs scANVI UMAP comparison
+├── 03_confusion_matrix.png       # Prediction confusion matrix
+└── 04_silhouette_comparison.png  # Label + batch silhouette bars
+```
+
 ### scCODA Plots ✅
 ```
 results/sccoda/plots/
@@ -415,8 +587,12 @@ results/augur/
 11. **External validation**: FGS TOP50 signature (g3-derived) replicates in 3 independent bulk datasets (AUC 0.68-0.73); TOP25_DOWN achieves AUC up to 0.888
 12. **MELD concordance**: P(Stroke) highest in CD14+ Mono (0.889), Inflam Mono (0.869) — consistent with MASC/MILO/scCODA. P(Bad outcome) also peaks in CD14+ Mono (0.792)
 13. **Augur**: L1 strongly separable (AUC 0.61-0.86), L2 near random (AUC 0.50-0.62) — g3 effect is subtle, not global transcriptome shift
-14. **cNMF**: 16 cell types × 8-11 gene programs each — ready for condition-association analysis
+14. **cNMF downstream**: 155/176 GEPs annotated; Inflam Mono GEP5 = TNFa/NFkB (NES=3.81); 144 L1 + 102 L2 condition-associated programs
 15. **CCI × DEG**: 22.5% of CCI pathway genes are DE; key DE signaling genes: TGFB1 (ligand), CXCR4/CD44/IL21R (receptors)
+16. **MOFA+**: Factor1=Cohort (p=3.5e-11), 26.5% Mono variance; S100A8/A9/A12 drive Stroke signal; No g3 factor found
+17. **Subclustering**: Bad-outcome–enriched subclusters found in all 3 compartments: Mono SC2/SC3 (OR>190), CD4 SC3 (OR=18.6), CD8 SC8/SC11 (OR>8)
+18. **LIANA**: 5-method CCI consensus confirms HLA→KIR and S100A9→TLR4 as stroke-gained interactions; PF4-LDLR lost in bad outcome
+19. **scANVI**: 97.3% label agreement validates annotation quality; scANVI latent gives 10x better cell type silhouette (0.043 vs 0.004) while maintaining batch mixing
 
 ---
 
