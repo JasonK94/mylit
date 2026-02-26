@@ -90,6 +90,7 @@ git push origin main
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 `--prefix` 옵션을 매번 입력하는 대신 git alias를 설정하여 간단하게 사용할 수 있습니다:
 
 ```bash
@@ -112,6 +113,8 @@ git docs-push
 git docs-pull
 ```
 
+=======
+>>>>>>> fgs-refactoring
 ### alias 설정
 
 `--prefix` 옵션을 매번 입력하는 대신 git alias를 설정하여 간단하게 사용할 수 있습니다:

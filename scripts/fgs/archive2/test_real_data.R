@@ -229,24 +229,24 @@ if (length(fgs_results) > 0) {
                     fgs_seed = 42
                 )
                 cat("✓ LOGO CV Completed Successfully\n")
-
-                # [NEW] Outlier Analysis
-                if (exists("analyze_tml_outliers")) {
-                    cat("\n--- Outlier Analysis (LOGO) ---\n")
-                    try(
-                        {
-                            outliers <- analyze_tml_outliers(tml_logo)
-                            if (!is.null(outliers)) print(head(outliers))
-                        },
-                        silent = TRUE
-                    )
-                }
             },
             error = function(e) {
                 cat("✗ FAILED: LOGO CV\n")
                 cat("  Error:", conditionMessage(e), "\n")
             }
         )
+
+        # [NEW] Outlier Analysis
+        if (exists("tml_logo") && exists("analyze_tml_outliers")) {
+            cat("\n--- Outlier Analysis (LOGO) ---\n")
+            try(
+                {
+                    outliers <- analyze_tml_outliers(tml_logo)
+                    if (!is.null(outliers)) print(head(outliers))
+                },
+                silent = TRUE
+            )
+        }
     } else {
         cat("Skipping LOGO CV (No group variable)\n")
     }
