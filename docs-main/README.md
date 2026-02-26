@@ -15,6 +15,7 @@
 - 각 모듈의 역할, 입력/출력, 주요 방법론
 - 일반적인 분석 워크플로우 예시
 - 모듈별 상세 문서 링크
+- plots-dev worktree에서 추가된 `plot_umap_density()`로 UMAP 기반 빈도 비교 단계를 워크플로우에 쉽게 결합할 수 있습니다.
 
 ## 주요 모듈
 
@@ -28,6 +29,7 @@
 | **fgs** | Gene Signature Discovery | `docs/fgs/` |
 | **pt.umap** | Patient-Level Analysis | `docs/pt.umap/` |
 | **pseudotime** | Trajectory Inference | `docs/pseudotime-dev/` |
+| **plots** | Standardized visualization layer (scatter/UMAP/heatmap/box) | `docs/plots-dev/` |
 
 각 모듈의 상세한 사용법은 통합 가이드의 "Module Documentation" 섹션을 참조하세요.
 

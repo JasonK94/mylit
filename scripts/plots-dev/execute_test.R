@@ -5,7 +5,11 @@
 cat("=== Plot Function Test Execution ===\n\n")
 
 # Source test script
+<<<<<<< HEAD
 test_script <- "/data/user3/git_repo/_wt/plots/test_plots.R"
+=======
+test_script <- "/data/user3/git_repo/_wt/plots/scripts/plots-dev/test_plots.R"
+>>>>>>> plots-dev
 if (!file.exists(test_script)) {
   stop("Test script not found: ", test_script)
 }

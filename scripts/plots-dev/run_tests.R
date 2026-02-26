@@ -58,7 +58,11 @@ if (length(missing_functions) > 0) {
 cat("All functions loaded successfully!\n\n")
 
 # Source test function
+<<<<<<< HEAD
 source("/data/user3/git_repo/_wt/plots/test_plots.R")
+=======
+source("/data/user3/git_repo/_wt/plots/scripts/plots-dev/test_plots.R")
+>>>>>>> plots-dev
 
 # Try to find Seurat object
 cat("\nLooking for Seurat object...\n")

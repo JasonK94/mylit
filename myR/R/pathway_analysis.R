@@ -22,12 +22,13 @@
 #' @export
 convert_gene_ids <- function(genes, from = "SYMBOL", to = "ENTREZID") {
   # Convert gene symbols to other formats (ENTREZID, ENSEMBL, etc.)
-  converted <- bitr(genes, 
-                    fromType = from,
-                    toType = to,
-                    OrgDb = org.Hs.eg.db,
-                    drop = TRUE)
-  
+  converted <- bitr(genes,
+    fromType = from,
+    toType = to,
+    OrgDb = org.Hs.eg.db,
+    drop = TRUE
+  )
+
   # Remove duplicates and return mapping
   converted <- converted[!duplicated(converted[[from]]), ]
   return(converted)
@@ -54,30 +55,30 @@ prepare_gene_lists <- function(deg_df, fc_threshold = 0.25, p_use = "p_val_adj",
   if (!p_use %in% c("p_val_adj", "p_val")) {
     stop("p_use must be either 'p_val_adj' or 'p_val'")
   }
-  
+
   # Select p-value column
   p_col <- deg_df[[p_use]]
-  
+
   # Filter significant genes
   sig_genes <- deg_df %>%
     filter(abs(avg_log2FC) >= fc_threshold & p_col < pval_threshold)
-  
+
   # Create ranked gene list for GSEA (all genes)
   ranked_genes <- deg_df %>%
     arrange(desc(avg_log2FC)) %>%
     pull(avg_log2FC, name = gene)
-  
+
   # Significant gene lists for GO
   up_genes <- sig_genes %>%
     filter(avg_log2FC > 0) %>%
     pull(gene)
-  
+
   down_genes <- sig_genes %>%
     filter(avg_log2FC < 0) %>%
     pull(gene)
-  
+
   all_sig_genes <- sig_genes$gene
-  
+
   return(list(
     ranked = ranked_genes,
     up = up_genes,
@@ -91,7 +92,7 @@ prepare_gene_lists <- function(deg_df, fc_threshold = 0.25, p_use = "p_val_adj",
 #'
 #' Returns available pathway database identifiers for enrichment analysis.
 #'
-#' @param pathway_set Character vector of specific pathway sets to return, 
+#' @param pathway_set Character vector of specific pathway sets to return,
 #'   or NULL to return all available sets
 #' @param species Character string specifying species (default: "Homo sapiens")
 #' @return Character vector of pathway set identifiers
@@ -105,7 +106,7 @@ get_pathway_sets <- function(pathway_set = NULL, species = "Homo sapiens") {
   # Define available pathway sets
   available_sets <- list(
     "GO_BP" = "GO Biological Process",
-    "GO_MF" = "GO Molecular Function", 
+    "GO_MF" = "GO Molecular Function",
     "GO_CC" = "GO Cellular Component",
     "KEGG" = "KEGG",
     "REACTOME" = "Reactome",
@@ -117,7 +118,7 @@ get_pathway_sets <- function(pathway_set = NULL, species = "Homo sapiens") {
     "C5_CC" = "MSigDB C5 GO CC",
     "H" = "MSigDB Hallmark"
   )
-  
+
   if (is.null(pathway_set)) {
     return(names(available_sets))
   } else {
@@ -128,29 +129,30 @@ get_pathway_sets <- function(pathway_set = NULL, species = "Homo sapiens") {
 #' Run GO Enrichment Analysis
 #'
 #' Performs Gene Ontology enrichment analysis using clusterProfiler.
+#' Note: No p-value filtering is applied; filter results post-hoc as needed.
 #'
 #' @param genes Character vector of gene symbols for analysis
 #' @param gene_type Character string describing gene set type (for logging)
 #' @param ont Character string specifying GO ontology: "BP", "MF", or "CC"
 #' @param background Character vector of background genes (optional)
-#' @param pval_cutoff Numeric p-value cutoff for significance (default: 0.05)
+#' @param min_size Minimum gene set size (default: 0, no filtering)
+#' @param max_size Maximum gene set size (default: Inf, no filtering)
 #' @return enrichResult object from clusterProfiler, or NULL if no results
 #' @examples
 #' \dontrun{
 #' go_result <- run_go_analysis(c("TP53", "BRCA1"), ont = "BP")
 #' }
 #' @export
-run_go_analysis <- function(genes, gene_type = "all", ont = "BP", 
-                            background = NULL, pval_cutoff = 0.05) {
-  
+run_go_analysis <- function(genes, gene_type = "all", ont = "BP",
+                            background = NULL, min_size = 0, max_size = Inf) {
   # Convert gene symbols to ENTREZID
   gene_ids <- convert_gene_ids(genes, from = "SYMBOL", to = "ENTREZID")
-  
+
   if (nrow(gene_ids) == 0) {
     warning("No genes could be converted to ENTREZID")
     return(NULL)
   }
-  
+
   # Convert background if provided
   if (!is.null(background)) {
     bg_ids <- convert_gene_ids(background, from = "SYMBOL", to = "ENTREZID")
@@ -158,43 +160,48 @@ run_go_analysis <- function(genes, gene_type = "all", ont = "BP",
   } else {
     universe <- NULL
   }
-  
-  # Run GO enrichment
-  go_result <- enrichGO(gene = gene_ids$ENTREZID,
-                        OrgDb = org.Hs.eg.db,
-                        ont = ont,
-                        pAdjustMethod = "BH",
-                        pvalueCutoff = pval_cutoff,
-                        qvalueCutoff = 0.2,
-                        universe = universe,
-                        readable = TRUE)
-  
+
+  # Run GO enrichment (no pvalue filtering - filter post-hoc)
+  go_result <- enrichGO(
+    gene = gene_ids$ENTREZID,
+    OrgDb = org.Hs.eg.db,
+    ont = ont,
+    pAdjustMethod = "BH",
+    pvalueCutoff = 1.0,
+    qvalueCutoff = 1.0,
+    minGSSize = min_size,
+    maxGSSize = if (is.infinite(max_size)) 10000 else max_size,
+    universe = universe,
+    readable = TRUE
+  )
+
   return(go_result)
 }
 
 #' Run KEGG Pathway Analysis
 #'
 #' Performs KEGG pathway enrichment analysis using clusterProfiler.
+#' Note: No p-value filtering is applied; filter results post-hoc as needed.
 #'
 #' @param genes Character vector of gene symbols for analysis
 #' @param background Character vector of background genes (optional)
-#' @param pval_cutoff Numeric p-value cutoff for significance (default: 0.05)
+#' @param min_size Minimum gene set size (default: 0, no filtering)
+#' @param max_size Maximum gene set size (default: Inf, no filtering)
 #' @return enrichResult object from clusterProfiler, or NULL if no results
 #' @examples
 #' \dontrun{
 #' kegg_result <- run_kegg_analysis(c("TP53", "BRCA1"))
 #' }
 #' @export
-run_kegg_analysis <- function(genes, background = NULL, pval_cutoff = 0.05) {
-  
+run_kegg_analysis <- function(genes, background = NULL, min_size = 0, max_size = Inf) {
   # Convert to ENTREZID
   gene_ids <- convert_gene_ids(genes, from = "SYMBOL", to = "ENTREZID")
-  
+
   if (nrow(gene_ids) == 0) {
     warning("No genes could be converted to ENTREZID")
     return(NULL)
   }
-  
+
   # Convert background if provided
   if (!is.null(background)) {
     bg_ids <- convert_gene_ids(background, from = "SYMBOL", to = "ENTREZID")
@@ -202,30 +209,35 @@ run_kegg_analysis <- function(genes, background = NULL, pval_cutoff = 0.05) {
   } else {
     universe <- NULL
   }
-  
-  # Run KEGG enrichment
-  kegg_result <- enrichKEGG(gene = gene_ids$ENTREZID,
-                            organism = 'hsa',
-                            pvalueCutoff = pval_cutoff,
-                            pAdjustMethod = "BH",
-                            universe = universe)
-  
+
+  # Run KEGG enrichment (no pvalue filtering - filter post-hoc)
+  kegg_result <- enrichKEGG(
+    gene = gene_ids$ENTREZID,
+    organism = "hsa",
+    pvalueCutoff = 1.0,
+    pAdjustMethod = "BH",
+    minGSSize = min_size,
+    maxGSSize = if (is.infinite(max_size)) 10000 else max_size,
+    universe = universe
+  )
+
   # Convert back to readable gene symbols
   if (!is.null(kegg_result) && nrow(kegg_result@result) > 0) {
     kegg_result <- setReadable(kegg_result, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
   }
-  
+
   return(kegg_result)
 }
 
 #' Run Gene Set Enrichment Analysis (GSEA)
 #'
 #' Performs GSEA using fgsea with MSigDB gene sets.
+#' Note: No p-value filtering is applied; filter results post-hoc as needed.
 #'
 #' @param ranked_genes Named numeric vector of genes ranked by fold change
 #' @param pathway_set Character string specifying pathway database (default: "H")
-#' @param min_size Minimum gene set size (default: 15)
-#' @param max_size Maximum gene set size (default: 500)
+#' @param min_size Minimum gene set size (default: 0, no filtering)
+#' @param max_size Maximum gene set size (default: Inf, no filtering)
 #' @return Data frame with GSEA results
 #' @examples
 #' \dontrun{
@@ -234,9 +246,8 @@ run_kegg_analysis <- function(genes, background = NULL, pval_cutoff = 0.05) {
 #' gsea_result <- run_gsea_analysis(ranked_genes, pathway_set = "H")
 #' }
 #' @export
-run_gsea_analysis <- function(ranked_genes, pathway_set = "H", 
-                              min_size = 15, max_size = 500) {
-  
+run_gsea_analysis <- function(ranked_genes, pathway_set = "H",
+                              min_size = 0, max_size = Inf) {
   # Get MSigDB gene sets
   if (pathway_set == "H") {
     gene_sets <- msigdbr(species = "Homo sapiens", category = "H")
@@ -251,26 +262,32 @@ run_gsea_analysis <- function(ranked_genes, pathway_set = "H",
   } else if (pathway_set == "C5_CC") {
     gene_sets <- msigdbr(species = "Homo sapiens", category = "C5", subcategory = "GO:CC")
   } else {
-    gene_sets <- msigdbr(species = "Homo sapiens", category = "H")  # Default to Hallmark
+    gene_sets <- msigdbr(species = "Homo sapiens", category = "H") # Default to Hallmark
   }
-  
+
   # Convert to list format for fgsea
   gene_sets_list <- split(gene_sets$gene_symbol, gene_sets$gs_name)
-  
-  # Remove genes not in our dataset
+
+  # Remove genes not in our dataset (keep all pathway genes that exist in ranked_genes)
   gene_sets_list <- lapply(gene_sets_list, function(x) x[x %in% names(ranked_genes)])
-  gene_sets_list <- gene_sets_list[lengths(gene_sets_list) >= min_size & 
-                                     lengths(gene_sets_list) <= max_size]
-  
-  # Run GSEA using fgseaMultilevel (recommended)
-  gsea_result <- fgseaMultilevel(pathways = gene_sets_list,
-                                 stats = ranked_genes,
-                                 minSize = min_size,
-                                 maxSize = max_size)
-  
+  # Remove empty pathways only
+  gene_sets_list <- gene_sets_list[lengths(gene_sets_list) > 0]
+
+  # Run GSEA using fgseaMultilevel (only filter applied here)
+  # fgsea requires minSize >= 1
+  effective_min <- max(1, min_size)
+  effective_max <- if (is.infinite(max_size)) 50000 else max_size
+
+  gsea_result <- fgseaMultilevel(
+    pathways = gene_sets_list,
+    stats = ranked_genes,
+    minSize = effective_min,
+    maxSize = effective_max
+  )
+
   # Convert to data frame and fix data.table issues
   gsea_result <- as.data.frame(gsea_result)
-  
+
   return(gsea_result)
 }
 
@@ -280,7 +297,7 @@ run_gsea_analysis <- function(ranked_genes, pathway_set = "H",
 #'
 #' @param result Results object from pathway analysis
 #' @param analysis_type Character string specifying analysis type: "GO", "KEGG", or "GSEA"
-#' @return Data frame with standardized columns: pathway, description, p_value, 
+#' @return Data frame with standardized columns: pathway, description, p_value,
 #'   adj_p_value, effect_size, gene_count, genes
 #' @examples
 #' \dontrun{
@@ -288,7 +305,6 @@ run_gsea_analysis <- function(ranked_genes, pathway_set = "H",
 #' }
 #' @export
 format_results <- function(result, analysis_type = "GO") {
-  
   if (is.null(result)) {
     return(data.frame(
       pathway = character(0),
@@ -300,7 +316,7 @@ format_results <- function(result, analysis_type = "GO") {
       genes = character(0)
     ))
   }
-  
+
   if (analysis_type == "GSEA") {
     # Format GSEA results
     formatted <- result %>%
@@ -331,7 +347,7 @@ format_results <- function(result, analysis_type = "GO") {
         genes = character(0)
       ))
     }
-    
+
     formatted <- res_df %>%
       dplyr::arrange(p.adjust) %>%
       dplyr::select(ID, Description, pvalue, p.adjust, Count, geneID) %>%
@@ -344,16 +360,16 @@ format_results <- function(result, analysis_type = "GO") {
         genes = geneID
       ) %>%
       dplyr::mutate(
-        effect_size = -log10(p_value)  # Use -log10(p-value) as effect size for enrichment
+        effect_size = -log10(p_value) # Use -log10(p-value) as effect size for enrichment
       )
   }
-  
+
   return(formatted)
 }
 
 #' Comprehensive GO and GSEA Analysis
 #'
-#' Main function to perform comprehensive pathway enrichment analysis on 
+#' Main function to perform comprehensive pathway enrichment analysis on
 #' differential expression results from scRNA-seq data.
 #'
 #' @param DEG Data frame containing differential expression results with required columns:
@@ -368,141 +384,144 @@ format_results <- function(result, analysis_type = "GO") {
 #' @param fc_threshold Numeric threshold for log2 fold change significance (default: 0.25)
 #' @param p_use Character string specifying which p-value column to use: "p_val_adj" or "p_val" (default: "p_val_adj")
 #' @param pval_threshold Numeric threshold for p-value significance (default: 0.05)
-#' @param gsea_min_size Minimum gene set size for GSEA (default: 15)
-#' @param gsea_max_size Maximum gene set size for GSEA (default: 500)
+#' @param min_size Minimum gene set size for all analyses (default: 0, no filtering)
+#' @param max_size Maximum gene set size for all analyses (default: Inf, no filtering)
 #' @param return_plots Logical indicating whether to return plots (default: FALSE, not implemented)
-#' @return Named list containing analysis results for each method. Each element is a 
-#'   data frame with columns: pathway, description, p_value, adj_p_value, 
-#'   effect_size, gene_count, genes
+#' @return Named list containing analysis results for each method. Each element is a
+#'   data frame with columns: pathway, description, p_value, adj_p_value,
+#'   effect_size, gene_count, genes. Filter results post-hoc as needed.
 #' @examples
 #' \dontrun{
-#' # Basic usage
+#' # Basic usage (returns all results, filter post-hoc)
 #' results <- myGO(DEG = deg_dataframe, analysis_type = "ALL")
-#' 
-#' # Use raw p-values instead of adjusted
-#' results <- myGO(DEG = deg_dataframe, p_use = "p_val", analysis_type = "GSEA")
-#' 
+#'
+#' # Filter results after analysis
+#' sig_results <- results$GSEA_H %>% filter(adj_p_value < 0.05)
+#'
 #' # Focus on specific pathways
 #' stroke_results <- myGO(DEG = deg_dataframe, pathway = "INFLAMMATORY")
-#' 
+#'
 #' # Access specific results
 #' hallmark_gsea <- results$GSEA_H
 #' go_bp_up <- results$GO_BP_UP
 #' }
 #' @export
-myGO <- function(DEG = NULL, 
+myGO <- function(DEG = NULL,
                  seurat_obj = NULL,
-                 pathway_set = NULL, 
+                 pathway_set = NULL,
                  pathway = NULL,
                  analysis_type = c("GO", "KEGG", "GSEA", "ALL"),
                  go_ontology = c("BP", "MF", "CC"),
                  fc_threshold = 0.25,
                  p_use = "p_val_adj",
                  pval_threshold = 0.05,
-                 gsea_min_size = 15,
-                 gsea_max_size = 500,
+                 min_size = 0,
+                 max_size = Inf,
                  return_plots = FALSE) {
-  
   # Input validation
   analysis_type <- match.arg(analysis_type)
   go_ontology <- match.arg(go_ontology, several.ok = TRUE)
-  
+
   # Extract DEG dataframe if Seurat object provided
   if (!is.null(seurat_obj) && is.null(DEG)) {
     stop("Please provide the DEG dataframe. If you have a Seurat object, extract DEGs first using FindMarkers() or similar.")
   }
-  
+
   if (is.null(DEG)) {
     stop("Please provide either a DEG dataframe or Seurat object")
   }
-  
+
   # Validate DEG dataframe columns
   required_cols <- c("gene", "avg_log2FC", "p_val", "p_val_adj")
   if (!all(required_cols %in% colnames(DEG))) {
     stop(paste("DEG dataframe must contain columns:", paste(required_cols, collapse = ", ")))
   }
-  
+
   # Validate p_use parameter
   if (!p_use %in% c("p_val_adj", "p_val")) {
     stop("p_use must be either 'p_val_adj' or 'p_val'")
   }
-  
+
   # Prepare gene lists
   cat("Preparing gene lists...\n")
   gene_lists <- prepare_gene_lists(DEG, fc_threshold, p_use, pval_threshold)
-  
-  cat(sprintf("Found %d upregulated, %d downregulated, %d total significant genes\n",
-              length(gene_lists$up), length(gene_lists$down), length(gene_lists$all_sig)))
-  
+
+  cat(sprintf(
+    "Found %d upregulated, %d downregulated, %d total significant genes\n",
+    length(gene_lists$up), length(gene_lists$down), length(gene_lists$all_sig)
+  ))
+
   # Initialize results list
   results <- list()
-  
+
   # Determine which pathway sets to analyze
   if (is.null(pathway_set)) {
-    pathway_sets_to_analyze <- c("H")  # Default to Hallmark for GSEA
+    pathway_sets_to_analyze <- c("H") # Default to Hallmark for GSEA
   } else {
     pathway_sets_to_analyze <- get_pathway_sets(pathway_set)
   }
-  
+
   # Filter for specific pathway if requested
   if (!is.null(pathway)) {
     cat(sprintf("Analyzing specific pathway: %s\n", pathway))
   }
-  
+
   # Run analyses based on type requested
   if (analysis_type %in% c("GO", "ALL")) {
     cat("Running GO enrichment analysis...\n")
-    
+
     for (ont in go_ontology) {
       cat(sprintf("  - GO %s analysis...\n", ont))
-      
+
       # Upregulated genes
       if (length(gene_lists$up) > 0) {
-        go_up <- run_go_analysis(gene_lists$up, "up", ont, gene_lists$background, pval_threshold)
+        go_up <- run_go_analysis(gene_lists$up, "up", ont, gene_lists$background, min_size, max_size)
         if (!is.null(go_up)) {
           results[[paste0("GO_", ont, "_UP")]] <- format_results(go_up, "GO")
         }
       }
-      
+
       # Downregulated genes
       if (length(gene_lists$down) > 0) {
-        go_down <- run_go_analysis(gene_lists$down, "down", ont, gene_lists$background, pval_threshold)
+        go_down <- run_go_analysis(gene_lists$down, "down", ont, gene_lists$background, min_size, max_size)
         if (!is.null(go_down)) {
           results[[paste0("GO_", ont, "_DOWN")]] <- format_results(go_down, "GO")
         }
       }
-      
+
       # All significant genes
       if (length(gene_lists$all_sig) > 0) {
-        go_all <- run_go_analysis(gene_lists$all_sig, "all", ont, gene_lists$background, pval_threshold)
+        go_all <- run_go_analysis(gene_lists$all_sig, "all", ont, gene_lists$background, min_size, max_size)
         if (!is.null(go_all)) {
           results[[paste0("GO_", ont, "_ALL")]] <- format_results(go_all, "GO")
         }
       }
     }
   }
-  
+
   if (analysis_type %in% c("KEGG", "ALL")) {
     cat("Running KEGG enrichment analysis...\n")
-    
+
     # KEGG for significant genes
     if (length(gene_lists$all_sig) > 0) {
-      kegg_result <- run_kegg_analysis(gene_lists$all_sig, gene_lists$background, pval_threshold)
+      kegg_result <- run_kegg_analysis(gene_lists$all_sig, gene_lists$background, min_size, max_size)
       if (!is.null(kegg_result)) {
         results[["KEGG"]] <- format_results(kegg_result, "KEGG")
       }
     }
   }
-  
+
   if (analysis_type %in% c("GSEA", "ALL")) {
     cat("Running GSEA analysis...\n")
-    
+
     if (length(gene_lists$ranked) > 0) {
       for (pset in pathway_sets_to_analyze) {
         if (pset %in% c("H", "C2_KEGG", "C2_REACTOME", "C5_BP", "C5_MF", "C5_CC")) {
           cat(sprintf("  - GSEA %s analysis...\n", pset))
-          gsea_result <- run_gsea_analysis(gene_lists$ranked, pset, 
-                                           gsea_min_size, gsea_max_size)
+          gsea_result <- run_gsea_analysis(
+            gene_lists$ranked, pset,
+            min_size, max_size
+          )
           if (!is.null(gsea_result) && nrow(gsea_result) > 0) {
             results[[paste0("GSEA_", pset)]] <- format_results(gsea_result, "GSEA")
           }
@@ -510,22 +529,22 @@ myGO <- function(DEG = NULL,
       }
     }
   }
-  
+
   # Filter for specific pathway if requested
   if (!is.null(pathway)) {
     results <- lapply(results, function(x) {
       if (nrow(x) > 0) {
-        x[grepl(pathway, x$pathway, ignore.case = TRUE) | 
-            grepl(pathway, x$description, ignore.case = TRUE), ]
+        x[grepl(pathway, x$pathway, ignore.case = TRUE) |
+          grepl(pathway, x$description, ignore.case = TRUE), ]
       } else {
         x
       }
     })
-    
+
     # Remove empty results
     results <- results[sapply(results, nrow) > 0]
   }
-  
+
   # Print summary
   cat("\n=== Analysis Summary ===\n")
   for (name in names(results)) {
@@ -533,6 +552,6 @@ myGO <- function(DEG = NULL,
       cat(sprintf("%s: %d significant pathways\n", name, nrow(results[[name]])))
     }
   }
-  
+
   return(results)
 }

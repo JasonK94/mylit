@@ -1,10 +1,20 @@
 #!/usr/bin/env Rscript
-# Run tests with provided Seurat objects
-# Usage: Rscript run_test_with_data.R [downsampled|full]
+# Run tests with renv environment
+# This script should be run from the renv project directory (GJC_KDW_250721)
 
-cat("=== Plot Function Test with Provided Data ===\n\n")
+cat("=== Plot Function Test with renv Environment ===\n\n")
 
-# Check and load required packages first
+# Activate renv if available
+if (file.exists("renv/activate.R")) {
+  cat("Activating renv...\n")
+  source("renv/activate.R")
+  cat("renv activated\n\n")
+} else {
+  cat("Warning: renv not found in current directory\n")
+  cat("Current directory:", getwd(), "\n\n")
+}
+
+# Check and load required packages
 cat("Checking required packages...\n")
 required_packages <- c("Seurat", "ggplot2", "dplyr", "patchwork", "tidyr", "viridisLite", "RColorBrewer", "qs")
 missing_packages <- required_packages[!sapply(required_packages, requireNamespace, quietly = TRUE)]
@@ -23,18 +33,14 @@ library(qs)
 cat("All packages loaded successfully!\n\n")
 
 # Source test script
-<<<<<<< HEAD
-test_script <- "/data/user3/git_repo/_wt/plots/test_plots.R"
-=======
 test_script <- "/data/user3/git_repo/_wt/plots/scripts/plots-dev/test_plots.R"
->>>>>>> plots-dev
 if (!file.exists(test_script)) {
   stop("Test script not found: ", test_script)
 }
 
-# Source without loading packages again (they're already loaded)
-# Read the file and source only the test function
+cat("Sourcing test script...\n")
 source(test_script, local = TRUE)
+cat("Test script loaded\n\n")
 
 # Determine which file to use
 args <- commandArgs(trailingOnly = TRUE)
@@ -45,16 +51,10 @@ if (use_full) {
   output_dir <- "test_output_full"
   cat("Using FULL dataset\n")
 } else {
-<<<<<<< HEAD
-  sobj_path <- "/data/user3/sobj/IS_scvi_251107_ds2500.qs"
-  output_dir <- "test_output_ds2500"
-  cat("Using DOWNSAMPLED dataset (2500 cells)\n")
-=======
   # Use the small dataset from guide.md
   sobj_path <- "/data/user3/sobj/IS6_sex_added_0.1x_251110.qs"
   output_dir <- "test_output_small"
   cat("Using SMALL dataset (0.1x downsampled)\n")
->>>>>>> plots-dev
 }
 
 cat("Loading Seurat object from:", sobj_path, "\n")
@@ -65,10 +65,6 @@ if (!file.exists(sobj_path)) {
 }
 
 # Load qs file
-if (!requireNamespace("qs", quietly = TRUE)) {
-  stop("qs package required. Install with: install.packages('qs')")
-}
-
 cat("Loading...\n")
 sobj <- qs::qread(sobj_path)
 
