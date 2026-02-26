@@ -37,22 +37,45 @@ rmd/
 .env
 
 # data, logs, outputs...
+<<<<<<< HEAD
 *bin
+=======
+# *output*
+# *plots*
+# projects/
+# trash/
+# renv/
+# *renv*
+# *bin
+>>>>>>> milo
 *deprecated*
 results
 
+<<<<<<< HEAD
 # *.rds
 # *.log
 # *.pdf
 # *.png
+=======
+*.rds
+*.log
+*.pdf
+*.png
+>>>>>>> milo
 # *.csv
 # */data/*
 *.tar.gz
 *.gz
 *.qs
+<<<<<<< HEAD
 *.rds
 *.h5ad
 *.h5seurat
+=======
+# *sobj*
+*h5ad
+*h5seurat
+>>>>>>> milo
 *loom
 *mtx
 *mtx.gz
