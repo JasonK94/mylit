@@ -50,6 +50,7 @@ results
 *.tar.gz
 *.gz
 *.qs
+*.rds
 *.h5ad
 *.h5seurat
 *loom
