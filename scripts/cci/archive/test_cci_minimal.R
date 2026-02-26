@@ -17,10 +17,10 @@ for (pkg in pkgs) {
 # Try to source functions
 cat("\nLoading functions...\n")
 func_files <- c(
-  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/prepare_cci_data.R",
-  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/utils_cci.R",
-  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R",
-  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R"
+  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_prepare.R",
+  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_utils.R",
+  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_save.R",
+  "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_run.R"
 )
 
 for (f in func_files) {
@@ -38,8 +38,8 @@ for (f in func_files) {
 
 # Check if run_nichenet_analysis is available
 cat("\nChecking run_nichenet_analysis...\n")
-cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
-cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci_nichenet_wrapper.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/cci_nichenet_wrapper.R"
 cci_core_loaded <- FALSE
 for (candidate in c(cci_core_worktree, cci_core_mainrepo)) {
   if (file.exists(candidate)) {
@@ -55,7 +55,7 @@ for (candidate in c(cci_core_worktree, cci_core_mainrepo)) {
 if (cci_core_loaded && exists("run_nichenet_analysis")) {
   cat("  ✓ run_nichenet_analysis loaded\n")
 } else if (!cci_core_loaded) {
-  cat("  ✗ CCI.R file not found in worktree or main repository\n")
+  cat("  ✗ cci_nichenet_wrapper.R file not found in worktree or main repository\n")
 } else {
   cat("  ✗ run_nichenet_analysis not found after sourcing\n")
 }

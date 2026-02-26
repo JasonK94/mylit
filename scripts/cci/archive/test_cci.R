@@ -14,20 +14,20 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
 
 # 함수 소스 직접 로드 (devtools::load_all은 패키지 구조가 필요하므로 소스 로드 사용)
 # CCI 모듈 함수들
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/prepare_cci_data.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/utils_cci.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/save_cci_results.R")
-source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/run_cci_analysis.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_prepare.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_utils.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_save.R")
+source("/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci/cci_nichenet_run.R")
 
-# 기존 CCI.R 함수도 필요 (run_nichenet_analysis)
-cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R"
-cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+# 기존 cci_nichenet_wrapper.R 함수도 필요 (run_nichenet_analysis)
+cci_core_worktree <- "/home/user3/data_user3/git_repo/_wt/cci/myR/R/cci_nichenet_wrapper.R"
+cci_core_mainrepo <- "/home/user3/data_user3/git_repo/mylit/myR/R/cci_nichenet_wrapper.R"
 if (file.exists(cci_core_worktree)) {
   source(cci_core_worktree)
 } else if (file.exists(cci_core_mainrepo)) {
   source(cci_core_mainrepo)
 } else {
-  warning("CCI.R not found. run_nichenet_analysis may not be available.")
+  warning("cci_nichenet_wrapper.R not found. run_nichenet_analysis may not be available.")
 }
 
 # 필요한 패키지

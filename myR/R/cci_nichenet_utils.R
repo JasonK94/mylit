@@ -184,8 +184,8 @@ resume_cci_from_prepared <- function(prepared_data_file,
   # Check if run_nichenet_analysis is available
   if (!exists("run_nichenet_analysis")) {
     source_candidates <- c(
-      "/home/user3/data_user3/git_repo/_wt/cci/myR/R/CCI.R",
-      "/home/user3/data_user3/git_repo/mylit/myR/R/CCI.R"
+      "/home/user3/data_user3/git_repo/_wt/cellchat/myR/R/cci_nichenet_wrapper.R",
+      "/home/user3/data_user3/git_repo/mylit/myR/R/cci_nichenet_wrapper.R"
     )
     sourced <- FALSE
     for (candidate in source_candidates) {
@@ -197,7 +197,7 @@ resume_cci_from_prepared <- function(prepared_data_file,
       }
     }
     if (!sourced) {
-      stop("Cannot find run_nichenet_analysis function. Please ensure CCI.R is sourced.")
+      stop("Cannot find run_nichenet_analysis function. Please ensure cci_nichenet_wrapper.R is sourced.")
     }
   }
 
@@ -593,6 +593,7 @@ replot_nichenet_circos <- function(results_file = NULL,
     )
   )))
 }
+<<<<<<< HEAD:myR/R/utils_cci.R
 
 #' Load NicheNet Reference Data
 #'
@@ -815,3 +816,5 @@ save_plot_formats <- function(filename, outdir, width = 10, height = 8, plot_obj
   message("Saved plots: ", pdf_path, " / ", png_path)
   return(c(pdf = pdf_path, png = png_path))
 }
+=======
+>>>>>>> cc:myR/R/cci_nichenet_utils.R
