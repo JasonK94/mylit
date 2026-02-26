@@ -1,0 +1,1096 @@
+#' MASC pipeline orchestrator
+#'
+#' @description
+#' Wraps the MASC (Mixed-effects Association testing for Single Cells) workflow
+#' into reusable steps with configurable saving, force-run, and plotting behaviour.
+#' MASC tests whether a specified covariate influences the membership of single cells
+#' in any of multiple cellular subsets while accounting for technical confounds and
+#' biological variation using logistic mixed-effects models.
+#'
+#' The implementation is based on the original MASC package from
+#' https://github.com/immunogenomics/masc and adapted to work seamlessly with
+#' Seurat objects and integrate into the myR package ecosystem.
+#'
+#' @param seurat_obj A `Seurat` object already loaded in memory. If `NULL`,
+#'   `seurat_qs_path` must be provided.
+#' @param seurat_qs_path Optional path to a `.qs` file containing a `Seurat`
+#'   object. Used when `seurat_obj` is `NULL`.
+#' @param cluster_var Character string; metadata column name containing cluster
+#'   assignments for each cell.
+#' @param contrast_var Character string; metadata column name containing the
+#'   variable to be tested for association with cluster abundance (e.g., "status",
+#'   "treatment"). Must be a factor.
+#' @param random_effects Optional character vector; column names in metadata to be
+#'   modeled as random effects (e.g., c("donor_id", "batch")).
+#' @param fixed_effects Optional character vector; column names in metadata to be
+#'   modeled as fixed effects (e.g., c("age", "sex")).
+#' @param save Logical; if `TRUE` (default) intermediate objects are written to
+#'   disk using `qs::qsave()`.
+#' @param output_dir,prefix,suffix Configure save location. When `suffix` is
+#'   `NULL`, a numeric suffix (`"", "_1", ...`) is auto-generated to avoid
+#'   overwriting existing files.
+#' @param force_run Logical scalar or named logical vector controlling whether
+#'   each step (`preparation`, `analysis`) is recomputed even if cached files
+#'   are present.
+#' @param plotting Logical; if `TRUE` (default), generates visualization plots.
+#' @param save_models Logical; if `TRUE`, saves the mixed-effects model objects
+#'   for each cluster. Default is `FALSE`.
+#' @param adjust_pvalue Logical; if `TRUE` (default), applies FDR correction to
+#'   p-values using `p.adjust(method = "fdr")`.
+#' @param verbose Logical; emits progress messages when `TRUE`.
+#'
+#' @return A list with:
+#'   - `masc_results`: data frame with association p-values, OR, and CI for each cluster
+#'   - `models`: (optional) list of model objects for each cluster
+#'   - `plots`: (optional) list of ggplot objects; `NULL` when `plotting = FALSE`
+#'
+#' @references
+#' Fonseka et al. (2018) MASC: Mixed-effects Association testing for Single Cells.
+#' https://github.com/immunogenomics/masc
+#'
+#' @export
+run_masc_pipeline <- function(
+    seurat_obj = NULL,
+    seurat_qs_path = NULL,
+    cluster_var,
+    contrast_var,
+    random_effects = NULL,
+    fixed_effects = NULL,
+    save = TRUE,
+    output_dir = file.path(tempdir(), "masc"),
+    prefix = "masc",
+    suffix = NULL,
+    force_run = FALSE,
+    plotting = TRUE,
+    save_models = FALSE,
+    adjust_pvalue = TRUE,
+    verbose = TRUE
+) {
+    .masc_require_packages()
+
+    # Resolve Seurat object
+    input_seurat_obj <- seurat_obj
+    seurat_obj <- .masc_prepare_seurat(
+        seurat_obj = input_seurat_obj,
+        seurat_qs_path = seurat_qs_path,
+        verbose = verbose
+    )
+
+    force_flags <- .masc_normalize_force_flags(force_run)
+    paths <- .masc_resolve_paths(
+        output_dir = output_dir,
+        prefix = prefix,
+        suffix = suffix,
+        save = save
+    )
+
+    if (save) {
+        dir.create(paths$output_dir, recursive = TRUE, showWarnings = FALSE)
+    }
+
+    # Validate metadata columns
+    .masc_validate_metadata(
+        seurat_obj = seurat_obj,
+        cluster_var = cluster_var,
+        contrast_var = contrast_var,
+        random_effects = random_effects,
+        fixed_effects = fixed_effects
+    )
+
+    # ---- Step 1: Prepare data ----
+    has_cached_data <- save && file.exists(paths$files$data)
+    if (!force_flags["preparation"] && has_cached_data) {
+        if (verbose) {
+            if (verbose) cat(sprintf("Loading cached data from %s\n", paths$files$data))
+        }
+        masc_data <- qs::qread(paths$files$data)
+    } else {
+        if (verbose) cat("Preparing data for MASC analysis.\n")
+        masc_data <- .masc_prepare_data(
+            seurat_obj = seurat_obj,
+            cluster_var = cluster_var,
+            contrast_var = contrast_var,
+            random_effects = random_effects,
+            fixed_effects = fixed_effects,
+            verbose = verbose
+        )
+        if (save) {
+            qs::qsave(masc_data, paths$files$data)
+            if (verbose) cat(sprintf("Saved data to %s\n", paths$files$data))
+        }
+    }
+
+    # ---- Step 2: Run MASC analysis ----
+    has_cached_results <- save && file.exists(paths$files$results)
+    if (!force_flags["analysis"] && has_cached_results) {
+        if (verbose) {
+            if (verbose) cat(sprintf("Loading cached MASC results from %s\n", paths$files$results))
+        }
+        masc_results <- qs::qread(paths$files$results)
+        cluster_models <- NULL
+        if (save_models && file.exists(paths$files$models)) {
+            cluster_models <- qs::qread(paths$files$models)
+        }
+    } else {
+        if (verbose) cat("Running MASC analysis.\n")
+        masc_bundle <- .masc_run_analysis(
+            dataset = masc_data$dataset,
+            cluster = masc_data$cluster,
+            contrast = contrast_var,
+            random_effects = random_effects,
+            fixed_effects = fixed_effects,
+            save_models = save_models,
+            save_model_dir = if (save_models) paths$output_dir else NULL,
+            verbose = verbose
+        )
+        masc_results <- masc_bundle$results
+        cluster_models <- masc_bundle$models
+
+        # Apply FDR correction if requested
+        if (adjust_pvalue && "model.pvalue" %in% names(masc_results)) {
+            masc_results$model.pvalue.fdr <- p.adjust(masc_results$model.pvalue, method = "fdr")
+            if (verbose) {
+                n_sig <- sum(masc_results$model.pvalue.fdr < 0.05, na.rm = TRUE)
+                if (verbose) cat(sprintf("FDR correction applied: %d clusters with FDR < 0.05\n", n_sig))
+            }
+        }
+        
+        # Store formula in masc_results for plotting
+        formula_str <- paste0(cluster_var, " ~ ", contrast_var)
+        if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+            formula_str <- paste0(formula_str, " + ", paste(fixed_effects, collapse = " + "))
+        }
+        if (!is.null(random_effects) && length(random_effects) > 0) {
+            formula_str <- paste0(formula_str, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+        }
+        attr(masc_results, "formula") <- formula_str
+
+        if (save) {
+            qs::qsave(masc_results, paths$files$results)
+            if (verbose) cat(sprintf("Saved MASC results to %s\n", paths$files$results))
+            if (save_models && !is.null(cluster_models)) {
+                qs::qsave(cluster_models, paths$files$models)
+                if (verbose) cat(sprintf("Saved model objects to %s\n", paths$files$models))
+            }
+        }
+    }
+
+    # ---- Step 3: Generate plots ----
+    plots <- NULL
+    if (plotting) {
+        if (verbose) cat("Generating MASC plots.\n")
+        plots <- .masc_plot_bundle(
+            masc_results = masc_results,
+            cluster_var = cluster_var,
+            contrast_var = contrast_var,
+            save = save,
+            save_path = paths$files$plots,
+            verbose = verbose,
+            fixed_effects = fixed_effects,
+            random_effects = random_effects
+        )
+    }
+
+    # Return results
+    result_list <- list(
+        masc_results = masc_results
+    )
+    if (save_models && !is.null(cluster_models)) {
+        result_list$models <- cluster_models
+    }
+    if (!is.null(plots)) {
+        result_list$plots <- plots
+    }
+
+    result_list
+}
+
+# ==============================================================================
+# Helper Functions
+# ==============================================================================
+
+.masc_require_packages <- function() {
+    pkgs <- c("Seurat", "lme4", "Matrix", "qs", "cli", "ggplot2", "dplyr")
+    missing <- pkgs[!vapply(pkgs, requireNamespace, quietly = TRUE, FUN.VALUE = logical(1))]
+    if (length(missing) > 0) {
+        stop("Missing required packages: ", paste(missing, collapse = ", "),
+             ". Install with: install.packages(c('", paste(missing, collapse = "', '"), "'))")
+    }
+}
+
+.masc_prepare_seurat <- function(seurat_obj, seurat_qs_path, verbose) {
+    if (!is.null(seurat_obj)) {
+        if (!inherits(seurat_obj, "Seurat")) {
+            stop("`seurat_obj` must be a Seurat object.")
+        }
+        return(seurat_obj)
+    }
+    if (!is.null(seurat_qs_path)) {
+        if (!file.exists(seurat_qs_path)) {
+            stop(sprintf("File not found: %s", seurat_qs_path))
+        }
+        if (verbose) cat(sprintf("Loading Seurat object from %s\n", seurat_qs_path))
+        return(qs::qread(seurat_qs_path))
+    }
+    stop("Either `seurat_obj` or `seurat_qs_path` must be provided.")
+}
+
+.masc_normalize_force_flags <- function(force_run) {
+    # Initialize flags
+    flags <- c(preparation = FALSE, analysis = FALSE)
+    
+    if (is.logical(force_run) && length(force_run) == 1) {
+        flags["preparation"] <- force_run
+        flags["analysis"] <- force_run
+    } else if (is.logical(force_run) && length(force_run) > 1 && !is.null(names(force_run))) {
+        if ("preparation" %in% names(force_run)) flags["preparation"] <- force_run["preparation"]
+        if ("analysis" %in% names(force_run)) flags["analysis"] <- force_run["analysis"]
+        # Handle default/all if present
+        if ("all" %in% names(force_run)) {
+            flags["preparation"] <- force_run["all"]
+            flags["analysis"] <- force_run["all"]
+        }
+    }
+    return(flags)
+}
+
+.masc_resolve_paths <- function(output_dir, prefix, suffix, save) {
+    if (!save) {
+        return(list(
+            output_dir = output_dir,
+            files = list()
+        ))
+    }
+
+    base_paths <- list(
+        data = file.path(output_dir, paste0(prefix, "_data.qs")),
+        results = file.path(output_dir, paste0(prefix, "_results.qs")),
+        models = file.path(output_dir, paste0(prefix, "_models.qs")),
+        plots = file.path(output_dir, paste0(prefix, "_plots.qs"))
+    )
+
+    # Auto-generate suffix if needed
+    if (is.null(suffix)) {
+        suffix <- ""
+        counter <- 1
+        while (any(file.exists(unlist(base_paths)))) {
+            suffix <- paste0("_", counter)
+            base_paths <- list(
+                data = file.path(output_dir, paste0(prefix, suffix, "_data.qs")),
+                results = file.path(output_dir, paste0(prefix, suffix, "_results.qs")),
+                models = file.path(output_dir, paste0(prefix, suffix, "_models.qs")),
+                plots = file.path(output_dir, paste0(prefix, suffix, "_plots.qs"))
+            )
+            counter <- counter + 1
+        }
+    } else {
+        suffix_str <- if (suffix == "") "" else paste0("_", suffix)
+        base_paths <- list(
+            data = file.path(output_dir, paste0(prefix, suffix_str, "_data.qs")),
+            results = file.path(output_dir, paste0(prefix, suffix_str, "_results.qs")),
+            models = file.path(output_dir, paste0(prefix, suffix_str, "_models.qs")),
+            plots = file.path(output_dir, paste0(prefix, suffix_str, "_plots.qs"))
+        )
+    }
+
+    list(
+        output_dir = output_dir,
+        suffix = suffix,
+        files = base_paths
+    )
+}
+
+.masc_validate_metadata <- function(seurat_obj, cluster_var, contrast_var, random_effects, fixed_effects) {
+    meta_cols <- colnames(seurat_obj@meta.data)
+    required_vars <- c(cluster_var, contrast_var)
+    if (!is.null(random_effects)) required_vars <- c(required_vars, random_effects)
+    if (!is.null(fixed_effects)) required_vars <- c(required_vars, fixed_effects)
+
+    missing <- setdiff(required_vars, meta_cols)
+    if (length(missing) > 0) {
+        stop("Missing metadata columns: ", paste(missing, collapse = ", "))
+    }
+
+    # Check that contrast_var is a factor
+    if (!is.factor(seurat_obj@meta.data[[contrast_var]])) {
+        warning(sprintf("Converting '%s' to factor. Please ensure levels are ordered correctly.",
+                       contrast_var), immediate. = TRUE)
+        seurat_obj@meta.data[[contrast_var]] <- as.factor(seurat_obj@meta.data[[contrast_var]])
+    }
+
+    # Check factor levels
+    contrast_levels <- levels(seurat_obj@meta.data[[contrast_var]])
+    if (length(contrast_levels) < 2) {
+        stop(sprintf("Contrast variable '%s' must have at least 2 levels, found: %d",
+                    contrast_var, length(contrast_levels)))
+    }
+
+    # Check cluster assignment
+    cluster_values <- unique(seurat_obj@meta.data[[cluster_var]])
+    if (length(cluster_values) < 2) {
+        stop(sprintf("Cluster variable '%s' must have at least 2 unique values, found: %d",
+                    cluster_var, length(cluster_values)))
+    }
+}
+
+.masc_prepare_data <- function(seurat_obj, cluster_var, contrast_var, random_effects, fixed_effects, verbose, model_formula = NULL) {
+    # Extract metadata
+    dataset <- as.data.frame(seurat_obj@meta.data)
+    cluster <- dataset[[cluster_var]]
+
+    # Ensure cluster is character
+    cluster <- as.character(cluster)
+
+    # Ensure contrast is factor
+    if (!is.factor(dataset[[contrast_var]])) {
+        dataset[[contrast_var]] <- as.factor(dataset[[contrast_var]])
+    }
+
+    # Verify required columns
+    all_vars <- c(contrast_var)
+    if (!is.null(random_effects)) all_vars <- c(all_vars, random_effects)
+    if (!is.null(fixed_effects)) all_vars <- c(all_vars, fixed_effects)
+
+    # Remove any rows with NA in required variables
+    complete_cases <- complete.cases(dataset[, all_vars, drop = FALSE])
+    if (sum(!complete_cases) > 0 && verbose) {
+        warning(sprintf("Removing %d rows with missing values in required variables", sum(!complete_cases)))
+    }
+    dataset <- dataset[complete_cases, all_vars, drop = FALSE]
+    cluster <- cluster[complete_cases]
+
+    # Track variable categories for logging
+    var_categories <- list(categorical = character(0), numeric = character(0), ordinal = character(0))
+    
+    # Coerce known numeric covariates if present (prevents accidental factor treatment)
+    # NOTE: The stroke metadata can contain numeric fields stored as character/factor.
+    numeric_candidates <- intersect(c("age", "bmi", "ht", "wt"), colnames(dataset))
+    for (var in numeric_candidates) {
+        if (var %in% fixed_effects || var %in% random_effects) {
+            if (is.factor(dataset[[var]])) dataset[[var]] <- as.character(dataset[[var]])
+            if (is.character(dataset[[var]])) {
+                x_num <- suppressWarnings(as.numeric(dataset[[var]]))
+                # Only replace if conversion is not catastrophic (i.e., doesn't turn almost everything into NA)
+                if (sum(!is.na(x_num)) >= max(10, floor(0.5 * length(x_num)))) {
+                    dataset[[var]] <- x_num
+                    var_categories$numeric <- c(var_categories$numeric, var)
+                }
+            } else if (is.numeric(dataset[[var]])) {
+                var_categories$numeric <- c(var_categories$numeric, var)
+            }
+        }
+    }
+
+    # Convert random effects to factors if they are character
+    if (!is.null(random_effects)) {
+        for (var in random_effects) {
+            if (var %in% colnames(dataset)) {
+                if (is.character(dataset[[var]]) || is.numeric(dataset[[var]])) {
+                    dataset[[var]] <- as.factor(dataset[[var]])
+                    var_categories$categorical <- c(var_categories$categorical, var)
+                } else if (is.factor(dataset[[var]])) {
+                    var_categories$categorical <- c(var_categories$categorical, var)
+                }
+            }
+        }
+    }
+
+    # Convert fixed effects - numeric should stay numeric, character should become factor
+    if (!is.null(fixed_effects)) {
+        for (var in fixed_effects) {
+            if (var %in% colnames(dataset)) {
+                
+                # Skip if already properly formatted
+                if (is.numeric(dataset[[var]])) {
+                    # Check if it's already in numeric_candidates (tracked above)
+                    if (!var %in% var_categories$numeric) {
+                        var_categories$numeric <- c(var_categories$numeric, var)
+                    }
+                    next  # Keep numeric variables as numeric
+                }
+                
+                if (is.character(dataset[[var]]) || is.logical(dataset[[var]])) {
+                    # Convert to factor, handling NA
+                    var_values <- dataset[[var]]
+                    var_factor <- as.factor(var_values)
+                    
+                    # Check if too many levels (might be problematic)
+                    n_levels <- length(levels(var_factor))
+                    if (n_levels > 20 && verbose) {
+                        warning(sprintf("Variable '%s' has %d levels, which may cause model fitting issues", var, n_levels))
+                    }
+                    
+                    dataset[[var]] <- var_factor
+                    var_categories$categorical <- c(var_categories$categorical, var)
+                    if (verbose && n_levels <= 20) {
+                        cat(sprintf("Converted '%s' to categorical (factor) with %d levels\n", var, n_levels))
+                    }
+                } else if (is.factor(dataset[[var]])) {
+                    var_categories$categorical <- c(var_categories$categorical, var)
+                } else {
+                    # Try to convert to numeric
+                    dataset[[var]] <- tryCatch({
+                        converted <- as.numeric(dataset[[var]])
+                        var_categories$numeric <- c(var_categories$numeric, var)
+                        converted
+                    }, warning = function(w) {
+                        var_categories$categorical <- c(var_categories$categorical, var)
+                        as.factor(dataset[[var]])
+                    }, error = function(e) {
+                        var_categories$categorical <- c(var_categories$categorical, var)
+                        as.factor(dataset[[var]])
+                    })
+                }
+            }
+        }
+    }
+    
+    # Log variable categories
+    if (verbose) {
+        cat("\nVariable categories:\n")
+        if (length(var_categories$numeric) > 0) {
+            cat(sprintf("  * numeric: %s\n", paste(var_categories$numeric, collapse = ", ")))
+        }
+        if (length(var_categories$categorical) > 0) {
+            cat(sprintf("  * categorical: %s\n", paste(var_categories$categorical, collapse = ", ")))
+        }
+        if (length(var_categories$ordinal) > 0) {
+            cat(sprintf("  * ordinal: %s\n", paste(var_categories$ordinal, collapse = ", ")))
+        }
+        cat("\n")
+    }
+
+    if (verbose) {
+        n_cells <- nrow(dataset)
+        n_clusters <- length(unique(cluster))
+        n_contrast_levels <- length(levels(dataset[[contrast_var]]))
+        if (verbose) cat(sprintf("Prepared data: %d cells, %d clusters, %d contrast levels\n", n_cells, n_clusters, n_contrast_levels))
+    }
+
+    result_list <- list(dataset = dataset, cluster = cluster)
+    
+    # Store formula if provided (for plotting later)
+    if (!is.null(model_formula)) {
+        attr(result_list, "formula") <- model_formula
+    }
+    
+    result_list
+}
+
+.masc_run_analysis <- function(dataset, cluster, contrast, random_effects, fixed_effects,
+                                save_models, save_model_dir, verbose) {
+    # This is the core MASC function, adapted from the original implementation
+    # Generate design matrix from cluster assignments
+    cluster <- as.character(cluster)
+    
+    # Ensure cluster and dataset have same length
+    if (length(cluster) != nrow(dataset)) {
+        stop(sprintf("Length mismatch: cluster has %d elements, dataset has %d rows", 
+                     length(cluster), nrow(dataset)))
+    }
+    
+    # Create cluster data frame for model.matrix
+    cluster_df <- data.frame(cluster = cluster, stringsAsFactors = FALSE)
+    
+    if (verbose) {
+        cat(sprintf("Creating design matrix for %d clusters\n", length(unique(cluster))))
+    }
+    
+    designmat <- tryCatch({
+        mm <- model.matrix(~ cluster + 0, data = cluster_df)
+        if (verbose) {
+            cat(sprintf("Design matrix created: %d x %d\n", nrow(mm), ncol(mm)))
+        }
+        mm
+    }, error = function(e) {
+        stop(sprintf("Failed to create design matrix: %s", e$message))
+    })
+    
+    # Clean column names - remove "cluster" prefix if present
+    original_colnames <- colnames(designmat)
+    colnames(designmat) <- gsub("^cluster", "", colnames(designmat))
+    
+    if (verbose && any(original_colnames != colnames(designmat))) {
+        cat(sprintf("Cleaned column names: %s -> %s\n", 
+                       paste(head(original_colnames, 2), collapse = ", "),
+                       paste(head(colnames(designmat), 2), collapse = ", ")))
+    }
+    
+    dataset <- cbind(designmat, dataset)
+
+    # Create output list to hold results - use colnames instead of attributes
+    cluster_names <- colnames(designmat)
+    res <- vector(mode = "list", length = length(cluster_names))
+    names(res) <- cluster_names
+
+    # Create model formulas
+    if (!is.null(fixed_effects) && !is.null(random_effects)) {
+        model_rhs <- paste0(c(paste0(fixed_effects, collapse = " + "),
+                              paste0("(1|", random_effects, ")", collapse = " + ")),
+                            collapse = " + ")
+        if (verbose) {
+            cat(sprintf("Using model: cluster ~ %s + %s\n", contrast, model_rhs))
+        }
+    } else if (!is.null(fixed_effects) && is.null(random_effects)) {
+        model_rhs <- paste0(fixed_effects, collapse = " + ")
+        if (verbose) {
+            cat(sprintf("Using model: cluster ~ %s + %s\n", contrast, model_rhs))
+        }
+        stop("MASC requires at least one random effect term")
+    } else if (is.null(fixed_effects) && !is.null(random_effects)) {
+        model_rhs <- paste0("(1|", random_effects, ")", collapse = " + ")
+        if (verbose) {
+            cat(sprintf("Using model: cluster ~ %s + %s\n", contrast, model_rhs))
+        }
+    } else {
+        model_rhs <- "1"
+        if (verbose) {
+            cat(sprintf("Using model: cluster ~ %s + %s\n", contrast, model_rhs))
+        }
+        stop("MASC requires at least one random effect term")
+    }
+
+    # Initialize list to store model objects
+    cluster_models <- vector(mode = "list", length = length(cluster_names))
+    names(cluster_models) <- cluster_names
+
+    # Run nested mixed-effects models for each cluster
+    for (i in seq_along(cluster_names)) {
+        test_cluster <- cluster_names[i]
+        if (verbose) {
+            cat(sprintf("Creating logistic mixed models for %s\n", test_cluster))
+        }
+
+        # Ensure test_cluster column exists in dataset
+        if (!test_cluster %in% colnames(dataset)) {
+            if (verbose) {
+                warning(sprintf("Cluster column '%s' not found in dataset. Available: %s", 
+                               test_cluster, paste(head(colnames(dataset), 10), collapse = ", ")))
+            }
+            cluster_models[[i]] <- NULL
+            next
+        }
+        
+        null_fm_str <- paste0(c(paste0(test_cluster, " ~ 1 + "),
+                               model_rhs), collapse = "")
+        full_fm_str <- paste0(c(paste0(test_cluster, " ~ ", contrast, " + "),
+                               model_rhs), collapse = "")
+        
+        if (verbose) {
+            cat(sprintf("Formula for %s - Null: %s\n", test_cluster, null_fm_str))
+        }
+        
+        null_fm <- tryCatch({
+            as.formula(null_fm_str)
+        }, error = function(e) {
+            stop(sprintf("Failed to create null formula for %s: %s", test_cluster, e$message))
+        })
+        
+        full_fm <- tryCatch({
+            as.formula(full_fm_str)
+        }, error = function(e) {
+            stop(sprintf("Failed to create full formula for %s: %s", test_cluster, e$message))
+        })
+
+        # Run null and full mixed-effects models
+        null_model <- tryCatch({
+            result <- lme4::glmer(formula = null_fm, data = dataset,
+                                 family = binomial, nAGQ = 1, verbose = 0,
+                                 control = lme4::glmerControl(optimizer = "bobyqa"))
+            result
+        }, error = function(e) {
+            if (verbose) {
+                warning(sprintf("Null model failed for cluster %s: %s", test_cluster, e$message))
+            }
+            NULL
+        }, warning = function(w) {
+            # Suppress convergence warnings, but continue
+            if (verbose && grepl("convergence|singular", w$message, ignore.case = TRUE)) {
+                # Just continue - model may still be usable
+            }
+            NULL
+        })
+
+        full_model <- tryCatch({
+            result <- lme4::glmer(formula = full_fm, data = dataset,
+                                 family = binomial, nAGQ = 1, verbose = 0,
+                                 control = lme4::glmerControl(optimizer = "bobyqa"))
+            result
+        }, error = function(e) {
+            if (verbose) {
+                warning(sprintf("Full model failed for cluster %s: %s", test_cluster, e$message))
+            }
+            NULL
+        }, warning = function(w) {
+            # Suppress convergence warnings
+            if (verbose && grepl("convergence|singular", w$message, ignore.case = TRUE)) {
+                # Just continue
+            }
+            NULL
+        })
+
+        if (!is.null(null_model) && !is.null(full_model)) {
+            # Perform LRT
+            model_lrt <- NULL
+            tryCatch({
+                model_lrt <- anova(null_model, full_model)
+            }, error = function(e) {
+                if (verbose) {
+                    warning(sprintf("LRT failed for cluster %s: %s", test_cluster, e$message))
+                }
+                model_lrt <<- NULL
+            })
+            
+            if (is.null(model_lrt)) {
+                cluster_models[[i]] <- NULL
+                next
+            }
+            
+            # Calculate confidence intervals for contrast term beta
+            contrast_levels <- levels(dataset[[contrast]])
+            if (length(contrast_levels) < 2) {
+                if (verbose) {
+                    warning(sprintf("Contrast variable has < 2 levels for cluster %s", test_cluster))
+                }
+                cluster_models[[i]] <- NULL
+                next
+            }
+            
+            contrast_lvl2 <- paste0(contrast, contrast_levels[2])
+            
+            # Check if contrast term exists in model
+            coef_names <- names(lme4::fixef(full_model))
+            if (!contrast_lvl2 %in% coef_names) {
+                if (verbose) {
+                    warning(sprintf("Contrast term %s not found in model for cluster %s", contrast_lvl2, test_cluster))
+                }
+                contrast_ci <- matrix(NA, nrow = 1, ncol = 2, 
+                                     dimnames = list(contrast_lvl2, c("2.5 %", "97.5 %")))
+            } else {
+                contrast_ci <- tryCatch({
+                    lme4::confint.merMod(full_model, method = "Wald", parm = contrast_lvl2)
+                }, error = function(e) {
+                    if (verbose) {
+                        warning(sprintf("CI calculation failed for %s: %s", test_cluster, e$message))
+                    }
+                    matrix(NA, nrow = 1, ncol = 2, 
+                          dimnames = list(contrast_lvl2, c("2.5 %", "97.5 %")))
+                })
+            }
+
+            cluster_models[[i]] <- list(
+                null_model = null_model,
+                full_model = full_model,
+                model_lrt = model_lrt,
+                confint = contrast_ci
+            )
+        } else {
+            cluster_models[[i]] <- NULL
+        }
+    }
+
+    # Organize results into output dataframe
+    output <- data.frame(
+        cluster = cluster_names,
+        size = colSums(designmat),
+        stringsAsFactors = FALSE
+    )
+
+    contrast_levels <- levels(dataset[[contrast]])
+    contrast_lvl2 <- paste0(contrast, contrast_levels[2])
+
+    output$model.pvalue <- sapply(cluster_models, function(x) {
+        if (is.null(x) || is.null(x$model_lrt)) return(NA_real_)
+        x$model_lrt[["Pr(>Chisq)"]][2]
+    })
+
+    output[[paste(contrast_lvl2, "OR", sep = ".")]] <- sapply(cluster_models, function(x) {
+        if (is.null(x) || is.null(x$full_model)) return(NA_real_)
+        coef_val <- lme4::fixef(x$full_model)[[contrast_lvl2]]
+        if (is.na(coef_val)) return(NA_real_)
+        exp(coef_val)
+    })
+
+    output[[paste(contrast_lvl2, "OR", "95pct.ci.lower", sep = ".")]] <- sapply(cluster_models, function(x) {
+        if (is.null(x) || is.null(x$confint)) return(NA_real_)
+        if (!contrast_lvl2 %in% rownames(x$confint)) return(NA_real_)
+        ci_val <- x$confint[contrast_lvl2, "2.5 %"]
+        if (is.na(ci_val)) return(NA_real_)
+        exp(ci_val)
+    })
+
+    output[[paste(contrast_lvl2, "OR", "95pct.ci.upper", sep = ".")]] <- sapply(cluster_models, function(x) {
+        if (is.null(x) || is.null(x$confint)) return(NA_real_)
+        if (!contrast_lvl2 %in% rownames(x$confint)) return(NA_real_)
+        ci_val <- x$confint[contrast_lvl2, "97.5 %"]
+        if (is.na(ci_val)) return(NA_real_)
+        exp(ci_val)
+    })
+
+    list(results = output, models = if (save_models) cluster_models else NULL)
+}
+
+.masc_plot_bundle <- function(masc_results, cluster_var, contrast_var, save, save_path, verbose,
+                               fixed_effects = NULL, random_effects = NULL, model_formula = NULL) {
+    if (!requireNamespace("ggplot2", quietly = TRUE)) {
+        if (verbose) warning("ggplot2 not available; skipping plots.")
+        return(NULL)
+    }
+
+    plots <- list()
+
+    # Plot 1: OR with confidence intervals (forest plot style) - log scale
+    if (any(grepl("\\.OR$", names(masc_results)))) {
+        or_col <- grep("\\.OR$", names(masc_results), value = TRUE)[1]
+        ci_lower_col <- grep("ci\\.lower", names(masc_results), value = TRUE)[1]
+        ci_upper_col <- grep("ci\\.upper", names(masc_results), value = TRUE)[1]
+        pvalue_col <- if ("model.pvalue" %in% names(masc_results)) "model.pvalue" else NULL
+
+        if (!is.null(or_col) && !is.null(ci_lower_col) && !is.null(ci_upper_col)) {
+            # Extract contrast level from OR column name (e.g., "g32.OR" -> "g32" -> "2")
+            # OR column format: "{contrast_var}{level2}.OR" (e.g., "g32.OR" means g3 level 2)
+            or_col_base <- gsub("\\.OR$", "", or_col)
+            contrast_level2_str <- gsub(paste0("^", contrast_var), "", or_col_base)
+            
+            # Determine contrast level names for legend
+            # Level 1 is reference (OR=1), Level 2 is the comparison
+            if (nchar(contrast_level2_str) > 0) {
+                level1_label <- paste0(contrast_var, " == ", "Reference")
+                level2_label <- paste0(contrast_var, " == ", contrast_level2_str)
+            } else {
+                # Fallback if we can't parse
+                level1_label <- paste0(contrast_var, " == Reference")
+                level2_label <- paste0(contrast_var, " == Level2")
+            }
+            
+            plot_df <- masc_results[, c("cluster", or_col, ci_lower_col, ci_upper_col)]
+            if (!is.null(pvalue_col)) {
+                plot_df$pvalue <- masc_results[[pvalue_col]]
+            } else {
+                plot_df$pvalue <- NA_real_
+            }
+            names(plot_df) <- c("cluster", "OR", "CI_lower", "CI_upper", "pvalue")
+            plot_df <- plot_df[!is.na(plot_df$OR), ]
+            
+            # Convert to log scale (handle zeros/infinities)
+            plot_df$logOR <- log10(pmax(plot_df$OR, .Machine$double.xmin))
+            plot_df$logCI_lower <- log10(pmax(plot_df$CI_lower, .Machine$double.xmin))
+            plot_df$logCI_upper <- log10(pmax(plot_df$CI_upper, .Machine$double.xmin))
+            
+            # Identify extreme values (OR < 0.01 or OR > 100, i.e., |log10(OR)| > 2)
+            plot_df$is_extreme <- abs(plot_df$logOR) > 2
+            n_extreme <- sum(plot_df$is_extreme, na.rm = TRUE)
+            
+            # Determine significance and direction for coloring
+            # p < 0.05 and OR > 1: red (level2 favor)
+            # p < 0.05 and OR < 1: blue (level1 favor)
+            # else: black (non-significant)
+            plot_df$sig_direction <- ifelse(
+                !is.na(plot_df$pvalue) & plot_df$pvalue < 0.05,
+                ifelse(plot_df$OR > 1, "level2_favor", "level1_favor"),
+                "non_sig"
+            )
+            
+            # Create color mapping for labels
+            plot_df$label_color <- ifelse(plot_df$sig_direction == "level2_favor", "red",
+                                         ifelse(plot_df$sig_direction == "level1_favor", "blue", "black"))
+            
+            # Create display dataframe: show non-extreme values normally, extreme values as capped
+            plot_df$logOR_display <- ifelse(plot_df$is_extreme,
+                                           ifelse(plot_df$logOR > 2, 2.1, -2.1),
+                                           plot_df$logOR)
+            plot_df$logCI_lower_display <- ifelse(plot_df$is_extreme,
+                                                  ifelse(plot_df$logOR > 2, 2.05, -2.15),
+                                                  plot_df$logCI_lower)
+            plot_df$logCI_upper_display <- ifelse(plot_df$is_extreme,
+                                                  ifelse(plot_df$logOR > 2, 2.15, -2.05),
+                                                  plot_df$logCI_upper)
+            
+            # Order by logOR for better visualization
+            plot_df <- plot_df[order(plot_df$logOR_display, decreasing = FALSE), ]
+            plot_df$cluster <- factor(plot_df$cluster, levels = plot_df$cluster)
+            
+            # Build plot with color based on significance and direction
+            p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$cluster, y = .data$logOR_display)) +
+                ggplot2::geom_point(ggplot2::aes(color = .data$sig_direction), size = 2) +
+                ggplot2::geom_errorbar(ggplot2::aes(ymin = .data$logCI_lower_display,
+                                                    ymax = .data$logCI_upper_display,
+                                                    color = .data$sig_direction),
+                                      width = 0.2) +
+                ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+                ggplot2::scale_color_manual(
+                    values = c("level2_favor" = "red", "level1_favor" = "blue", "non_sig" = "black"),
+                    labels = c("level2_favor" = level2_label, "level1_favor" = level1_label, "non_sig" = "Non-significant"),
+                    name = "Significance"
+                ) +
+                ggplot2::coord_flip() +
+                ggplot2::labs(
+                    title = "MASC Results: Odds Ratios (log10 scale)",
+                    x = "Cluster",
+                    y = "log10(Odds Ratio) (95% CI)"
+                ) +
+                ggplot2::theme_minimal() +
+                ggplot2::theme(legend.position = "bottom")
+            
+            # Apply colors to y-axis labels using theme
+            # Create named vector of colors matching cluster order
+            cluster_levels <- levels(plot_df$cluster)
+            label_colors <- plot_df$label_color[match(cluster_levels, plot_df$cluster)]
+            names(label_colors) <- cluster_levels
+            
+            # Use ggtext if available for colored labels, otherwise use theme workaround
+            if (requireNamespace("ggtext", quietly = TRUE)) {
+                # Use ggtext for colored axis labels
+                p <- p + ggplot2::theme(axis.text.y = ggtext::element_markdown())
+                # Create markdown-formatted labels with colors
+                colored_labels <- sapply(cluster_levels, function(cl) {
+                    color <- label_colors[cl]
+                    sprintf("<span style='color:%s'>%s</span>", color, cl)
+                })
+                p <- p + ggplot2::scale_x_discrete(labels = colored_labels)
+            } else {
+                # Fallback: use theme with vectorized colors (may show warning)
+                p <- p + ggplot2::theme(axis.text.y = ggplot2::element_text(color = label_colors))
+            }
+            
+            # Add text annotation for extreme values (use geom_text instead of annotate for better control)
+            if (n_extreme > 0) {
+                extreme_df <- plot_df[plot_df$is_extreme, ]
+                # Format OR values for display
+                extreme_df$or_label <- sprintf("OR=%.2e", extreme_df$OR)
+                
+                # Use geom_text with better positioning
+                # OR > 1 (logOR > 0): label on the left (negative hjust)
+                # OR < 1 (logOR < 0): label on the right (positive hjust)
+                p <- p + ggplot2::geom_text(
+                    data = extreme_df,
+                    ggplot2::aes(x = .data$cluster, y = .data$logOR_display, label = .data$or_label),
+                    hjust = ifelse(extreme_df$OR > 1, 1.2, -1.2),
+                    vjust = 0.5,
+                    size = 2.8,
+                    color = "orange",
+                    inherit.aes = FALSE
+                )
+                
+                # Add subtitle with count
+                p <- p + ggplot2::labs(subtitle = sprintf("%d cluster(s) with extreme OR values (|log10(OR)| > 2) shown as capped", n_extreme))
+            }
+            
+            # Handle model_formula: if TRUE, get from masc_results; otherwise use provided
+            formula_to_display <- NULL
+            if (identical(model_formula, TRUE) || identical(model_formula, "T") || identical(model_formula, "TRUE")) {
+                # Try to get from masc_results attributes
+                if (!is.null(attr(masc_results, "formula"))) {
+                    formula_to_display <- attr(masc_results, "formula")
+                } else if ("formula" %in% names(masc_results)) {
+                    formula_to_display <- masc_results$formula[1]
+                }
+            } else if (!is.null(model_formula)) {
+                formula_to_display <- model_formula
+            } else if (!is.null(fixed_effects) || !is.null(random_effects)) {
+                # Construct formula from components
+                formula_to_display <- paste0(cluster_var, " ~ ", contrast_var)
+                if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                    formula_to_display <- paste0(formula_to_display, " + ", paste(fixed_effects, collapse = " + "))
+                }
+                if (!is.null(random_effects) && length(random_effects) > 0) {
+                    formula_to_display <- paste0(formula_to_display, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+                }
+            }
+            
+            # Build detailed caption with formula and variable info (centered)
+            if (!is.null(formula_to_display)) {
+                # Add target_vars, covariates, random effects info
+                target_vars_str <- paste0(contrast_var, "(categorical)")
+                covariates_str <- if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                    paste(fixed_effects, collapse = ", ")
+                } else {
+                    "none"
+                }
+                random_effects_str <- if (!is.null(random_effects) && length(random_effects) > 0) {
+                    paste(random_effects, collapse = ", ")
+                } else {
+                    "none"
+                }
+                
+                # Use ggtext for bold formatting if available
+                if (requireNamespace("ggtext", quietly = TRUE)) {
+                    caption_text <- paste0(
+                        formula_to_display, "\n\n",
+                        "**target_vars:** ", target_vars_str, "  |  ",
+                        "**covariates:** ", covariates_str, "  |  ",
+                        "**random effect:** ", random_effects_str
+                    )
+                    p <- p + ggplot2::labs(caption = caption_text) +
+                        ggplot2::theme(plot.caption = ggtext::element_markdown(hjust = 0.5, size = 9))
+                } else {
+                    # Fallback: plain text
+                    caption_text <- paste0(
+                        formula_to_display, "\n\n",
+                        "target_vars: ", target_vars_str, " | ",
+                        "covariates: ", covariates_str, " | ",
+                        "random effect: ", random_effects_str
+                    )
+                    p <- p + ggplot2::labs(caption = caption_text) +
+                        ggplot2::theme(plot.caption = ggplot2::element_text(hjust = 0.5, size = 9))
+                }
+            }
+            
+            plots$or_forest <- p
+        }
+    }
+
+    # Plot 2: P-value bar plot
+    if ("model.pvalue" %in% names(masc_results)) {
+        plot_df <- masc_results[, c("cluster", "model.pvalue")]
+        if (any(grepl("\\.OR$", names(masc_results)))) {
+            or_col <- grep("\\.OR$", names(masc_results), value = TRUE)[1]
+            plot_df$OR <- masc_results[[or_col]]
+        } else {
+            plot_df$OR <- NA_real_
+        }
+        
+        # Determine significance and direction for coloring (same logic as OR plot)
+        plot_df$sig_direction <- ifelse(
+            !is.na(plot_df$model.pvalue) & plot_df$model.pvalue < 0.05,
+            ifelse(!is.na(plot_df$OR) & plot_df$OR > 1, "level2_favor", "level1_favor"),
+            "non_sig"
+        )
+        plot_df$bar_color <- ifelse(plot_df$sig_direction == "level2_favor", "red",
+                                    ifelse(plot_df$sig_direction == "level1_favor", "blue", "black"))
+        plot_df$label_color <- plot_df$bar_color
+        
+        plot_df <- plot_df[order(plot_df$model.pvalue), ]
+        plot_df$cluster <- factor(plot_df$cluster, levels = plot_df$cluster)
+        
+        # Extract contrast level for legend (same as OR plot)
+        if (any(grepl("\\.OR$", names(masc_results)))) {
+            or_col_base <- gsub("\\.OR$", "", or_col)
+            contrast_level2_str <- gsub(paste0("^", contrast_var), "", or_col_base)
+            if (nchar(contrast_level2_str) > 0) {
+                level1_label <- paste0(contrast_var, " == Reference")
+                level2_label <- paste0(contrast_var, " == ", contrast_level2_str)
+            } else {
+                level1_label <- paste0(contrast_var, " == Reference")
+                level2_label <- paste0(contrast_var, " == Level2")
+            }
+        } else {
+            level1_label <- paste0(contrast_var, " == Reference")
+            level2_label <- paste0(contrast_var, " == Level2")
+        }
+
+        p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$cluster, y = -log10(.data$model.pvalue))) +
+            ggplot2::geom_bar(stat = "identity", ggplot2::aes(fill = .data$sig_direction)) +
+            ggplot2::geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "red") +
+            ggplot2::scale_fill_manual(
+                values = c("level2_favor" = "red", "level1_favor" = "blue", "non_sig" = "black"),
+                labels = c("level2_favor" = level2_label, "level1_favor" = level1_label, "non_sig" = "Non-significant"),
+                name = "Significance"
+            ) +
+            ggplot2::coord_flip() +
+            ggplot2::labs(
+                title = "MASC Results: P-values",
+                x = "Cluster",
+                y = "-log10(p-value)"
+            ) +
+            ggplot2::theme_minimal() +
+            ggplot2::theme(legend.position = "bottom")
+        
+        # Apply colors to y-axis labels
+        cluster_levels <- levels(plot_df$cluster)
+        label_colors <- plot_df$label_color[match(cluster_levels, plot_df$cluster)]
+        names(label_colors) <- cluster_levels
+        
+        if (requireNamespace("ggtext", quietly = TRUE)) {
+            colored_labels <- sapply(cluster_levels, function(cl) {
+                color <- label_colors[cl]
+                sprintf("<span style='color:%s'>%s</span>", color, cl)
+            })
+            p <- p + ggplot2::scale_x_discrete(labels = colored_labels) +
+                ggplot2::theme(axis.text.y = ggtext::element_markdown())
+        } else {
+            p <- p + ggplot2::theme(axis.text.y = ggplot2::element_text(color = label_colors))
+        }
+        
+        # Handle model_formula: if TRUE, get from masc_results; otherwise use provided
+        formula_to_display <- NULL
+        if (identical(model_formula, TRUE) || identical(model_formula, "T") || identical(model_formula, "TRUE")) {
+            # Try to get from masc_results attributes
+            if (!is.null(attr(masc_results, "formula"))) {
+                formula_to_display <- attr(masc_results, "formula")
+            } else if ("formula" %in% names(masc_results)) {
+                formula_to_display <- masc_results$formula[1]
+            }
+        } else if (!is.null(model_formula)) {
+            formula_to_display <- model_formula
+        } else if (!is.null(fixed_effects) || !is.null(random_effects)) {
+            # Construct formula from components
+            formula_to_display <- paste0(cluster_var, " ~ ", contrast_var)
+            if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                formula_to_display <- paste0(formula_to_display, " + ", paste(fixed_effects, collapse = " + "))
+            }
+            if (!is.null(random_effects) && length(random_effects) > 0) {
+                formula_to_display <- paste0(formula_to_display, " + (1|", paste(random_effects, collapse = ") + (1|"), ")")
+            }
+        }
+        
+        # Build detailed caption with formula and variable info (centered)
+        if (!is.null(formula_to_display)) {
+            # Add target_vars, covariates, random effects info
+            target_vars_str <- paste0(contrast_var, "(categorical)")
+            covariates_str <- if (!is.null(fixed_effects) && length(fixed_effects) > 0) {
+                paste(fixed_effects, collapse = ", ")
+            } else {
+                "none"
+            }
+            random_effects_str <- if (!is.null(random_effects) && length(random_effects) > 0) {
+                paste(random_effects, collapse = ", ")
+            } else {
+                "none"
+            }
+            
+            # Use ggtext for bold formatting if available
+            if (requireNamespace("ggtext", quietly = TRUE)) {
+                caption_text <- paste0(
+                    formula_to_display, "\n\n",
+                    "**target_vars:** ", target_vars_str, "  |  ",
+                    "**covariates:** ", covariates_str, "  |  ",
+                    "**random effect:** ", random_effects_str
+                )
+                p <- p + ggplot2::labs(caption = caption_text) +
+                    ggplot2::theme(plot.caption = ggtext::element_markdown(hjust = 0.5, size = 9))
+            } else {
+                # Fallback: plain text
+                caption_text <- paste0(
+                    formula_to_display, "\n\n",
+                    "target_vars: ", target_vars_str, " | ",
+                    "covariates: ", covariates_str, " | ",
+                    "random effect: ", random_effects_str
+                )
+                p <- p + ggplot2::labs(caption = caption_text) +
+                    ggplot2::theme(plot.caption = ggplot2::element_text(hjust = 0.5, size = 9))
+            }
+        }
+        
+        plots$pvalue_bar <- p
+    }
+
+    if (save && length(plots) > 0) {
+        base_prefix <- tools::file_path_sans_ext(save_path)
+        for (plot_name in names(plots)) {
+            plot_obj <- plots[[plot_name]]
+            png_path <- sprintf("%s_%s.png", base_prefix, plot_name)
+            pdf_path <- sprintf("%s_%s.pdf", base_prefix, plot_name)
+            tryCatch({
+                ggplot2::ggsave(filename = png_path, plot = plot_obj, width = 8, height = 6, dpi = 300)
+                ggplot2::ggsave(filename = pdf_path, plot = plot_obj, width = 8, height = 6, device = "pdf")
+            }, error = function(e) {
+                warning(sprintf("Failed to save plot '%s': %s", plot_name, e$message))
+            })
+        }
+        if (verbose) cat(sprintf("Saved plots as PNG/PDF with prefix %s\n", base_prefix))
+    }
+
+    if (length(plots) == 0) return(NULL)
+    plots
+}

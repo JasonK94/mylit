@@ -37,6 +37,29 @@ results <- run_masc_pipeline(
 print(results$masc_results)
 ```
 
+<<<<<<< HEAD
+=======
+### CLI 실행 (추천)
+
+`optparse` 기반 CLI: `scripts/masc/run_masc.R`
+
+```bash
+Rscript scripts/masc/run_masc.R \
+  -i /data/user3/sobj/is2_IS_3_clustered.qs \
+  -o /data/user3/sobj/masc/stroke_complex_cli \
+  --cluster_var anno3 \
+  --contrast_var g3 \
+  --random_effects hos_no \
+  --fixed_effects GEM,SET,age,sex,bmi,hx_smok,hx_alcohol \
+  --prefix masc_anno3_complex
+```
+
+### Plot 저장 형식
+
+- 기존: plot bundle을 `.qs`로 저장
+- 현재: `--no_plot`이 아니면 **PNG/PDF 파일로 저장** (예: `..._plots_or_forest.png`, `..._plots_or_forest.pdf`)
+
+>>>>>>> masc
 ### 주요 파라미터
 
 | 파라미터 | 설명 | 예시 |
@@ -76,3 +99,71 @@ scripts/
 └── run_masc_simple.R   # 단순화된 테스트 스크립트
 ```
 
+<<<<<<< HEAD
+=======
+
+### 변수 선택 및 모델 설정
+
+#### 변수 타입 인식
+
+MASC 파이프라인은 입력 변수들을 자동으로 분류하고 로그를 출력합니다:
+
+```
+Variable categories:
+  * numeric: age
+  * categorical: hos_no, GEM, sex
+```
+
+- **numeric**: 연속형 변수 (예: `age`, `bmi`). 강제 numeric 캐스팅 적용.
+- **categorical**: 범주형 변수 (factor). 문자형/숫자형 ID는 자동으로 factor로 변환.
+
+#### 중첩 구조 주의
+
+**중요**: 이 데이터셋에서는 변수 간 완전 포함 관계가 있습니다:
+- `hos_no` ⊂ `GEM` ⊂ `SET` (완전 중첩)
+
+따라서 **동시에 포함하지 않도록 주의**:
+- ✅ 권장: `g3 + age + sex + GEM + (1|hos_no)` (GEM과 hos_no는 동시 사용 가능, 단 GEM이 fixed, hos_no가 random)
+- ❌ 피해야 할 조합: `GEM + SET` (SET이 GEM을 완전 포함)
+- ⚠️ `bmi`는 결측값이 많아 기본적으로 제외하는 것을 권장합니다.
+
+#### CLI에서 자동 필터링
+
+`scripts/masc/run_masc.R`는 `--fixed_effects`에 `GEM,SET`이 함께 들어오면 자동으로 `SET`을 제거하고 경고를 출력합니다.
+
+### renv 활성화
+
+CLI 스크립트는 기본적으로 `/home/user3/GJC_KDW_250721/renv`를 활성화합니다.
+다른 경로를 사용하려면 `--renv` 옵션을 지정:
+
+```bash
+Rscript scripts/masc/run_masc.R \
+  --renv /path/to/your/renv \
+  ...
+```
+
+
+### 빠른 플롯 생성 (중간 결과 파일 사용)
+
+분석이 이미 완료되어 `masc_results.qs` 파일만 있는 경우, 플롯만 빠르게 생성할 수 있습니다:
+
+```bash
+Rscript scripts/masc/plot_masc.R \
+  --results /data/user3/sobj/masc/stroke_complex/masc_anno3_complex_results.qs \
+  -o /data/user3/sobj/masc/stroke_complex \
+  --prefix masc_anno3_complex \
+  --cluster_var anno3 \
+  --contrast_var g3
+```
+
+**시간 절약**: `.masc_run_analysis` 단계(각 클러스터마다 `glmer` 모델 실행)가 rate limiting step이므로, 중간 결과 파일로부터 플롯만 생성하면 매우 빠릅니다.
+
+### Plot 특징
+
+- **OR Forest Plot**: `log10` scale로 표시하여 extreme 값도 명확히 볼 수 있습니다.
+- **Extreme 값 처리**: `|log10(OR)| > 2` (즉, OR < 0.01 또는 OR > 100)인 경우:
+  - 그래프에서는 ±2.1로 capping하여 표시
+  - 실제 OR 값은 annotation으로 표시 (예: `(OR=1.69e+03)`)
+  - 범례에서 "Extreme (capped)"로 구분
+
+>>>>>>> masc
